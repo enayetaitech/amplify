@@ -1,7 +1,6 @@
-// middlewares/error.middleware.ts
 import { Request, Response, NextFunction } from "express";
-import { ICustomError} from "../../../shared/interface/error.interface"
-import  ErrorHandler from "../../../shared/utils/ErrorHandler"
+import { ICustomError} from "../../shared/interface/error.interface"
+import  ErrorHandler from "../../shared/utils/ErrorHandler"
 
 
 const errorMiddleware = (
