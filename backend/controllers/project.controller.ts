@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { sendResponse } from "../utils/responseHelpers";
 import ProjectFormModel, { IProjectFormDocument } from "../model/ProjectFormModel";
+import User from "../model/UserModel";
+import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
+import mongoose from "mongoose";
 
 
 export const saveProgress = async (
@@ -64,5 +68,53 @@ export const saveProgress = async (
       "Progress saved successfully",
       201
     );
+  }
+};
+
+
+export const createProjectByExternalAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId, uniqueId, projectData } = req.body;
+
+  if (!userId || !projectData) {
+    throw new ErrorHandler("User ID and project data are required", 400);
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = await User.findById(userId).session(session);
+    if (!user) throw new ErrorHandler("User not found", 404);
+
+    if (["AmplifyTechHost", "AmplifyModerator"].includes(user.role)) {
+      throw new ErrorHandler("You are not authorized to create a project", 403);
+    }
+
+    // Create the project
+    const createdProject = await ProjectModel.create(
+      [{ ...projectData, createdBy: userId }],
+      { session }
+    );
+
+    // Delete draft if uniqueId exists
+    if (uniqueId) {
+      await ProjectModel.findByIdAndDelete(uniqueId).session(session);
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Populate tags outside the transaction (optional)
+    const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
+
+    sendResponse(res, populatedProject, "Project created successfully", 201);
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
   }
 };
