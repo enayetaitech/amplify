@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import {IUser} from "../../shared/interface/user.interface"
-interface IUserDocument extends IUser, Document {}
+export interface IUserDocument extends IUser, Document {}
 
 const UserSchema: Schema<IUserDocument> = new Schema(
   {

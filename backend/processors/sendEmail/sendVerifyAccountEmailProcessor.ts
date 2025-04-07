@@ -1,11 +1,7 @@
 import transporter from "../../config/nodemailer.config";
 import config from "../../config/index"
+import {SendEmailOptions} from "../../../shared/interface/sendEmail.interface"
 
-interface SendEmailOptions {
-  to: string;
-  subject: string;
-  html: string;
-}
 
 export const sendEmail = async (options: SendEmailOptions): Promise<void> => {
   const mailOptions = {
