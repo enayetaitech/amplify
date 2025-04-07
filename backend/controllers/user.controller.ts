@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs';
 import User from '../model/UserModel';
 import ErrorHandler from '../../shared/utils/ErrorHandler';
 import { sendResponse } from '../utils/responseHelpers';
-import { sendEmail } from '../utils/email';
+// import { sendEmail } from '../utils/email';
 import { verificationEmailTemplate } from '../constants/emailTemplates';
+import { sendEmail } from '../processors/sendEmail/sendVerifyAccountEmailProcessor';
 
 export const createAccount = async (
   req: Request,
@@ -23,7 +24,6 @@ export const createAccount = async (
     termsAccepted,
   } = req.body;
 
-  console.log(req.body)
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
