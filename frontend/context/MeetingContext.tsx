@@ -1,3 +1,4 @@
+"use client"
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define a Meeting type (customize the properties as needed)

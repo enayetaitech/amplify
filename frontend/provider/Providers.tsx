@@ -1,7 +1,8 @@
-import { AuthProvider } from '@/context/AuthContext';
-import { DashboardProvider } from '@/context/DashboardContext';
-import { GlobalProvider } from '@/context/GlobalContext';
-import { MeetingProvider } from '@/context/MeetingContext';
+
+import { AuthProvider } from 'context/AuthContext';
+import { DashboardProvider } from 'context/DashboardContext';
+import { GlobalProvider } from 'context/GlobalContext';
+import { MeetingProvider } from 'context/MeetingContext';
 import React, { ReactNode } from 'react';
 
 

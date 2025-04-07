@@ -1,3 +1,4 @@
+"use client"
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define the shape for dashboard stats (customize as needed)
