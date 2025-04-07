@@ -4,8 +4,25 @@ import config from "./config/index";
 import connectDB from "./config/db";
 import errorMiddleware from "./middlewares/error.middleware";
 import mainRoutes from "./routes/index"
+import cors from "cors";
 
 const app = express();
+
+// ✅ CORS config
+const allowedOrigins = ["http://localhost:3000"];
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 // Middleware to parse JSON bodies
 app.use(express.json());
