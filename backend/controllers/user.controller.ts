@@ -328,8 +328,9 @@ export const deleteUser = async (
   // Update all projects where this user is the creator.
   await ProjectModel.updateMany({ createdBy: user._id }, { $set: { createdBy: defaultUserId } });
 
-  // Delete the user.
-  await User.deleteOne({ _id: user._id });
+   // Instead of deleting the user, update the isDeleted field to true.
+   user.isDeleted = true;
+   await user.save();
 
   // Send a success response.
   sendResponse(res, null, 'User deleted successfully', 200);
