@@ -1,4 +1,5 @@
 
+import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from 'context/AuthContext';
 import { DashboardProvider } from 'context/DashboardContext';
 import { GlobalProvider } from 'context/GlobalContext';
@@ -17,6 +18,7 @@ export default function Providers({ children }: ProvidersProps) {
         <DashboardProvider>
           <MeetingProvider>
             {children}
+            <Toaster />
           </MeetingProvider>
         </DashboardProvider>
       </AuthProvider>

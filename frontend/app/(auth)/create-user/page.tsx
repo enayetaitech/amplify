@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -24,16 +24,19 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import Logo from "components/Logo";
+import { useMutation } from "@tanstack/react-query";
 
-// Define the form schema with validation rules
+// Zod schema updated
 const registerSchema = z
   .object({
     firstName: z.string().min(1, { message: "First Name is required" }),
     lastName: z.string().min(1, { message: "Last Name is required" }),
     email: z.string().email({ message: "Please enter a valid email address" }),
-    password: z
-      .string()
-      .min(9, { message: "Password must be at least 9 characters long" }),
+    companyName: z.string().min(1, { message: "Company name is required" }),
+    phoneNumber: z.string().min(10, { message: "Phone number is required" }),
+    password: z.string().min(9, {
+      message: "Password must be at least 9 characters long",
+    }),
     confirmPassword: z
       .string()
       .min(1, { message: "Please confirm your password" }),
@@ -51,54 +54,54 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const Register = () => {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [emailAvailable, setEmailAvailable] = useState("");
 
-  // Initialize form
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
       email: "",
-      password: "Ab123456@",
-      confirmPassword: "Ab123456@",
+      phoneNumber: "",
+      companyName: "",
+      password: "",
+      confirmPassword: "",
       terms: false,
     },
   });
 
-  const onSubmit = async (values: RegisterFormValues) => {
-    try {
-      setIsLoading(true);
-
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/users/create`,
+  const registerMutation = useMutation({
+    mutationFn: async (values: RegisterFormValues) => {
+      const res = await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/register`,
         {
           firstName: values.firstName,
           lastName: values.lastName,
           email: values.email,
+          phoneNumber: values.phoneNumber,
+          companyName: values.companyName,
           password: values.password,
-          terms: values.terms,
+          termsAccepted: values.terms,
+          role: "Admin", 
         }
       );
+      return res.data;
+    },
+    onSuccess: (data, variables) => {
+      toast.success("Your registration was successful!");
+      router.push(
+        `/account-activation?email=${encodeURIComponent(variables.email)}`
+      );
+    },
+    onError: (error: any) => {
+      console.log('error', error)
+      const message = error?.response?.data?.message || "Registration failed";
+      console.log('message', message)
+      toast.error(message);
+    },
+  });
 
-      if (response.status === 200) {
-        toast.success("Your registration was successful!");
-        router.push(
-          `/account-activation?email=${encodeURIComponent(values.email)}`
-        );
-      } else {
-        toast.error(`${response.data.message}`);
-      }
-    } catch (error) {
-      const axiosError = error as AxiosError<{ message: string }>;
-      const errorMessage =
-        axiosError.response?.data?.message || "Registration failed";
-      toast.error(errorMessage);
-      console.error("Error creating user:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const onSubmit = (values: RegisterFormValues) => {
+    registerMutation.mutate(values);
   };
 
   return (
@@ -121,12 +124,11 @@ const Register = () => {
 
       {/* Bottom div for large screen */}
       <div className="lg:flex lg:justify-center lg:items-center">
-        {/* left div */}
         <div className="flex-1 pb-10 lg:pb-0">
           <Card className="border-0 shadow-none">
             <CardHeader className="text-center">
               <CardTitle className="text-3xl font-bold uppercase">
-                Register
+              CREATE ACCOUNT
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -135,6 +137,7 @@ const Register = () => {
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="lg:px-24 px-4 space-y-4"
                 >
+                  {/* First & Last Name */}
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
                     <FormField
                       control={form.control}
@@ -171,6 +174,7 @@ const Register = () => {
                     />
                   </div>
 
+                  {/* Email */}
                   <FormField
                     control={form.control}
                     name="email"
@@ -179,21 +183,54 @@ const Register = () => {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter your email"
                             type="email"
+                            placeholder="Enter your email"
                             {...field}
                           />
                         </FormControl>
-                        {emailAvailable && (
-                          <p className="text-green-600 text-sm">
-                            {emailAvailable}
-                          </p>
-                        )}
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
+                  {/* Phone Number */}
+                  <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
+                    <FormField
+                      control={form.control}
+                      name="phoneNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter your phone number"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Company Name */}
+                    <FormField
+                      control={form.control}
+                      name="companyName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter your company name"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  {/* Password */}
                   <FormField
                     control={form.control}
                     name="password"
@@ -203,8 +240,8 @@ const Register = () => {
                         <FormControl>
                           <div className="relative">
                             <Input
-                              placeholder="Enter your password"
                               type={showPassword ? "text" : "password"}
+                              placeholder="Enter your password"
                               {...field}
                             />
                             <Button
@@ -230,6 +267,7 @@ const Register = () => {
                     )}
                   />
 
+                  {/* Confirm Password */}
                   <FormField
                     control={form.control}
                     name="confirmPassword"
@@ -239,8 +277,8 @@ const Register = () => {
                         <FormControl>
                           <div className="relative">
                             <Input
-                              placeholder="Confirm your password"
                               type={showPassword ? "text" : "password"}
+                              placeholder="Confirm your password"
                               {...field}
                             />
                             <Button
@@ -263,53 +301,51 @@ const Register = () => {
                     )}
                   />
 
-                  <div className="mt-4 space-y-2">
-                    <FormField
-                      control={form.control}
-                      name="terms"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-2 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel className="font-semibold text-base">
-                              I agree to the{" "}
-                              <Link
-                                href="/terms-of-condition"
-                                className="text-blue-500 font-bold"
-                              >
-                                Terms & Conditions
-                              </Link>
-                            </FormLabel>
-                            <FormDescription className="text-sm">
-                              Your personal data will be used to support your
-                              experience throughout this website to manage
-                              access to your account, and for other purposes
-                              described in our{" "}
-                              <Link
-                                href="/privacy-policy"
-                                className="text-blue-500 underline"
-                              >
-                                Privacy Policy
-                              </Link>
-                              .
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  {/* Terms and Conditions */}
+                  <FormField
+                    control={form.control}
+                    name="terms"
+                    render={({ field }) => (
+                      <FormItem className="flex items-start space-x-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div>
+                          <FormLabel className="font-semibold text-base">
+                            I agree to the{" "}
+                            <Link
+                              href="/terms-of-condition"
+                              className="text-blue-500 font-bold"
+                            >
+                              Terms & Conditions
+                            </Link>
+                          </FormLabel>
+                          <FormDescription className="text-sm">
+                            Your personal data will be used as per our{" "}
+                            <Link
+                              href="/privacy-policy"
+                              className="text-blue-500 underline"
+                            >
+                              Privacy Policy
+                            </Link>
+                            .
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
                   <Button
                     type="submit"
                     className="w-full bg-orange-500 hover:bg-orange-600 mt-4"
-                    disabled={isLoading}
+                    disabled={registerMutation.isPending}
                   >
-                    {isLoading ? "Registering..." : "Create Account"}
+                    {registerMutation.isPending
+                      ? "Registering..."
+                      : "Create Account"}
                   </Button>
                 </form>
               </Form>
@@ -324,7 +360,7 @@ const Register = () => {
           </Card>
         </div>
 
-        {/* right div */}
+        {/* Right Image */}
         <div className="hidden lg:flex lg:flex-1 lg:bg-slate-100 min-h-screen">
           <div className="flex-1 flex justify-center items-start">
             <Image
