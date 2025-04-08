@@ -9,6 +9,7 @@ import { sanitizeUser } from '../processors/user/removePasswordFromUserObjectPro
 import config from '../config/index'
 import jwt from 'jsonwebtoken';
 import { isStrongPassword } from '../processors/user/isStrongPasswordProcessor';
+import ProjectModel from '../model/ProjectModel';
 
 export const createAccount = async (
   req: Request,
@@ -271,4 +272,65 @@ export const resetPassword = async (
   await user.save();
   
   sendResponse(res, null, 'Password reset successful', 200);
+};
+
+export const editUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  const {
+    firstName,
+    lastName,
+    phoneNumber,
+    companyName,
+  } = req.body;
+
+  // Find the user by id
+  const user = await User.findById(id);
+  if (!user) {
+    return next(new ErrorHandler('User not found', 404));
+  }
+
+  // Update only the allowed fields if provided
+  if (firstName !== undefined) user.firstName = firstName;
+  if (lastName !== undefined) user.lastName = lastName;
+  if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+  if (companyName !== undefined) user.companyName = companyName;
+
+  // Save the updated user document
+  const updatedUser = await user.save();
+
+  // Sanitize and send the updated user response
+  const userResponse = sanitizeUser(updatedUser);
+  sendResponse(res, userResponse, 'User updated successfully');
+};
+
+export const deleteUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // Extract user id from route parameters.
+  const { id } = req.params;
+
+  // Check if the user exists.
+  const user = await User.findById(id);
+  if (!user) {
+    return next(new ErrorHandler('User not found', 404));
+  }
+
+  // Fixed default user id to be used as replacement for project createdBy field.
+  const defaultUserId = '67f35a519c899e0dc4b6dee5';
+
+  // Update all projects where this user is the creator.
+  await ProjectModel.updateMany({ createdBy: user._id }, { $set: { createdBy: defaultUserId } });
+
+  // Delete the user.
+  await User.deleteOne({ _id: user._id });
+
+  // Send a success response.
+  sendResponse(res, null, 'User deleted successfully', 200);
 };

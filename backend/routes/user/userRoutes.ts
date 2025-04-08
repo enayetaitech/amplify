@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { createAccount,loginUser,forgotPassword, resetPassword, verifyEmail, changePassword  } from '../../controllers/user.controller';
+import { createAccount,loginUser,forgotPassword, resetPassword, verifyEmail, changePassword, editUser, deleteUser  } from '../../controllers/user.controller';
 import { catchError } from '../../middlewares/catchError.middleware';
 
 
@@ -21,6 +21,12 @@ router.get('/verify-email', catchError(verifyEmail));
 
 // POST /api/v1/auth/change-password
 router.post('/change-password', catchError(changePassword));
+
+// PUT /api/v1/auth/edit/:id
+router.put('/edit/:id', catchError(editUser));
+
+// DELETE /api/v1/auth/:id
+router.delete('/:id', catchError(deleteUser));
 // ! Delete route will be implemented after creating project
 // ! Find all and find by id route need to be implemented for the amplify admin
 
