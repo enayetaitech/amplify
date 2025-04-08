@@ -22,34 +22,28 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "components/ui/button";
-
 import Logo from "components/Logo";
+import { IUser } from "../../../../shared/interface/user.interface";
 import { useGlobalContext } from "context/GlobalContext";
 
-// Define the User interface
-interface User {
-  _id: string;
-  email: string;
-  [key: string]: any; // For any other fields
-}
 
 // Define the form schema
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(1, { message: "Password is required" }),
-  rememberMe: z.boolean().default(false),
+  rememberMe: z.boolean(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const router = useRouter();
-  const { setUser } = useGlobalContext();
+  const { setUser, setToken } = useGlobalContext();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Initialize form
-  const form = useForm<LoginFormValues>({
+   // Initialize the form with react-hook-form and zod validation
+   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
@@ -61,9 +55,14 @@ const Login = () => {
   const onSubmit = async (values: LoginFormValues) => {
     try {
       setIsLoading(true);
-
-      const response = await axios.post<{ data: User; message: string }>(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/users/signin`,
+      
+      // Make a POST request to your backend login endpoint.
+      // The endpoint is expected to return an object containing an IUser instance.
+      const response = await axios.post<{
+        data: { user: IUser; token: string };
+        message: string;
+      }>(
+        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/login`,
         {
           email: values.email,
           password: values.password,
@@ -71,15 +70,28 @@ const Login = () => {
         { withCredentials: true }
       );
 
-      setUser(response.data.data);
+     // Destructure user and token from the response
+     const { user, token } = response.data.data;
 
+     // Update Global Context
+     setUser(user);
+     setToken(token);
+
+     // Save both to localStorage
+     if (typeof window !== "undefined") {
+       localStorage.setItem("user", JSON.stringify(user));
+       localStorage.setItem("token", token);
+     }
+
+
+      // Also persist the user in localStorage if in the browser
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("user", JSON.stringify(response.data.data));
+        window.localStorage.setItem("user", JSON.stringify(response.data.data.user));
       }
 
+      // Handle redirection after login. If a redirect query parameter is provided, it will be used.
       const redirectUrl =
-        router.query?.redirect ||
-        `/dashboard/my-profile/${response.data.data._id}`;
+        `/projects`;
       router.replace(redirectUrl);
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
@@ -91,9 +103,8 @@ const Login = () => {
 
   return (
     <div className="min-h-[86vh] lg:min-h-0">
-      {/* Top div for lg */}
+      {/* Top section for large screens */}
       <div className="hidden justify-center items-start lg:flex bg-white h-10">
-        {/* left image div */}
         <div className="flex-1 flex items-center w-full h-full">
           <div className="pl-10 pt-8">
             <Logo />
@@ -101,14 +112,13 @@ const Login = () => {
         </div>
         <div className="flex-1 bg-slate-100 h-10"></div>
       </div>
-      {/* Top div for mobile */}
+      {/* Top section for mobile */}
       <div className="lg:hidden bg-white flex justify-center items-center pt-10">
         <Logo />
       </div>
 
-      {/* Bottom div for large screen */}
       <div className="lg:flex justify-center items-center">
-        {/* left div */}
+        {/* Left side: login form */}
         <div className="flex-1 p-4 lg:p-8">
           <Card className="border-0 shadow-none">
             <CardHeader className="text-center">
@@ -127,11 +137,7 @@ const Login = () => {
                       <FormItem>
                         <FormLabel>Email Address</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Enter your email"
-                            type="email"
-                            {...field}
-                          />
+                          <Input placeholder="Enter your email" type="email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -217,7 +223,7 @@ const Login = () => {
           </Card>
         </div>
 
-        {/* right div */}
+        {/* Right side: display an image on large screens */}
         <div className="flex-1 bg-slate-100 min-h-screen hidden lg:block">
           <div className="flex-1 flex justify-center items-start">
             <Image

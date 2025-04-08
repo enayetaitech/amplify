@@ -92,7 +92,6 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
   }
 
   const user = await User.findOne({ email });
-
   if (!user) {
     return next(new ErrorHandler('Invalid credentials', 401));
   }

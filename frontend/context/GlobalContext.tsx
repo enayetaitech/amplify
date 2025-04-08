@@ -7,18 +7,13 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
+import { IUser } from "../../shared/interface/user.interface";
 
-// Define a User type
-export interface User {
-  _id: string;
-  email: string;
-  [key: string]: any; // For any other user properties
-}
-
-// Define the shape of the context value
 type GlobalContextType = {
-  user: User | null;
-  setUser: Dispatch<SetStateAction<User | null>>;
+  user: IUser | null;
+  token: string | null;
+  setUser: Dispatch<SetStateAction<IUser | null>>;
+  setToken: Dispatch<SetStateAction<string | null>>;
 };
 
 // Create context with a default value that matches the type
@@ -38,9 +33,7 @@ type GlobalProviderProps = {
 };
 
 export function GlobalProvider({ children }: GlobalProviderProps) {
-  // Initialize user state with null or check localStorage
-  const [user, setUser] = useState<User | null>(() => {
-    // Check if we're in the browser and if there's a user in localStorage
+  const [user, setUser] = useState<IUser | null>(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("user");
       return savedUser ? JSON.parse(savedUser) : null;
@@ -48,13 +41,22 @@ export function GlobalProvider({ children }: GlobalProviderProps) {
     return null;
   });
 
-  const contextValue: GlobalContextType = {
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("token") || null;
+    }
+    return null;
+  });
+
+  const value: GlobalContextType = {
     user,
+    token,
     setUser,
+    setToken,
   };
 
   return (
-    <GlobalContext.Provider value={contextValue}>
+    <GlobalContext.Provider  value={value}>
       {children}
     </GlobalContext.Provider>
   );
