@@ -5,6 +5,7 @@ export type ProvideInterpreterOption = "yes" | "no" | "";
 
 export interface IProjectForm {
   user: string; 
+  name: string;
   service: string;
   addOns: string[]; 
   respondentCountry: string;

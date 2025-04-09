@@ -6,7 +6,7 @@ export interface IProjectFormDocument extends Omit<IProjectForm, "user">, Docume
 }
 
 const projectFormSchema = new Schema<IProjectFormDocument>(
-  {
+  { name: { type: String },
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     service: {
       type: String,

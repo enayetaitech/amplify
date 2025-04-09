@@ -30,6 +30,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
       : []
   );
   const [otherLanguage, setOtherLanguage] = useState<string>("");
+  const [projectName, setProjectName] = useState<string>(formData.name || "");
 
   // ========= Respondent Country =========
   const isInitiallyOther =
@@ -66,6 +67,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     const finalCountry = countrySelection === "USA" ? "USA" : otherCountry.trim();
 
     updateFormData({
+      name: projectName,
       respondentLanguage: computedLanguages,
       respondentCountry: finalCountry,
       sessions: sessionRows.map((row) => ({
@@ -75,7 +77,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     });
     // Excluding updateFormData from dependencies to avoid potential infinite loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLanguages, otherLanguage, countrySelection, otherCountry, sessionRows]);
+  }, [projectName, selectedLanguages, otherLanguage, countrySelection, otherCountry, sessionRows]);
 
   // ========= Multi-Select Handlers =========
   const toggleLanguage = (lang: string) => {
@@ -129,6 +131,18 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
 
   return (
     <div className="space-y-6">
+       {/* Project Name Input */}
+       <div>
+        <Label className="block text-sm font-medium text-gray-700">
+          Project Name*
+        </Label>
+        <Input
+          type="text"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+          className="mt-1 w-full"
+        />
+      </div>
       {/* Multi-Select for Languages using Popover and Command */}
       <div>
         <Label className="block text-sm font-medium text-gray-700">

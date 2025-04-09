@@ -26,13 +26,14 @@ const CreateProjectPage: React.FC = () => {
 
   const [formData, setFormData] = useState<IProjectFormState>({
     user: userId,
+    name: "",
     service: "",
     addOns: [],
     respondentCountry: "",
-    respondentLanguage: "",
+    respondentLanguage: [],
     sessions: [],
-    firstDateOfStreaming: "", // initially empty
-    projectDate: "", // initially empty
+    firstDateOfStreaming: "", 
+    projectDate: "", 
     respondentsPerSession: 0,
     numberOfSessions: 0,
     sessionLength: "",
