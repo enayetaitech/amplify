@@ -8,7 +8,7 @@ export interface IProjectForm {
   service: string;
   addOns: string[]; 
   respondentCountry: string;
-  respondentLanguage: string;
+  respondentLanguage: string[];
   sessions: IProjectSession[];
   firstDateOfStreaming: Date;
   projectDate: Date;

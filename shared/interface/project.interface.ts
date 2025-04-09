@@ -24,3 +24,10 @@ export interface IProject {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+
+export interface SessionRow {
+  id: string;
+  number: number;
+  duration: string;
+}

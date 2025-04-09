@@ -15,7 +15,7 @@ const projectFormSchema = new Schema<IProjectFormDocument>(
     },
     addOns: { type: [String] },
     respondentCountry: { type: String },
-    respondentLanguage: { type: String },
+    respondentLanguage: { type: [String] },
     sessions: [
       {
         number: { type: Number },
