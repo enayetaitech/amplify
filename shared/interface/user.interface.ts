@@ -1,4 +1,20 @@
 
+export interface IBillingInfo {
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+}
+
+export interface ICreditCardInfo {
+  last4: string;      
+  brand: string;    
+  expiryMonth: string;
+  expiryYear: string;
+}
+
+
 export interface IUser {
   firstName: string;
   lastName: string;
@@ -25,6 +41,8 @@ export interface IUser {
   createdById?: string;
   credits: number;
   stripeCustomerId?: string;
+  billingInfo?: IBillingInfo;
+  creditCardInfo?: ICreditCardInfo;
   createdAt?: Date;
   updatedAt?: Date;
 }

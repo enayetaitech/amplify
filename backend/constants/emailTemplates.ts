@@ -1,5 +1,5 @@
 import config from "../config/index";
-
+import { TemplateParams } from "../../shared/interface/projectInfoEmail.interface"
 
 export const verificationEmailTemplate = (name: string, token: string): string => `
   <p>Dear ${name},</p>
@@ -26,3 +26,28 @@ export const resetPasswordEmailTemplate = (name: string, token: string): string 
   <p>The Amplify Team</p>
 `;
 
+export const projectInfoEmailTemplate = ({
+  user,
+  formData,
+  formattedSessions,
+}: TemplateParams): string => `
+  <h2>Project Information</h2>
+  <p><strong>First Name:</strong> ${user.firstName}</p>
+  <p><strong>Last Name:</strong> ${user.lastName}</p>
+  <p><strong>Email:</strong> ${user.email}</p>
+  <h3>Form Data:</h3>
+  <p><strong>Service:</strong> ${formData.service}</p>
+  <p><strong>Add-Ons:</strong> ${formData.addOns?.join(", ")}</p>
+  <p><strong>Market:</strong> ${formData.respondentCountry}</p>
+  <p><strong>Language:</strong> ${formData.respondentLanguage}</p>
+  <h4>Sessions:</h4>
+  ${formattedSessions}
+  <p><strong>First Date of Streaming:</strong> ${formData.firstDateOfStreaming}</p>
+  <p><strong>Respondents per Session:</strong> ${formData.respondentsPerSession}</p>
+  <p><strong>Number of Sessions:</strong> ${formData.numberOfSessions}</p>
+  <p><strong>Session Length:</strong> ${formData.sessionLength}</p>
+  <p><strong>Pre-Work Details:</strong> ${formData.preWorkDetails}</p>
+  <p><strong>Selected Language:</strong> ${formData.selectedLanguage}</p>
+  <p><strong>Additional Info:</strong> ${formData.additionalInfo}</p>
+  <p class="mt-4">The Amplify Team</p>
+`;

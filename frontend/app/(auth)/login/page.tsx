@@ -56,8 +56,7 @@ const Login = () => {
     try {
       setIsLoading(true);
       
-      // Make a POST request to your backend login endpoint.
-      // The endpoint is expected to return an object containing an IUser instance.
+     // The endpoint is expected to return an object containing an IUser instance.
       const response = await axios.post<{
         data: { user: IUser; token: string };
         message: string;
@@ -82,7 +81,6 @@ const Login = () => {
        localStorage.setItem("user", JSON.stringify(user));
        localStorage.setItem("token", token);
      }
-
 
       // Also persist the user in localStorage if in the browser
       if (typeof window !== "undefined") {
