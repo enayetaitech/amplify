@@ -71,7 +71,6 @@ const Login = () => {
 
      // Destructure user and token from the response
      const { user, token } = response.data.data;
-
      // Update Global Context
      setUser(user);
      setToken(token);

@@ -47,7 +47,6 @@ const CreateProjectPage: React.FC = () => {
     emailSent: "",
   });
 
-  console.log(formData)
   const updateFormData = (fields: Partial<IProjectFormState>) => {
     setFormData((prev) => ({ ...prev, ...fields }));
   };
