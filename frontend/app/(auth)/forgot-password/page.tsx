@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { FaEnvelopeOpenText } from "react-icons/fa";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
@@ -9,6 +9,7 @@ import { Label } from "components/ui/label";
 
 import Logo from "components/Logo";
 import { Alert, AlertDescription } from "components/ui/alert";
+import { toast } from "sonner";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState<string>("");
@@ -31,6 +32,10 @@ const ForgotPassword = () => {
       setMessage("Reset link sent to your email");
       setError("");
     } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data?.message || "Error sending reset link";
+      toast.error(errorMessage);
       setError("Error sending reset link");
       setMessage("");
     }
