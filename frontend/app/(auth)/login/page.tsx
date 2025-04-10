@@ -26,8 +26,6 @@ import Logo from "components/Logo";
 import { IUser } from "../../../../shared/interface/user.interface";
 import { useGlobalContext } from "context/GlobalContext";
 
-
-// Define the form schema
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(1, { message: "Password is required" }),
@@ -42,8 +40,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-   // Initialize the form with react-hook-form and zod validation
-   const form = useForm<LoginFormValues>({
+  // Initialize the form with react-hook-form and zod validation
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
@@ -55,8 +53,7 @@ const Login = () => {
   const onSubmit = async (values: LoginFormValues) => {
     try {
       setIsLoading(true);
-      
-     // The endpoint is expected to return an object containing an IUser instance.
+
       const response = await axios.post<{
         data: { user: IUser; token: string };
         message: string;
@@ -69,26 +66,24 @@ const Login = () => {
         { withCredentials: true }
       );
 
-     // Destructure user and token from the response
-     const { user, token } = response.data.data;
-     // Update Global Context
-     setUser(user);
-     setToken(token);
+      const { user, token } = response.data.data;
 
-     // Save both to localStorage
-     if (typeof window !== "undefined") {
-       localStorage.setItem("user", JSON.stringify(user));
-       localStorage.setItem("token", token);
-     }
+      setUser(user);
+      setToken(token);
 
-      // Also persist the user in localStorage if in the browser
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("user", JSON.stringify(response.data.data.user));
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("token", token);
       }
 
-      // Handle redirection after login. If a redirect query parameter is provided, it will be used.
-      const redirectUrl =
-        `/projects`;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          "user",
+          JSON.stringify(response.data.data.user)
+        );
+      }
+
+      const redirectUrl = `/projects`;
       router.replace(redirectUrl);
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
@@ -99,9 +94,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-[86vh] lg:min-h-0">
-      {/* Top section for large screens */}
-      <div className="hidden justify-center items-start lg:flex bg-white h-10">
+    <div>
+      <div className="hidden lg:justify-center lg:items-start lg:flex bg-white h-10">
         <div className="flex-1 flex items-center w-full h-full">
           <div className="pl-10 pt-8">
             <Logo />
@@ -109,14 +103,11 @@ const Login = () => {
         </div>
         <div className="flex-1 bg-slate-100 h-10"></div>
       </div>
-      {/* Top section for mobile */}
-      <div className="lg:hidden bg-white flex justify-center items-center pt-10">
+      <div className="lg:hidden bg-white flex justify-center items-center pt-5">
         <Logo />
       </div>
-
-      <div className="lg:flex justify-center items-center">
-        {/* Left side: login form */}
-        <div className="flex-1 p-4 lg:p-8">
+      <div className="lg:flex lg:justify-center lg:items-center">
+        <div className="flex-1 pb-10 lg:pb-0">
           <Card className="border-0 shadow-none">
             <CardHeader className="text-center">
               <CardTitle className="text-3xl font-bold">LOGIN</CardTitle>
@@ -134,13 +125,16 @@ const Login = () => {
                       <FormItem>
                         <FormLabel>Email Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter your email" type="email" {...field} />
+                          <Input
+                            placeholder="Enter your email"
+                            type="email"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="password"
@@ -173,7 +167,6 @@ const Login = () => {
                       </FormItem>
                     )}
                   />
-
                   <div className="flex items-center justify-between">
                     <FormField
                       control={form.control}
@@ -193,13 +186,12 @@ const Login = () => {
                       )}
                     />
                     <Link
-                      href="/forgotPassword"
+                      href="/forgot-password"
                       className="text-blue-500 text-sm"
                     >
                       Forgot Password?
                     </Link>
                   </div>
-
                   <Button
                     type="submit"
                     className="w-full bg-orange-500 hover:bg-orange-600"
@@ -209,7 +201,6 @@ const Login = () => {
                   </Button>
                 </form>
               </Form>
-
               <p className="mt-6 text-center">
                 Don&apos;t have an Account?{" "}
                 <Link href="/create-user" className="text-blue-500">
@@ -219,9 +210,7 @@ const Login = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Right side: display an image on large screens */}
-        <div className="flex-1 bg-slate-100 min-h-screen hidden lg:block">
+        <div className="flex-1 bg-[#F6F8FA] min-h-screen hidden lg:block">
           <div className="flex-1 flex justify-center items-start">
             <Image
               src="/register.jpg"
