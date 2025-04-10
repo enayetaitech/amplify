@@ -3,14 +3,13 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Pencil, Undo2, Trash } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import axios from 'axios'
 import { Button } from 'components/ui/button'
-import PasswordModal from 'components/PasswordModal'
-import HeadingParagaraph from 'components/HeadingParagaraph'
-import ConfirmationModal from 'components/ConfirmationModal'
+import PasswordModalComponent from 'components/PasswordModalComponent'
+import ConfirmationModalComponent from 'components/ConfirmationModalComponent'
+import HeadingParagaraphComponent from 'components/HeadingParagaraphComponent'
 import { useGlobalContext } from 'context/GlobalContext'
 import { RiPencilFill } from 'react-icons/ri'
 import { IoTrashSharp } from 'react-icons/io5'
@@ -159,16 +158,19 @@ const Page = () => {
             Personal Details
           </h1>
           <div className='space-y-7 pt-7'>
-            <HeadingParagaraph
+            <HeadingParagaraphComponent
               heading='First Name'
               paragraph={user?.firstName?.toUpperCase() || ''}
             />
-            <HeadingParagaraph
+            <HeadingParagaraphComponent
               heading='Last Name'
               paragraph={user?.lastName?.toUpperCase() || ''}
             />
-            <HeadingParagaraph heading='Email' paragraph={user?.email ?? ''} />
-            <HeadingParagaraph
+            <HeadingParagaraphComponent
+              heading='Email'
+              paragraph={user?.email ?? ''}
+            />
+            <HeadingParagaraphComponent
               heading='Remaining Credits'
               paragraph={`${remainingCredits ?? 0} Min`}
             />
@@ -246,19 +248,19 @@ const Page = () => {
                 Personal Details
               </h1>
               <div className='space-y-3 pt-7'>
-                <HeadingParagaraph
+                <HeadingParagaraphComponent
                   heading='First Name'
                   paragraph={(user && user?.firstName?.toUpperCase()) || ''}
                 />
-                <HeadingParagaraph
+                <HeadingParagaraphComponent
                   heading='Last Name'
                   paragraph={(user && user?.lastName?.toUpperCase()) || ''}
                 />
-                <HeadingParagaraph
+                <HeadingParagaraphComponent
                   heading='Email'
                   paragraph={(user && user.email) || ''}
                 />
-                <HeadingParagaraph
+                <HeadingParagaraphComponent
                   heading='Remaining Credits'
                   paragraph={`${remainingCredits ?? 0} Min`}
                 />
@@ -294,8 +296,12 @@ const Page = () => {
         </div>
       </div>
 
-      <PasswordModal open={showModal} onClose={handleCloseModal} id={id} />
-      <ConfirmationModal
+      <PasswordModalComponent
+        open={showModal}
+        onClose={handleCloseModal}
+        id={id}
+      />
+      <ConfirmationModalComponent
         open={isDeleteModalOpen}
         onCancel={handleCloseDeleteModal}
         onYes={deleteUser}

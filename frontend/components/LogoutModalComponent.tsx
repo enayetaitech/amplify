@@ -17,7 +17,10 @@ interface LogoutModalProps {
   onClose: () => void
 }
 
-const LogoutModal: React.FC<LogoutModalProps> = ({ open, onClose }) => {
+const LogoutModalComponent: React.FC<LogoutModalProps> = ({
+  open,
+  onClose,
+}) => {
   const { setUser } = useGlobalContext()
   const router = useRouter()
 
@@ -67,4 +70,4 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ open, onClose }) => {
   )
 }
 
-export default LogoutModal
+export default LogoutModalComponent

@@ -2,7 +2,7 @@ import { FaEnvelope } from 'react-icons/fa'
 import { IoCall } from 'react-icons/io5'
 import { PiLineVerticalLight } from 'react-icons/pi'
 
-const Footer = () => {
+const FooterComponent = () => {
   return (
     <div>
       {/* for large screen */}
@@ -42,4 +42,4 @@ const Footer = () => {
   )
 }
 
-export default Footer
+export default FooterComponent

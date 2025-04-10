@@ -28,7 +28,11 @@ interface Errors {
   confirmPassword?: string
 }
 
-const PasswordModal: React.FC<PasswordModalProps> = ({ open, onClose, id }) => {
+const PasswordModalComponent: React.FC<PasswordModalProps> = ({
+  open,
+  onClose,
+  id,
+}) => {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -194,4 +198,4 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ open, onClose, id }) => {
   )
 }
 
-export default PasswordModal
+export default PasswordModalComponent

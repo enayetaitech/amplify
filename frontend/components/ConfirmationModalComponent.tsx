@@ -17,7 +17,7 @@ interface ConfirmationModalProps {
   text: string
 }
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
+const ConfirmationModalComponent: React.FC<ConfirmationModalProps> = ({
   open,
   onCancel,
   onYes,
@@ -59,4 +59,4 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   )
 }
 
-export default ConfirmationModal
+export default ConfirmationModalComponent

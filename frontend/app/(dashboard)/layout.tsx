@@ -2,9 +2,9 @@
 import React, { ReactNode, useEffect, useState } from 'react'
 import { useGlobalContext } from '../../context/GlobalContext'
 import { useRouter } from 'next/navigation'
-import DashboardSidebar from '../../components/DashboardSidebar'
-import LogoutModal from 'components/LogoutModal'
-import Footer from 'components/Footer'
+import FooterComponent from 'components/FooterComponent'
+import DashboardSidebarComponent from '../../components/DashboardSidebarComponent'
+import LogoutModalComponent from 'components/LogoutModalComponent'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -34,7 +34,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* upper layout */}
       <div className='flex-grow h-full flex relative'>
         <div className='sticky top-0 md:w-[260px] h-screen z-10'>
-          <DashboardSidebar
+          <DashboardSidebarComponent
             handleLogoutModalOpen={handleLogoutModalOpen}
             isLogoutModalOpen={isLogoutModalOpen}
             user={user}
@@ -45,14 +45,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       {/* logout modal */}
       {isLogoutModalOpen && (
-        <LogoutModal
+        <LogoutModalComponent
           open={isLogoutModalOpen}
           onClose={handleCloseLogoutModal}
         />
       )}
 
       {/* footer */}
-      <Footer />
+      <FooterComponent />
     </div>
   )
 }

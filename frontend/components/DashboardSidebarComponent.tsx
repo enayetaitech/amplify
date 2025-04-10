@@ -156,7 +156,7 @@ const UserInfo = ({
   </div>
 )
 
-const DashboardSidebar = ({
+const DashboardSidebarComponent = ({
   handleLogoutModalOpen,
   isLogoutModalOpen,
   user,
@@ -231,4 +231,4 @@ const DashboardSidebar = ({
   )
 }
 
-export default DashboardSidebar
+export default DashboardSidebarComponent
