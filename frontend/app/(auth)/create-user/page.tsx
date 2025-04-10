@@ -81,7 +81,7 @@ const Register = () => {
           companyName: values.companyName,
           password: values.password,
           termsAccepted: values.terms,
-          role: "Admin", 
+          role: "Admin",
         }
       );
       return res.data;
@@ -93,9 +93,9 @@ const Register = () => {
       );
     },
     onError: (error: any) => {
-      console.log('error', error)
+      console.log("error", error);
       const message = error?.response?.data?.message || "Registration failed";
-      console.log('message', message)
+      console.log("message", message);
       toast.error(message);
     },
   });
@@ -106,9 +106,7 @@ const Register = () => {
 
   return (
     <div>
-      {/* Top div for lg */}
       <div className="hidden lg:justify-center lg:items-start lg:flex bg-white h-10">
-        {/* left image div */}
         <div className="flex-1 flex items-center w-full h-full">
           <div className="pl-10 pt-8">
             <Logo />
@@ -116,19 +114,15 @@ const Register = () => {
         </div>
         <div className="flex-1 bg-slate-100 h-10"></div>
       </div>
-
-      {/* Top div for mobile */}
       <div className="lg:hidden bg-white flex justify-center items-center pt-5">
         <Logo />
       </div>
-
-      {/* Bottom div for large screen */}
       <div className="lg:flex lg:justify-center lg:items-center">
         <div className="flex-1 pb-10 lg:pb-0">
           <Card className="border-0 shadow-none">
             <CardHeader className="text-center">
               <CardTitle className="text-3xl font-bold uppercase">
-              CREATE ACCOUNT
+                CREATE ACCOUNT
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -137,7 +131,6 @@ const Register = () => {
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="lg:px-24 px-4 space-y-4"
                 >
-                  {/* First & Last Name */}
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
                     <FormField
                       control={form.control}
@@ -155,7 +148,6 @@ const Register = () => {
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
                       name="lastName"
@@ -173,8 +165,6 @@ const Register = () => {
                       )}
                     />
                   </div>
-
-                  {/* Email */}
                   <FormField
                     control={form.control}
                     name="email"
@@ -192,8 +182,6 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
-
-                  {/* Phone Number */}
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
                     <FormField
                       control={form.control}
@@ -211,8 +199,6 @@ const Register = () => {
                         </FormItem>
                       )}
                     />
-
-                    {/* Company Name */}
                     <FormField
                       control={form.control}
                       name="companyName"
@@ -230,7 +216,6 @@ const Register = () => {
                       )}
                     />
                   </div>
-                  {/* Password */}
                   <FormField
                     control={form.control}
                     name="password"
@@ -266,8 +251,6 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
-
-                  {/* Confirm Password */}
                   <FormField
                     control={form.control}
                     name="confirmPassword"
@@ -300,8 +283,6 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
-
-                  {/* Terms and Conditions */}
                   <FormField
                     control={form.control}
                     name="terms"
@@ -324,7 +305,10 @@ const Register = () => {
                             </Link>
                           </FormLabel>
                           <FormDescription className="text-sm">
-                            Your personal data will be used as per our{" "}
+                            Your personal data will be used to support your
+                            experience throughout this website to manage access
+                            to your account, and for other purposes described in
+                            our{" "}
                             <Link
                               href="/privacy-policy"
                               className="text-blue-500 underline"
@@ -337,7 +321,6 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
-
                   <Button
                     type="submit"
                     className="w-full bg-orange-500 hover:bg-orange-600 mt-4"
@@ -349,7 +332,6 @@ const Register = () => {
                   </Button>
                 </form>
               </Form>
-
               <p className="mt-6 text-center">
                 Already have an account?{" "}
                 <Link href="/login" className="text-blue-500 ml-1">
@@ -359,9 +341,7 @@ const Register = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Right Image */}
-        <div className="hidden lg:flex lg:flex-1 lg:bg-slate-100 min-h-screen">
+        <div className="hidden lg:flex lg:flex-1 lg:bg-[#F6F8FA] min-h-screen">
           <div className="flex-1 flex justify-center items-start">
             <Image
               src="/register.jpg"
