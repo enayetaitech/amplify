@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { IProjectForm } from "../../../../shared/interface/projectForm.interface";
@@ -16,6 +16,12 @@ export type IProjectFormState = Omit<IProjectForm, "firstDateOfStreaming" | "pro
   firstDateOfStreaming: string;
   projectDate: string;
 };
+
+interface StepProps {
+  formData: IProjectFormState;
+  updateFormData: (fields: Partial<IProjectFormState>) => void;
+  uniqueId: string | null;
+}
 
 const CreateProjectPage: React.FC = () => {
   const { user } = useGlobalContext();
@@ -85,12 +91,42 @@ const CreateProjectPage: React.FC = () => {
 
   const isLoading = status === "pending";
 
-  // Steps:
-  // If service is Signature: Step1, Step3, Step4
-  // If service is Concierge: Step1, Step2
-  const steps = formData.service === "Signature"
-    ? [Step1, Step3, Step4]
-    : [Step1, Step2];
+  // Compute steps based on the new logic
+  const computeSteps = (): Array<React.FC<StepProps>> => {
+    if (formData.service === "Signature") {
+      // For Signature always use Step1, Step3, Step4.
+      return [Step1, Step3, Step4];
+    } else if (formData.service === "Concierge") {
+      // For Concierge, we check the streaming date and addOns.
+      if (formData.firstDateOfStreaming) {
+        const streamingDate = new Date(formData.firstDateOfStreaming);
+        const now = new Date();
+        // Calculate difference in days
+        const diffDays = (streamingDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
+        const addOnsSelected = formData.addOns && formData.addOns.length > 0;
+        // If streaming date is within 2 weeks OR any add–on is selected, render Step2.
+        if (diffDays < 14 || addOnsSelected) {
+          return [Step1, Step2];
+        } else {
+          // Otherwise, skip Step2 and go to Step3 and Step4.
+          return [Step1, Step3, Step4];
+        }
+      }
+      // If no streaming date, default to showing Step2.
+      return [Step1, Step2];
+    }
+    // Fallback: if no service selected, only show Step1.
+    return [Step1];
+  };
+
+  const steps = computeSteps();
+
+  // Ensure currentStep is within bounds if steps change.
+  useEffect(() => {
+    if (currentStep >= steps.length) {
+      setCurrentStep(steps.length - 1);
+    }
+  }, [steps, currentStep]);
 
   const StepComponent = steps[currentStep];
 
