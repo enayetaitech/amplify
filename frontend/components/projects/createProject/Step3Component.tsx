@@ -11,12 +11,11 @@ import {
   SelectItem,
 } from "components/ui/select";
 import { CheckIcon } from "lucide-react";
-import { IProjectFormState } from "app/(dashboard)/create-project/page";
 import {
   IProjectSession,
   SessionRow,
 } from "@shared/interface/ProjectInterface";
-import { durationMapping, durations } from "constant";
+import { availableLanguages, durationMapping, durations } from "constant";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import {
   Command,
@@ -24,14 +23,7 @@ import {
   CommandItem,
   CommandList,
 } from "components/ui/command";
-
-export interface Step3Props {
-  formData: IProjectFormState;
-  updateFormData: (fields: Partial<IProjectFormState>) => void;
-  uniqueId: string | null;
-}
-
-const availableLanguages = ["English", "French", "German", "Spanish", "Other"];
+import { Step3Props } from "@shared/interface/CreateProjectInterface";
 
 const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   // ========= Respondent Languages =========
@@ -89,6 +81,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         duration: row.duration,
       })),
     });
+
     // Excluding updateFormData from dependencies to avoid potential infinite loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -149,11 +142,13 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     (acc, row) => acc + Number(row.number),
     0
   );
+
   const totalDurationMinutes = sessionRows.reduce(
     (acc, row) =>
       acc + Number(row.number) * (durationMapping[row.duration] || 0),
     0
   );
+
   const totalHoursDecimal = totalDurationMinutes / 60;
   const hoursText =
     totalHoursDecimal % 1 === 0

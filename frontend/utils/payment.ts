@@ -10,6 +10,7 @@ export const getToken = (): string => {
       const userObj = JSON.parse(userStr);
       return userObj.token || "";
     } catch (error) {
+      console.log("Error in getToken function", error);
       return "";
     }
   }
@@ -23,12 +24,16 @@ export const getUser = (): IUser | null => {
   try {
     return JSON.parse(userStr);
   } catch (error) {
+    console.log("Error in getUser function", error);
     return null;
   }
 };
 
 // Charges the customer using the saved card for a given amount (in cents)
-export const chargeWithSavedCard = async (amountCents: number, totalCreditsNeeded: number): Promise<any> => {
+export const chargeWithSavedCard = async (
+  amountCents: number,
+  totalCreditsNeeded: number
+): Promise<IUser> => {
   const token = getToken();
   const user = getUser();
 
@@ -38,10 +43,16 @@ export const chargeWithSavedCard = async (amountCents: number, totalCreditsNeede
 
   const response = await axios.post(
     `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/payment/charge`,
-    { customerId: user.stripeCustomerId, amount: amountCents, currency: "usd", userId: user._id, purchasedCredit:totalCreditsNeeded },
+    {
+      customerId: user.stripeCustomerId,
+      amount: amountCents,
+      currency: "usd",
+      userId: user._id,
+      purchasedCredit: totalCreditsNeeded,
+    },
     { headers: { Authorization: `Bearer ${token}` } }
   );
-localStorage.setItem("user", JSON.stringify(response.data.data.user));
-  console.log("charge payment response", response);
+  localStorage.setItem("user", JSON.stringify(response.data.data.user));
+  
   return response.data;
 };

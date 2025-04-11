@@ -7,28 +7,9 @@ import { Input } from "components/ui/input";
 import { Textarea } from "components/ui/textarea"; 
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { IProjectFormState } from "app/(dashboard)/create-project/page";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-
-
-export interface Step2Props {
-   formData: IProjectFormState;
-  updateFormData: (fields: Partial<IProjectFormState>) => void;
-  uniqueId: string | null;
-}
-
-type Step2FormValues = {
-  respondentsPerSession: number;
-  numberOfSessions: number;
-  sessionLength: string;
-  preWorkDetails: string;
-  selectedLanguage: string;
-  languageSessionBreakdown: string;
-  additionalInfo: string;
-  inLanguageHosting?: "yes" | "no";
-  recruitmentSpecs?: string;
-};
+import { IProjectFormState, Step2FormValues, Step2Props } from "@shared/interface/CreateProjectInterface";
 
 const Step2: React.FC<Step2Props> = ({ formData, updateFormData, uniqueId }) => {
   const router = useRouter();
@@ -82,6 +63,7 @@ const Step2: React.FC<Step2Props> = ({ formData, updateFormData, uniqueId }) => 
       formData: mergedData,
     });
   };
+  
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="bg-gray-100 p-4 rounded-md">
