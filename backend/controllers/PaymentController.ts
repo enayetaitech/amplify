@@ -284,7 +284,7 @@ export const chargeCustomer = async (
 
     sendResponse(
       res,
-      { paymentIntent, user: updatedUser },
+      { user: updatedUser },
       "Charge successful",
       200
     );

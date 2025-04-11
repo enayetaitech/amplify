@@ -135,11 +135,16 @@ const Register = () => {
         `/account-activation?email=${encodeURIComponent(variables.email)}`
       );
     },
-    onError: (error: any) => {
-      console.log("error", error);
-      const message = error?.response?.data?.message || "Registration failed";
-      console.log("message", message);
-      toast.error(message);
+    onError: (error: unknown) => {
+      if (axios.isAxiosError(error)) {
+        console.error("error", error);
+        const message = error.response?.data?.message || "Registration failed";
+        console.error("message", message);
+        toast.error(message);
+      } else {
+        console.error("Unexpected error", error);
+        toast.error("Registration failed");
+      }
     },
   });
 

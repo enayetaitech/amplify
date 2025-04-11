@@ -13,11 +13,6 @@ const Projects: React.FC = () => {
 
  const userId = user?._id;
 
-  // If no user exists, you might choose to render a message or redirect
-  if (!userId) {
-    return <p>User not found or not authenticated.</p>;
-  }
-
   const { data, error, isLoading } = useQuery({
     queryKey: ['projects', userId],
     queryFn: async () => {
@@ -31,6 +26,11 @@ const Projects: React.FC = () => {
   useEffect(() => {
     console.log('Fetched projects:', data);
   }, [data]);
+
+    // If no user exists, you might choose to render a message or redirect
+    if (!userId) {
+      return <p>User not found or not authenticated.</p>;
+    }
 
   if (isLoading) {
     return <p>Loading projects...</p>;
