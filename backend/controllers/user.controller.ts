@@ -10,6 +10,7 @@ import config from '../config/index'
 import jwt from 'jsonwebtoken';
 import { isStrongPassword } from '../processors/user/isStrongPasswordProcessor';
 import ProjectModel from '../model/ProjectModel';
+import { isValidEmail } from '../processors/user/IsValidEmailProcessor';
 
 export const createAccount = async (
   req: Request,
@@ -28,6 +29,10 @@ export const createAccount = async (
     termsAccepted,
   } = req.body;
 
+// Check if the email format is valid
+if (!isValidEmail(email)) {
+  return next(new ErrorHandler('Invalid email format', 400));
+}
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {

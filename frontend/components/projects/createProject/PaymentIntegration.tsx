@@ -9,6 +9,10 @@ import { loadStripe } from "@stripe/stripe-js";
 import CardSetupForm from "./CardSetupForm";
 import BillingForm from "./BillingForm";
 import { getUser, chargeWithSavedCard } from "../../../utils/payment";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
+import { IProjectFormState } from "app/(dashboard)/create-project/page";
+import { IProject } from "@shared/interface/project.interface";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
@@ -16,10 +20,17 @@ const stripePromise = loadStripe(
 
 interface PaymentIntegrationProps {
   totalPurchasePrice: number;
+  totalCreditsNeeded: number;
+  projectData: IProjectFormState;
+  uniqueId: string | null;
 }
+
 
 export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   totalPurchasePrice,
+  totalCreditsNeeded,
+  projectData,
+  uniqueId,
 }) => {
   const user = getUser();
   const router = useRouter();
@@ -28,14 +39,62 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [chargeLoading, setChargeLoading] = useState(false);
 
+  // Mutation to hit create-project-by-external-admin endpoint
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: {
+      userId: string;
+      uniqueId: string | null;
+      projectData: Partial<IProject>;
+    }) => {
+      return axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/create-project-by-external-admin`,
+        data
+      );
+    },
+    onSuccess: () => {
+      toast.success("Project created successfully and payment complete!");
+      router.push("/projects");
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Project creation failed");
+    },
+  });
+
+  // Function to format raw form data into the payload format expected by the backend
+  const formatProjectData = (rawData: IProjectFormState): Partial<IProject> => {
+    return {
+      name: rawData.name,
+      description:"",
+      startDate: new Date(rawData.firstDateOfStreaming),
+      service: rawData.service as "Concierge" | "Signature",
+      respondentCountry: rawData.respondentCountry,
+      respondentLanguage: Array.isArray(rawData.respondentLanguage)
+        ? rawData.respondentLanguage.join(", ")
+        : rawData.respondentLanguage,
+      sessions: rawData.sessions.map((session) => ({
+        number: session.number,
+        duration: session.duration,
+      })),
+      cumulativeMinutes: 0,
+      status: "Draft", 
+      tags: [], 
+    };
+  };
+
   const handleUseSavedCard = async () => {
     setChargeLoading(true);
     try {
       const amountCents = Math.round(totalPurchasePrice * 100);
       console.log("Charging amount (cents):", amountCents);
-      await chargeWithSavedCard(amountCents);
-      router.push("/projects");
-      toast.success("Payment successful!");
+      await chargeWithSavedCard(amountCents, totalCreditsNeeded);
+
+      const formattedProjectData = formatProjectData(projectData);
+
+      createProjectMutation.mutate({
+        userId: user._id,
+        uniqueId,
+        projectData:formattedProjectData,
+      });
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Payment failed");
     } finally {
@@ -82,11 +141,9 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 };
 
 // Wrap PaymentIntegration with Stripe Elements
-const PaymentIntegrationWrapper: React.FC<PaymentIntegrationProps> = ({
-  totalPurchasePrice,
-}) => (
+const PaymentIntegrationWrapper: React.FC<PaymentIntegrationProps> = (props) => (
   <Elements stripe={stripePromise}>
-    <PaymentIntegration totalPurchasePrice={totalPurchasePrice} />
+    <PaymentIntegration  {...props}/>
   </Elements>
 );
 

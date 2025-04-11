@@ -80,6 +80,7 @@ export const createProjectByExternalAdmin = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId, uniqueId, projectData } = req.body;
+  console.log('req.body',req.body)
 
   if (!userId || !projectData) {
     throw new ErrorHandler("User ID and project data are required", 400);
@@ -90,6 +91,8 @@ export const createProjectByExternalAdmin = async (
 
   try {
     const user = await User.findById(userId).session(session);
+
+
     if (!user) throw new ErrorHandler("User not found", 404);
 
     if (["AmplifyTechHost", "AmplifyModerator"].includes(user.role)) {
@@ -102,18 +105,22 @@ export const createProjectByExternalAdmin = async (
       { session }
     );
 
+
     // Delete draft if uniqueId exists
     if (uniqueId) {
       await ProjectModel.findByIdAndDelete(uniqueId).session(session);
     }
-
+console.log('before commit')
     await session.commitTransaction();
     session.endSession();
 
     // Populate tags outside the transaction (optional)
-    const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
+    // !This should be uncommented once the tag collection is created
+    // const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
 
-    sendResponse(res, populatedProject, "Project created successfully", 201);
+    // console.log('populated project', populatedProject)
+
+    sendResponse(res, createdProject, "Project created successfully", 201);
   } catch (error) {
     await session.abortTransaction();
     session.endSession();

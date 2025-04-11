@@ -13,6 +13,8 @@ interface Step4Props {
     respondentCountry: string;
     respondentLanguage: string | string[];
     sessions: Array<{ number: number; duration: string }>;
+    description?: string;
+    firstDateOfStreaming: string;
   };
   updateFormData: (fields: Partial<any>) => void;
   uniqueId: string | null;
@@ -29,7 +31,7 @@ const creditPackages = [
 // Options for quantity selection in the Purchase Credits table
 const quantityOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 
-const Step4: React.FC<Step4Props> = ({ formData }) => {
+const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
   // State to determine whether to show the payment integration UI
   const [showPaymentIntegration, setShowPaymentIntegration] = useState(false);
 
@@ -51,7 +53,6 @@ const Step4: React.FC<Step4Props> = ({ formData }) => {
       durationMapping[session.duration] || Number(session.duration) || 0;
     const estimatedHours = (quantity * sessionDuration) / 60;
     const creditsNeeded = (quantity * sessionDuration) * 2.75;
-    totalCreditsNeeded += creditsNeeded;
     return {
       service: formData.service,
       quantity,
@@ -75,14 +76,26 @@ const Step4: React.FC<Step4Props> = ({ formData }) => {
     return acc + quantity * pkg.cost;
   }, 0);
 
+   // *** NEW *** Calculate the total credits based on the Purchase Credits table selection.
+   const totalPurchasedCredits = creditPackages.reduce((acc, pkg) => {
+    const quantity = purchaseQuantities[pkg.package] || 0;
+    return acc + quantity * pkg.package;
+  }, 0);
+
   // When Pay Now is clicked, switch to the Payment Integration UI
   const handlePayNow = () => {
     setShowPaymentIntegration(true);
   };
 
+  console.log('total credits needed',totalPurchasedCredits)
+
   // Render the PaymentIntegration component if the user has clicked "Pay Now"
   if (showPaymentIntegration) {
-    return <PaymentIntegration totalPurchasePrice={totalPurchasePrice} />;
+    return <PaymentIntegration totalPurchasePrice={totalPurchasePrice} 
+    totalCreditsNeeded={totalPurchasedCredits}
+    projectData={formData}
+    uniqueId={uniqueId}
+    />;
   }
 
   return (
