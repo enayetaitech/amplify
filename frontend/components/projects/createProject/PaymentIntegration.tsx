@@ -21,7 +21,7 @@ const stripePromise = loadStripe(
 interface PaymentIntegrationProps {
   totalPurchasePrice: number;
   totalCreditsNeeded: number;
-  projectData: IProjectFormState;
+  projectData: Partial<IProjectFormState>;
   uniqueId: string | null;
 }
 
@@ -34,11 +34,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 }) => {
   const user = getUser();
   const router = useRouter();
-  if (!user) return <div className="text-red-500">User not found</div>;
-
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [chargeLoading, setChargeLoading] = useState(false);
-
   // Mutation to hit create-project-by-external-admin endpoint
   const createProjectMutation = useMutation({
     mutationFn: async (data: {
@@ -55,10 +52,17 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       toast.success("Project created successfully and payment complete!");
       router.push("/projects");
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.error || "Project creation failed");
-    },
+    onError: (error: unknown) => {
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.error || "Project creation failed");
+      } else {
+        toast.error("Project creation failed");
+      }
+    }
   });
+  if (!user) return <div className="text-red-500">User not found</div>;
+
+
 
   // Function to format raw form data into the payload format expected by the backend
   const formatProjectData = (rawData: IProjectFormState): Partial<IProject> => {
@@ -88,16 +92,21 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       console.log("Charging amount (cents):", amountCents);
       await chargeWithSavedCard(amountCents, totalCreditsNeeded);
 
-      const formattedProjectData = formatProjectData(projectData);
+      const formattedProjectData = formatProjectData(projectData as IProjectFormState);
+
+
 
       createProjectMutation.mutate({
-        userId: user._id,
+        userId: user._id!,
         uniqueId,
         projectData:formattedProjectData,
       });
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || "Payment failed");
-    } finally {
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        toast.error(err.response?.data?.error || "Payment failed");
+      } else {
+        toast.error("Payment failed");
+      }} finally {
       setChargeLoading(false);
     }
   };

@@ -60,9 +60,14 @@ const Step2: React.FC<Step2Props> = ({ formData, updateFormData, uniqueId }) => 
       router.push("/projects");
     },
 
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Error sending project info", error);
-      toast.error(error.response?.data?.message || "Something went wrong");
+      
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.message || "Something went wrong");
+      } else {
+        toast.error("An unexpected error occurred.");
+      }
     },
   });
 

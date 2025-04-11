@@ -5,6 +5,7 @@ import { Button } from "components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "components/ui/select";
 import PaymentIntegration from "./PaymentIntegration";
 import { durationMapping } from "constant";
+import { IProjectFormState } from "app/(dashboard)/create-project/page";
 
 interface Step4Props {
   formData: {
@@ -16,7 +17,7 @@ interface Step4Props {
     description?: string;
     firstDateOfStreaming: string;
   };
-  updateFormData: (fields: Partial<any>) => void;
+  updateFormData: (fields: Partial<IProjectFormState>) => void;
   uniqueId: string | null;
 }
 
@@ -45,7 +46,7 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
 
   // Compute the project estimate rows based on sessions data
   const sessions = formData.sessions || [];
-  let totalCreditsNeeded = 0;
+  const totalCreditsNeeded = 0;
   const projectEstimateRows = sessions.map((session) => {
     const quantity = Number(session.number) || 0;
     // Use durationMapping or fallback to the duration value directly (assumed in minutes)
@@ -93,7 +94,7 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
   if (showPaymentIntegration) {
     return <PaymentIntegration totalPurchasePrice={totalPurchasePrice} 
     totalCreditsNeeded={totalPurchasedCredits}
-    projectData={formData}
+    projectData={formData as IProjectFormState}
     uniqueId={uniqueId}
     />;
   }

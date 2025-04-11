@@ -48,8 +48,12 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
       toast.success("Billing info saved successfully");
       setStatus("success");
       onSuccess();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || "Error saving billing info");
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        toast.error(err.response?.data?.error || "Error saving billing info");
+      } else {
+        toast.error("Error saving billing info");
+      }
       setStatus("error");
     }
   };
