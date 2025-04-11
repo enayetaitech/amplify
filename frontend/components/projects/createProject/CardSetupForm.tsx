@@ -37,6 +37,7 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
         console.log("Received client secret", response.data.data.clientSecret);
         setClientSecret(response.data.data.clientSecret);
       } catch (err) {
+        console.log(err)
         toast.error("Error creating setup intent");
       }
     };
@@ -87,10 +88,12 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
         toast.success("Card saved successfully");
         onCardSaved();
       }
-    } catch (err: any) {
-      toast.error(
-        err.response?.data?.error || "Error retrieving card info"
-      );
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        toast.error(err.response?.data?.error || "Error retrieving card info");
+      } else {
+        toast.error("Error retrieving card info");
+      }
     }
     setLoading(false);
   };

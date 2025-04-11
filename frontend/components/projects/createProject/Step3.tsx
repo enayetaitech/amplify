@@ -7,7 +7,7 @@ import { Button } from "components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "components/ui/select";
 import { CheckIcon } from "lucide-react";
 import { IProjectFormState } from "app/(dashboard)/create-project/page";
-import { SessionRow } from "@shared/interface/project.interface";
+import { IProjectSession, SessionRow } from "@shared/interface/project.interface";
 import { durationMapping, durations } from "constant";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -45,7 +45,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   // ========= Sessions =========
   const [sessionRows, setSessionRows] = useState<SessionRow[]>(
     formData.sessions && Array.isArray(formData.sessions)
-      ? formData.sessions.map((s: any, index: number) => ({
+      ? formData.sessions.map((s: IProjectSession, index: number) => ({
           id: String(index),
           number: s.number,
           duration: s.duration,
@@ -110,7 +110,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     setSessionRows((prev) => [...prev, newRow]);
   };
 
-  const updateSessionRow = (id: string, field: keyof SessionRow, value: any) => {
+  const updateSessionRow = <K extends keyof SessionRow>(id: string, field: K, value:  SessionRow[K]) => {
     setSessionRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );

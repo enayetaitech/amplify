@@ -19,7 +19,7 @@ export type IProjectFormState = Omit<IProjectForm, "firstDateOfStreaming" | "pro
 
 const CreateProjectPage: React.FC = () => {
   const { user } = useGlobalContext();
-  const userId = (user as any)?._id || "";
+  const userId = user?._id || "";
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [uniqueId, setUniqueId] = useState<string | null>(null);

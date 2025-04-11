@@ -41,7 +41,7 @@ export const chargeWithSavedCard = async (amountCents: number, totalCreditsNeede
     { customerId: user.stripeCustomerId, amount: amountCents, currency: "usd", userId: user._id, purchasedCredit:totalCreditsNeeded },
     { headers: { Authorization: `Bearer ${token}` } }
   );
-
+localStorage.setItem("user", JSON.stringify(response.data.data.user));
   console.log("charge payment response", response);
   return response.data;
 };

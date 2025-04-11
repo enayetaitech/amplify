@@ -80,7 +80,6 @@ export const createProjectByExternalAdmin = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId, uniqueId, projectData } = req.body;
-  console.log('req.body',req.body)
 
   if (!userId || !projectData) {
     throw new ErrorHandler("User ID and project data are required", 400);
@@ -110,7 +109,6 @@ export const createProjectByExternalAdmin = async (
     if (uniqueId) {
       await ProjectModel.findByIdAndDelete(uniqueId).session(session);
     }
-console.log('before commit')
     await session.commitTransaction();
     session.endSession();
 
