@@ -3,25 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { IProjectForm } from "../../../../shared/interface/ProjectFormInterface";
 import { useGlobalContext } from "context/GlobalContext";
 import { Button } from "components/ui/button";
 import Step1 from "components/projects/createProject/Step1Component";
 import Step2 from "components/projects/createProject/Step2Component";
 import Step3 from "components/projects/createProject/Step3Component";
 import Step4 from "components/projects/createProject/Step4Component";
-
-// Local state type override: treat Date fields as strings to allow initial empty values
-export type IProjectFormState = Omit<IProjectForm, "firstDateOfStreaming" | "projectDate"> & {
-  firstDateOfStreaming: string;
-  projectDate: string;
-};
-
-interface StepProps {
-  formData: IProjectFormState;
-  updateFormData: (fields: Partial<IProjectFormState>) => void;
-  uniqueId: string | null;
-}
+import { IProjectFormState, StepProps } from "../../../../shared/interface/CreateProjectInterface"
 
 const CreateProjectPage: React.FC = () => {
   const { user } = useGlobalContext();

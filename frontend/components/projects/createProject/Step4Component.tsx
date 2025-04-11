@@ -1,36 +1,11 @@
 "use client";
-
 import React, { useState } from "react";
 import { Button } from "components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "components/ui/select";
 import PaymentIntegration from "./PaymentIntegrationComponent";
-import { durationMapping } from "constant";
-import { IProjectFormState } from "app/(dashboard)/create-project/page";
+import { creditPackages, durationMapping, quantityOptions } from "constant";
+import { IProjectFormState, Step4Props } from "@shared/interface/CreateProjectInterface";
 
-interface Step4Props {
-  formData: {
-    name: string;
-    service: string;
-    respondentCountry: string;
-    respondentLanguage: string | string[];
-    sessions: Array<{ number: number; duration: string }>;
-    description?: string;
-    firstDateOfStreaming: string;
-  };
-  updateFormData: (fields: Partial<IProjectFormState>) => void;
-  uniqueId: string | null;
-}
-
-// Credit packages available for purchase
-const creditPackages = [
-  { package: 500, cost: 750 },
-  { package: 2500, cost: 3550 },
-  { package: 15000, cost: 20000 },
-  { package: 50000, cost: 60000 },
-];
-
-// Options for quantity selection in the Purchase Credits table
-const quantityOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 
 const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
   // State to determine whether to show the payment integration UI
@@ -47,6 +22,7 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
   // Compute the project estimate rows based on sessions data
   const sessions = formData.sessions || [];
   const totalCreditsNeeded = 0;
+
   const projectEstimateRows = sessions.map((session) => {
     const quantity = Number(session.number) || 0;
     // Use durationMapping or fallback to the duration value directly (assumed in minutes)
@@ -87,8 +63,6 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
   const handlePayNow = () => {
     setShowPaymentIntegration(true);
   };
-
-  console.log('total credits needed',totalPurchasedCredits)
 
   // Render the PaymentIntegration component if the user has clicked "Pay Now"
   if (showPaymentIntegration) {

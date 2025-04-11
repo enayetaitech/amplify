@@ -3,6 +3,7 @@ import express from "express";
 import userRoutes from "./user/userRoutes";
 import projectRoutes from "./project/projectRoutes";
 import paymentRoutes from "./payment/PaymentRoutes";
+import moderatorRoutes from "./moderator/ModeratorRoutes";
 // import more routes as you create them...
 
 const router = express.Router();
@@ -12,6 +13,7 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/users", route: userRoutes },
   { path: "/projects", route: projectRoutes },
   { path: "/payment", route: paymentRoutes },
+  { path: "/moderators", route: moderatorRoutes },
 
 ];
 

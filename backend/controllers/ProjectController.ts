@@ -5,7 +5,7 @@ import ProjectFormModel, {
 } from "../model/ProjectFormModel";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
+import ProjectModel from "../model/ProjectModel";
 import mongoose from "mongoose";
 import {
   projectCreateAndPaymentConfirmationEmailTemplate,
@@ -235,4 +235,87 @@ export const getProjectByUserId = async (
 
   // Send the result back to the frontend using your sendResponse utility
   sendResponse(res, projects, "Projects retrieved successfully", 200);
+};
+
+export const getProjectById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.params;
+
+  if (!projectId) {
+    return next(new ErrorHandler("Project ID is required", 400));
+  }
+
+    const project = await ProjectModel.findById(projectId);
+
+    if (!project) {
+      return next(new ErrorHandler("Project not found", 404));
+    }
+
+    sendResponse(res, project, "Project retrieved successfully", 200);
+  
+    
+};
+
+export const editProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // Expecting projectId in body along with the fields to be updated.
+  const { projectId, internalProjectName, description } = req.body;
+
+  if (!projectId) {
+    return next(new ErrorHandler("Project ID is required", 400));
+  }
+
+  // Ensure at least one field to update is provided.
+  if (!internalProjectName && !description) {
+    return next(new ErrorHandler("No update data provided", 400));
+  }
+
+  // Find the project by its ID.
+  const project = await ProjectModel.findById(projectId);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Update only the allowed fields if they are provided.
+  if (internalProjectName) {
+    project.internalProjectName = internalProjectName;
+  }
+  if (description) {
+    project.description = description;
+  }
+
+  // Save the updated project.
+  const updatedProject = await project.save();
+  sendResponse(res, updatedProject, "Project updated successfully", 200);
+};
+
+export const toggleRecordingAccess = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.body;
+
+  if (!projectId) {
+    return next(new ErrorHandler("Project ID is required", 400));
+  }
+
+  // Find the project by its ID
+  const project = await ProjectModel.findById(projectId);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Toggle the recordingAccess field
+  project.recordingAccess = !project.recordingAccess;
+  
+  // Save the updated project
+  const updatedProject = await project.save();
+  sendResponse(res, updatedProject, "Recording access toggled successfully", 200);
 };

@@ -22,7 +22,6 @@ export interface IUser {
   phoneNumber?: string;
   companyName?: string;
   password: string;
-
   role:
     | 'Admin'
     | 'Moderator'

@@ -10,17 +10,21 @@ export type ProjectService = "Concierge" | "Signature";
 
 export interface IProject {
   name: string;
+  internalProjectName: string;
   description: string;
   startDate: Date;
   status: ProjectStatus;
   createdBy: string;       
-  tags: string[];  
+  tags: string[];
+  moderators: string[];
+  meetings: string[];
   projectPasscode?: string;
   cumulativeMinutes: number;
   service: ProjectService;
   respondentCountry: string;
   respondentLanguage: string;
   sessions: IProjectSession[];
+  recordingAccess:boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
