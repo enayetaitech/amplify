@@ -6,10 +6,9 @@ import { toast } from "sonner";
 import { Button } from "components/ui/button";
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { getToken, getUser } from "../../../utils/payment";
+import { CardSetupFormProps } from "@shared/interface/CreateProjectInterface";
 
-interface CardSetupFormProps {
-  onCardSaved: () => void;
-}
+
 
 export const CardSetupForm: React.FC<CardSetupFormProps> = ({
   onCardSaved,

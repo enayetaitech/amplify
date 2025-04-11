@@ -6,19 +6,8 @@ import { Label } from "components/ui/label";
 import axios from "axios";
 import { toast } from "sonner";
 import { getToken, getUser } from "../../../utils/payment";
-
-// Shared interface for billing information
-export interface IBillingInfo {
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  postalCode: string;
-}
-
-interface BillingFormProps {
-  onSuccess: () => void;
-}
+import { IBillingInfo } from "@shared/interface/UserInterface";
+import { BillingFormProps } from "@shared/interface/CreateProjectInterface";
 
 export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
   const [billingInfo, setBillingInfo] = useState<IBillingInfo>({
