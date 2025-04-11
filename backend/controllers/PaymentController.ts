@@ -237,9 +237,9 @@ export const chargeCustomer = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { customerId, amount, currency } = req.body;
+  const { customerId, amount, currency, userId, purchasedCredit } = req.body;
   try {
-    console.log('inside charge customer', customerId, amount, currency)
+    
     const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
     // Determine the default payment method ID. It might be a string or an object.
     let defaultPaymentMethodId: string | undefined;
@@ -253,7 +253,7 @@ export const chargeCustomer = async (
     }
 
     if (!defaultPaymentMethodId) {
-      throw new ErrorHandler("Customer has no default payment method.", 400);
+      return next(new ErrorHandler("Customer has no default payment method.", 400));
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -264,8 +264,19 @@ export const chargeCustomer = async (
       off_session: true,
       confirm: true,
     });
-    console.log('payment intent', paymentIntent)
-    sendResponse(res, { paymentIntent }, "Charge successful", 200);
+    
+ // Find the user using userId and add the purchased credits
+ const updatedUser = await User.findByIdAndUpdate(
+  userId,
+  { $inc: { credits: purchasedCredit } },
+  { new: true }
+);
+
+if (!updatedUser) {
+  return next(new ErrorHandler("User not found", 404));
+}
+
+    sendResponse(res, { paymentIntent, user: updatedUser }, "Charge successful", 200);
   } catch (error) {
     next(error);
   }

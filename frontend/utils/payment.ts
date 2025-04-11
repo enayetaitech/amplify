@@ -28,7 +28,7 @@ export const getUser = (): IUser | null => {
 };
 
 // Charges the customer using the saved card for a given amount (in cents)
-export const chargeWithSavedCard = async (amountCents: number): Promise<any> => {
+export const chargeWithSavedCard = async (amountCents: number, totalCreditsNeeded: number): Promise<any> => {
   const token = getToken();
   const user = getUser();
 
@@ -38,7 +38,7 @@ export const chargeWithSavedCard = async (amountCents: number): Promise<any> => 
 
   const response = await axios.post(
     `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/payment/charge`,
-    { customerId: user.stripeCustomerId, amount: amountCents, currency: "usd" },
+    { customerId: user.stripeCustomerId, amount: amountCents, currency: "usd", userId: user._id, purchasedCredit:totalCreditsNeeded },
     { headers: { Authorization: `Bearer ${token}` } }
   );
 

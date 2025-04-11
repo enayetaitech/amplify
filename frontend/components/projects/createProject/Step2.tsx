@@ -4,7 +4,7 @@ import React from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "components/ui/button";
 import { Input } from "components/ui/input";
-import { Textarea } from "components/ui/textarea"; // Assumes you have a shadcn UI textarea
+import { Textarea } from "components/ui/textarea"; 
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { IProjectFormState } from "app/(dashboard)/create-project/page";
