@@ -1,5 +1,5 @@
-import Heading20pxBlueUC from "components/Heading20pxBlueUC";
-import Logo from "components/Logo";
+import Heading20pxBlueUC from "components/Heading20pxBlueUCComponent";
+import Logo from "components/LogoComponent";
 import React from "react";
 
 const TermsPage: React.FC = () => {

@@ -1,4 +1,4 @@
-import { Toaster } from '@/components/ui/sonner'
+import { Toaster } from 'components/ui/sonner'
 import { AuthProvider } from 'context/AuthContext'
 import { DashboardProvider } from 'context/DashboardContext'
 import { GlobalProvider } from 'context/GlobalContext'

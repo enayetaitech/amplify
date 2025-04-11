@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { IProjectForm } from "../../../../shared/interface/projectForm.interface";
+import { IProjectForm } from "../../../../shared/interface/ProjectFormInterface";
 import { useGlobalContext } from "context/GlobalContext";
 import { Button } from "components/ui/button";
-import Step1 from "components/projects/createProject/Step1";
-import Step2 from "components/projects/createProject/Step2";
-import Step3 from "components/projects/createProject/Step3";
-import Step4 from "components/projects/createProject/Step4";
+import Step1 from "components/projects/createProject/Step1Component";
+import Step2 from "components/projects/createProject/Step2Component";
+import Step3 from "components/projects/createProject/Step3Component";
+import Step4 from "components/projects/createProject/Step4Component";
 
 // Local state type override: treat Date fields as strings to allow initial empty values
 export type IProjectFormState = Omit<IProjectForm, "firstDateOfStreaming" | "projectDate"> & {

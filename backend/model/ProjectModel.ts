@@ -1,6 +1,6 @@
 
 import { Schema, model, Document, Types } from "mongoose";
-import { IProject, IProjectSession } from "../../shared/interface/project.interface";
+import { IProject, IProjectSession } from "../../shared/interface/ProjectInterface";
 
 // Override types for backend/Mongoose usage
 export interface IProjectDocument extends Omit<IProject, "createdBy" | "tags">, Document {

@@ -1,6 +1,6 @@
-import transporter from "../../config/nodemailer.config";
+import transporter from "../../config/NodemailerConfig";
 import config from "../../config/index"
-import {SendEmailOptions} from "../../../shared/interface/sendEmail.interface"
+import {SendEmailOptions} from "../../../shared/interface/SendEmailInterface"
 
 
 export const sendEmail = async (options: SendEmailOptions): Promise<void> => {

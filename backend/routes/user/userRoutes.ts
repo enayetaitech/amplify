@@ -9,8 +9,8 @@ import {
   editUser,
   deleteUser,
   findUserById,
-} from '../../controllers/user.controller'
-import { catchError } from '../../middlewares/catchError.middleware'
+} from '../../controllers/UserController'
+import { catchError } from '../../middlewares/CatchErrorMiddleware'
 
 const router = express.Router()
 

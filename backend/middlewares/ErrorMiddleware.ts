@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { ICustomError} from "../../shared/interface/error.interface"
+import { ICustomError} from "../../shared/interface/ErrorInterface"
 import  ErrorHandler from "../../shared/utils/ErrorHandler"
 
 

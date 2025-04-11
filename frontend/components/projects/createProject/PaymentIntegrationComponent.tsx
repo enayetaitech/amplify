@@ -6,13 +6,13 @@ import { Button } from "components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
-import CardSetupForm from "./CardSetupForm";
-import BillingForm from "./BillingForm";
+import CardSetupForm from "./CardSetupFormComponent";
+import BillingForm from "./BillingFormComponent";
 import { getUser, chargeWithSavedCard } from "../../../utils/payment";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { IProjectFormState } from "app/(dashboard)/create-project/page";
-import { IProject } from "@shared/interface/project.interface";
+import { IProject } from "@shared/interface/ProjectInterface";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""

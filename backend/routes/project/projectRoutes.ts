@@ -1,7 +1,7 @@
 
 import express from 'express';
-import { catchError } from '../../middlewares/catchError.middleware';
-import { createProjectByExternalAdmin, emailProjectInfo, getProjectByUserId, saveProgress } from '../../controllers/project.controller';
+import { catchError } from '../../middlewares/CatchErrorMiddleware';
+import { createProjectByExternalAdmin, emailProjectInfo, getProjectByUserId, saveProgress } from '../../controllers/ProjectController';
 
 
 const router = express.Router();

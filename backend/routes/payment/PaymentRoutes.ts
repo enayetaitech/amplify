@@ -1,5 +1,5 @@
 import express from "express";
-import { catchError } from "../../middlewares/catchError.middleware";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
 import {
   createCustomer,
   createPaymentIntent,

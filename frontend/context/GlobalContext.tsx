@@ -7,7 +7,7 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
-import { IUser } from "../../shared/interface/user.interface";
+import { IUser } from "../../shared/interface/UserInterface";
 
 type GlobalContextType = {
   user: IUser | null;
@@ -56,8 +56,6 @@ export function GlobalProvider({ children }: GlobalProviderProps) {
   };
 
   return (
-    <GlobalContext.Provider  value={value}>
-      {children}
-    </GlobalContext.Provider>
+    <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>
   );
 }
