@@ -1,7 +1,7 @@
 
 import express from 'express';
 import { catchError } from '../../middlewares/CatchErrorMiddleware';
-import { createProjectByExternalAdmin, editProject, emailProjectInfo, getProjectById, getProjectByUserId, saveProgress } from '../../controllers/ProjectController';
+import { createProjectByExternalAdmin, editProject, emailProjectInfo, getProjectById, getProjectByUserId, saveProgress, toggleRecordingAccess } from '../../controllers/ProjectController';
 
 
 const router = express.Router();
@@ -23,5 +23,8 @@ router.get("/get-project-by-id/:projectId", catchError(getProjectById));
 
 // GET /api/v1/projects/edit-project 
 router.patch("/edit-project", catchError(editProject));
+
+// GET /api/v1/projects/toggle-recording-access
+router.patch("/toggle-recording-access", catchError(toggleRecordingAccess));
 
 export default router;

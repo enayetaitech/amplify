@@ -294,3 +294,28 @@ export const editProject = async (
   const updatedProject = await project.save();
   sendResponse(res, updatedProject, "Project updated successfully", 200);
 };
+
+export const toggleRecordingAccess = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.body;
+
+  if (!projectId) {
+    return next(new ErrorHandler("Project ID is required", 400));
+  }
+
+  // Find the project by its ID
+  const project = await ProjectModel.findById(projectId);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Toggle the recordingAccess field
+  project.recordingAccess = !project.recordingAccess;
+  
+  // Save the updated project
+  const updatedProject = await project.save();
+  sendResponse(res, updatedProject, "Recording access toggled successfully", 200);
+};
