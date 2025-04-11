@@ -7,7 +7,7 @@ import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Label } from "components/ui/label";
 
-import Logo from "components/Logo";
+import Logo from "components/LogoComponent";
 import { Alert, AlertDescription } from "components/ui/alert";
 import { toast } from "sonner";
 

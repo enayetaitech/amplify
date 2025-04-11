@@ -1,5 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
-import { IProjectForm } from "../../shared/interface/projectForm.interface";
+import { IProjectForm } from "../../shared/interface/ProjectFormInterface";
 
 export interface IProjectFormDocument extends Omit<IProjectForm, "user">, Document {
   user: Types.ObjectId;

@@ -22,8 +22,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "components/ui/button";
-import Logo from "components/Logo";
-import { IUser } from "../../../../shared/interface/user.interface";
+import Logo from "components/LogoComponent";
+import { IUser } from "../../../../shared/interface/UserInterface";
 import { useGlobalContext } from "context/GlobalContext";
 
 const loginSchema = z.object({

@@ -4,13 +4,26 @@ import React, { useState, useEffect } from "react";
 import { Label } from "components/ui/label";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
-import { Select, SelectTrigger, SelectContent, SelectItem } from "components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+} from "components/ui/select";
 import { CheckIcon } from "lucide-react";
 import { IProjectFormState } from "app/(dashboard)/create-project/page";
-import { IProjectSession, SessionRow } from "@shared/interface/project.interface";
+import {
+  IProjectSession,
+  SessionRow,
+} from "@shared/interface/ProjectInterface";
 import { durationMapping, durations } from "constant";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "components/ui/command";
 
 export interface Step3Props {
   formData: IProjectFormState;
@@ -64,7 +77,8 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         ]
       : selectedLanguages;
 
-    const finalCountry = countrySelection === "USA" ? "USA" : otherCountry.trim();
+    const finalCountry =
+      countrySelection === "USA" ? "USA" : otherCountry.trim();
 
     updateFormData({
       name: projectName,
@@ -77,7 +91,14 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     });
     // Excluding updateFormData from dependencies to avoid potential infinite loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectName, selectedLanguages, otherLanguage, countrySelection, otherCountry, sessionRows]);
+  }, [
+    projectName,
+    selectedLanguages,
+    otherLanguage,
+    countrySelection,
+    otherCountry,
+    sessionRows,
+  ]);
 
   // ========= Multi-Select Handlers =========
   const toggleLanguage = (lang: string) => {
@@ -110,7 +131,11 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     setSessionRows((prev) => [...prev, newRow]);
   };
 
-  const updateSessionRow = <K extends keyof SessionRow>(id: string, field: K, value:  SessionRow[K]) => {
+  const updateSessionRow = <K extends keyof SessionRow>(
+    id: string,
+    field: K,
+    value: SessionRow[K]
+  ) => {
     setSessionRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
@@ -120,19 +145,25 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     setSessionRows((prev) => prev.filter((row) => row.id !== id));
   };
 
-  const totalSessions = sessionRows.reduce((acc, row) => acc + Number(row.number), 0);
+  const totalSessions = sessionRows.reduce(
+    (acc, row) => acc + Number(row.number),
+    0
+  );
   const totalDurationMinutes = sessionRows.reduce(
-    (acc, row) => acc + Number(row.number) * (durationMapping[row.duration] || 0),
+    (acc, row) =>
+      acc + Number(row.number) * (durationMapping[row.duration] || 0),
     0
   );
   const totalHoursDecimal = totalDurationMinutes / 60;
   const hoursText =
-    totalHoursDecimal % 1 === 0 ? String(totalHoursDecimal) : totalHoursDecimal.toFixed(2);
+    totalHoursDecimal % 1 === 0
+      ? String(totalHoursDecimal)
+      : totalHoursDecimal.toFixed(2);
 
   return (
     <div className="space-y-6">
-       {/* Project Name Input */}
-       <div>
+      {/* Project Name Input */}
+      <div>
         <Label className="block text-sm font-medium text-gray-700">
           Project Name*
         </Label>
@@ -146,7 +177,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
       {/* Multi-Select for Languages using Popover and Command */}
       <div>
         <Label className="block text-sm font-medium text-gray-700">
-          Respondent Language(s)* 
+          Respondent Language(s)*
         </Label>
         <Popover>
           <PopoverTrigger asChild>
@@ -179,7 +210,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         {selectedLanguages.includes("Other") && (
           <div className="mt-2">
             <Label className="block text-sm font-medium text-gray-700">
-              Other Language(s)* 
+              Other Language(s)*
             </Label>
             <Input
               type="text"
@@ -190,8 +221,9 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         )}
         {formData.service === "Concierge" && (
           <p className="text-sm text-gray-500 mt-2">
-            If selected Concierge Service, please note that all Amplify hosting will be in English.
-            If you need in-language hosting, please select in-Language Services on the previous screen.
+            If selected Concierge Service, please note that all Amplify hosting
+            will be in English. If you need in-language hosting, please select
+            in-Language Services on the previous screen.
           </p>
         )}
       </div>
@@ -203,7 +235,9 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         </Label>
         <Select
           value={countrySelection}
-          onValueChange={(value: "USA" | "Other") => handleCountrySelection(value)}
+          onValueChange={(value: "USA" | "Other") =>
+            handleCountrySelection(value)
+          }
         >
           <SelectTrigger className="w-full">
             <Button variant="outline" className="w-full text-left">
@@ -257,7 +291,9 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
                 <td className="border px-4 py-2">
                   <Select
                     value={row.duration}
-                    onValueChange={(value) => updateSessionRow(row.id, "duration", value)}
+                    onValueChange={(value) =>
+                      updateSessionRow(row.id, "duration", value)
+                    }
                   >
                     <SelectTrigger className="w-full">
                       <Button variant="outline" className="w-full text-left">
@@ -274,7 +310,10 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
                   </Select>
                 </td>
                 <td className="border px-4 py-2 text-center">
-                  <Button variant="outline" onClick={() => deleteSessionRow(row.id)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => deleteSessionRow(row.id)}
+                  >
                     Delete
                   </Button>
                 </td>
@@ -286,7 +325,8 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
               </td>
               <td className="border px-4 py-2 font-bold" colSpan={2}>
                 Total Duration: {hoursText} hour{hoursText !== "1" ? "s" : ""} (
-                {totalDurationMinutes} minute{totalDurationMinutes !== 1 ? "s" : ""})
+                {totalDurationMinutes} minute
+                {totalDurationMinutes !== 1 ? "s" : ""})
               </td>
             </tr>
           </tbody>

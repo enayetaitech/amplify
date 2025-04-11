@@ -2,7 +2,7 @@
 import express from "express";
 import config from "./config/index";
 import connectDB from "./config/db";
-import errorMiddleware from "./middlewares/error.middleware";
+import errorMiddleware from "./middlewares/ErrorMiddleware";
 import mainRoutes from "./routes/index"
 import cors from "cors";
 

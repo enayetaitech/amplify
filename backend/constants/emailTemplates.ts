@@ -1,5 +1,5 @@
 import config from "../config/index";
-import { ProjectCreateAndPaymentConfirmationEmailTemplateParams, TemplateParams } from "../../shared/interface/projectInfoEmail.interface"
+import { ProjectCreateAndPaymentConfirmationEmailTemplateParams, TemplateParams } from "../../shared/interface/ProjectInfoEmailInterface"
 
 export const verificationEmailTemplate = (name: string, token: string): string => `
   <p>Dear ${name},</p>

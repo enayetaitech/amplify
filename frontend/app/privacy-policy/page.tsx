@@ -2,8 +2,8 @@
 
 import React from "react";
 import { Card, CardContent } from "components/ui/card";
-import Logo from "components/Logo";
-import HeadingBlue25px from "components/HeadingBlue25px";
+import Logo from "components/LogoComponent";
+import HeadingBlue25px from "components/HeadingBlue25pxComponent";
 
 const PrivacyPolicyPage: React.FC = () => {
   return (

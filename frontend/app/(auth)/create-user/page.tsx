@@ -23,20 +23,16 @@ import { Checkbox } from "components/ui/checkbox";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import Logo from "components/Logo";
+import Logo from "components/LogoComponent";
 import { useMutation } from "@tanstack/react-query";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-} from "@/components/ui/command";
+} from "components/ui/command";
 import { cn } from "lib/utils";
 
 interface CountryCode {

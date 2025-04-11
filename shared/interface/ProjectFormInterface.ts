@@ -1,4 +1,4 @@
-import { IProjectSession } from "./project.interface";
+import { IProjectSession } from "./ProjectInterface";
 
 export type InLanguageHostingOption = "yes" | "no" | "";
 export type ProvideInterpreterOption = "yes" | "no" | "";

@@ -1,6 +1,6 @@
 // /utils/payment.ts
 import axios from "axios";
-import { IUser } from "@shared/interface/user.interface";
+import { IUser } from "@shared/interface/UserInterface";
 
 // Retrieves the token from localStorage
 export const getToken = (): string => {

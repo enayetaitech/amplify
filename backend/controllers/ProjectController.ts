@@ -1,20 +1,24 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/responseHelpers";
-import ProjectFormModel, { IProjectFormDocument } from "../model/ProjectFormModel";
+import { sendResponse } from "../utils/ResponseHelpers";
+import ProjectFormModel, {
+  IProjectFormDocument,
+} from "../model/ProjectFormModel";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
 import mongoose from "mongoose";
-import { projectCreateAndPaymentConfirmationEmailTemplate, projectInfoEmailTemplate } from "../constants/emailTemplates";
-import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
-import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/projectInfoEmail.interface";
-
+import {
+  projectCreateAndPaymentConfirmationEmailTemplate,
+  projectInfoEmailTemplate,
+} from "../constants/emailTemplates";
+import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
+import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
 
 export const saveProgress = async (
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void>  => {
+): Promise<void> => {
   const { uniqueId, formData, userId } = req.body;
 
   if (!userId) {
@@ -22,7 +26,7 @@ export const saveProgress = async (
   }
 
   if (!formData || Object.keys(formData).length === 0) {
-     sendResponse(res, null, "Form data is required", 400);
+    sendResponse(res, null, "Form data is required", 400);
   }
 
   let savedForm: IProjectFormDocument;
@@ -50,7 +54,7 @@ export const saveProgress = async (
       existingForm.set(formData);
       savedForm = await existingForm.save();
 
-     sendResponse(
+      sendResponse(
         res,
         { uniqueId: savedForm._id },
         "Progress updated successfully",
@@ -74,15 +78,18 @@ export const saveProgress = async (
   }
 };
 
-
 export const createProjectByExternalAdmin = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { userId, uniqueId, projectData, 
+  const {
+    userId,
+    uniqueId,
+    projectData,
     totalPurchasePrice,
-    totalCreditsNeeded, } = req.body;
+    totalCreditsNeeded,
+  } = req.body;
 
   if (!userId || !projectData) {
     throw new ErrorHandler("User ID and project data are required", 400);
@@ -93,7 +100,6 @@ export const createProjectByExternalAdmin = async (
 
   try {
     const user = await User.findById(userId).session(session);
-
 
     if (!user) throw new ErrorHandler("User not found", 404);
 
@@ -106,7 +112,6 @@ export const createProjectByExternalAdmin = async (
       [{ ...projectData, createdBy: userId }],
       { session }
     );
-
 
     // Delete draft if uniqueId exists
     if (uniqueId) {
@@ -133,19 +138,21 @@ export const createProjectByExternalAdmin = async (
     const newCreditBalance =
       (user.credits ? user.credits : 0) + creditsPurchased;
 
-   
     // Prepare the parameters for the confirmation email template
-    const emailParams: ProjectCreateAndPaymentConfirmationEmailTemplateParams = {
-      firstName: user.firstName || "Customer",
-      purchaseAmount,
-      creditsPurchased,
-      transactionDate,
-      newCreditBalance,
-    };
+    const emailParams: ProjectCreateAndPaymentConfirmationEmailTemplateParams =
+      {
+        firstName: user.firstName || "Customer",
+        purchaseAmount,
+        creditsPurchased,
+        transactionDate,
+        newCreditBalance,
+      };
 
     // Build the email content using the separate template function
-    const emailContent = projectCreateAndPaymentConfirmationEmailTemplate(emailParams);
-    const emailSubject = "Success! Your Project Has Been Created for Amplify’s Virtual Backroom";
+    const emailContent =
+      projectCreateAndPaymentConfirmationEmailTemplate(emailParams);
+    const emailSubject =
+      "Success! Your Project Has Been Created for Amplify’s Virtual Backroom";
 
     // Send the email using your email processor function
     await sendEmail({
@@ -153,7 +160,6 @@ export const createProjectByExternalAdmin = async (
       subject: emailSubject,
       html: emailContent,
     });
-
 
     sendResponse(res, createdProject, "Project created successfully", 201);
   } catch (error) {
@@ -163,47 +169,56 @@ export const createProjectByExternalAdmin = async (
   }
 };
 
-export const emailProjectInfo = 
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const { userId, uniqueId, formData } = req.body;
+export const emailProjectInfo = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId, uniqueId, formData } = req.body;
 
-// Validate presence of required fields
-if (!userId || !uniqueId) {
-  return next(new ErrorHandler("User ID and Unique ID are required", 400));
-}
+  // Validate presence of required fields
+  if (!userId || !uniqueId) {
+    return next(new ErrorHandler("User ID and Unique ID are required", 400));
+  }
 
-// Find user
-const user = await User.findById(userId);
-if (!user) {
-  return next(new ErrorHandler("User not found", 404));
-}
+  // Find user
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
 
-// Format sessions
-const formattedSessions = (formData.sessions || [])
-  .map(
-    (session: any, index: number) =>
-      `<p>Session ${index + 1}: ${session.number} sessions - Duration: ${session.duration}</p>`
-  )
-  .join("");
+  // Format sessions
+  const formattedSessions = (formData.sessions || [])
+    .map(
+      (session: any, index: number) =>
+        `<p>Session ${index + 1}: ${session.number} sessions - Duration: ${
+          session.duration
+        }</p>`
+    )
+    .join("");
 
-// Build HTML email template
-const emailContent = projectInfoEmailTemplate({ user, formData, formattedSessions });
+  // Build HTML email template
+  const emailContent = projectInfoEmailTemplate({
+    user,
+    formData,
+    formattedSessions,
+  });
 
-// Send email
-await sendEmail({
-  to: "enayetflweb@gmail.com",
-  subject: "New Project Information Submission",
-  html: emailContent,
-});
+  // Send email
+  await sendEmail({
+    to: "enayetflweb@gmail.com",
+    subject: "New Project Information Submission",
+    html: emailContent,
+  });
 
-// Delete project form from DB
-await ProjectFormModel.findByIdAndDelete(uniqueId);
+  // Delete project form from DB
+  await ProjectFormModel.findByIdAndDelete(uniqueId);
 
-res.status(200).json({
-  success: true,
-  message: "Project information emailed and progress form removed",
-});
-}
+  res.status(200).json({
+    success: true,
+    message: "Project information emailed and progress form removed",
+  });
+};
 
 export const getProjectByUserId = async (
   req: Request,
@@ -217,7 +232,7 @@ export const getProjectByUserId = async (
   }
 
   const projects = await ProjectModel.find({ createdBy: userId });
-  
+
   // Send the result back to the frontend using your sendResponse utility
   sendResponse(res, projects, "Projects retrieved successfully", 200);
 };

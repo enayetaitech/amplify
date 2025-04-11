@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { useGlobalContext } from 'context/GlobalContext'
 import { Button } from 'components/ui/button'
 import InputFieldComponent from 'components/InputFieldComponent'
-import { EditUser } from '@shared/interface/user.interface'
+import { EditUser } from '@shared/interface/UserInterface'
 
 const Page: React.FC = () => {
   const { id } = useParams() as { id: string }

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Button } from "components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "components/ui/select";
-import PaymentIntegration from "./PaymentIntegration";
+import PaymentIntegration from "./PaymentIntegrationComponent";
 import { durationMapping } from "constant";
 import { IProjectFormState } from "app/(dashboard)/create-project/page";
 

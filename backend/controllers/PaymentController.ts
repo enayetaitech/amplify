@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/responseHelpers";
+import { sendResponse } from "../utils/ResponseHelpers";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import Stripe from "stripe";
@@ -34,7 +34,7 @@ export const createCustomer = async (
       const customer = await stripe.customers.create({
         email: user.email,
         name: `${user.firstName} ${user.lastName}`,
-        address: billingInfo, 
+        address: billingInfo,
       });
       user.stripeCustomerId = customer.id;
     }
@@ -99,7 +99,9 @@ export const savePaymentMethod = async (
   const { customerId, paymentMethodId } = req.body;
   try {
     // Attach payment method to customer
-    await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
+    await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId,
+    });
 
     // Set it as the default payment method
     await stripe.customers.update(customerId, {
@@ -119,7 +121,7 @@ export const savePaymentMethod = async (
       };
       await user.save();
     }
-    console.log('last 4', paymentMethod.card)
+    console.log("last 4", paymentMethod.card);
     sendResponse(
       res,
       { last4: paymentMethod.card?.last4, user: user },
@@ -142,7 +144,7 @@ export const createSetupIntent = async (
 ): Promise<void> => {
   try {
     // Use our extended Request type so that userId exists.
-    const userId = req.body.userId
+    const userId = req.body.userId;
     if (!userId) {
       return next(new ErrorHandler("User ID is required", 400));
     }
@@ -163,7 +165,7 @@ export const createSetupIntent = async (
             country: user.billingInfo.country,
           }
         : undefined;
-      
+
       try {
         const customer = await stripe.customers.create({
           email: user.email,
@@ -178,7 +180,7 @@ export const createSetupIntent = async (
       }
       // console.log('customer', customer)
       // user.stripeCustomerId = customer.id;
-      await user.save(); 
+      await user.save();
     }
 
     // Create the SetupIntent
@@ -186,7 +188,7 @@ export const createSetupIntent = async (
       customer: user.stripeCustomerId,
       payment_method_types: ["card"],
     });
-    console.log('user setup intent', setupIntent.client_secret)
+    console.log("user setup intent", setupIntent.client_secret);
 
     sendResponse(
       res,
@@ -215,8 +217,8 @@ export const retrievePaymentMethod = async (
       throw new ErrorHandler("Invalid payment method ID", 400);
     }
 
-    const user = await User.findById(userId)
-console.log('user', user)
+    const user = await User.findById(userId);
+    console.log("user", user);
     sendResponse(
       res,
       { paymentMethod, user },
@@ -239,8 +241,9 @@ export const chargeCustomer = async (
 ): Promise<void> => {
   const { customerId, amount, currency, userId, purchasedCredit } = req.body;
   try {
-    
-    const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
+    const customer = (await stripe.customers.retrieve(
+      customerId
+    )) as Stripe.Customer;
     // Determine the default payment method ID. It might be a string or an object.
     let defaultPaymentMethodId: string | undefined;
     if (typeof customer.invoice_settings.default_payment_method === "string") {
@@ -249,11 +252,14 @@ export const chargeCustomer = async (
       typeof customer.invoice_settings.default_payment_method === "object" &&
       customer.invoice_settings.default_payment_method !== null
     ) {
-      defaultPaymentMethodId = customer.invoice_settings.default_payment_method.id;
+      defaultPaymentMethodId =
+        customer.invoice_settings.default_payment_method.id;
     }
 
     if (!defaultPaymentMethodId) {
-      return next(new ErrorHandler("Customer has no default payment method.", 400));
+      return next(
+        new ErrorHandler("Customer has no default payment method.", 400)
+      );
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -264,24 +270,28 @@ export const chargeCustomer = async (
       off_session: true,
       confirm: true,
     });
-    
- // Find the user using userId and add the purchased credits
- const updatedUser = await User.findByIdAndUpdate(
-  userId,
-  { $inc: { credits: purchasedCredit } },
-  { new: true }
-);
 
-if (!updatedUser) {
-  return next(new ErrorHandler("User not found", 404));
-}
+    // Find the user using userId and add the purchased credits
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { credits: purchasedCredit } },
+      { new: true }
+    );
 
-    sendResponse(res, { paymentIntent, user: updatedUser }, "Charge successful", 200);
+    if (!updatedUser) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    sendResponse(
+      res,
+      { paymentIntent, user: updatedUser },
+      "Charge successful",
+      200
+    );
   } catch (error) {
     next(error);
   }
 };
-
 
 export const saveBillingInfo = async (
   req: Request,
@@ -289,7 +299,7 @@ export const saveBillingInfo = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId, billingInfo } = req.body;
-// console.log( billingData)
+  // console.log( billingData)
   // Validate required fields
   if (!userId) {
     return next(new ErrorHandler("User ID is required", 400));
@@ -301,13 +311,13 @@ export const saveBillingInfo = async (
   try {
     const user = await User.findById(userId);
     if (!user) {
-      return next (new ErrorHandler("User not found", 404));
+      return next(new ErrorHandler("User not found", 404));
     }
 
     // Update the user's billingData field
     user.billingInfo = billingInfo;
     await user.save();
-console.log('user', user)
+    console.log("user", user);
     sendResponse(
       res,
       { billingInfo: user.billingInfo },
