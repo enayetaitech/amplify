@@ -205,3 +205,19 @@ res.status(200).json({
 });
 }
 
+export const getProjectByUserId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
+
+  const projects = await ProjectModel.find({ createdBy: userId });
+  
+  // Send the result back to the frontend using your sendResponse utility
+  sendResponse(res, projects, "Projects retrieved successfully", 200);
+};

@@ -1,7 +1,7 @@
 
 import express from 'express';
 import { catchError } from '../../middlewares/catchError.middleware';
-import { createProjectByExternalAdmin, emailProjectInfo, saveProgress } from '../../controllers/project.controller';
+import { createProjectByExternalAdmin, emailProjectInfo, getProjectByUserId, saveProgress } from '../../controllers/project.controller';
 
 
 const router = express.Router();
@@ -15,5 +15,7 @@ router.post("/create-project-by-external-admin", catchError(createProjectByExter
 // POST /api/v1/projects/email-project-info
 router.post("/email-project-info", catchError(emailProjectInfo));
 
+// POST /api/v1/projects/get-project-by-userId/:userId
+router.get("/get-project-by-userId/:userId", catchError(getProjectByUserId));
 
 export default router;
