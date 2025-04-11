@@ -14,13 +14,15 @@ export interface ICreditCardInfo {
 }
 
 export interface IUser {
-  _id: string
-  firstName: string
-  lastName: string
-  email: string
-  phoneNumber?: string
-  companyName?: string
-  password: string
+
+  _id?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+  companyName?: string;
+  password: string;
+
   role:
     | 'Admin'
     | 'Moderator'
