@@ -42,6 +42,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       userId: string;
       uniqueId: string | null;
       projectData: Partial<IProject>;
+      totalPurchasePrice: number, totalCreditsNeeded:number
     }) => {
       return axios.post(
         `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/create-project-by-external-admin`,
@@ -94,12 +95,13 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 
       const formattedProjectData = formatProjectData(projectData as IProjectFormState);
 
-
-
       createProjectMutation.mutate({
         userId: user._id!,
         uniqueId,
         projectData:formattedProjectData,
+        totalPurchasePrice,
+        totalCreditsNeeded,
+       
       });
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {

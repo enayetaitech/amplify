@@ -1,5 +1,5 @@
 import config from "../config/index";
-import { TemplateParams } from "../../shared/interface/projectInfoEmail.interface"
+import { ProjectCreateAndPaymentConfirmationEmailTemplateParams, TemplateParams } from "../../shared/interface/projectInfoEmail.interface"
 
 export const verificationEmailTemplate = (name: string, token: string): string => `
   <p>Dear ${name},</p>
@@ -50,4 +50,31 @@ export const projectInfoEmailTemplate = ({
   <p><strong>Selected Language:</strong> ${formData.selectedLanguage}</p>
   <p><strong>Additional Info:</strong> ${formData.additionalInfo}</p>
   <p class="mt-4">The Amplify Team</p>
+`;
+
+export const projectCreateAndPaymentConfirmationEmailTemplate = ({
+  firstName,
+  purchaseAmount,
+  creditsPurchased,
+  transactionDate,
+  newCreditBalance,
+}: ProjectCreateAndPaymentConfirmationEmailTemplateParams): string => `
+  <p>Dear ${firstName || "Customer"},</p>
+  <p>
+    Thank you for purchasing credit for Amplify’s Virtual Backroom. Your transaction has been successfully processed,
+    and the credits have been added to your account.
+  </p>
+  <p><strong>Transaction Details:</strong></p>
+  <ul>
+    <li>Purchase Amount: $${purchaseAmount}</li>
+    <li>Number of Credits: ${creditsPurchased}</li>
+    <li>Transaction Date: ${transactionDate}</li>
+    <li>New Credit Balance: ${newCreditBalance}</li>
+  </ul>
+  <p>
+    You can now access and use your credits for our Virtual Backroom services at any time. If you have any questions or need assistance,
+    please don’t hesitate to reach out to our support team at support@amplifyresearch.com.
+  </p>
+  <p>Cheers!</p>
+  <p>The Amplify Team</p>
 `;
