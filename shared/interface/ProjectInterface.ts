@@ -10,6 +10,7 @@ export type ProjectService = "Concierge" | "Signature";
 
 export interface IProject {
   name: string;
+  internalProjectName: string;
   description: string;
   startDate: Date;
   status: ProjectStatus;
@@ -21,6 +22,7 @@ export interface IProject {
   respondentCountry: string;
   respondentLanguage: string;
   sessions: IProjectSession[];
+  recordingAccess:boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -12,6 +12,7 @@ export interface IProjectDocument extends Omit<IProject, "createdBy" | "tags">, 
 const projectSchema = new Schema<IProjectDocument>(
   {
     name: { type: String, required: true },
+    internalProjectName: { type: String, default: "" },
     description: { type: String, default: "" },
     startDate: { type: Date, required: true },
     status: {
@@ -40,6 +41,7 @@ const projectSchema = new Schema<IProjectDocument>(
         duration: { type: String },
       },
     ],
+    recordingAccess: { type: Boolean, default: false },
   },
   {
     timestamps: true,
