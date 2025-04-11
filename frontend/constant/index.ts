@@ -20,3 +20,15 @@ export const durationMapping: Record<string, number> = {
   "2.5 hour (150 minutes)": 150,
   "3 hour (180+ minutes)": 180,
 };
+
+
+export const availableLanguages = ["English", "French", "German", "Spanish", "Other"];
+
+export const creditPackages = [
+  { package: 500, cost: 750 },
+  { package: 2500, cost: 3550 },
+  { package: 15000, cost: 20000 },
+  { package: 50000, cost: 60000 },
+];
+
+export const quantityOptions = [1, 2, 3, 4, 5, 6, 7, 8];

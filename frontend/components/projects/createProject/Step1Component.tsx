@@ -3,21 +3,10 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "components/ui/card";
 import { Input } from "components/ui/input";
-import { IProjectFormState } from "app/(dashboard)/create-project/page";
+import { Step1Props } from "@shared/interface/CreateProjectInterface";
 
-interface Step1Props {
-  // Note: We're using the state type that we defined in CreateProjectPage (date fields as strings)
-  formData: Omit<IProjectFormState, "firstDateOfStreaming" | "projectDate"> & {
-    firstDateOfStreaming: string;
-    projectDate: string;
-  };
-  updateFormData: (fields: Partial<
-    Omit<IProjectFormState, "firstDateOfStreaming" | "projectDate"> & {
-      firstDateOfStreaming: string;
-      projectDate: string;
-    }
-  >) => void;
-}
+
+
 
 const optionalAddOnServices = [
   "Top-Notch Recruiting",

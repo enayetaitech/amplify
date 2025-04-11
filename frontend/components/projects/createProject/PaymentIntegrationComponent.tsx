@@ -11,20 +11,12 @@ import BillingForm from "./BillingFormComponent";
 import { getUser, chargeWithSavedCard } from "../../../utils/payment";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { IProjectFormState } from "app/(dashboard)/create-project/page";
 import { IProject } from "@shared/interface/ProjectInterface";
+import { IProjectFormState, PaymentIntegrationProps } from "@shared/interface/CreateProjectInterface";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
 );
-
-interface PaymentIntegrationProps {
-  totalPurchasePrice: number;
-  totalCreditsNeeded: number;
-  projectData: Partial<IProjectFormState>;
-  uniqueId: string | null;
-}
-
 
 export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   totalPurchasePrice,
@@ -33,9 +25,12 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   uniqueId,
 }) => {
   const user = getUser();
+
   const router = useRouter();
+
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [chargeLoading, setChargeLoading] = useState(false);
+
   // Mutation to hit create-project-by-external-admin endpoint
   const createProjectMutation = useMutation({
     mutationFn: async (data: {
