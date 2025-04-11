@@ -30,9 +30,14 @@ const Page: React.FC = () => {
           }
         )
         setUser(response.data.data)
-      } catch (error: any) {
-        console.error('Error fetching user data:', error)
-        if (error.response && error.response.status === 404) {
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+          console.error('Error fetching user data:', error);
+          if (error.response?.status === 404) {
+            console.warn('User not found');
+          }
+        } else {
+          console.error('Unexpected error:', error);
         }
       }
     }
