@@ -15,7 +15,9 @@ export interface IProject {
   startDate: Date;
   status: ProjectStatus;
   createdBy: string;       
-  tags: string[];  
+  tags: string[];
+  moderators: string[];
+  meetings: string[];
   projectPasscode?: string;
   cumulativeMinutes: number;
   service: ProjectService;

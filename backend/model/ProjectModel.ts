@@ -3,9 +3,11 @@ import { Schema, model, Document, Types } from "mongoose";
 import { IProject, IProjectSession } from "../../shared/interface/ProjectInterface";
 
 // Override types for backend/Mongoose usage
-export interface IProjectDocument extends Omit<IProject, "createdBy" | "tags">, Document {
+export interface IProjectDocument extends Omit<IProject, "createdBy" | "tags" | "moderators" | "meetings">, Document {
   createdBy: Types.ObjectId;
   tags: Types.ObjectId[];
+  moderators: Types.ObjectId[];
+  meetings: Types.ObjectId[];
   sessions: IProjectSession[];
 }
 
@@ -22,6 +24,8 @@ const projectSchema = new Schema<IProjectDocument>(
     },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     tags: { type: [Schema.Types.ObjectId], ref: "Tag", default: [] },
+    moderators: { type: [Schema.Types.ObjectId], ref: "Moderator", default: [] },
+    meetings: { type: [Schema.Types.ObjectId], ref: "Meeting", default: [] },
     projectPasscode: {
       type: String,
       default: () =>
