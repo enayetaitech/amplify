@@ -1,45 +1,52 @@
-"use client"
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+'use client'
+import React, { createContext, useContext, useState, ReactNode } from 'react'
 
 // Define the shape for dashboard stats (customize as needed)
 type Stats = {
-  [key: string]: any;
-};
+  [key: string]: any
+}
 
 type DashboardContextType = {
-  stats: Stats;
-  updateStats: (newStats: Stats) => void;
-};
+  stats: Stats
+  updateStats: (newStats: Stats) => void
+  viewProject: boolean
+  setViewProject: React.Dispatch<React.SetStateAction<boolean>>
+}
 
-const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
+const DashboardContext = createContext<DashboardContextType | undefined>(
+  undefined
+)
 
 export function useDashboard(): DashboardContextType {
-  const context = useContext(DashboardContext);
+  const context = useContext(DashboardContext)
   if (!context) {
-    throw new Error('useDashboard must be used within a DashboardProvider');
+    throw new Error('useDashboard must be used within a DashboardProvider')
   }
-  return context;
+  return context
 }
 
 type DashboardProviderProps = {
-  children: ReactNode;
-};
+  children: ReactNode
+}
 
 export function DashboardProvider({ children }: DashboardProviderProps) {
-  const [stats, setStats] = useState<Stats>({});
+  const [stats, setStats] = useState<Stats>({})
+  const [viewProject, setViewProject] = useState(false)
 
   const updateStats = (newStats: Stats) => {
-    setStats(newStats);
-  };
+    setStats(newStats)
+  }
 
   const contextValue: DashboardContextType = {
     stats,
     updateStats,
-  };
+    viewProject,
+    setViewProject,
+  }
 
   return (
     <DashboardContext.Provider value={contextValue}>
       {children}
     </DashboardContext.Provider>
-  );
+  )
 }
