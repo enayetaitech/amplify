@@ -5,8 +5,9 @@ import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
 import mongoose from "mongoose";
-import { projectInfoEmailTemplate } from "../constants/emailTemplates";
+import { projectCreateAndPaymentConfirmationEmailTemplate, projectInfoEmailTemplate } from "../constants/emailTemplates";
 import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/projectInfoEmail.interface";
 
 
 export const saveProgress = async (
@@ -79,7 +80,9 @@ export const createProjectByExternalAdmin = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { userId, uniqueId, projectData } = req.body;
+  const { userId, uniqueId, projectData, 
+    totalPurchasePrice,
+    totalCreditsNeeded, } = req.body;
 
   if (!userId || !projectData) {
     throw new ErrorHandler("User ID and project data are required", 400);
@@ -90,6 +93,8 @@ export const createProjectByExternalAdmin = async (
 
   try {
     const user = await User.findById(userId).session(session);
+
+
     if (!user) throw new ErrorHandler("User not found", 404);
 
     if (["AmplifyTechHost", "AmplifyModerator"].includes(user.role)) {
@@ -102,18 +107,55 @@ export const createProjectByExternalAdmin = async (
       { session }
     );
 
+
     // Delete draft if uniqueId exists
     if (uniqueId) {
       await ProjectModel.findByIdAndDelete(uniqueId).session(session);
     }
-
     await session.commitTransaction();
     session.endSession();
 
     // Populate tags outside the transaction (optional)
-    const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
+    // !This should be uncommented once the tag collection is created
+    // const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
 
-    sendResponse(res, populatedProject, "Project created successfully", 201);
+    // console.log('populated project', populatedProject)
+
+    // ---- Send the confirmation email below ---- //
+
+    // Extract the payment information (with defaults if missing)
+    const purchaseAmount = totalPurchasePrice || 0;
+    const creditsPurchased = totalCreditsNeeded || 0;
+    // Current date as transaction date (formatted as needed)
+    const transactionDate = new Date().toLocaleDateString();
+
+    // If your user model stores a credit balance, compute the new balance; otherwise, use creditsPurchased as the balance.
+    const newCreditBalance =
+      (user.credits ? user.credits : 0) + creditsPurchased;
+
+   
+    // Prepare the parameters for the confirmation email template
+    const emailParams: ProjectCreateAndPaymentConfirmationEmailTemplateParams = {
+      firstName: user.firstName || "Customer",
+      purchaseAmount,
+      creditsPurchased,
+      transactionDate,
+      newCreditBalance,
+    };
+
+    // Build the email content using the separate template function
+    const emailContent = projectCreateAndPaymentConfirmationEmailTemplate(emailParams);
+    const emailSubject = "Success! Your Project Has Been Created for Amplify’s Virtual Backroom";
+
+    // Send the email using your email processor function
+    await sendEmail({
+      to: user.email,
+      subject: emailSubject,
+      html: emailContent,
+    });
+
+
+    sendResponse(res, createdProject, "Project created successfully", 201);
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -163,3 +205,19 @@ res.status(200).json({
 });
 }
 
+export const getProjectByUserId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
+
+  const projects = await ProjectModel.find({ createdBy: userId });
+  
+  // Send the result back to the frontend using your sendResponse utility
+  sendResponse(res, projects, "Projects retrieved successfully", 200);
+};

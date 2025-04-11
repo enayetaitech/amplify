@@ -4,7 +4,7 @@ import React from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Button } from "components/ui/button";
 import { Input } from "components/ui/input";
-import { Textarea } from "components/ui/textarea"; // Assumes you have a shadcn UI textarea
+import { Textarea } from "components/ui/textarea"; 
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { IProjectFormState } from "app/(dashboard)/create-project/page";
@@ -60,9 +60,14 @@ const Step2: React.FC<Step2Props> = ({ formData, updateFormData, uniqueId }) => 
       router.push("/projects");
     },
 
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Error sending project info", error);
-      toast.error(error.response?.data?.message || "Something went wrong");
+      
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.message || "Something went wrong");
+      } else {
+        toast.error("An unexpected error occurred.");
+      }
     },
   });
 

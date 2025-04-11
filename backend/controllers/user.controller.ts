@@ -10,10 +10,11 @@ import {
 import { sendEmail } from '../processors/sendEmail/sendVerifyAccountEmailProcessor'
 import { sanitizeUser } from '../processors/user/removePasswordFromUserObjectProcessor'
 import config from '../config/index'
-import jwt from 'jsonwebtoken'
-import { isStrongPassword } from '../processors/user/isStrongPasswordProcessor'
-import ProjectModel from '../model/ProjectModel'
 
+import jwt from 'jsonwebtoken';
+import { isStrongPassword } from '../processors/user/isStrongPasswordProcessor';
+import ProjectModel from '../model/ProjectModel';
+import { isValidEmail } from '../processors/user/IsValidEmailProcessor';
 export const createAccount = async (
   req: Request,
   res: Response,
@@ -31,7 +32,14 @@ export const createAccount = async (
     termsAccepted,
   } = req.body
 
-  const existingUser = await User.findOne({ email })
+
+// Check if the email format is valid
+if (!isValidEmail(email)) {
+  return next(new ErrorHandler('Invalid email format', 400));
+}
+
+  const existingUser = await User.findOne({ email });
+
   if (existingUser) {
     return next(new ErrorHandler('User already exists', 400))
   }
