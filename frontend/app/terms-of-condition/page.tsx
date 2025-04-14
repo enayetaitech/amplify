@@ -1,3 +1,4 @@
+import FooterComponent from "components/FooterComponent";
 import Heading20pxBlueUC from "components/Heading20pxBlueUCComponent";
 import Logo from "components/LogoComponent";
 import React from "react";
@@ -439,7 +440,7 @@ const TermsPage: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* <Footer /> */}
+      <FooterComponent />
     </>
   );
 };
