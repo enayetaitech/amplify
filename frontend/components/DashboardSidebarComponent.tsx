@@ -22,7 +22,7 @@ const SidebarLinks = ({ user, setViewProject }: any) => {
 
   return (
     <>
-      <Link href="/project" onClick={() => setViewProject(false)}>
+      <Link href="/projects" onClick={() => setViewProject(false)}>
         <div className="flex items-center gap-3 pt-5">
           <FaListAlt className="text-base text-[#6A7E88]" />
           <p className="text-base font-semibold text-[#6A7E88]">Dashboard</p>
