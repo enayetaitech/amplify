@@ -6,4 +6,5 @@ export interface IModerator {
   companyName: string;
   adminAccess: boolean;
   projectId: string;
+  isVerified: boolean;
 }
