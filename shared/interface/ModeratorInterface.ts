@@ -7,4 +7,5 @@ export interface IModerator {
   adminAccess: boolean;
   projectId: string;
   isVerified: boolean;
+  isActive: boolean;
 }

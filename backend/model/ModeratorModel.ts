@@ -17,6 +17,7 @@ const moderatorSchema = new Schema<IModeratorDocument>(
     adminAccess: { type: Boolean, default: false },
     projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
     isVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: false },
   },
   {
     timestamps: true,
