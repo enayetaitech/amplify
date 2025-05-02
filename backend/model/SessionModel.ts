@@ -14,12 +14,12 @@ export interface ISessionDocument
 const SessionSchema = new Schema<ISessionDocument>(
   {
     title: { type: String, required: true, trim: true },
-    projectId: { type: Types.ObjectId, ref: "Project", required: true },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
     date: { type: Date, required: true },
     startTime: { type: String, required: true },
     duration: { type: Number, required: true, min: 30 },
     moderators: [
-      { type: Types.ObjectId, ref: "Moderator", required: true }
+      { type: Schema.Types.ObjectId, ref: "Moderator", required: true }
     ],
     timeZone: { type: String, required: true },
     breakoutRoom: { type: Boolean, required: true, default: false },
