@@ -9,11 +9,11 @@ import axios from 'axios'
 import { Button } from 'components/ui/button'
 import PasswordModalComponent from 'components/PasswordModalComponent'
 import ConfirmationModalComponent from 'components/ConfirmationModalComponent'
-import HeadingParagaraphComponent from 'components/HeadingParagaraphComponent'
 import { useGlobalContext } from 'context/GlobalContext'
 import { RiPencilFill } from 'react-icons/ri'
 import { IoTrashSharp } from 'react-icons/io5'
 import { MdLockReset } from 'react-icons/md'
+import HeadingParagraphComponent from 'components/HeadingParagraphComponent'
 
 interface Notification {
   id: number
@@ -52,12 +52,13 @@ const initialNotifications: Notification[] = [
 ]
 
 const Page = () => {
-  const [showModal, setShowModal] = useState<boolean>(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false)
   const { user, setUser } = useGlobalContext()
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
-  const [remainingCredits, setRemainingCredits] = useState<number | null>(null)
+
+  const [showModal, setShowModal] = useState<boolean>(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false)
+  const [remainingCredits, setRemainingCredits] = useState<number | undefined |null>(user?.credits)
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
   console.log(user, 'user')
@@ -158,21 +159,21 @@ const Page = () => {
             Personal Details
           </h1>
           <div className='space-y-7 pt-7'>
-            <HeadingParagaraphComponent
+            <HeadingParagraphComponent
               heading='First Name'
               paragraph={user?.firstName?.toUpperCase() || ''}
             />
-            <HeadingParagaraphComponent
+            <HeadingParagraphComponent
               heading='Last Name'
               paragraph={user?.lastName?.toUpperCase() || ''}
             />
-            <HeadingParagaraphComponent
+            <HeadingParagraphComponent
               heading='Email'
               paragraph={user?.email ?? ''}
             />
-            <HeadingParagaraphComponent
+            <HeadingParagraphComponent
               heading='Remaining Credits'
-              paragraph={`${remainingCredits ?? 0} Min`}
+              paragraph={`${remainingCredits ?? 0}`}
             />
           </div>
         </div>
@@ -248,21 +249,21 @@ const Page = () => {
                 Personal Details
               </h1>
               <div className='space-y-3 pt-7'>
-                <HeadingParagaraphComponent
+                <HeadingParagraphComponent
                   heading='First Name'
                   paragraph={(user && user?.firstName?.toUpperCase()) || ''}
                 />
-                <HeadingParagaraphComponent
+                <HeadingParagraphComponent
                   heading='Last Name'
                   paragraph={(user && user?.lastName?.toUpperCase()) || ''}
                 />
-                <HeadingParagaraphComponent
+                <HeadingParagraphComponent
                   heading='Email'
                   paragraph={(user && user.email) || ''}
                 />
-                <HeadingParagaraphComponent
+                <HeadingParagraphComponent
                   heading='Remaining Credits'
-                  paragraph={`${remainingCredits ?? 0} Min`}
+                  paragraph={`${remainingCredits ?? 0}`}
                 />
               </div>
             </div>
