@@ -4,9 +4,10 @@ import { sendResponse } from "../utils/ResponseHelpers";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import ProjectModel from "../model/ProjectModel";
 import User from "../model/UserModel";
-import { moderatorAddedEmailTemplate } from "../constants/EmailTemplates";
+
 import config from "../config";
 import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
+import { moderatorAddedEmailTemplate } from "../constants/emailTemplates";
 
 /**
  * Controller to add a new moderator to a project.
