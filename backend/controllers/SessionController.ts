@@ -61,3 +61,110 @@ export const createSessions = async (
   // 6. Send uniform success response
   sendResponse(res, created, "Sessions created", 201);
 };
+
+export const updateSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sessionId = req.params.id;
+    const allowed = [
+      "title",
+      "date",
+      "startTime",
+      "duration",
+      "moderators",
+      "timeZone",
+      "breakoutRoom",
+    ];
+
+    // 1. Build an updates object only with allowed fields
+    const updates: Partial<Record<string, any>> = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        updates[key] = req.body[key];
+      }
+    }
+
+    // 2. If nothing to update, reject
+    if (Object.keys(updates).length === 0) {
+      return next(
+        new ErrorHandler("No valid fields provided for update", 400)
+      );
+    }
+
+    // 3. Perform the update (returns the new document)
+    const updated = await SessionModel.findByIdAndUpdate(
+      sessionId,
+      updates,
+      { new: true }
+    );
+
+    // 4. If not found, 404
+    if (!updated) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 5. Return the updated session
+    sendResponse(res, updated, "Session updated", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const duplicateSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sessionId = req.params.id;
+
+    // 1. Find the existing session
+    const original = await SessionModel.findById(sessionId);
+    if (!original) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 2. Create a plain object and remove mongoose‐managed fields
+    const obj = original.toObject();
+    delete obj._id;
+    delete obj.createdAt;
+    delete obj.updatedAt;
+
+    // 3. Modify the title
+    obj.title = `${original.title} (copy)`;
+
+    // 4. Insert the new document
+    const copy = await SessionModel.create(obj);
+
+    // 5. Return the duplicated session
+    sendResponse(res, copy, "Session duplicated", 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sessionId = req.params.id;
+
+    // 1. Attempt deletion
+    const deleted = await SessionModel.findByIdAndDelete(sessionId);
+
+    // 2. If nothing was deleted, the id was invalid
+    if (!deleted) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 3. Success—return the deleted doc for confirmation
+    sendResponse(res, deleted, "Session deleted", 200);
+  } catch (err) {
+    next(err);
+  }
+};
