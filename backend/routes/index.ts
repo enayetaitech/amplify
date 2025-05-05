@@ -5,6 +5,7 @@ import projectRoutes from "./project/projectRoutes";
 import paymentRoutes from "./payment/PaymentRoutes";
 import moderatorRoutes from "./moderator/ModeratorRoutes";
 import sessionRoutes from "./session/SessionRoutes"
+import tagRoutes from "./tag/TagRoutes"
 // import more routes as you create them...
 
 const router = express.Router();
@@ -16,7 +17,7 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/payment", route: paymentRoutes },
   { path: "/moderators", route: moderatorRoutes },
   { path: "/sessions", route: sessionRoutes },
-
+  { path: "/tags", route: tagRoutes },
 ];
 
 // Loop through and mount each route
