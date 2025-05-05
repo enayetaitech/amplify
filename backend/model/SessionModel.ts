@@ -9,6 +9,8 @@ export interface ISessionDocument
           Document {
   projectId: Types.ObjectId;
   moderators: Types.ObjectId[];
+  createdAt?: Date;  
+  updatedAt?: Date; 
 }
 
 const SessionSchema = new Schema<ISessionDocument>(
