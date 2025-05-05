@@ -118,14 +118,34 @@ export const getSessionsByProject = async (
   try {
     const { projectId } = req.params;
 
-    // 1. Query by projectId
-    const sessions = await SessionModel.find({ projectId }).sort({
-      date: 1,
-      startTime: 1,
-    });
+    // ── pagination params ───────────────────────────────────────
+    const page  = Math.max(Number(req.query.page)  || 1, 1);   
+    const limit = Math.max(Number(req.query.limit) || 10, 1);  
 
-    // 2. Return even if empty array
-    sendResponse(res, sessions, "Sessions fetched", 200);
+    const skip = (page - 1) * limit;
+
+    // ── parallel queries: data + count ─────────────────────────
+    const [sessions, total] = await Promise.all([
+      SessionModel.find({ projectId })
+        .sort({ date: 1, startTime: 1 })
+        .skip(skip)
+        .limit(limit),
+      SessionModel.countDocuments({ projectId }),
+    ]);
+
+    // ── build meta payload ─────────────────────────────────────
+    const totalPages = Math.ceil(total / limit);
+
+    const meta = {
+      page,
+      limit,
+      totalItems: total,
+      totalPages,
+      hasPrev: page > 1,
+      hasNext: page < totalPages,
+    };
+
+    sendResponse(res, sessions, "Sessions fetched", 200, meta);
   } catch (err) {
     next(err);
   }
