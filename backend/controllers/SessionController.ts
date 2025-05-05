@@ -7,6 +7,9 @@ import ModeratorModel from "../model/ModeratorModel";
 import { toTimestamp } from "../processors/session/sessionTimeConflictChecker";
 import { DateTime } from "luxon";
 
+// ! highlight the fields you really need to keep the payload light
+const MOD_POPULATE = { path: "moderators" };
+
 export const createSessions = async (
   req: Request,
   res: Response,
@@ -129,7 +132,9 @@ export const getSessionsByProject = async (
       SessionModel.find({ projectId })
         .sort({ date: 1, startTime: 1 })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .populate(MOD_POPULATE)
+        .lean(), 
       SessionModel.countDocuments({ projectId }),
     ]);
 
@@ -164,7 +169,10 @@ export const getSessionById = async (
     const { id } = req.params;
 
     // 1. Lookup
-    const session = await SessionModel.findById(id);
+    const session = await SessionModel.findById(id)
+    .populate(MOD_POPULATE)
+    .lean();
+    
     if (!session) {
       return next(new ErrorHandler("Session not found", 404));
     }
