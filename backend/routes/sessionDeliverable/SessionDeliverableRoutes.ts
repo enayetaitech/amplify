@@ -1,7 +1,7 @@
 import express from "express";
 import { catchError } from "../../middlewares/CatchErrorMiddleware";
 import multer from "multer";
-import { createDeliverable } from "../../controllers/SessionDeliverableController";
+import { createDeliverable, deleteDeliverable, downloadDeliverable, downloadMultipleDeliverable, getDeliverablesByProjectId } from "../../controllers/SessionDeliverableController";
 
 
 const router = express.Router();
@@ -12,18 +12,18 @@ router.post("/", upload.single("file"), catchError(createDeliverable));
 
 
 // GET    /api/v1/sessionDeliverables/project/:projectId?page=&limit=&type=
-// router.get(
-//   "/project/:projectId",
-//   catchError(getDeliverablesByProjectId)
-// );
+router.get(
+  "/project/:projectId",
+  catchError(getDeliverablesByProjectId)
+);
 
-// // GET    /api/v1/sessionDeliverables/:id/download   
-// router.get("/:id/download", catchError(downloadDeliverable));
+// GET    /api/v1/sessionDeliverables/:id/download   
+router.get("/:id/download", catchError(downloadDeliverable));
 
-// // POST   /api/v1/sessionDeliverables/download        
-// router.post("/download", catchError(downloadMultipleDeliverables));
+// POST   /api/v1/sessionDeliverables/download        
+router.post("/download", catchError(downloadMultipleDeliverable));
 
-// // DELETE /api/v1/sessionDeliverables/:id             
-// router.delete("/:id", catchError(deleteDeliverable));
+// DELETE /api/v1/sessionDeliverables/:id             
+router.delete("/:id", catchError(deleteDeliverable));
 
 export default router;

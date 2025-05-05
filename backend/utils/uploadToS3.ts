@@ -38,3 +38,56 @@ export async function uploadToS3(
 
   return { url: Location as string, key };
 }
+
+
+/* ───────────────────────────────────────────────────────────── */
+/*  SINGLE DOWNLOAD HELPER                                      */
+/*  — Returns a short-lived signed URL (default 2 min)          */
+/* ───────────────────────────────────────────────────────────── */
+export function getSignedUrl(
+  key: string,
+  expiresSeconds = 120
+): string {
+  const Bucket = config.s3_bucket_name;
+
+  return s3.getSignedUrl("getObject", {
+    Bucket,
+    Key: key,
+    Expires: expiresSeconds,
+    ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
+      key.split("/").pop() || "download"
+    )}"`,
+  });
+}
+
+/* ───────────────────────────────────────────────────────────── */
+/*  MULTIPLE DOWNLOAD HELPER                                    */
+/*  — Returns an array of { key, url } signed links             */
+/* ───────────────────────────────────────────────────────────── */
+export function getSignedUrls(
+  keys: string[],
+  expiresSeconds = 120
+): { key: string; url: string }[] {
+  return keys.map((k) => ({
+    key: k,
+    url: getSignedUrl(k, expiresSeconds),
+  }));
+}
+
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Delete helper                                                            */
+/*───────────────────────────────────────────────────────────────────────────*/
+export async function deleteFromS3(key: string): Promise<void> {
+  if (!config.s3_bucket_name) {
+    throw new Error("S3_BUCKET_NAME is not configured");
+  }
+  const Bucket = config.s3_bucket_name; 
+
+  await s3
+    .deleteObject({
+      Bucket,
+      Key: key,
+    })
+    .promise();
+}
