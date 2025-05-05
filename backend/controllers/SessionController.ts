@@ -4,6 +4,8 @@ import ErrorHandler from "../../shared/utils/ErrorHandler";
 import { SessionModel } from "../model/SessionModel";
 import ProjectModel from "../model/ProjectModel";
 import ModeratorModel from "../model/ModeratorModel";
+import { toTimestamp } from "../processors/session/sessionTimeConflictChecker";
+import { DateTime } from "luxon";
 
 export const createSessions = async (
   req: Request,
@@ -36,14 +38,56 @@ export const createSessions = async (
 
   // 3. Moderator existence check
 
+  const modIds = Array.from(new Set(sessions.flatMap((s) => s.moderators)));
+
   const allMods = await ModeratorModel.find({
-    _id: { $in: sessions.flatMap((s) => s.moderators) },
+    _id: { $in: modIds },
   });
-  if (allMods.length !== sessions.flatMap((s) => s.moderators).length) {
+
+  if (allMods.length !== modIds.length) {
     return next(new ErrorHandler("One or more moderators not found", 404));
   }
 
-  // 4. Map each session, injecting the shared fields
+  // 4. Pull all existing sessions for this project
+  const existing = await SessionModel.find({ projectId });
+
+  // 5. Validate no overlaps
+
+  for (const s of sessions) {
+    const tz = timeZone;
+    const startNew = toTimestamp(s.date, s.startTime, tz);
+    const endNew = startNew + s.duration * 60_000;
+
+     // calendar day in this timeZone
+     const dayNew = DateTime.fromISO(
+      typeof s.date === "string" ? s.date : DateTime.fromJSDate(s.date).toISODate()!,
+      { zone: tz }
+    ).toISODate();
+
+    for (const ex of existing) {
+      const exTz = ex.timeZone;
+      const dayEx = DateTime.fromISO(
+        DateTime.fromJSDate(ex.date).toISODate()!,
+        { zone: exTz }
+      ).toISODate();
+      if (dayEx !== dayNew) continue;
+
+      const startEx = toTimestamp(ex.date, ex.startTime, exTz);
+      const endEx = startEx + ex.duration * 60_000;
+
+      // overlap if: startNew < endEx && startEx < endNew
+      if (startNew < endEx && startEx < endNew) {
+        return next(
+          new ErrorHandler(
+            `Session "${s.title}" conflicts with existing "${ex.title}"`,
+            409
+          )
+        );
+      }
+    }
+  }
+
+  // 6. Map each session, injecting the shared fields
   const docs = sessions.map((s: any) => ({
     projectId,
     timeZone,
@@ -55,11 +99,61 @@ export const createSessions = async (
     moderators: s.moderators,
   }));
 
-  // 5. Bulk insert into MongoDB
+  // 7. Bulk insert into MongoDB
   const created = await SessionModel.insertMany(docs);
 
-  // 6. Send uniform success response
+  // 8. Send uniform success response
   sendResponse(res, created, "Sessions created", 201);
+};
+
+/**
+ * GET /sessions/project/:projectId
+ * Fetch all sessions for a given project
+ */
+export const getSessionsByProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectId } = req.params;
+
+    // 1. Query by projectId
+    const sessions = await SessionModel.find({ projectId }).sort({
+      date: 1,
+      startTime: 1,
+    });
+
+    // 2. Return even if empty array
+    sendResponse(res, sessions, "Sessions fetched", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /sessions/:id
+ * Fetch a single session by its ID
+ */
+export const getSessionById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // 1. Lookup
+    const session = await SessionModel.findById(id);
+    if (!session) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 2. Return it
+    sendResponse(res, session, "Session fetched", 200);
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const updateSession = async (
@@ -69,6 +163,14 @@ export const updateSession = async (
 ): Promise<void> => {
   try {
     const sessionId = req.params.id;
+
+    // 1. Load the original session
+    const original = await SessionModel.findById(sessionId);
+    if (!original) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 2. Build an updates object only with allowed fields
     const allowed = [
       "title",
       "date",
@@ -77,36 +179,84 @@ export const updateSession = async (
       "moderators",
       "timeZone",
       "breakoutRoom",
-    ];
+    ] as const;
 
-    // 1. Build an updates object only with allowed fields
-    const updates: Partial<Record<string, any>> = {};
+    // 3. Build an updates object only with allowed fields
+    const updates: Partial<Record<(typeof allowed)[number], any>> = {};
+
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         updates[key] = req.body[key];
       }
     }
 
-    // 2. If nothing to update, reject
+    // 4. If nothing to update, reject
     if (Object.keys(updates).length === 0) {
-      return next(
-        new ErrorHandler("No valid fields provided for update", 400)
-      );
+      return next(new ErrorHandler("No valid fields provided for update", 400));
     }
 
-    // 3. Perform the update (returns the new document)
-    const updated = await SessionModel.findByIdAndUpdate(
-      sessionId,
-      updates,
-      { new: true }
-    );
+    // 5. If moderators updated, re-validate them
+    if (updates.moderators) {
+      const modIds = Array.from(new Set(updates.moderators));
+      const found = await ModeratorModel.find({ _id: { $in: modIds } });
+      if (found.length !== modIds.length) {
+        return next(new ErrorHandler("One or more moderators not found", 404));
+      }
+    }
 
-    // 4. If not found, 404
+    // 6. Determine the “new” values to check for conflicts
+    const newDate = updates.date ?? original.date;
+    const newStartTime = updates.startTime ?? original.startTime;
+    const newDuration = updates.duration ?? original.duration;
+    const newTz = updates.timeZone ?? original.timeZone;
+
+    // 7. Fetch all other sessions in this project
+    const otherSessions = await SessionModel.find({
+      projectId: original.projectId,
+      _id: { $ne: sessionId },
+    });
+
+    // 8. Check each “other” session for an overlap with our proposed slot
+    const startNew = toTimestamp(newDate, newStartTime, newTz);
+    const endNew = startNew + newDuration * 60_000;
+    const dayNew = DateTime.fromISO(
+      typeof newDate === "string" ? newDate : DateTime.fromJSDate(newDate).toISODate()!,
+      { zone: newTz }
+    ).toISODate();
+
+    for (const ex of otherSessions) {
+      const exTz = ex.timeZone;
+      const dayEx = DateTime.fromISO(
+        DateTime.fromJSDate(ex.date).toISODate()!,
+        { zone: exTz }
+      ).toISODate();
+      if (dayEx !== dayNew) continue;
+
+      const startEx = toTimestamp(ex.date, ex.startTime, exTz);
+      const endEx = startEx + ex.duration * 60_000;
+
+      // overlap test:
+      if (startNew < endEx && startEx < endNew) {
+        return next(
+          new ErrorHandler(
+            `Proposed time conflicts with existing session "${ex.title}"`,
+            409
+          )
+        );
+      }
+    }
+
+    // 9. No conflicts — perform the update
+    const updated = await SessionModel.findByIdAndUpdate(sessionId, updates, {
+      new: true,
+    });
+
+    // 10. If not found, 404
     if (!updated) {
-      return next(new ErrorHandler("Session not found", 404));
+      return next(new ErrorHandler("Session not found during update", 404));
     }
 
-    // 5. Return the updated session
+    // 11. Return the updated session
     sendResponse(res, updated, "Session updated", 200);
   } catch (err) {
     next(err);
