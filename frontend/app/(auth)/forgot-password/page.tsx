@@ -1,45 +1,55 @@
 "use client";
 
 import React, { useState } from "react";
-import axios, { AxiosError } from "axios";
+
 import { FaEnvelopeOpenText } from "react-icons/fa";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Label } from "components/ui/label";
-
 import Logo from "components/LogoComponent";
 import { Alert, AlertDescription } from "components/ui/alert";
 import { toast } from "sonner";
+import api from "lib/api";
+import {
+  ApiResponse,
+  ErrorResponse,
+} from "@shared/interface/ApiResponseInterface";
+import { useMutation } from "@tanstack/react-query";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState<string>("");
-  const [message, setMessage] = useState<string>("");
-  const [error, setError] = useState<string>("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-  };
+  const mutation = useMutation<
+    ApiResponse<null>,
+    // TError:
+    { response?: { data: ErrorResponse } } & Error,
+    // TVariables:
+    string
+  >({
+    // 1️⃣ The mutationFn, typed to accept a string and return ApiResponse<null>
+    mutationFn: (email: string) =>
+      api
+        .post<ApiResponse<null>>("/api/v1/users/forgot-password", { email })
+        .then((res) => res.data),
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    // 2️⃣ onSuccess sees ApiResponse<null> and the original email string
+    onSuccess: (response: ApiResponse<null>) => {
+      toast.success(response.message);
+    },
+
+    // 3️⃣ onError sees our Error type with potential response.data.message
+    onError: (error) => {
+      const serverMsg =
+        error.response?.data.message || error.message || "Something went wrong";
+      toast.error(serverMsg);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/users/forgot-password`,
-        {
-          email: email,
-        }
-      );
-      setMessage("Reset link sent to your email");
-      setError("");
-    } catch (error) {
-      const axiosError = error as AxiosError<{ message: string }>;
-      const errorMessage =
-        axiosError.response?.data?.message || "Error sending reset link";
-      toast.error(errorMessage);
-      setError("Error sending reset link");
-      setMessage("");
-    }
+    mutation.mutate(email);
   };
+
   return (
     <div>
       <div className="flex justify-center items-center pt-5 lg:hidden">
@@ -60,6 +70,7 @@ const ForgotPassword = () => {
               Send a link to your email to reset your password.
             </p>
           </div>
+
           <form onSubmit={handleSubmit} className="pt-10">
             <div className="mb-4">
               <Label htmlFor="email" className="block mb-2">
@@ -70,7 +81,8 @@ const ForgotPassword = () => {
                 type="email"
                 name="email"
                 value={email}
-                onChange={handleChange}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={mutation.isPending}
                 className="w-full"
               />
             </div>
@@ -78,27 +90,33 @@ const ForgotPassword = () => {
               variant="default"
               className="w-full bg-orange-500 hover:bg-orange-600"
               type="submit"
+              disabled={mutation.isPending}
             >
-              Send Reset Link
+              {mutation.isPending ? "Sending..." : "Send Reset Link"}
             </Button>
           </form>
-          {message && (
+
+          {mutation.isSuccess && (
             <Alert
               variant="default"
               className="mt-4 bg-green-50 border-green-500"
             >
               <AlertDescription className="text-green-500 text-center">
-                {message}
+                {mutation.data.message}
               </AlertDescription>
             </Alert>
           )}
-          {error && (
+
+          {mutation.isError && (
             <Alert variant="destructive" className="mt-4">
               <AlertDescription className="text-center">
-                {error}
+                {mutation.error.response?.data.message ||
+                  mutation.error.message ||
+                  "Error sending reset link"}
               </AlertDescription>
             </Alert>
           )}
+
           <div className="pt-14 pb-20">
             <div className="flex justify-center">
               <a href="/login" className="text-blue-600 font-semibold">
