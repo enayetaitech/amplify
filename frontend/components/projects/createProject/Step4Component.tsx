@@ -21,23 +21,28 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
 
   // Compute the project estimate rows based on sessions data
   const sessions = formData.sessions || [];
-  const totalCreditsNeeded = 0;
+ 
+  // First, build the estimate rows
+const projectEstimateRows = sessions.map((session) => {
+  const quantity = Number(session.number) || 0;
+  const sessionDuration = durationMapping[session.duration] || Number(session.duration) || 0;
+  const estimatedHours = (quantity * sessionDuration) / 60;
+  const creditsNeeded = (quantity * sessionDuration) * 2.75;
 
-  const projectEstimateRows = sessions.map((session) => {
-    const quantity = Number(session.number) || 0;
-    // Use durationMapping or fallback to the duration value directly (assumed in minutes)
-    const sessionDuration =
-      durationMapping[session.duration] || Number(session.duration) || 0;
-    const estimatedHours = (quantity * sessionDuration) / 60;
-    const creditsNeeded = (quantity * sessionDuration) * 2.75;
-    return {
-      service: formData.service,
-      quantity,
-      sessionDuration,
-      estimatedHours: estimatedHours.toFixed(2),
-      creditsNeeded: creditsNeeded.toFixed(2),
-    };
-  });
+  return {
+    service: formData.service,
+    quantity,
+    sessionDuration,
+    estimatedHours: estimatedHours.toFixed(2),
+    creditsNeeded: creditsNeeded.toFixed(2),
+  };
+});
+
+// Then calculate total from them
+const totalCreditsNeeded = projectEstimateRows.reduce(
+  (acc, row) => acc + parseFloat(row.creditsNeeded),
+  0
+);
 
   // Handle changes to the quantity of a credit package
   const handleQuantityChange = (pkg: number, qty: number) => {

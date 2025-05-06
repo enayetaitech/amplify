@@ -5,7 +5,7 @@ interface HeadingParagraphProps {
   paragraph: string
 }
 
-const HeadingParagaraphComponent: React.FC<HeadingParagraphProps> = ({
+const HeadingParagraphComponent: React.FC<HeadingParagraphProps> = ({
   heading,
   paragraph,
 }) => {
@@ -19,4 +19,4 @@ const HeadingParagaraphComponent: React.FC<HeadingParagraphProps> = ({
   )
 }
 
-export default HeadingParagaraphComponent
+export default HeadingParagraphComponent

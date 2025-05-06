@@ -1,5 +1,6 @@
 import config from "../config/index";
 import { ProjectCreateAndPaymentConfirmationEmailTemplateParams, TemplateParams } from "../../shared/interface/ProjectInfoEmailInterface"
+import { ModeratorAddedEmailParams} from "../../shared/interface/ModeratorAddedEmailInterface"
 
 export const verificationEmailTemplate = (name: string, token: string): string => `
   <p>Dear ${name},</p>
@@ -10,8 +11,6 @@ export const verificationEmailTemplate = (name: string, token: string): string =
   <p>The Amplify Team</p>
 `;
 
-
-// src/constants/resetPasswordEmailTemplate.ts
 
 export const resetPasswordEmailTemplate = (name: string, token: string): string => `
   <p>Hi ${name},</p>
@@ -78,3 +77,23 @@ export const projectCreateAndPaymentConfirmationEmailTemplate = ({
   <p>Cheers!</p>
   <p>The Amplify Team</p>
 `;
+
+export const moderatorAddedEmailTemplate = ({
+  moderatorName,
+  addedByName,
+  projectName,
+  loginUrl,
+}: ModeratorAddedEmailParams): string => `
+  <p>Hi ${moderatorName},</p>
+
+  <p>${addedByName} has just added you as a moderator on the project <strong>"${projectName}"</strong> in the Amplify platform.</p>
+
+  <p>You can log in to your account here to view and manage your moderator permissions:</p>
+  <p><a href="${loginUrl}">Go to Amplify Dashboard</a></p>
+
+  <p>If you have any questions, feel free to reach out to support@amplifyresearch.com.</p>
+
+  <p>Cheers,<br/>The Amplify Team</p>
+`;
+
+
