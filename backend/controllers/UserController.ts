@@ -22,7 +22,7 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from "../utils/tokenService";
-import ms from "ms";
+import { AuthRequest } from "../middlewares/authenticateJwt";
 
 
 
@@ -150,6 +150,26 @@ export const loginUser = async (
   const userResponse = sanitizeUser(user);
 
   sendResponse(res, { user: userResponse }, "Login successful");
+};
+
+export const getCurrentUser = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // req.user is set by authenticateJwt
+  const payload = req.user;
+  if (!payload) {
+    return next(new ErrorHandler("Not authenticated", 401));
+  }
+
+  const user = await User.findById(payload.userId);
+  if (!user || user.isDeleted) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  const userResponse = sanitizeUser(user);
+  sendResponse(res, { user: userResponse }, "Current user retrieved", 200);
 };
 
 export const forgotPassword = async (

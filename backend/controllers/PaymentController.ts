@@ -278,6 +278,7 @@ export const chargeCustomer = async (
       { new: true }
     );
 
+    console.log('updated user', updatedUser)
     if (!updatedUser) {
       return next(new ErrorHandler("User not found", 404));
     }
