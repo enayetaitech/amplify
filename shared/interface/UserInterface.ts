@@ -15,7 +15,7 @@ export interface ICreditCardInfo {
 
 export interface IUser {
 
-  _id?: string;
+  _id: string;
   firstName: string;
   lastName: string;
   email: string;
