@@ -4,6 +4,7 @@ import React from "react";
 import { Card, CardContent } from "components/ui/card";
 import Logo from "components/LogoComponent";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import FooterComponent from "components/FooterComponent";
 
 const PrivacyPolicyPage: React.FC = () => {
   return (
@@ -314,6 +315,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      <FooterComponent />
     </>
   );
 };

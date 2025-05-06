@@ -34,6 +34,7 @@ import {
   CommandItem,
 } from "components/ui/command";
 import { cn } from "lib/utils";
+import FooterComponent from "components/FooterComponent";
 
 interface CountryCode {
   country: string;
@@ -474,6 +475,7 @@ const Register = () => {
           </div>
         </div>
       </div>
+      <FooterComponent />
     </div>
   );
 };
