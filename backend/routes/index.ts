@@ -4,7 +4,12 @@ import userRoutes from "./user/userRoutes";
 import projectRoutes from "./project/projectRoutes";
 import paymentRoutes from "./payment/PaymentRoutes";
 import moderatorRoutes from "./moderator/ModeratorRoutes";
-// import more routes as you create them...
+import sessionRoutes from "./session/SessionRoutes"
+import tagRoutes from "./tag/TagRoutes"
+import sessionDeliverableRoutes from "./sessionDeliverable/SessionDeliverableRoutes"
+import observerDocumentRoutes from "./observerDocument/ObserverDocumentRoutes"
+import pollRoutes from "./poll/PollRoutes"
+
 
 const router = express.Router();
 
@@ -14,7 +19,11 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/projects", route: projectRoutes },
   { path: "/payment", route: paymentRoutes },
   { path: "/moderators", route: moderatorRoutes },
-
+  { path: "/sessions", route: sessionRoutes },
+  { path: "/tags", route: tagRoutes },
+  { path: "/sessionDeliverables", route: sessionDeliverableRoutes },
+  { path: "/observerDocuments", route: observerDocumentRoutes },
+  { path: "/polls", route: pollRoutes },
 ];
 
 // Loop through and mount each route
