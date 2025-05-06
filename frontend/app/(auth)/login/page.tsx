@@ -25,6 +25,7 @@ import { Button } from "components/ui/button";
 import Logo from "components/LogoComponent";
 import { IUser } from "../../../../shared/interface/UserInterface";
 import { useGlobalContext } from "context/GlobalContext";
+import FooterComponent from "components/FooterComponent";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -221,6 +222,7 @@ const Login = () => {
           </div>
         </div>
       </div>
+      <FooterComponent />
     </div>
   );
 };
