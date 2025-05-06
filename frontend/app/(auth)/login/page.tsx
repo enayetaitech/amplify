@@ -36,7 +36,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const router = useRouter();
-  const { setUser, setToken } = useGlobalContext();
+  const { setUser } = useGlobalContext();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -66,14 +66,15 @@ const Login = () => {
         { withCredentials: true }
       );
 
-      const { user, token } = response.data.data;
+      console.log("user", response.data.data.user)
+
+      const { user } = response.data.data;
 
       setUser(user);
-      setToken(token);
+      // setToken(token);
 
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("token", token);
       }
 
       if (typeof window !== "undefined") {

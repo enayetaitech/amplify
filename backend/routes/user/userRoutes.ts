@@ -9,6 +9,8 @@ import {
   editUser,
   deleteUser,
   findUserById,
+  refreshToken,
+  logoutUser,
 } from '../../controllers/UserController'
 import { catchError } from '../../middlewares/CatchErrorMiddleware'
 
@@ -18,6 +20,13 @@ const router = express.Router()
 router.post('/register', catchError(createAccount))
 // POST /api/v1/users/login - login a user
 router.post('/login', catchError(loginUser))
+
+// POST /api/v1/users/logout - logout a user
+router.post('/logout', catchError(logoutUser))
+
+// POST /api/v1/users/refreshToken - 
+router.post('/refreshToken', catchError(refreshToken))
+
 // POST /api/v1/auth/forgot-password
 router.post('/forgot-password', catchError(forgotPassword))
 

@@ -233,6 +233,8 @@ export const getProjectByUserId = async (
 
   const projects = await ProjectModel.find({ createdBy: userId });
 
+  console.log('projects', projects)
+
   // Send the result back to the frontend using your sendResponse utility
   sendResponse(res, projects, "Projects retrieved successfully", 200);
 };
