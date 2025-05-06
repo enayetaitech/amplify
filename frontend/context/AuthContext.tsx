@@ -1,4 +1,5 @@
 "use client"
+import api from 'lib/api';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define a User type
@@ -7,11 +8,14 @@ type User = {
   email?: string;
 };
 
+interface LoginResponse {
+  user: User;
+}
 // Define the shape of the context
 type AuthContextType = {
   user: User | null;
-  login: (userData: User) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,18 +28,20 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-type AuthProviderProps = {
-  children: ReactNode;
-};
 
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = (userData: User) => {
-    setUser(userData);
+  const login = async (email: string, password: string) => {
+    const { data } = await api.post<LoginResponse>("/auth/login", {
+      email,
+      password,
+    });
+    setUser(data.user);
   };
 
-  const logout = () => {
+  const logout = async  () => {
+    await api.post<null>("/auth/logout");
     setUser(null);
   };
 

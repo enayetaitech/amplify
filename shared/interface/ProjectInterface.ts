@@ -9,6 +9,7 @@ export type ProjectStatus = "Draft" | "Active" | "Inactive" | "Closed" | "Archiv
 export type ProjectService = "Concierge" | "Signature";
 
 export interface IProject {
+  _id?: string;
   name: string;
   internalProjectName: string;
   description: string;
