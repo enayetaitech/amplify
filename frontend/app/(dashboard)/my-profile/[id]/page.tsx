@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, {  useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import axios from 'axios'
 import { Button } from 'components/ui/button'
 import PasswordModalComponent from 'components/PasswordModalComponent'
 import ConfirmationModalComponent from 'components/ConfirmationModalComponent'
@@ -14,121 +13,38 @@ import { RiPencilFill } from 'react-icons/ri'
 import { IoTrashSharp } from 'react-icons/io5'
 import { MdLockReset } from 'react-icons/md'
 import HeadingParagraphComponent from 'components/HeadingParagraphComponent'
-
-interface Notification {
-  id: number
-  image: string
-  message: string
-  time: string
-  read: boolean
-}
-
-const initialNotifications: Notification[] = [
-  {
-    id: 1,
-    image: '/user.jpg',
-    message:
-      'You have been assigned a new project TCT Marathon Campaign by the admin.',
-    time: 'Yesterday at 9:30 AM',
-    read: false,
-  },
-  {
-    id: 3,
-    image: '/user.jpg',
-
-    message:
-      'You have been assigned a new project TCT Marathon Campaign by the admin.',
-    time: 'Yesterday at 9:30 AM',
-    read: false,
-  },
-  {
-    id: 2,
-    image: '/user.jpg',
-    message:
-      'Your Pop Culture Celebration meeting is about to start in the next 15 minutes. Please get your things ready!',
-    time: 'Last Thursday at 10:30 AM',
-    read: true,
-  },
-]
+import { useMutation } from '@tanstack/react-query'
+import { ApiResponse, ErrorResponse } from '@shared/interface/ApiResponseInterface'
+import api from 'lib/api'
 
 const Page = () => {
   const { user, setUser } = useGlobalContext()
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
 
-  const [showModal, setShowModal] = useState<boolean>(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false)
-  const [remainingCredits, setRemainingCredits] = useState<number | undefined |null>(user?.credits)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
 
-  console.log(user, 'user')
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true)
-        if (user?._id) {
-          const response = await axios.get(
-            `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/remaining-credits/${user._id}`
-          )
-          setRemainingCredits(response.data.remainingCredits)
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+ 
 
-    fetchData()
-  }, [user?._id])
+  // 🔄 Mutation: delete user account
+  const deleteUserMutation = useMutation<void, ErrorResponse, string>({
+    mutationFn: userId =>
+      api.delete<ApiResponse<void>>(`/api/v1/users/${userId}`).then(res => res.data.data),
+    onSuccess: () => {
+      toast.success('Account deleted')
+      setUser(null)
+      router.push('/login')
+    },
+    onError: err => {
+      toast.error(err.message || 'Failed to delete account')
+    },
+  })
 
-  const handlePasswordChangeClick = () => {
-    setShowModal(true)
-  }
 
-  const handleCloseModal = () => {
-    setShowModal(false)
-  }
+  
 
-  const handleDeleteModalOpen = () => {
-    setIsDeleteModalOpen(true)
-  }
-
-  const handleCloseDeleteModal = () => {
-    setIsDeleteModalOpen(false)
-  }
-
-  const deleteUser = async () => {
-    try {
-      const response = await axios.delete(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/${id}`
-      )
-
-      if (response.status === 200) {
-        toast.success('User deleted successfully')
-        setIsDeleteModalOpen(false)
-        document.cookie =
-          'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-        localStorage.clear()
-        setUser(null)
-        router.push('/create-user')
-      } else {
-        toast.error('Error deleting user')
-        console.error('Error deleting user:', response.data.message)
-      }
-    } catch (error) {
-      console.error('Error deleting user:', error)
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className='flex justify-center items-center min-h-screen'>
-        <p>Loading...</p>
-      </div>
-    )
-  }
 
   return (
     <>
@@ -173,7 +89,7 @@ const Page = () => {
             />
             <HeadingParagraphComponent
               heading='Remaining Credits'
-              paragraph={`${remainingCredits ?? 0}`}
+              paragraph={`${user?.credits ?? 0}`}
             />
           </div>
         </div>
@@ -191,7 +107,7 @@ const Page = () => {
           <Button
             type='button'
             variant='dark-blue'
-            onClick={handlePasswordChangeClick}
+            onClick={() => setShowPasswordModal(true)}
             className='rounded-xl w-[200px] text-center py-6 shadow-[0px_3px_6px_#2976a54d]'
           >
             <MdLockReset />
@@ -200,11 +116,12 @@ const Page = () => {
           <Button
             type='button'
             variant='orange'
-            onClick={handleDeleteModalOpen}
+            onClick={() => setShowDeleteModal(true)}
+          disabled={deleteUserMutation.isPending}
             className='rounded-xl w-[200px] text-center py-6 shadow-[0px_3px_6px_#FF66004D] '
           >
-            <IoTrashSharp />
-            Delete My Account
+            {deleteUserMutation.isPending ? 'Deleting…' : <><IoTrashSharp /> Delete Account</>}
+        
           </Button>
         </div>
       </div>
@@ -263,7 +180,7 @@ const Page = () => {
                 />
                 <HeadingParagraphComponent
                   heading='Remaining Credits'
-                  paragraph={`${remainingCredits ?? 0}`}
+                  paragraph={`${user?.credits ?? 0}`}
                 />
               </div>
             </div>
@@ -277,7 +194,7 @@ const Page = () => {
               <Button
                 type='button'
                 variant='dark-blue'
-                onClick={handlePasswordChangeClick}
+                onClick={() => setShowPasswordModal(true)}
                 className='rounded-xl w-full text-center py-6 shadow-[0px_3px_6px_#2976a54d]'
               >
                 <MdLockReset />
@@ -286,11 +203,12 @@ const Page = () => {
               <Button
                 type='button'
                 variant='orange'
-                onClick={handleDeleteModalOpen}
+                onClick={() => setShowDeleteModal(true)}
+          disabled={deleteUserMutation.isPending}
                 className='rounded-xl w-full text-center py-6 shadow-[0px_3px_6px_#FF66004D] '
               >
-                <IoTrashSharp />
-                Delete My Account
+                {deleteUserMutation.isPending ? 'Deleting…' : <><IoTrashSharp /> Delete Account</>}
+        
               </Button>
             </div>
           </div>
@@ -298,14 +216,14 @@ const Page = () => {
       </div>
 
       <PasswordModalComponent
-        open={showModal}
-        onClose={handleCloseModal}
+         open={showPasswordModal}
+         onClose={() => setShowPasswordModal(false)}
         id={id}
       />
       <ConfirmationModalComponent
-        open={isDeleteModalOpen}
-        onCancel={handleCloseDeleteModal}
-        onYes={deleteUser}
+        open={showDeleteModal}
+        onCancel={() => setShowDeleteModal(false)}
+        onYes={() => deleteUserMutation.mutate(id!)}
         heading='Delete Account'
         text='Are you sure you want to delete your account? All your data will be permanently deleted. This action cannot be undone.'
       />

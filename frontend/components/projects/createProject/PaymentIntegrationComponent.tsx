@@ -31,7 +31,6 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   uniqueId,
 }) => {
   const { user, setUser } = useGlobalContext();
-  console.log("User", user);
   const router = useRouter();
 
   const [isChangingCard, setIsChangingCard] = useState(false);

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect, ChangeEvent } from 'react'
-import axios from 'axios'
+
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { FaSave } from 'react-icons/fa'
@@ -8,69 +8,87 @@ import { toast } from 'sonner'
 import { useGlobalContext } from 'context/GlobalContext'
 import { Button } from 'components/ui/button'
 import InputFieldComponent from 'components/InputFieldComponent'
-import { EditUser } from '@shared/interface/UserInterface'
+import { EditUser, IUser } from '@shared/interface/UserInterface'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { ApiResponse, ErrorResponse } from '@shared/interface/ApiResponseInterface'
+import api from 'lib/api'
 
 const Page: React.FC = () => {
   const { id } = useParams() as { id: string }
   const router = useRouter()
-  const [user, setUser] = useState<EditUser>({
+  const { setUser: setGlobalUser } = useGlobalContext()
+
+   const [formState, setFormState] = useState<EditUser>({
     firstName: '',
     lastName: '',
     email: '',
   })
-  const { setUser: setGlobalUser } = useGlobalContext()
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/find-by-id`,
-          {
-            params: { id },
-          }
-        )
-        setUser(response.data.data)
-      } catch (error: unknown) {
-        if (axios.isAxiosError(error)) {
-          console.error('Error fetching user data:', error);
-          if (error.response?.status === 404) {
-            console.warn('User not found');
-          }
-        } else {
-          console.error('Unexpected error:', error);
-        }
+    // 1️⃣ Load the user data
+    const {
+      data: fullUser,
+      isLoading,
+      isError,
+      error,
+    } = useQuery<IUser, ErrorResponse>({
+      queryKey: ['user', id],
+      queryFn: () =>
+        api
+          .get<ApiResponse<IUser>>('/api/v1/users/find-by-id', { params: { id } })
+          .then(res => res.data.data),
+    })
+
+    useEffect(() => {
+      if (fullUser) {
+        setFormState({
+          firstName: fullUser.firstName,
+          lastName: fullUser.lastName,
+          email: fullUser.email,
+        })
       }
-    }
+    }, [fullUser])
 
-    fetchUserData()
-  }, [id])
+  
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setUser((prevUser) => ({
-      ...prevUser,
-      [name]: value,
-    }))
+    setFormState(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSave = async () => {
-    try {
-      const response = await axios.put(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/edit/${id}`,
-        user
-      )
-      console.log('response', response)
+  const updateMutation = useMutation<IUser, ErrorResponse, EditUser>({
+    
+    mutationFn: (updatedFields: EditUser) =>
+      api
+        .put<ApiResponse<IUser>>(`/api/v1/users/edit/${id}`, updatedFields)
+        .then(res => res.data.data),
 
-      setGlobalUser(response.data.data)
-      document.cookie = `token=${response.data.accessToken}; path=/; max-age=86400;`
-      localStorage.setItem('user', JSON.stringify(response.data))
+    onSuccess: (updatedUser: IUser) => {
+      setGlobalUser(updatedUser)
+      localStorage.setItem('user', JSON.stringify(updatedUser))
       toast.success('Profile updated successfully')
       router.push(`/my-profile/${id}`)
-    } catch (error) {
-      console.error('Error updating user data:', error)
-      toast.error('Failed to update profile')
-    }
+    },
+
+    onError: (err: ErrorResponse) => {
+      console.error('Error updating profile:', err)
+      toast.error(err.message || 'Failed to update profile')
+    },
+  })
+
+
+
+  const handleSave = () => {
+    updateMutation.mutate(formState)
   }
+
+  if (isLoading) return <p className="px-6 py-4">Loading profile…</p>
+
+  if (isError) {
+    console.error('Error fetching user:', error)
+    return <p className="px-6 py-4 text-red-500">{error?.message || 'Failed to load profile'}</p>
+  }
+
+  
 
   return (
     <div className='my_profile_main_section_shadow pb-16 bg-[#fafafb] bg-opacity-90 h-full min-h-screen flex flex-col items-center'>
@@ -87,10 +105,11 @@ const Page: React.FC = () => {
               type='button'
               variant='teal'
               onClick={handleSave}
+              disabled={updateMutation.isPending}
               className='rounded-xl w-[100px] text-center py-6 shadow-[0px_3px_6px_#2976a54d]'
             >
               <FaSave />
-              Save
+             {updateMutation.isPending ? 'Saving…' : 'Save'}
             </Button>
           </div>
           <div className='flex justify-center items-center gap-4 md:hidden fixed right-5'>
@@ -98,6 +117,7 @@ const Page: React.FC = () => {
               type='button'
               variant='teal'
               onClick={handleSave}
+              disabled={updateMutation.isPending}
               className='rounded-xl w-full text-center py-6 shadow-[0px_3px_6px_#FF66004D] '
             >
               <FaSave />
@@ -119,10 +139,10 @@ const Page: React.FC = () => {
             />
             <div className='flex-grow'>
               <h1 className='text-3xl font-semibold text-[#1E656D] text-center md:text-left'>
-                {user?.firstName} {user?.lastName}
+              {formState.firstName} {formState.lastName}
               </h1>
               <p className='text-center text-gray-400 md:text-left'>
-                {user?.role}
+              {formState.role}
               </p>
             </div>
           </div>
@@ -136,19 +156,19 @@ const Page: React.FC = () => {
               <InputFieldComponent
                 label='First Name'
                 name='firstName'
-                value={user?.firstName}
+                value={formState?.firstName}
                 onChange={handleInputChange}
               />
               <InputFieldComponent
                 label='Last Name'
                 name='lastName'
-                value={user?.lastName}
+                value={formState?.lastName}
                 onChange={handleInputChange}
               />
               <InputFieldComponent
                 label='Email'
                 name='email'
-                value={user?.email}
+                value={formState?.email}
                 onChange={handleInputChange}
               />
             </div>
