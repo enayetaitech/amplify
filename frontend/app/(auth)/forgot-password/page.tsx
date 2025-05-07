@@ -9,12 +9,15 @@ import { Label } from "components/ui/label";
 import Logo from "components/LogoComponent";
 import { Alert, AlertDescription } from "components/ui/alert";
 import { toast } from "sonner";
+
 import api from "lib/api";
 import {
   ApiResponse,
   ErrorResponse,
 } from "@shared/interface/ApiResponseInterface";
 import { useMutation } from "@tanstack/react-query";
+import FooterComponent from "components/FooterComponent";
+
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState<string>("");
@@ -51,16 +54,18 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div>
-      <div className="flex justify-center items-center pt-5 lg:hidden">
-        <Logo />
+    <div className="flex flex-col min-h-screen">
+      <div className="flex-none">
+        <div className="flex justify-center items-center pt-5 lg:hidden">
+          <Logo />
+        </div>
+        <div className="pt-5 pl-10 lg:block hidden">
+          <Logo />
+        </div>
       </div>
-      <div className="pt-5 pl-10 lg:block hidden">
-        {" "}
-        <Logo />
-      </div>
-      <div className="py-20">
-        <div className="max-w-[800px] mx-auto px-10 lg:px-20 bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.15),0_-4px_12px_rgba(0,0,0,0.1)]">
+
+      <div className="py-20 flex-grow flex items-center justify-center">
+        <div className="max-w-[800px] w-full mx-auto px-10 lg:px-20 bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.15),0_-4px_12px_rgba(0,0,0,0.1)]">
           <div className="flex justify-center items-center py-5">
             <FaEnvelopeOpenText className="h-20 w-20" />
           </div>
@@ -125,6 +130,10 @@ const ForgotPassword = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex-none mt-auto">
+        <FooterComponent />
       </div>
     </div>
   );
