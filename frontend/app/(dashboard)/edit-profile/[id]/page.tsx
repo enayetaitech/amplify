@@ -48,30 +48,7 @@ const Page: React.FC = () => {
       }
     }, [fullUser])
 
-  // useEffect(() => {
-  //   const fetchUserData = async () => {
-  //     try {
-  //       const response = await axios.get(
-  //         `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/find-by-id`,
-  //         {
-  //           params: { id },
-  //         }
-  //       )
-  //       setUser(response.data.data)
-  //     } catch (error: unknown) {
-  //       if (axios.isAxiosError(error)) {
-  //         console.error('Error fetching user data:', error);
-  //         if (error.response?.status === 404) {
-  //           console.warn('User not found');
-  //         }
-  //       } else {
-  //         console.error('Unexpected error:', error);
-  //       }
-  //     }
-  //   }
-
-  //   fetchUserData()
-  // }, [id])
+  
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -79,7 +56,7 @@ const Page: React.FC = () => {
   }
 
   const updateMutation = useMutation<IUser, ErrorResponse, EditUser>({
-    // ← before you had passed the function as the first arg; now it lives here
+    
     mutationFn: (updatedFields: EditUser) =>
       api
         .put<ApiResponse<IUser>>(`/api/v1/users/edit/${id}`, updatedFields)
@@ -111,24 +88,7 @@ const Page: React.FC = () => {
     return <p className="px-6 py-4 text-red-500">{error?.message || 'Failed to load profile'}</p>
   }
 
-  // const handleSave = async () => {
-  //   try {
-  //     const response = await axios.put(
-  //       `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/edit/${id}`,
-  //       user
-  //     )
-  //     console.log('response', response)
-
-  //     setGlobalUser(response.data.data)
-  //     document.cookie = `token=${response.data.accessToken}; path=/; max-age=86400;`
-  //     localStorage.setItem('user', JSON.stringify(response.data))
-  //     toast.success('Profile updated successfully')
-  //     router.push(`/my-profile/${id}`)
-  //   } catch (error) {
-  //     console.error('Error updating user data:', error)
-  //     toast.error('Failed to update profile')
-  //   }
-  // }
+  
 
   return (
     <div className='my_profile_main_section_shadow pb-16 bg-[#fafafb] bg-opacity-90 h-full min-h-screen flex flex-col items-center'>
