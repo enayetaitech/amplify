@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { useGlobalContext } from "context/GlobalContext";
 import { Button } from "components/ui/button";
 import Step1 from "components/projects/createProject/Step1Component";
@@ -10,6 +10,9 @@ import Step2 from "components/projects/createProject/Step2Component";
 import Step3 from "components/projects/createProject/Step3Component";
 import Step4 from "components/projects/createProject/Step4Component";
 import { IProjectFormState, StepProps } from "../../../../shared/interface/CreateProjectInterface"
+import { toast } from "sonner";
+import api from "lib/api";
+import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
 
 const CreateProjectPage: React.FC = () => {
   const { user } = useGlobalContext();
@@ -45,7 +48,41 @@ const CreateProjectPage: React.FC = () => {
     setFormData((prev) => ({ ...prev, ...fields }));
   };
 
-  const nextStep = () => setCurrentStep((prev) => prev + 1);
+  // Dynamically compute which steps apply
+  const steps = useMemo<React.FC<StepProps>[]>(() => {
+    if (formData.service === "Signature") {
+      return [Step1, Step3, Step4];
+    }
+    if (formData.service === "Concierge") {
+      if (formData.firstDateOfStreaming) {
+        const diffDays =
+          (new Date(formData.firstDateOfStreaming).getTime() -
+            Date.now()) /
+          (1000 * 3600 * 24);
+        if (diffDays < 14 || formData.addOns.length > 0) {
+          return [Step1, Step2];
+        }
+        return [Step1, Step3, Step4];
+      }
+      return [Step1, Step2];
+    }
+    return [Step1];
+  }, [formData.service, formData.firstDateOfStreaming, formData.addOns]);
+
+  // Keep currentStep in range
+  useEffect(() => {
+    if (currentStep >= steps.length) {
+      setCurrentStep(steps.length - 1);
+    }
+  }, [steps, currentStep]);
+
+  const StepComponent = steps[currentStep];
+
+
+  // const nextStep = () => setCurrentStep((prev) => prev + 1);
+  const handleNext = () =>
+    saveMutation.mutate({ uniqueId, formData, userId });
+
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
   const isNextButtonDisabled = () => {
@@ -55,72 +92,102 @@ const CreateProjectPage: React.FC = () => {
     return false;
   };
 
-  const { mutate, status } = useMutation({
-    mutationFn: (data: {
-      uniqueId: string | null;
-      formData: IProjectFormState;
-      userId: string;
-    }) =>
-      axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/save-progress`,
-        data
-      ),
-    onSuccess: (res) => {
-      const returnedId = res.data.data.uniqueId;
-      if (returnedId) {
-        setUniqueId(returnedId);
+  const saveMutation = useMutation<
+    ApiResponse<{ uniqueId: string }>,
+    AxiosError<ErrorResponse>,
+    { uniqueId: string | null; formData: IProjectFormState; userId: string }
+  >({
+    mutationFn: (payload) =>
+      api
+        .post<ApiResponse<{ uniqueId: string }>>(
+          "/api/v1/projects/save-progress",
+          payload
+        )
+        .then((res) => res.data),
+    onSuccess: (resp) => {
+      if (resp.data.uniqueId) {
+        setUniqueId(resp.data.uniqueId);
       }
-      nextStep();
+      setCurrentStep((prev) => prev + 1);
     },
     onError: (err) => {
-      console.error("Error saving progress", err);
+      const msg =
+        axios.isAxiosError(err) && err.response?.data.message
+          ? err.response.data.message
+          : err.message;
+      console.error("Error saving progress:", msg);
+      toast.error(msg);
     },
   });
 
-  const isLoading = status === "pending";
+  const isLoading = saveMutation.isPending;
 
-  // Compute steps based on the new logic
-  const computeSteps = (): Array<React.FC<StepProps>> => {
-    if (formData.service === "Signature") {
-      // For Signature always use Step1, Step3, Step4.
-      return [Step1, Step3, Step4];
-    } else if (formData.service === "Concierge") {
-      // For Concierge, we check the streaming date and addOns.
-      if (formData.firstDateOfStreaming) {
-        const streamingDate = new Date(formData.firstDateOfStreaming);
-        const now = new Date();
-        // Calculate difference in days
-        const diffDays = (streamingDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
-        const addOnsSelected = formData.addOns && formData.addOns.length > 0;
-        // If streaming date is within 2 weeks OR any add–on is selected, render Step2.
-        if (diffDays < 14 || addOnsSelected) {
-          return [Step1, Step2];
-        } else {
-          // Otherwise, skip Step2 and go to Step3 and Step4.
-          return [Step1, Step3, Step4];
-        }
-      }
-      // If no streaming date, default to showing Step2.
-      return [Step1, Step2];
-    }
-    // Fallback: if no service selected, only show Step1.
-    return [Step1];
-  };
+  // const { mutate, status } = useMutation({
+  //   mutationFn: (data: {
+  //     uniqueId: string | null;
+  //     formData: IProjectFormState;
+  //     userId: string;
+  //   }) =>
+  //     axios.post(
+  //       `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/save-progress`,
+  //       data
+  //     ),
+  //   onSuccess: (res) => {
+  //     const returnedId = res.data.data.uniqueId;
+  //     if (returnedId) {
+  //       setUniqueId(returnedId);
+  //     }
+  //     nextStep();
+  //   },
+  //   onError: (err) => {
+  //     console.error("Error saving progress", err);
+  //   },
+  // });
 
-  const steps = computeSteps();
+  // const isLoading = status === "pending";
+
+  // // Compute steps based on the new logic
+  // const computeSteps = (): Array<React.FC<StepProps>> => {
+  //   if (formData.service === "Signature") {
+  //     // For Signature always use Step1, Step3, Step4.
+  //     return [Step1, Step3, Step4];
+  //   } else if (formData.service === "Concierge") {
+  //     // For Concierge, we check the streaming date and addOns.
+  //     if (formData.firstDateOfStreaming) {
+  //       const streamingDate = new Date(formData.firstDateOfStreaming);
+  //       const now = new Date();
+  //       // Calculate difference in days
+  //       const diffDays = (streamingDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
+  //       const addOnsSelected = formData.addOns && formData.addOns.length > 0;
+  //       // If streaming date is within 2 weeks OR any add–on is selected, render Step2.
+  //       if (diffDays < 14 || addOnsSelected) {
+  //         return [Step1, Step2];
+  //       } else {
+  //         // Otherwise, skip Step2 and go to Step3 and Step4.
+  //         return [Step1, Step3, Step4];
+  //       }
+  //     }
+  //     // If no streaming date, default to showing Step2.
+  //     return [Step1, Step2];
+  //   }
+  //   // Fallback: if no service selected, only show Step1.
+  //   return [Step1];
+  // };
+
+  // const steps = computeSteps();
 
   // Ensure currentStep is within bounds if steps change.
-  useEffect(() => {
-    if (currentStep >= steps.length) {
-      setCurrentStep(steps.length - 1);
-    }
-  }, [steps, currentStep]);
+  // useEffect(() => {
+  //   if (currentStep >= steps.length) {
+  //     setCurrentStep(steps.length - 1);
+  //   }
+  // }, [steps, currentStep]);
 
-  const StepComponent = steps[currentStep];
+  // const StepComponent = steps[currentStep];
 
-  const handleNext = () => {
-    mutate({ uniqueId, formData, userId });
-  };
+  // const handleNext = () => {
+  //   mutate({ uniqueId, formData, userId });
+  // };
 
   return (
     <div className="min-h-screen p-6">

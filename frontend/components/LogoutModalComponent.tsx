@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog'
+import api from 'lib/api'
 
 interface LogoutModalProps {
   open: boolean
@@ -26,6 +27,7 @@ const LogoutModalComponent: React.FC<LogoutModalProps> = ({
 
   const handleLogout = async () => {
     try {
+      await api.post("/api/v1/users/logout")
       localStorage.clear()
       setUser(null)
       router.push('/login')
