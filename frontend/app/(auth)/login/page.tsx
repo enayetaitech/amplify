@@ -25,7 +25,13 @@ import { Button } from "components/ui/button";
 import Logo from "components/LogoComponent";
 import { IUser } from "../../../../shared/interface/UserInterface";
 import { useGlobalContext } from "context/GlobalContext";
+
+import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
+import { useMutation } from "@tanstack/react-query";
+import api from "lib/api";
+
 import FooterComponent from "components/FooterComponent";
+
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -37,9 +43,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const router = useRouter();
-  const { setUser, setToken } = useGlobalContext();
+  const { setUser } = useGlobalContext();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
 
   // Initialize the form with react-hook-form and zod validation
   const form = useForm<LoginFormValues>({
@@ -51,48 +57,44 @@ const Login = () => {
     },
   });
 
-  const onSubmit = async (values: LoginFormValues) => {
-    try {
-      setIsLoading(true);
+   // Mutation for login
+   const loginMutation = useMutation<
+   ApiResponse<{ user: IUser; token: string }>,
+   AxiosError<ErrorResponse>,
+   LoginFormValues
+ >({
+   mutationFn: (vals) =>
+     api
+       .post<ApiResponse<{ user: IUser; token: string }>>(
+         "/api/v1/users/login",
+         {
+           email: vals.email,
+           password: vals.password,
+         },
+         { withCredentials: true }
+       )
+       .then((res) => res.data),
 
-      const response = await axios.post<{
-        data: { user: IUser; token: string };
-        message: string;
-      }>(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/login`,
-        {
-          email: values.email,
-          password: values.password,
-        },
-        { withCredentials: true }
-      );
+   onSuccess: (resp) => {
+     const { user } = resp.data;
+     setUser(user);
+     localStorage.setItem("user", JSON.stringify(user));
+     toast.success(resp.message);
+     router.replace("/projects");
+   },
 
-      const { user, token } = response.data.data;
+   onError: (err) => {
+     const msg = axios.isAxiosError(err)
+       ? err.response?.data.message ?? err.message
+       : "Login failed";
+     toast.error(msg);
+   },
+ });
 
-      setUser(user);
-      setToken(token);
+ const onSubmit = form.handleSubmit((vals) => {
+   loginMutation.mutate(vals);
+ });
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("token", token);
-      }
-
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(
-          "user",
-          JSON.stringify(response.data.data.user)
-        );
-      }
-
-      const redirectUrl = `/projects`;
-      router.replace(redirectUrl);
-    } catch (error) {
-      const axiosError = error as AxiosError<{ message: string }>;
-      const errorMessage = axiosError.response?.data?.message || "Login failed";
-      toast.error(errorMessage);
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div>
@@ -116,7 +118,7 @@ const Login = () => {
             <CardContent>
               <Form {...form}>
                 <form
-                  onSubmit={form.handleSubmit(onSubmit)}
+                  onSubmit={onSubmit}
                   className="lg:px-24 px-4 space-y-4"
                 >
                   <FormField
@@ -196,9 +198,9 @@ const Login = () => {
                   <Button
                     type="submit"
                     className="w-full bg-orange-500 hover:bg-orange-600"
-                    disabled={isLoading}
+                    disabled={loginMutation.isPending}
                   >
-                    {isLoading ? "Loading..." : "Login"}
+                   {loginMutation.isPending ? "Loading..." : "Login"}
                   </Button>
                 </form>
               </Form>

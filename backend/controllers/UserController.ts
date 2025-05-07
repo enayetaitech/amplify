@@ -15,6 +15,17 @@ import jwt from "jsonwebtoken";
 import { isStrongPassword } from "../processors/user/IsStrongPasswordProcessor";
 import ProjectModel from "../model/ProjectModel";
 import { isValidEmail } from "../processors/user/IsValidEmailProcessor";
+import {
+  cookieOptions,
+  parseExpiryToMs,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "../utils/tokenService";
+import { AuthRequest } from "../middlewares/authenticateJwt";
+
+
+
 export const createAccount = async (
   req: Request,
   res: Response,
@@ -123,15 +134,42 @@ export const loginUser = async (
     return next(new ErrorHandler("Invalid credentials", 401));
   }
 
-  const token = jwt.sign(
-    { userId: user._id, role: user.role },
-    config.jwt_secret as string,
-    { expiresIn: "7d" }
-  );
+  const accessToken = signAccessToken({ userId: user._id, role: user.role });
+
+  const refreshToken = signRefreshToken({ userId: user._id });
+
+  // parse the expiry strings from config
+  const accessMaxAge = parseExpiryToMs(config.jwt_access_token_expires_in!);
+
+  const refreshMaxAge = parseExpiryToMs(config.jwt_refresh_token_expires_in!);
+
+  // set the cookies
+  res.cookie("accessToken", accessToken, cookieOptions(accessMaxAge));
+  res.cookie("refreshToken", refreshToken, cookieOptions(refreshMaxAge));
 
   const userResponse = sanitizeUser(user);
 
-  sendResponse(res, { user: userResponse, token }, "Login successful");
+  sendResponse(res, { user: userResponse }, "Login successful");
+};
+
+export const getCurrentUser = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // req.user is set by authenticateJwt
+  const payload = req.user;
+  if (!payload) {
+    return next(new ErrorHandler("Not authenticated", 401));
+  }
+
+  const user = await User.findById(payload.userId);
+  if (!user || user.isDeleted) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  const userResponse = sanitizeUser(user);
+  sendResponse(res, { user: userResponse }, "Current user retrieved", 200);
 };
 
 export const forgotPassword = async (
@@ -361,7 +399,7 @@ export const findUserById = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
+
     const userId = (req.query._id || req.query.id) as string;
 
     if (!userId) {
@@ -375,7 +413,54 @@ export const findUserById = async (
     }
 
     sendResponse(res, user, "User retrieved successfully", 200);
-  } catch (error: any) {
-    next(new ErrorHandler(error.message || "Internal server error", 500));
-  }
+  
+};
+
+export const refreshToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+ 
+    const token = req.cookies.refreshToken;
+    if (!token) {
+      return next(new ErrorHandler("No refresh token", 401));
+    }
+
+    const { userId } = verifyRefreshToken(token);
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    // sign a fresh access token
+    const newAccessToken = signAccessToken({
+      userId,
+      role: user.role,
+    });
+
+    // convert your expiry‐string to a number
+    const accessMaxAge = parseExpiryToMs(
+      config.jwt_access_token_expires_in!
+    );
+
+    // set the cookie
+    res.cookie(
+      "accessToken",
+      newAccessToken,
+      cookieOptions(accessMaxAge)
+    );
+
+    sendResponse(res, null, "Access token refreshed", 200);
+
+};
+
+export const logoutUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  res.clearCookie("accessToken");
+  res.clearCookie("refreshToken");
+  sendResponse(res, null, "Logged out successfully", 200);
 };

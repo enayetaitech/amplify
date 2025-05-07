@@ -5,6 +5,7 @@ import connectDB from "./config/db";
 import errorMiddleware from "./middlewares/ErrorMiddleware";
 import mainRoutes from "./routes/index"
 import cors from "cors";
+import cookieParser from "cookie-parser"; 
 
 const app = express();
 
@@ -13,7 +14,6 @@ const allowedOrigins = ["http://localhost:3000"];
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -26,6 +26,7 @@ app.use(
 
 // Middleware to parse JSON bodies
 app.use(express.json());
+app.use(cookieParser());
 
 // Example route
 app.get("/", (req, res) => {
@@ -46,7 +47,7 @@ app.use("/api/v1", mainRoutes);
 app.use(errorMiddleware);
 
 // Connect to the database and start the server
-const PORT = config.port || 5000;
+const PORT = config.port || 8008;
 app.listen(PORT, async () => {
   await connectDB();
   console.log(`Server is running on port ${PORT}`);

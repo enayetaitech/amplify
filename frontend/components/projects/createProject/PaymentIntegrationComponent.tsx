@@ -8,11 +8,17 @@ import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import CardSetupForm from "./CardSetupFormComponent";
 import BillingForm from "./BillingFormComponent";
-import { getUser, chargeWithSavedCard } from "../../../utils/payment";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { IProject } from "@shared/interface/ProjectInterface";
-import { IProjectFormState, PaymentIntegrationProps } from "@shared/interface/CreateProjectInterface";
+import {
+  IProjectFormState,
+  PaymentIntegrationProps,
+} from "@shared/interface/CreateProjectInterface";
+import { useGlobalContext } from "context/GlobalContext";
+import api from "lib/api";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
+import { IUser } from "@shared/interface/UserInterface";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
@@ -24,47 +30,93 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   projectData,
   uniqueId,
 }) => {
-  const user = getUser();
-
+  const { user, setUser } = useGlobalContext();
+  console.log("User", user);
   const router = useRouter();
 
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [chargeLoading, setChargeLoading] = useState(false);
 
-  // Mutation to hit create-project-by-external-admin endpoint
-  const createProjectMutation = useMutation({
-    mutationFn: async (data: {
-      userId: string;
-      uniqueId: string | null;
-      projectData: Partial<IProject>;
-      totalPurchasePrice: number, totalCreditsNeeded:number
-    }) => {
-      return axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/create-project-by-external-admin`,
-        data
+  // 1️⃣ A helper to re-fetch the logged-in user's profile
+  const refetchUser = async () => {
+    const resp = await api.get<ApiResponse<{ user: IUser }>>(
+      "/api/v1/users/me"
+    );
+
+    const fresh = resp.data.data.user;
+    setUser(fresh);
+    // ADD THIS:
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(fresh));
+    }
+  };
+
+  // 1️⃣ Mutation to charge saved card
+  const chargeMutation = useMutation<
+    // TData
+    { data: { user: typeof user } },
+    // TError
+    unknown,
+    // TVariables
+    { amount: number; credits: number; userId: string; customerId: string }
+  >({
+    mutationFn: ({ amount, credits, customerId, userId }) =>
+      api
+        .post<ApiResponse<{ user: IUser }>>("/api/v1/payment/charge", {
+          customerId,
+          amount,
+          currency: "usd",
+          userId,
+          purchasedCredit: credits,
+        })
+        .then((res) => res.data),
+    onSuccess: (apiResp) => {
+      const updatedUser = apiResp.data.user;
+      // persist and update context
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      toast.success("Payment successful");
+      // now create project
+      createProjectMutation.mutate();
+    },
+    onError: (err) => {
+      toast.error(
+        axios.isAxiosError(err)
+          ? err.response?.data?.message || "Payment failed"
+          : "Payment failed"
       );
     },
+  });
+  // Mutation to hit create-project-by-external-admin endpoint
+  const createProjectMutation = useMutation({
+    mutationFn: () =>
+      api.post("/api/v1/projects/create-project-by-external-admin", {
+        userId: user?._id,
+        uniqueId,
+        projectData: formatProjectData(projectData as IProjectFormState),
+        totalPurchasePrice,
+        totalCreditsNeeded,
+      }),
     onSuccess: () => {
-      toast.success("Project created successfully and payment complete!");
+      toast.success("Project created successfully!");
       router.push("/projects");
     },
-    onError: (error: unknown) => {
-      if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.error || "Project creation failed");
-      } else {
-        toast.error("Project creation failed");
-      }
-    }
+    onError: (err) => {
+      toast.error(
+        axios.isAxiosError(err)
+          ? err.response?.data?.message || "Project creation failed"
+          : "Project creation failed"
+      );
+    },
   });
+
   if (!user) return <div className="text-red-500">User not found</div>;
-
-
 
   // Function to format raw form data into the payload format expected by the backend
   const formatProjectData = (rawData: IProjectFormState): Partial<IProject> => {
     return {
       name: rawData.name,
-      description:"",
+      description: "",
       startDate: new Date(rawData.firstDateOfStreaming),
       service: rawData.service as "Concierge" | "Signature",
       respondentCountry: rawData.respondentCountry,
@@ -76,36 +128,26 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
         duration: session.duration,
       })),
       cumulativeMinutes: 0,
-      status: "Draft", 
-      tags: [], 
+      status: "Draft",
+      tags: [],
     };
   };
 
   const handleUseSavedCard = async () => {
     setChargeLoading(true);
-    try {
-      const amountCents = Math.round(totalPurchasePrice * 100);
-      console.log("Charging amount (cents):", amountCents);
-      await chargeWithSavedCard(amountCents, totalCreditsNeeded);
 
-      const formattedProjectData = formatProjectData(projectData as IProjectFormState);
-
-      createProjectMutation.mutate({
-        userId: user._id!,
-        uniqueId,
-        projectData:formattedProjectData,
-        totalPurchasePrice,
-        totalCreditsNeeded,
-       
-      });
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        toast.error(err.response?.data?.error || "Payment failed");
-      } else {
-        toast.error("Payment failed");
-      }} finally {
-      setChargeLoading(false);
+    const amountCents = Math.round(totalPurchasePrice * 100);
+    console.log("Charging amount (cents):", amountCents);
+    if (!user.stripeCustomerId) {
+      return toast.error("No Stripe customer ID available");
     }
+
+    chargeMutation.mutate({
+      amount: amountCents,
+      credits: totalCreditsNeeded,
+      customerId: user.stripeCustomerId,
+      userId: user._id!,
+    });
   };
 
   const hasBilling = Boolean(user.billingInfo);
@@ -118,7 +160,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       {!hasBilling && (
         <div>
           <p className="mb-4">We need your billing information first.</p>
-          <BillingForm onSuccess={() => { /* Optionally refresh user info */ }} />
+          <BillingForm onSuccess={refetchUser} />
         </div>
       )}
       {/* Card Setup Form */}
@@ -130,7 +172,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
         <div className="space-y-4 border p-4 rounded-md">
           <p>
             Your saved card ending in{" "}
-            <span className="font-medium">{user.creditCardInfo?.last4}</span> is on file.
+            <span className="font-medium">{user.creditCardInfo?.last4}</span> is
+            on file.
           </p>
           <div className="flex space-x-4">
             <Button onClick={handleUseSavedCard} disabled={chargeLoading}>
@@ -147,9 +190,11 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 };
 
 // Wrap PaymentIntegration with Stripe Elements
-const PaymentIntegrationWrapper: React.FC<PaymentIntegrationProps> = (props) => (
+const PaymentIntegrationWrapper: React.FC<PaymentIntegrationProps> = (
+  props
+) => (
   <Elements stripe={stripePromise}>
-    <PaymentIntegration  {...props}/>
+    <PaymentIntegration {...props} />
   </Elements>
 );
 

@@ -1,12 +1,23 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+
+if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+  throw new Error("Both JWT_SECRET and JWT_REFRESH_SECRET must be set");
+}
+
 export default {
   port: process.env.PORT,
   database_url: process.env.MONGO_URI,
   NODE_ENV: process.env.NODE_ENV,
   
   jwt_secret: process.env.JWT_SECRET,
+  jwt_refresh_secret: process.env.JWT_REFRESH_SECRET, 
+
+  jwt_access_token_expires_in : process.env.ACCESS_TOKEN_EXPIRES_IN!,
+  jwt_refresh_token_expires_in : process.env.REFRESH_TOKEN_EXPIRES_IN!,
+
+
   session_secret: process.env.SESSION_SECRET,
   
   frontend_base_url: process.env.FRONTEND_BASE_URL,

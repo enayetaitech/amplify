@@ -34,7 +34,12 @@ import {
   CommandItem,
 } from "components/ui/command";
 import { cn } from "lib/utils";
+
+import api from "lib/api";
+import { IUser } from "@shared/interface/UserInterface";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import FooterComponent from "components/FooterComponent";
+
 
 interface CountryCode {
   country: string;
@@ -115,8 +120,8 @@ const Register = () => {
 
   const registerMutation = useMutation({
     mutationFn: async (values: RegisterFormValues) => {
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/users/register`,
+      const res = await api.post<ApiResponse<IUser>>(
+        `/api/v1/users/register`,
         {
           firstName: values.firstName,
           lastName: values.lastName,
@@ -128,7 +133,7 @@ const Register = () => {
           role: "Admin",
         }
       );
-      return res.data;
+      return res.data.data;
     },
     onSuccess: (data, variables) => {
       toast.success("Your registration was successful!");

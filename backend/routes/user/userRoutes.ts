@@ -9,8 +9,12 @@ import {
   editUser,
   deleteUser,
   findUserById,
+  refreshToken,
+  logoutUser,
+  getCurrentUser,
 } from '../../controllers/UserController'
 import { catchError } from '../../middlewares/CatchErrorMiddleware'
+import { authenticateJwt } from '../../middlewares/authenticateJwt'
 
 const router = express.Router()
 
@@ -18,6 +22,13 @@ const router = express.Router()
 router.post('/register', catchError(createAccount))
 // POST /api/v1/users/login - login a user
 router.post('/login', catchError(loginUser))
+
+// POST /api/v1/users/logout - logout a user
+router.post('/logout', catchError(logoutUser))
+
+// POST /api/v1/users/refreshToken - 
+router.post('/refreshToken', catchError(refreshToken))
+
 // POST /api/v1/auth/forgot-password
 router.post('/forgot-password', catchError(forgotPassword))
 
@@ -38,6 +49,12 @@ router.put('/edit/:id', catchError(editUser))
 
 // DELETE /api/v1/auth/:id
 router.delete('/:id', catchError(deleteUser))
+
+router.get(
+  "/me",
+  authenticateJwt,  
+  catchError(getCurrentUser)
+);
 // ! Delete route will be implemented after creating project
 // ! Find all and find by id route need to be implemented for the amplify admin
 
