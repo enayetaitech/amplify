@@ -6,6 +6,7 @@ import errorMiddleware from "./middlewares/ErrorMiddleware";
 import mainRoutes from "./routes/index"
 import cors from "cors";
 import cookieParser from "cookie-parser"; 
+import { deviceInfoMiddleware } from "./middlewares/deviceInfo";
 
 const app = express();
 
@@ -27,6 +28,9 @@ app.use(
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(cookieParser());
+app.set('trust proxy', true);
+// this must come before any route that needs deviceInfo
+app.use(deviceInfoMiddleware);
 
 // Example route
 app.get("/", (req, res) => {
