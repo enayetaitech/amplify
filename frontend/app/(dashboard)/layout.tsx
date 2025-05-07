@@ -37,7 +37,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <DashboardSidebarComponent
             handleLogoutModalOpen={handleLogoutModalOpen}
             isLogoutModalOpen={isLogoutModalOpen}
-            user={user}
+            
           />
         </div>
         <div className='overflow-x-hidden flex-grow h-full'>{children}</div>

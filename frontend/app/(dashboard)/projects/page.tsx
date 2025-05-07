@@ -2,7 +2,6 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from 'components/ui/button';
-
 import { useQuery } from '@tanstack/react-query';
 import { useGlobalContext } from 'context/GlobalContext';
 import api from 'lib/api';
@@ -21,7 +20,7 @@ const Projects: React.FC = () => {
     queryFn: async () => {
       // Adjust the endpoint as necessary.
       const response = await api.get(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/get-project-by-userId/${userId}`);
-      console.log(response.data.data)
+      
       return response.data.data;
     },
     enabled: Boolean(userId),

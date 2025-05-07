@@ -1,234 +1,275 @@
-"use client";
-import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import Logo from "./LogoComponent";
-import { FaListAlt, FaUserClock, FaBars } from "react-icons/fa";
-import { MdOutlineInsertChart } from "react-icons/md";
-import { IoIosLogOut } from "react-icons/io";
-import { AiOutlineClose } from "react-icons/ai";
-import { BsThreeDotsVertical } from "react-icons/bs";
-import { useDashboard } from "context/DashboardContext";
-import {
-  ChevronDown,
-  ChevronUp,
-  CircleUser,
-  FileText,
-  UserPen,
-} from "lucide-react";
+'use client'
 
-const SidebarLinks = ({ user, setViewProject }: any) => {
-  const [showAccountsSubmenu, setShowAccountsSubmenu] = useState(false);
+import React, { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { usePathname, useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
+import Logo from './LogoComponent'
+import { FaBars, FaListAlt, FaUserClock } from 'react-icons/fa'
+import { MdOutlineInsertChart } from 'react-icons/md'
+import { AiOutlineClose } from 'react-icons/ai'
+import { BsThreeDotsVertical } from 'react-icons/bs'
+import { ChevronDown, ChevronUp, CircleUser, FileText, UserPen } from 'lucide-react'
+import { IoIosLogOut } from 'react-icons/io'
+import { IProject } from '@shared/interface/ProjectInterface'
+import api from 'lib/api'
+import { useGlobalContext } from 'context/GlobalContext'
 
-  return (
-    <>
-      <Link href="/projects" onClick={() => setViewProject(false)}>
-        <div className="flex items-center gap-3 pt-5">
-          <FaListAlt className="text-base text-[#6A7E88]" />
-          <p className="text-base font-semibold text-[#6A7E88]">Dashboard</p>
-        </div>
-      </Link>
-      <Link href="/observers">
-        <div className="flex items-center gap-3 pt-5">
-          <FaListAlt className="text-base text-[#6A7E88]" />
-          <p className="text-base font-semibold text-[#6A7E88]">Observers</p>
-        </div>
-      </Link>
-
-      {/* Accounts with submenu */}
-      <div
-        className="flex flex-col gap-1 pt-5 cursor-pointer"
-        onClick={() => setShowAccountsSubmenu(!showAccountsSubmenu)}
-      >
-        <div className="flex justify-between">
-          <div className="flex items-center gap-3">
-            <CircleUser size={20} className="text-base text-[#6A7E88]" />
-            <p className="text-base font-semibold text-[#6A7E88]">Account</p>
-          </div>
-          {showAccountsSubmenu ? (
-            <ChevronUp color="#6A7E88" size={18} />
-          ) : (
-            <ChevronDown color="#6A7E88" size={18} />
-          )}
-        </div>
-
-        {showAccountsSubmenu && (
-          <div className="mt-5 flex flex-col gap-5">
-            <Link
-              href={`/my-profile/${user?._id}`}
-              className="flex items-center gap-3"
-            >
-              <UserPen size={20} className="text-base text-[#6A7E88]" />
-
-              <p className="text-base text-[#6A7E88] font-semibold">Profile</p>
-            </Link>
-            <Link href="/payment" className="flex items-center gap-3">
-              <FileText size={20} className="text-base text-[#6A7E88]" />
-              <p className="text-base text-[#6A7E88] font-semibold">Billing</p>
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {(user?.role === "SuperAdmin" || user?.role === "AmplifyAdmin") && (
-        <>
-          <Link href="/dashboard/external-admins">
-            <div className="flex items-center gap-3 pt-5">
-              <FaUserClock className="text-base text-[#6A7E88]" />
-              <p className="text-base font-semibold text-[#6A7E88]">
-                External Admins
-              </p>
-            </div>
-          </Link>
-          <Link href="/dashboard/internal-admins">
-            <div className="flex items-center gap-3 pt-5">
-              <FaUserClock className="text-base text-[#6A7E88]" />
-              <p className="text-base font-semibold text-[#6A7E88]">
-                Internal Admins
-              </p>
-            </div>
-          </Link>
-          <Link href="/dashboard/companies">
-            <div className="flex items-center gap-3 pt-5">
-              <MdOutlineInsertChart className="text-base text-[#6A7E88]" />
-              <p className="text-base font-semibold text-[#6A7E88]">
-                Companies
-              </p>
-            </div>
-          </Link>
-        </>
-      )}
-    </>
-  );
-};
-
-const UserInfo = ({
-  user,
-  handleModalOpen,
-  isModalOpen,
-  modalRef,
+export default function DashboardSidebarComponent({
   handleLogoutModalOpen,
-}: any) => (
-  <div className="relative w-[240px] mx-auto">
-    <div className="flex items-center gap-2 bg-[#f1f1f1] h-20 rounded-lg bg-opacity-70 user_info_div_shadow mb-6 pl-2">
-      <Image
-        src="/user.jpg"
-        alt="user image"
-        height={40}
-        width={40}
-        className="rounded-full"
-      />
-      <div>
-        <p className="text-custom-dark-blue-1 font-bold text-base">
-          {`${user?.firstName?.slice(0, 12)}${
-            user?.firstName?.length > 12 ? "..." : ""
-          } `}
-          {`${user?.lastName?.slice(0, 12)}${
-            user?.lastName?.length > 12 ? "..." : ""
-          }`}
-        </p>
-        <p className="text-[11px] text-custom-dark-blue-1">
-          {user?.email?.length > 20
-            ? `${user.email.slice(0, 20)}...`
-            : user?.email}
-        </p>
-      </div>
-      <BsThreeDotsVertical
-        className="cursor-pointer text-custom-dark-blue-1"
-        onClick={handleModalOpen}
-      />
-    </div>
+}: {
+  handleLogoutModalOpen: () => void
+}) {
+  const pathname = usePathname()!
+  const router = useRouter()
+  const modalRef = useRef<HTMLDivElement>(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const { user } = useGlobalContext()
+  const [acctOpen, setAcctOpen] = useState(false)
+  const [showLogoutMenu, setShowLogoutMenu] = useState(false)
 
-    {isModalOpen && (
-      <div
-        ref={modalRef}
-        className="absolute bottom-12 -right-24 z-50 bg-white rounded-lg h-[40px] w-[125px] profile_dropdown_shadow flex flex-col px-3 py-2 gap-4"
-      >
-        <div
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={handleLogoutModalOpen}
-        >
-          <IoIosLogOut className="text-[#697e89] h-3 w-3" />
-          <p className="text-sm text-[#697e89]">Logout</p>
-        </div>
-      </div>
-    )}
-  </div>
-);
+  // fetch only this user's projects
+  const userId = user?._id
+  const { data: projects = [] } = useQuery<IProject[], Error>({
+    queryKey: ['projectsByUser', userId],
+    queryFn: () =>
+      api
+        .get(`/api/v1/projects/get-project-by-userId/${userId}`)
+        .then((r) => r.data.data),
+    staleTime: 300_000,
+    enabled: Boolean(userId),
+  })
 
-const DashboardSidebarComponent = ({
-  handleLogoutModalOpen,
-  isLogoutModalOpen,
-  user,
-}: any) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const modalRef = useRef(null);
-  const { setViewProject } = useDashboard();
+  // detect active project in URL
+  const segments = pathname.split('/').filter(Boolean)
+  const pIdx = segments.indexOf('projects')
+  const projectId = (pIdx > -1 && segments.length > pIdx + 1) ? segments[pIdx + 1] : null
 
-  const handleModalOpen = () => setIsModalOpen((prev) => !prev);
-  const handleSidebarToggle = () => setIsSidebarOpen((prev) => !prev);
+  // toggle projects list
+  const [showProjects, setShowProjects] = useState(
+    pathname.startsWith('/projects')
+  )
 
+  // sub-nav for the active project
+  const projectSubNav = projectId
+    ? [
+        { label: 'Sessions', href: `/projects/${projectId}/sessions` },
+        { label: 'Session Deliverables', href: `/projects/${projectId}/session-deliverables` },
+        { label: 'Observer Documents', href: `/projects/${projectId}/observer-documents` },
+        { label: 'Project Team', href: `/projects/${projectId}/project-team` },
+        { label: 'Polls', href: `/projects/${projectId}/polls` },
+        { label: 'Reports', href: `/projects/${projectId}/reports` },
+      ]
+    : []
+
+  // close account dropdown and logout dropdown on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        modalRef.current &&
-        !(modalRef.current as any).contains(event.target)
-      ) {
-        setIsModalOpen(false);
+    const onClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowLogoutMenu(false)
       }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
 
   return (
     <>
-      {/* Hamburger Icon */}
+      {/* Mobile hamburger */}
       <div className="md:hidden fixed top-4 left-4 z-30">
         <FaBars
-          className="h-6 w-6 text-custom-dark-blue-1 cursor-pointer"
-          onClick={handleSidebarToggle}
+          className="text-2xl cursor-pointer"
+          onClick={() => setMobileOpen(v => !v)}
         />
       </div>
 
-      {/* Sidebar */}
-      <div
-        className={`fixed md:relative top-0 left-0 h-screen md:h-screen z-40 w-[260px] transition-transform duration-300 dashboard_sidebar_bg flex flex-col items-center ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      >
-        {/* Close Icon for Mobile */}
+      <aside className={`
+        flex flex-col fixed md:relative top-0 left-0 h-screen w-64 z-40
+        bg-white shadow transform transition-transform
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        {/* Mobile close */}
         <div className="md:hidden absolute top-4 right-4">
           <AiOutlineClose
-            size={30}
-            className="text-[#6A7E88] cursor-pointer"
-            onClick={handleSidebarToggle}
+            className="text-2xl cursor-pointer"
+            onClick={() => setMobileOpen(false)}
           />
         </div>
 
         {/* Logo */}
-        <div className="py-10">
-          <Logo />
-        </div>
+        <div className="py-8 px-6"><Logo /></div>
 
-        {/* Links */}
-        <div className="flex-grow w-full px-6">
-          <SidebarLinks user={user} setViewProject={setViewProject} />
-        </div>
+        {/* Main nav */}
+        <nav className="px-6 flex-1 overflow-auto">
+          {/* Projects header */}
+          <div
+            className={`
+              flex items-center justify-between w-full gap-3 py-2 font-semibold cursor-pointer
+              ${pathname.startsWith('/projects')
+                ? 'text-blue-600'
+                : 'text-gray-700 hover:text-gray-900'
+              }
+            `}
+            onClick={() => {
+              router.push('/projects')
+              setShowProjects(v => !v)
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <FaListAlt /><span>Projects</span>
+            </div>
+            {showProjects ? <ChevronUp /> : <ChevronDown />}
+          </div>
 
-        {/* User Info */}
-        <UserInfo
-          user={user}
-          handleModalOpen={handleModalOpen}
-          isModalOpen={isModalOpen}
-          modalRef={modalRef}
-          handleLogoutModalOpen={handleLogoutModalOpen}
-        />
+          {/* List projects with nested sub-menu under active one */}
+          {showProjects && (
+            <ul className="ml-6 mt-2 space-y-1">
+              {projects.map(p => {
+                const href = `/projects/${p._id}`
+                const active = pathname.startsWith(href)
+                return (
+                  <React.Fragment key={p._id}>
+                    <li>
+                      <Link
+                        href={href}
+                        className={`block py-1 ${
+                          active
+                            ? 'text-blue-500 font-medium'
+                            : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                      >
+                        {p.name}
+                      </Link>
+                    </li>
+
+                    {active && projectSubNav.length > 0 && (
+                      <ul className="ml-6 mt-1 space-y-1">
+                        {projectSubNav.map(it => (
+                          <li key={it.href}>
+                            <Link
+                              href={it.href}
+                              className={`block py-1 ${
+                                pathname === it.href
+                                  ? 'text-blue-400 underline'
+                                  : 'text-gray-600 hover:text-gray-800'
+                              }`}
+                            >
+                              {it.label}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </React.Fragment>
+                )
+              })}
+            </ul>
+          )}
+
+          {/* Other static links */}
+          <div className="mt-8 space-y-4">
+            <Link href="/observers">
+              <div className="flex items-center gap-3">
+                <FaUserClock /><span>Observers</span>
+              </div>
+            </Link>
+
+            {/* Account submenu */}
+            <div
+              className="flex flex-col gap-1 cursor-pointer"
+              onClick={() => setAcctOpen(v => !v)}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <CircleUser /><span>Account</span>
+                </div>
+                {acctOpen ? <ChevronUp /> : <ChevronDown />}
+              </div>
+              {acctOpen && (
+                <div ref={modalRef} className="pl-8 mt-2 space-y-2">
+                  <Link href={`/my-profile/${user?._id}`} className="flex items-center gap-2">
+                    <UserPen /> Profile
+                  </Link>
+                  <Link href="/payment" className="flex items-center gap-2">
+                    <FileText /> Billing
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {user?.role === 'AmplifyAdmin' && (
+              <>
+                <Link href="/external-admins">
+                  <div className="flex items-center gap-3">
+                    <FaUserClock /><span>External Admins</span>
+                  </div>
+                </Link>
+                <Link href="/internal-admins">
+                  <div className="flex items-center gap-3">
+                    <FaUserClock /><span>Internal Admins</span>
+                  </div>
+                </Link>
+                <Link href="/companies">
+                  <div className="flex items-center gap-3">
+                    <MdOutlineInsertChart /><span>Companies</span>
+                  </div>
+                </Link>
+              </>
+            )}
+          </div>
+        </nav>
+
+       {/* User info pinned to bottom */}
+<div className="px-6 mt-auto pb-6">
+  <div className="relative flex items-center justify-between p-3 bg-gray-100 rounded-lg overflow-visible">
+    {/* Left side: avatar + names */}
+    <div className="flex items-center gap-3">
+      <Image
+        src="/user.jpg"
+        alt="avatar"
+        width={36}
+        height={36}
+        className="rounded-full"
+      />
+      <div className="text-sm">
+        <p className="font-semibold truncate">
+          {user?.firstName} {user?.lastName}
+        </p>
+        <p className="text-xs text-gray-600 truncate w-40">{user?.email}</p>
       </div>
-    </>
-  );
-};
+    </div>
 
-export default DashboardSidebarComponent;
+    {/* Right side: three-dots */}
+    <button
+      className="p-1 cursor-pointer"
+      onClick={() => setShowLogoutMenu((v) => !v)}
+    >
+      <BsThreeDotsVertical size={20} />
+    </button>
+
+    {/* Logout pop-over */}
+    {showLogoutMenu && (
+      <div
+        ref={menuRef}
+        className="absolute bottom-full right-0 mt-2 w-36 bg-white border rounded shadow-lg z-50"
+      >
+        <button
+          className="flex items-center w-full px-4 py-2 hover:bg-gray-100 cursor-pointer"
+          onClick={() => {
+            setShowLogoutMenu(false)
+            handleLogoutModalOpen()
+          }}
+        >
+          <IoIosLogOut className="mr-2" /> Logout
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+
+    </aside>
+    </>
+  )
+}
