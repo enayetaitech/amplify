@@ -34,9 +34,12 @@ import {
   CommandItem,
 } from "components/ui/command";
 import { cn } from "lib/utils";
+
 import api from "lib/api";
 import { IUser } from "@shared/interface/UserInterface";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
+import FooterComponent from "components/FooterComponent";
+
 
 interface CountryCode {
   country: string;
@@ -477,6 +480,7 @@ const Register = () => {
           </div>
         </div>
       </div>
+      <FooterComponent />
     </div>
   );
 };
