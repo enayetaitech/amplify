@@ -24,8 +24,6 @@ import {
 } from "../utils/tokenService";
 import { AuthRequest } from "../middlewares/authenticateJwt";
 
-
-
 export const createAccount = async (
   req: Request,
   res: Response,
@@ -399,21 +397,19 @@ export const findUserById = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  const userId = (req.query._id || req.query.id) as string;
 
-    const userId = (req.query._id || req.query.id) as string;
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
 
-    if (!userId) {
-      return next(new ErrorHandler("User ID is required", 400));
-    }
+  const user = await User.findById(userId);
 
-    const user = await User.findById(userId);
+  if (!user || user.isDeleted) {
+    return next(new ErrorHandler("User not found", 404));
+  }
 
-    if (!user || user.isDeleted) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-
-    sendResponse(res, user, "User retrieved successfully", 200);
-  
+  sendResponse(res, user, "User retrieved successfully", 200);
 };
 
 export const refreshToken = async (
@@ -421,38 +417,30 @@ export const refreshToken = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
- 
-    const token = req.cookies.refreshToken;
-    if (!token) {
-      return next(new ErrorHandler("No refresh token", 401));
-    }
+  const token = req.cookies.refreshToken;
+  if (!token) {
+    return next(new ErrorHandler("No refresh token", 401));
+  }
 
-    const { userId } = verifyRefreshToken(token);
-    const user = await User.findById(userId);
-    if (!user) {
-      return next(new ErrorHandler("User not found", 404));
-    }
+  const { userId } = verifyRefreshToken(token);
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
 
-    // sign a fresh access token
-    const newAccessToken = signAccessToken({
-      userId,
-      role: user.role,
-    });
+  // sign a fresh access token
+  const newAccessToken = signAccessToken({
+    userId,
+    role: user.role,
+  });
 
-    // convert your expiry‐string to a number
-    const accessMaxAge = parseExpiryToMs(
-      config.jwt_access_token_expires_in!
-    );
+  // convert your expiry‐string to a number
+  const accessMaxAge = parseExpiryToMs(config.jwt_access_token_expires_in!);
 
-    // set the cookie
-    res.cookie(
-      "accessToken",
-      newAccessToken,
-      cookieOptions(accessMaxAge)
-    );
+  // set the cookie
+  res.cookie("accessToken", newAccessToken, cookieOptions(accessMaxAge));
 
-    sendResponse(res, null, "Access token refreshed", 200);
-
+  sendResponse(res, null, "Access token refreshed", 200);
 };
 
 export const logoutUser = async (
