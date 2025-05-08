@@ -109,6 +109,10 @@ export const loginUser = async (
 ): Promise<void> => {
   const { email, password } = req.body;
 
+  const { ip, deviceType, platform, browser, location } = (req as any).deviceInfo;
+
+  console.log("ip, deviceType, platform, browser, location", ip, deviceType, platform, browser, location)
+
   if (!email || !password) {
     return next(new ErrorHandler("Email and password are required", 400));
   }
