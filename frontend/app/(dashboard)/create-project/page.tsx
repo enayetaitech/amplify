@@ -122,72 +122,7 @@ const CreateProjectPage: React.FC = () => {
 
   const isLoading = saveMutation.isPending;
 
-  // const { mutate, status } = useMutation({
-  //   mutationFn: (data: {
-  //     uniqueId: string | null;
-  //     formData: IProjectFormState;
-  //     userId: string;
-  //   }) =>
-  //     axios.post(
-  //       `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/save-progress`,
-  //       data
-  //     ),
-  //   onSuccess: (res) => {
-  //     const returnedId = res.data.data.uniqueId;
-  //     if (returnedId) {
-  //       setUniqueId(returnedId);
-  //     }
-  //     nextStep();
-  //   },
-  //   onError: (err) => {
-  //     console.error("Error saving progress", err);
-  //   },
-  // });
-
-  // const isLoading = status === "pending";
-
-  // // Compute steps based on the new logic
-  // const computeSteps = (): Array<React.FC<StepProps>> => {
-  //   if (formData.service === "Signature") {
-  //     // For Signature always use Step1, Step3, Step4.
-  //     return [Step1, Step3, Step4];
-  //   } else if (formData.service === "Concierge") {
-  //     // For Concierge, we check the streaming date and addOns.
-  //     if (formData.firstDateOfStreaming) {
-  //       const streamingDate = new Date(formData.firstDateOfStreaming);
-  //       const now = new Date();
-  //       // Calculate difference in days
-  //       const diffDays = (streamingDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
-  //       const addOnsSelected = formData.addOns && formData.addOns.length > 0;
-  //       // If streaming date is within 2 weeks OR any add–on is selected, render Step2.
-  //       if (diffDays < 14 || addOnsSelected) {
-  //         return [Step1, Step2];
-  //       } else {
-  //         // Otherwise, skip Step2 and go to Step3 and Step4.
-  //         return [Step1, Step3, Step4];
-  //       }
-  //     }
-  //     // If no streaming date, default to showing Step2.
-  //     return [Step1, Step2];
-  //   }
-  //   // Fallback: if no service selected, only show Step1.
-  //   return [Step1];
-  // };
-
-  // const steps = computeSteps();
-
-  // Ensure currentStep is within bounds if steps change.
-  // useEffect(() => {
-  //   if (currentStep >= steps.length) {
-  //     setCurrentStep(steps.length - 1);
-  //   }
-  // }, [steps, currentStep]);
-
-  // const StepComponent = steps[currentStep];
-
-  // const handleNext = () => {
-  //   mutate({ uniqueId, formData, userId });
-  // };
+  
 
   return (
     <div className="min-h-screen p-6">
