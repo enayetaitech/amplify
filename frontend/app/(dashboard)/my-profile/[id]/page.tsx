@@ -93,6 +93,16 @@ const Page = () => {
                 paragraph={`${user ? user?.credits ?? 0 : "Loading..."}`}
               />
             </div>
+            <div className="flex justify-start items-center gap-10">
+              <HeadingParagraphComponent
+                heading="Phone Number"
+                paragraph={user ? user?.phoneNumber : "Loading..."}
+              />
+              <HeadingParagraphComponent
+                heading="Company Name"
+                paragraph={`${user ? user?.companyName  : "Loading..."}`}
+              />
+            </div>
             {user?.billingInfo && (
               <div className="space-y-2 pt-2">
                 <div className="flex justify-start items-center gap-10">
@@ -228,6 +238,14 @@ const Page = () => {
                 <HeadingParagraphComponent
                   heading="Remaining Credits"
                   paragraph={`${user ? user?.credits ?? 0 : "Loading..."}`}
+                />
+                <HeadingParagraphComponent
+                  heading="Phone Number"
+                  paragraph={user ? user?.phoneNumber : "Loading..."}
+                />
+                <HeadingParagraphComponent
+                  heading="Company Name"
+                  paragraph={`${user ? user?.companyName  : "Loading..."}`}
                 />
 
                 {user?.billingInfo && (

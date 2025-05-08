@@ -19,8 +19,8 @@ export interface IUser {
   firstName: string;
   lastName: string;
   email: string;
-  phoneNumber?: string;
-  companyName?: string;
+  phoneNumber: string;
+  companyName: string;
   password: string;
   role:
     | 'Admin'
