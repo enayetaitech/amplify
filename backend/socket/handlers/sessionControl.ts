@@ -3,6 +3,12 @@
 import { Server, Socket } from "socket.io";
 import * as sessionService from "../../processors/liveSession/sessionService";
 import { LiveSessionModel } from "../../model/LiveSessionModel";
+import {
+  IObserver,
+  IObserverWaitingUser,
+  IParticipant,
+  IWaitingUser,
+} from "../../../shared/interface/LiveSessionInterface";
 
 interface AcceptPayload {
   sessionId: string;
@@ -62,11 +68,13 @@ export function registerSessionControl(io: Server) {
       async (
         payload: AcceptPayload,
         callback: (res: {
-          success: boolean;
-          waitingRoom?: any[];
-          participantList?: any[];
+          success: true;
+          participantsWaitingRoom: IWaitingUser[];
+          observersWaitingRoom: IObserverWaitingUser[];
+          participantList: IParticipant[];
+          observerList: IObserver[];
           message?: string;
-        }) => void
+        }  | { success: false; message: string } ) => void
       ) => {
         console.log("[sessionControl] acceptFromWaitingRoom payload:", payload);
 
@@ -75,6 +83,8 @@ export function registerSessionControl(io: Server) {
             sessionId: payload.sessionId,
           });
           if (!live) throw new Error("LiveSession not found");
+
+          console.log("live", live);
 
           const idx = live.participantWaitingRoom.findIndex(
             (u) => u.email === payload.email
@@ -85,10 +95,11 @@ export function registerSessionControl(io: Server) {
           live.participantsList.push({
             name: user.name,
             email: user.email,
-            role: user.role === "Moderator" ? "Moderator" : "Participant",
+            role: user.role,
             joinedAt: new Date(),
           });
           await live.save();
+          console.log('live after saving', live)
 
           io.to(payload.sessionId).emit(
             "participantWaitingRoomUpdate",
@@ -105,8 +116,10 @@ export function registerSessionControl(io: Server) {
 
           callback({
             success: true,
-            waitingRoom: live.participantWaitingRoom,
+            participantsWaitingRoom: live.participantWaitingRoom,
+            observersWaitingRoom: live.observerWaitingRoom,
             participantList: live.participantsList,
+            observerList: live.observerList,
           });
         } catch (err: any) {
           console.error("[sessionControl] accept error:", err);

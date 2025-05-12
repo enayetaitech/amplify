@@ -6,12 +6,13 @@ import { UserActivityModel } from "../../model/UserActivityModel";
 import ChatMessageModel from "../../model/ChatModel";
 import GroupMessageModel from "../../model/GroupMessage";
 import ObserverGroupMessageModel from "../../model/ObserverGroupMessage";
+import { ParticipantWaitingRoomChatModel } from "../../model/ParticipantWaitingRoomChatModel";
 
 export interface EnqueueUserData {
   userId?: string;
   name: string;
   email: string;
-  role: "Participant" | "Observer" | "Moderator";
+  role: "Participant" | "Observer" | "Moderator" | "Admin";
 }
 
 /**
@@ -41,12 +42,16 @@ export async function enqueueUser(
 
   // 🛑 skip if already in waiting room
   if (
-    userData.role === "Participant" &&
-    live.participantWaitingRoom.some((u) => u.email === userData.email)
+    userData.role === "Participant" && (
+      live.participantWaitingRoom.some((u) => u.email === userData.email) ||
+      live.participantsList.some((u) => u.email === userData.email)
+    )
   ) {
     return {
-      participants: live.participantWaitingRoom,
-      observers: live.observerWaitingRoom,
+      participantsWaitingRoom: live.participantWaitingRoom,
+      observersWaitingRoom: live.observerWaitingRoom,
+      participantList: live.participantsList,
+      observerList: live.observerList
     };
   }
   // Add to waiting room
@@ -65,26 +70,28 @@ export async function enqueueUser(
       role: userData.role,
       joinedAt: new Date(),
     });
-  } else if (userData.role === "Moderator") {
+  } else if (userData.role === "Moderator" || userData.role === "Admin" ) {
     const email = userData.email;
     if (
-      live.observerWaitingRoom.some(u => u.email === email) ||
-      live.participantWaitingRoom.some(u => u.email === email)
+      live.observerList.some(u => u.email === email) ||
+      live.participantsList.some(u => u.email === email)
     ) {
       return {
-        participants: live.participantWaitingRoom,
-        observers:   live.observerWaitingRoom,
+            participantsWaitingRoom: live.participantWaitingRoom,
+    observersWaitingRoom:    live.observerWaitingRoom,
+    participantList:         live.participantsList,
+    observerList:            live.observerList,
       };
     }
     
-    live.observerWaitingRoom.push({
+    live.observerList.push({
       userId: userData.userId || undefined,
       name: userData.name,
       email: userData.email,
       role: userData.role,
       joinedAt: new Date(),
     });
-    live.participantWaitingRoom.push({
+    live.participantsList.push({
       name: userData.name,
       email: userData.email,
       role: userData.role,
@@ -103,8 +110,10 @@ export async function enqueueUser(
   });
 
   return {
-    participants: live.participantWaitingRoom,
-    observers: live.observerWaitingRoom,
+     participantsWaitingRoom: live.participantWaitingRoom,
+      observersWaitingRoom: live.observerWaitingRoom,
+      participantList: live.participantsList,
+      observerList: live.observerList
   };
 }
 
@@ -153,7 +162,7 @@ export async function getSessionHistory(sessionId: string) {
   const activities = await UserActivityModel.find({ sessionId: liveId }).lean();
 
   // Waiting-room chats
-  const waitingRoomChats = await WaitingRoomChatModel.find({
+  const waitingRoomChats = await ParticipantWaitingRoomChatModel.find({
     sessionId: liveId,
   }).lean();
 

@@ -1,6 +1,5 @@
 import { Server, Socket } from "socket.io";
 import { ParticipantMeetingChatDocument, ParticipantMeetingChatModel } from "../../model/ParticipantMeetingChatModel";
-import { Types } from "mongoose";
 
 // we accept exactly the IWaitingRoomChat minus timestamp/_id
 type MeetingChatPayload = Omit<ParticipantMeetingChatDocument, "_id" | "timestamp">;
@@ -28,7 +27,10 @@ export function registerParticipantMeetingChat(io: Server) {
         meetingChatBatch.push(msg);
 
         // broadcast to all sockets in this session room
-        io.to(data.sessionId.toString()).emit("participant-meeting-room:receive-message", msg);
+       socket
+  .broadcast
+  .to(data.sessionId.toString())
+  .emit("participant-meeting-room:receive-message", msg);
       }
     );
   });

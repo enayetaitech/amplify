@@ -19,7 +19,7 @@ const UserActivitySchema = new Schema<IUserActivityDocument>(
   {
     sessionId: { type: Schema.Types.ObjectId, ref: "LiveSession", required: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: false },
-    role: { type: String, enum: ["Participant", "Observer", "Moderator"], required: true },
+    role: { type: String, enum: ["Participant", "Observer", "Moderator", "Admin"], required: true },
     joinTime: { type: Date, default: () => new Date(), required: true },
     leaveTime: { type: Date },
     deviceInfo: { type: DeviceInfoSchema },
