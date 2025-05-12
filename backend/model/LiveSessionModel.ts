@@ -10,7 +10,7 @@ const WaitingRoomParticipantSchema = new Schema<
 >({
   name: { type: String, required: true },
   email: { type: String, required: true },
-  role: { type: String, enum: ["Participant", "Moderator"], required: true },
+  role: { type: String, enum: ["Participant", "Moderator", "Admin"], required: true },
   joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 const WaitingRoomObserverSchema = new Schema<
@@ -19,7 +19,7 @@ const WaitingRoomObserverSchema = new Schema<
   userId:     { type: Schema.Types.ObjectId, ref: "User", required: false },
   name: { type: String, required: true },
   email: { type: String, required: true },
-  role: { type: String, enum: ["Observer", "Moderator"], required: true },
+  role: { type: String, enum: ["Observer", "Moderator" , "Admin"], required: true },
   joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 
@@ -28,7 +28,7 @@ const ParticipantSchema = new Schema<
 >({
   email:   { type: String, required: true },
   name: { type: String, required: true },
-  role: { type: String, enum: ["Participant", "Moderator"], required: true },
+  role: { type: String, enum: ["Participant", "Moderator" , "Admin"], required: true },
   joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 
@@ -38,7 +38,7 @@ const ObserverSchema = new Schema<
   userId: { type: Schema.Types.ObjectId, ref: "User", required: false  },
   name: { type: String, required: true },
   email:   { type: String, required: true },
-  role: { type: String, enum: ["Observer", "Moderator"], required: true },
+  role: { type: String, enum: ["Observer", "Moderator" , "Admin"], required: true },
   joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 

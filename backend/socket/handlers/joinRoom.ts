@@ -2,6 +2,7 @@
 
 import { Server, Socket } from "socket.io";
 import * as sessionService from "../../processors/liveSession/sessionService";
+import { IObserver, IObserverWaitingUser, IParticipant, IWaitingUser } from "../../../shared/interface/LiveSessionInterface";
 
 interface JoinPayload {
   sessionId: string;
@@ -16,11 +17,14 @@ export function registerJoinRoom(io: Server) {
     socket.on(
       "join-room",
       async (payload, callback: (rooms: {
-        participants: any[];
-        observers: any[];
+        
+        participantsWaitingRoom: IWaitingUser[];
+        observersWaitingRoom: IObserverWaitingUser[];
+        participantList: IParticipant[],
+        observerList: IObserver[]
       }) => void) => {
         try {
-          // console.log('payload', payload)
+          console.log('payload', payload)
           // Ensure a LiveSession exists
           await sessionService.createLiveSession(payload.sessionId);
 
@@ -34,16 +38,16 @@ export function registerJoinRoom(io: Server) {
          // emit separate updates
          io.to(payload.sessionId).emit(
            "participantWaitingRoomUpdate",
-           rooms.participants
+           rooms.participantsWaitingRoom
           );
 
           
           io.to(payload.sessionId).emit(
             "observerWaitingRoomUpdate",
-            rooms.observers
+            rooms.observersWaitingRoom
           );
 
-          // console.log("rooms", rooms)
+          console.log("rooms", rooms)
 
           callback(rooms);
         } catch (err: any) {

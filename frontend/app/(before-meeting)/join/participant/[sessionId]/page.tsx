@@ -15,11 +15,8 @@ export default function ParticipantJoinMeeting() {
   const [email, setEmail] = useState("");
   const [joining, setJoining] = useState(false);
 
-  console.log('session id in join meeting room', sessionId)
 
   const handleJoin = () => {
-    console.log("[PJM] handleJoin fired");              // 🔥 log entry
-    console.log("[PJM] current state:", { name, email, socket });
     if (!name || !email || !socket) return;
     setJoining(true);
 
@@ -28,18 +25,12 @@ export default function ParticipantJoinMeeting() {
       JSON.stringify({ name, email, role: "Participant" })
     );
 
-    console.log("[PJM] emitting join-room", {
-      sessionId,
-      name,
-      email,
-      role: "Participant",
-    });
+ 
 
     socket.emit(
       "join-room",
       { sessionId, name, email, role: "Participant" },
       () => {
-        console.log("[PJM] join-room ack callback");
         setJoining(false);
         router.push(`/waiting-room/participant/${sessionId}`);
       }

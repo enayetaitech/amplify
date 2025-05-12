@@ -4,12 +4,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMeeting } from "context/MeetingContext";
 import { IWaitingRoomChat } from "@shared/interface/WaitingRoomChatInterface";
+import { IObserver, IObserverWaitingUser, IParticipant, IWaitingUser } from "@shared/interface/LiveSessionInterface";
 
-interface WaitingUser {
-  name: string;
-  email: string;
-  joinedAt: string;
+interface JoinAck {
+  participantsWaitingRoom: IWaitingUser[];
+  observersWaitingRoom:   IObserverWaitingUser[];
+  participantList:        IParticipant[];
+  observerList:           IObserver[];
 }
+
 
 export default function ParticipantWaitingRoom() {
   const { sessionId } = useParams();
@@ -22,7 +25,7 @@ export default function ParticipantWaitingRoom() {
     role: string;
   };
 
-  const [waiting, setWaiting] = useState<WaitingUser[]>([]);
+  const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
 
   // chat state
   const [chatInput, setChatInput] = useState("");
@@ -40,26 +43,31 @@ export default function ParticipantWaitingRoom() {
       socket.emit(
         "join-room",
         { sessionId, ...me },
-        (rooms: { participants: WaitingUser[] }) => {
-          const initial = rooms.participants.filter(
-            (u) => u.email !== me.email
+       (rooms: JoinAck) =>  {
+          // initialize waiting-room list
+          setWaiting(
+            rooms.participantsWaitingRoom.filter((u) => u.email !== me.email)
           );
-          setWaiting(initial);
+
+          // if we're already in the active participantList, go straight in:
+          if (rooms.participantList.some((p) => p.email === me.email)) {
+            router.push(`/meeting/${sessionId}`);
+          }
         }
       );
     }
 
     socket.on("participantWaitingRoomUpdate", (list) => {
-      const filtered = list.filter((u: WaitingUser) => u.email !== me.email);
+      const filtered = list.filter((u: IWaitingUser) => u.email !== me.email);
 
       setWaiting(filtered);
-      if (!list.some((p: WaitingUser) => p.email === me.email)) {
+      if (!list.some((p: IWaitingUser) => p.email === me.email)) {
         router.push("/remove-participant");
       }
     });
 
-    socket.on("participantListUpdate", (participants: WaitingUser[]) => {
-      if (participants.find((p) => p.email === me.email)) {
+    socket.on("participantListUpdate", (list: IParticipant[]) => {
+      if (list.find((p) => p.email === me.email)) {
         router.push(`/meeting/${sessionId}`);
       }
     });

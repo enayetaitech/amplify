@@ -5,11 +5,13 @@ import { useParams } from "next/navigation";
 import { useMeeting } from "context/MeetingContext";
 import { useGlobalContext } from "context/GlobalContext";
 import { IWaitingRoomChat } from "@shared/interface/WaitingRoomChatInterface";
+import { IObserver, IObserverWaitingUser, IParticipant, IWaitingUser } from "@shared/interface/LiveSessionInterface";
 
-interface UserInfo {
-  name: string;
-  email: string;
-  joinedAt: string;
+interface JoinAck {
+participantsWaitingRoom: IWaitingUser[];
+  observersWaitingRoom: IObserverWaitingUser[];
+  participantList: IParticipant[];
+  observerList: IObserver[];
 }
 
 export default function Meeting() {
@@ -19,51 +21,54 @@ export default function Meeting() {
 
   const hasJoined = useRef(false);
 
-  const [waiting, setWaiting] = useState<UserInfo[]>([]);
-  const [participants, setParticipants] = useState<UserInfo[]>([]);
+    // derive “me” either from AuthContext (moderator) or localStorage (participant)
+  const me = user
+    ? { name: user.firstName, email: user.email, role: user.role as IParticipant["role"] }
+    : JSON.parse(localStorage.getItem("liveSessionUser")!) as IWaitingUser;
+
+
+  const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
+  const [participants, setParticipants] = useState<IParticipant[]>([]);
+
+console.log('participant', participants)
 
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [messages, setMessages] = useState<IWaitingRoomChat[]>([]);
   const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
-    if (!socket || !user || hasJoined.current) return;
+    if (!socket || hasJoined.current) return;
 
     hasJoined.current = true;
 
     socket.emit(
       "join-room",
-      {
-        sessionId,
-        name: user.firstName,
-        email: user.email,
-        role: "Moderator",
-      },
-      (rooms: { participants: UserInfo[] }) => {
-        const withoutMe = rooms.participants.filter(
-          (u) => u.email !== user.email
-        );
-        setWaiting(withoutMe);
+      { sessionId, ...me },
+    (rooms: JoinAck) => {
+          // waiting room (exclude yourself)
+        setWaiting(rooms.participantsWaitingRoom.filter((u) => u.email !== me.email));
+        // active participants
+        setParticipants(rooms.participantList);
       }
     );
   }, [sessionId, socket, user]);
 
   useEffect(() => {
-    if (!socket || !user) return;
+    if (!socket ) return;
 
     // log and update waiting list
-    socket.on("participantWaitingRoomUpdate", (list: UserInfo[]) => {
-      setWaiting(list.filter((u) => u.email !== user.email));
+    socket.on("participantWaitingRoomUpdate", (list: IWaitingUser[]) => {
+      setWaiting(list.filter((u) => u.email !== me.email));
     });
 
-    socket.on("participantListUpdate", setParticipants);
+     socket.on("participantListUpdate", (list: IParticipant[]) => {
+      setParticipants(list);
+    });
 
     // receive all waiting-room chat
     socket.on(
       "participant-waiting-room:receive-message",
       (msg: IWaitingRoomChat & { timestamp: string }) => {
-        console.log("[Meeting:Moderator] ← received:", msg);
-
         const withDate: IWaitingRoomChat = {
           ...msg,
           timestamp: new Date(msg.timestamp),
@@ -77,7 +82,7 @@ export default function Meeting() {
       socket.off("participantListUpdate");
       socket.off("participant-waiting-room:receive-message");
     };
-  }, [sessionId, socket, user]);
+  }, [sessionId, socket, me]);
 
   // if(!user){
   //   return(
@@ -100,18 +105,22 @@ export default function Meeting() {
   };
 
   const accept = (email: string) => {
+    console.log('email', email)
     if (!socket) return;
+    console.log('email', email)
 
     socket.emit(
       "acceptFromWaitingRoom",
       { sessionId, email },
       (res: {
         success: boolean;
-        waitingRoom: UserInfo[];
-        participantList: UserInfo[];
+        participantsWaitingRoom: IWaitingUser[];
+        observersWaitingRoom: IObserverWaitingUser[];
+        participantList: IParticipant[];
+        observerList: IObserver[];
       }) => {
         if (res.success) {
-          setWaiting(res.waitingRoom);
+          setWaiting(res.participantsWaitingRoom);
           setParticipants(res.participantList);
         }
       }
@@ -122,7 +131,7 @@ export default function Meeting() {
     socket?.emit(
       "removeFromWaitingRoom",
       { sessionId, email },
-      (res: { success: boolean; waitingRoom?: UserInfo[] }) => {
+      (res: { success: boolean; waitingRoom?: IWaitingUser[] }) => {
         const { success, waitingRoom } = res;
         if (success && waitingRoom) {
           setWaiting(waitingRoom);
@@ -176,10 +185,10 @@ export default function Meeting() {
           <h3 className="text-lg font-semibold mb-2">
             In-Meeting Participants
           </h3>
-          {participants.length === 0 ? (
+          {participants?.length === 0 ? (
             <p className="text-gray-500">No participants yet</p>
           ) : (
-            participants.map((u) => (
+            participants?.map((u) => (
               <div key={u.email} className="py-1">
                 {u.name} <em className="text-gray-500 text-sm">({u.email})</em>
               </div>
