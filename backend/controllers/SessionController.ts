@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import { sendResponse } from "../utils/ResponseHelpers";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import { SessionModel } from "../model/SessionModel";
+import {  SessionModel } from "../model/SessionModel";
 import ProjectModel from "../model/ProjectModel";
 import ModeratorModel from "../model/ModeratorModel";
 import { toTimestamp } from "../processors/session/sessionTimeConflictChecker";
 import { DateTime } from "luxon";
+import * as sessionService from "../processors/liveSession/sessionService";
+import { ISession } from "../../shared/interface/SessionInterface";
 
 // ! highlight the fields you really need to keep the payload light
 const MOD_POPULATE = { path: "moderators" };
@@ -103,7 +105,11 @@ export const createSessions = async (
   }));
 
   // 7. Bulk insert into MongoDB
-  const created = await SessionModel.insertMany(docs);
+  const created = (await SessionModel.insertMany(docs)) as ISession[];
+
+  for (const sess of created) {
+    await sessionService.createLiveSession(sess._id.toString());
+  }
 
   // 8. Send uniform success response
   sendResponse(res, created, "Sessions created", 201);
