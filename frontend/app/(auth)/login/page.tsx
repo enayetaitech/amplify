@@ -52,7 +52,7 @@ const Login = () => {
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
-      password: "",
+      password: "Ab123456@",
       rememberMe: false,
     },
   });
