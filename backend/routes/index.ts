@@ -9,6 +9,7 @@ import tagRoutes from "./tag/TagRoutes"
 import sessionDeliverableRoutes from "./sessionDeliverable/SessionDeliverableRoutes"
 import observerDocumentRoutes from "./observerDocument/ObserverDocumentRoutes"
 import pollRoutes from "./poll/PollRoutes"
+import liveSessionRoutes from "./liveSession/LiveSessionRoutes"
 
 
 const router = express.Router();
@@ -24,6 +25,7 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/sessionDeliverables", route: sessionDeliverableRoutes },
   { path: "/observerDocuments", route: observerDocumentRoutes },
   { path: "/polls", route: pollRoutes },
+  { path: "/liveSessions", route: liveSessionRoutes },
 ];
 
 // Loop through and mount each route
