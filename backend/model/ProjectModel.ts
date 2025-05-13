@@ -3,7 +3,7 @@ import { Schema, model, Document, Types } from "mongoose";
 import { IProject, IProjectSession } from "../../shared/interface/ProjectInterface";
 
 // Override types for backend/Mongoose usage
-export interface IProjectDocument extends Omit<IProject, "createdBy" | "tags" | "moderators" | "meetings">, Document {
+export interface IProjectDocument extends Omit<IProject, "createdBy" | "tags" | "moderators" | "meetings" | "_id">, Document {
   createdBy: Types.ObjectId;
   tags: Types.ObjectId[];
   moderators: Types.ObjectId[];
