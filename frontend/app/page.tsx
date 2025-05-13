@@ -8,7 +8,7 @@ export default function Home() {
       <HeadingBlue25px>Welcome to Amplify Research</HeadingBlue25px>
 
       <Link href="/login">
-        <Button variant="default" className="bg-[#FC6E15] hover:bg-[#FC65E15]">
+        <Button variant="default" className="bg-custom-orange-1 hover:bg-custom-orange-2">
           Login
         </Button>
       </Link>
