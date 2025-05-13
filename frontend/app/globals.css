@@ -54,6 +54,7 @@
   /* — YOUR “custom-*” brand colors from tailwind.config.js — */
   --color-custom-meet-bg:  #fde2d0;
   --color-custom-white:    #FFFFFF;
+  --color-container-bg: #FBFBFB; 
   --color-custom-black:    #000000;
   --color-custom-red:      #FF3838;
   --color-custom-green:    #07C800;
