@@ -1,29 +1,42 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams, useRouter } from "next/navigation";
-import React from "react";
+import React, { useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
 import { ILiveSession } from "@shared/interface/LiveSessionInterface";
 import { toast } from "sonner";
+import ComponentContainer from "components/shared/ComponentContainer";
+import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import CustomButton from "components/shared/CustomButton";
+import { Plus } from "lucide-react";
+import { PaginationMeta, SessionsTable } from "components/projects/sessions/SessionsTable";
 
 const Sessions = () => {
   const { projectId } = useParams();
   const router = useRouter();
+  const [openAddSessionModal, setOpenAddSessionModal] = useState(false);
+   const [page, setPage] = useState(1);
+  const limit = 10;
 
-  const {
-    data: sessions,
-    isLoading,
-    error,
-  } = useQuery<ISession[], Error>({
-    queryKey: ["sessions", projectId],
-    queryFn: () =>
-      api
-        .get(`/api/v1/sessions/project/${projectId}`)
-        .then((res) => res.data.data),
-    enabled: Boolean(projectId),
-  });
+const { data, isLoading, error } = useQuery<
+  { data: ISession[]; meta: PaginationMeta },
+  Error
+>({
+  queryKey: ["sessions", projectId, page],
+  queryFn: () =>
+    api
+      .get<{ data: ISession[]; meta: PaginationMeta }>(
+        `/api/v1/sessions/project/${projectId}`,
+        { params: { page, limit } }
+      )
+      .then((res) => res.data),
+  placeholderData: keepPreviousData,
+});
+
+
+
 
   // 2️⃣ Mutation to start a session
   const startSessionMutation = useMutation<ILiveSession, Error, string>({
@@ -32,12 +45,13 @@ const Sessions = () => {
       api
         .post<{ data: ILiveSession }>(`/api/v1/liveSessions/${sessionId}/start`)
         .then((res) => {
-          console.log('Live session response', res.data.data)
-          return res.data.data}),
+          console.log("Live session response", res.data.data);
+          return res.data.data;
+        }),
 
     // 2️⃣ what to do when it succeeds
     onSuccess: (liveSession) => {
-      console.log("moderator navigated to ->",liveSession._id)
+      console.log("moderator navigated to ->", liveSession._id);
       router.push(`/meeting/${liveSession._id}`);
     },
 
@@ -47,47 +61,55 @@ const Sessions = () => {
     },
   });
 
-  if (isLoading) return <p>Loading sessions…</p>;
+
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
   return (
-    <div className="space-y-4">
-      {sessions!.map((session) => (
-        <div
-          key={session._id}
-          className="p-4 border rounded flex items-center justify-between"
-        >
-          <div>
-            <h3 className="text-lg font-medium">
-              {session.title || "Session"}
-            </h3>
-            <p className="text-sm text-gray-600">ID: {session._id}</p>
-          </div>
-
-          <div className="space-x-2">
-            {/* Start Session button */}
-            <button
-              onClick={() => startSessionMutation.mutate(session._id)}
-              disabled={startSessionMutation.isPending}
-            >
-              {startSessionMutation.isPending ? "Starting…" : "Start Session"}
-            </button>
-
-            {/* Join Backroom button */}
-            <button
-              onClick={() =>
-                router.push(
-                  `/before-meeting/join/participant?sessionId=${session._id}`
-                )
-              }
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Join Backroom
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
+    <ComponentContainer>
+      <div className="flex justify-between items-center bg-none pb-5 ">
+        <HeadingBlue25px>Session</HeadingBlue25px>
+        <CustomButton
+          icon={<Plus />}
+          text="Add Session"
+          variant="default"
+          className=" bg-custom-orange-2 text-white hover:bg-custom-orange-1 font-semibold px-2"
+          onClick={() => {
+            setOpenAddSessionModal(true);
+          }}
+        />
+      </div>
+       {
+        isLoading ? <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">Loading Sessions...</p> : (
+          <div className="pt-5 bg-custom-white">
+           <SessionsTable
+        sessions={data!.data}
+        meta={data!.meta}
+        onPageChange={setPage}
+        onRowClick={(id) => router.push(`/session-details/${id}`)}
+        onModerate={(id) =>
+          router.push(`/session-details/${id}/moderate`)
+        }
+        onObserve={(id) =>
+          router.push(`/session-details/${id}/observe`)
+        }
+        onAction={(action, session) => {
+          switch (action) {
+            case "edit":
+              router.push(`/session-details/${session._id}/edit`);
+              break;
+            case "delete":
+              // call your delete mutation here
+              break;
+            case "duplicate":
+              // call your duplicate mutation here
+              break;
+          }
+        }}
+        />
+       </div>
+        )
+       }
+    </ComponentContainer>
   );
 };
 

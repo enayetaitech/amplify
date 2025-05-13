@@ -13,18 +13,18 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
     queryKey: ['project', projectId],
     queryFn: () =>
       api
-        .get(`/api/v1/projects/${projectId}`)
+        .get(`/api/v1/projects/get-project-by-id/${projectId}`)
         .then((res) => res.data.data),
     enabled: Boolean(projectId),
   })
 
 
   return (
-    <div className="px-6 py-4">
+    <div className="px-6 py-4 ">
       {isLoading ? (
-        <h1 className="text-xl font-semibold">Loading…</h1>
+        <h1 className="text-xl font-semibold pl-16">Loading Project Name…</h1>
       ) : (
-        <h1 className="text-2xl font-bold">{project?.name}</h1>
+        <h1 className="text-2xl font-bold pl-16">{project?.name}</h1>
       )}
 
       {/* this is where Sessions / Polls / Reports pages will render */}
