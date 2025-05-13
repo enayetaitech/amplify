@@ -36,9 +36,9 @@ const Projects: React.FC = () => {
       return <p>User not found or not authenticated.</p>;
     }
 
-  if (isLoading) {
-    return <p>Loading projects...</p>;
-  }
+  // if (isLoading) {
+  //   return <p>Loading projects...</p>;
+  // }
 
   if (error) {
    
