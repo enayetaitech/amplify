@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { BsFillEnvelopeAtFill, BsThreeDotsVertical } from "react-icons/bs";
 import { FaShareAlt, FaTrash, FaUser } from "react-icons/fa";
 import axios from "axios";
-import { useDashboardContext } from "context/DashboardContext";
-
+import { useDashboard } from "context/DashboardContext";
+import { Card, CardContent } from "components/ui/card";
 // Shadcn imports
 import { Button } from "components/ui/button";
 import {
@@ -87,7 +87,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   totalPages,
   onPageChange,
 }) => {
-  const { viewProject, setViewProject } = useDashboardContext();
+  const { viewProject, setViewProject } = useDashboard();
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalPosition, setModalPosition] = useState<{
     top: number;
@@ -353,7 +353,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               <TableRow className="bg-slate-100">
                 <TableHead>Project Name</TableHead>
                 <TableHead>Tags</TableHead>
-                <TableHead>Status</TableHead>
+                {/* <TableHead>Status</TableHead> */}
                 <TableHead>Role</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>Cumulative Minutes Used</TableHead>
@@ -388,7 +388,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
                   </TableCell>
 
                   {/* Display Status */}
-                  <TableCell>{renderStatus(project.status)}</TableCell>
+                  {/* <TableCell>{renderStatus(project.status)}</TableCell> */}
 
                   {/* Display Roles */}
                   <TableCell>{getRole(project)}</TableCell>
@@ -434,7 +434,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
         </div>
       ) : (
         // Comment out ViewProject component - replaced with placeholder
-        <div className="p-6 bg-white rounded-lg shadow">
+        <Card className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">
               Project Details: {selectedProject?.name}
@@ -443,10 +443,40 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               Back to Projects
             </Button>
           </div>
-          <p className="text-gray-500 italic">
-            ViewProject component implementation pending
-          </p>
-        </div>
+
+          <CardContent className="space-y-3 text-sm text-gray-700">
+            <div>
+              <span className="font-medium">Project Name:</span>{" "}
+              {selectedProject?.name || "N/A"}
+            </div>
+            <div>
+              <span className="font-medium">Description:</span>{" "}
+              {selectedProject?.description || "N/A"}
+            </div>
+            <div>
+              <span className="font-medium">Fieldwork Start Date:</span>{" "}
+              {selectedProject?.startDate
+                ? new Date(selectedProject.startDate).toLocaleDateString()
+                : "N/A"}
+            </div>
+            <div>
+              <span className="font-medium">Passcode:</span>{" "}
+              {selectedProject?.projectPasscode || "N/A"}
+            </div>
+            <div>
+              <span className="font-medium">Project Status:</span>{" "}
+              {selectedProject?.status || "N/A"}
+            </div>
+            <div>
+              <span className="font-medium">Cumulative Minutes:</span>{" "}
+              {selectedProject?.cumulativeMinutes || 0}
+            </div>
+            <div>
+              <span className="font-medium">Meeting Link:</span>{" "}
+              {selectedProject?.meetings?.[0]?.link || "No meetings available"}
+            </div>
+          </CardContent>
+        </Card>
 
         /* 
         <ViewProject
