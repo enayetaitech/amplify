@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { ISession } from "@shared/interface/SessionInterface";
+import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import {
   Table,
   TableHeader,
@@ -19,18 +20,11 @@ import {
 } from "components/ui/dropdown-menu";
 import { ChevronsUpDown, MoreVertical } from "lucide-react";
 
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  totalItems: number;
-  totalPages: number;
-  hasPrev: boolean;
-  hasNext: boolean;
-}
+
 
 export interface SessionsTableProps {
   sessions: ISession[];
-  meta: PaginationMeta;
+  meta: IPaginationMeta;
   onPageChange: (newPage: number) => void;
   onRowClick: (sessionId: string) => void;
   onModerate: (sessionId: string) => void;

@@ -100,6 +100,16 @@ export default function SidebarContent({ handleLogoutModalOpen }: { handleLogout
                           Sessions
                         </Link>
                         <Link
+                          href={`${base}/project-team`}
+                          className={`block py-1 ${
+                            pathname === `${base}/project-team`
+                              ? "text-custom-dark-blue-1 font-medium"
+                              : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                          }`}
+                        >
+                          Project Team
+                        </Link>
+                        <Link
                           href={`${base}/session-deliverables`}
                           className={`block py-1 ${
                             pathname === `${base}/session-deliverables`
@@ -119,16 +129,7 @@ export default function SidebarContent({ handleLogoutModalOpen }: { handleLogout
                         >
                           Observer Documents
                         </Link>
-                        <Link
-                          href={`${base}/project-team`}
-                          className={`block py-1 ${
-                            pathname === `${base}/project-team`
-                              ? "text-custom-dark-blue-1 font-medium"
-                              : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                          }`}
-                        >
-                          Project Team
-                        </Link>
+                        
                         <Link
                           href={`${base}/polls`}
                           className={`block py-1 ${
