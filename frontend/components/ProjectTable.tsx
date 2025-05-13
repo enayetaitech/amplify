@@ -36,8 +36,6 @@ import {
   AlertDialogTitle,
 } from "components/ui/alert-dialog";
 
-// import ViewProject from "./ViewProject";
-
 import AssignTagModal from "./AssignTagModal";
 import ShareProjectModal from "./ShareProjectModal";
 
@@ -63,6 +61,9 @@ interface Project {
   startDate: string;
   startTime: string;
   cumulativeMinutes: number;
+  description?: string;
+  projectPasscode?: string;
+  meetings?: { link: string }[];
 }
 
 interface User {
@@ -153,38 +154,14 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     closeModal();
   };
 
-  const getButtonVariant = (status: Project["status"]) => {
-    const actionVariants: Record<
-      Project["status"],
-      { label: string; variant: string }
-    > = {
-      Draft: { label: "Edit", variant: "outline" },
-      Active: { label: "Continue", variant: "default" },
-      Complete: { label: "Close", variant: "secondary" },
-      Inactive: { label: "Reactivate", variant: "secondary" },
-      Closed: { label: "Archive", variant: "destructive" },
-      Paused: { label: "Resume", variant: "secondary" },
-    };
-
-    return actionVariants[status] || { label: "Action", variant: "secondary" };
+  const handleShareParticipantLink = (project: Project) => {
+    // Logic for sharing participant link
+    console.log("Share participant link for project:", project.name);
   };
 
-  const handleAction = (status: Project["status"], project: Project) => {
-    switch (status) {
-      case "Draft":
-        break;
-      case "Active":
-        break;
-      case "Complete":
-        break;
-      case "Inactive":
-        break;
-      case "Closed":
-        break;
-      case "Paused":
-        break;
-      default:
-    }
+  const handleShareObserverLink = (project: Project) => {
+    // Logic for sharing observer link
+    console.log("Share observer link for project:", project.name);
   };
 
   const handleShareProject = (project: Project) => {
@@ -351,24 +328,24 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-100">
-                <TableHead>Project Name</TableHead>
-                <TableHead>Tags</TableHead>
-                {/* <TableHead>Status</TableHead> */}
-                <TableHead>Role</TableHead>
+                <TableHead className="w-1/3">Project Name</TableHead>
+                <TableHead className="text-center">Tags</TableHead>
+                <TableHead className="text-center">Status</TableHead>
                 <TableHead>Start Date</TableHead>
-                <TableHead>Cumulative Minutes Used</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Share</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {projects.map((project) => (
                 <TableRow key={project._id}>
-                  <TableCell className="font-medium">{project.name}</TableCell>
+                  <TableCell className="font-medium w-1/3">
+                    {project.name}
+                  </TableCell>
 
                   {/* Display Tags */}
-                  <TableCell>
+                  <TableCell className="text-center">
                     {project.tags.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1 justify-center">
                         {project.tags.map((tag) => (
                           <span
                             key={tag._id}
@@ -388,10 +365,9 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
                   </TableCell>
 
                   {/* Display Status */}
-                  {/* <TableCell>{renderStatus(project.status)}</TableCell> */}
-
-                  {/* Display Roles */}
-                  <TableCell>{getRole(project)}</TableCell>
+                  <TableCell className="text-center">
+                    {renderStatus(project.status)}
+                  </TableCell>
 
                   {/* Display Start Date and Time */}
                   <TableCell>
@@ -399,22 +375,23 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
                     {project.startTime}
                   </TableCell>
 
-                  <TableCell>{project.cumulativeMinutes}</TableCell>
-
                   <TableCell className="flex justify-between items-center gap-2 relative">
-                    <Button
-                      variant={
-                        getButtonVariant(project.status).variant as
-                          | "outline"
-                          | "default"
-                          | "secondary"
-                          | "destructive"
-                      }
-                      className="w-20 text-center text-[12px] rounded-xl py-1"
-                      onClick={() => handleAction(project.status, project)}
-                    >
-                      {getButtonVariant(project.status).label}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="text-[10px] py-1 px-2"
+                        onClick={() => handleShareParticipantLink(project)}
+                      >
+                        Share Participant Link
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="text-[10px] py-1 px-2"
+                        onClick={() => handleShareObserverLink(project)}
+                      >
+                        Share Observer Link
+                      </Button>
+                    </div>
                     <BsThreeDotsVertical
                       onClick={(e) => toggleModal(e, project)}
                       className="cursor-pointer"
@@ -433,7 +410,6 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
           )}
         </div>
       ) : (
-        // Comment out ViewProject component - replaced with placeholder
         <Card className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">
@@ -468,24 +444,11 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               {selectedProject?.status || "N/A"}
             </div>
             <div>
-              <span className="font-medium">Cumulative Minutes:</span>{" "}
-              {selectedProject?.cumulativeMinutes || 0}
-            </div>
-            <div>
               <span className="font-medium">Meeting Link:</span>{" "}
               {selectedProject?.meetings?.[0]?.link || "No meetings available"}
             </div>
           </CardContent>
         </Card>
-
-        /* 
-        <ViewProject
-          project={selectedProject}
-          onClose={closeViewProject}
-          user={user}
-          fetchProjects={fetchProjects}
-        />
-        */
       )}
 
       {/* Action Menu Modal */}
