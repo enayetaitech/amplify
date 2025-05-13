@@ -11,7 +11,8 @@ import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
 import { Plus } from "lucide-react";
-import { PaginationMeta, SessionsTable } from "components/projects/sessions/SessionsTable";
+import {SessionsTable } from "components/projects/sessions/SessionsTable";
+import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 
 const Sessions = () => {
   const { projectId } = useParams();
@@ -21,13 +22,13 @@ const Sessions = () => {
   const limit = 10;
 
 const { data, isLoading, error } = useQuery<
-  { data: ISession[]; meta: PaginationMeta },
+  { data: ISession[]; meta: IPaginationMeta },
   Error
 >({
   queryKey: ["sessions", projectId, page],
   queryFn: () =>
     api
-      .get<{ data: ISession[]; meta: PaginationMeta }>(
+      .get<{ data: ISession[]; meta: IPaginationMeta }>(
         `/api/v1/sessions/project/${projectId}`,
         { params: { page, limit } }
       )
