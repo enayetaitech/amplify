@@ -10,7 +10,10 @@ import * as sessionService from "../processors/liveSession/sessionService";
 import { ISession } from "../../shared/interface/SessionInterface";
 
 // ! highlight the fields you really need to keep the payload light
-const MOD_POPULATE = { path: "moderators" };
+const SESSION_POPULATE = [
+  { path: "moderators", select: "firstName lastName email" },
+  { path: "projectId",   select: "service" },
+];
 
 export const createSessions = async (
   req: Request,
@@ -139,7 +142,7 @@ export const getSessionsByProject = async (
         .sort({ date: 1, startTime: 1 })
         .skip(skip)
         .limit(limit)
-        .populate(MOD_POPULATE)
+        .populate(SESSION_POPULATE)
         .lean(), 
       SessionModel.countDocuments({ projectId }),
     ]);
@@ -176,7 +179,7 @@ export const getSessionById = async (
 
     // 1. Lookup
     const session = await SessionModel.findById(id)
-    .populate(MOD_POPULATE)
+    .populate(SESSION_POPULATE)
     .lean();
     
     if (!session) {
