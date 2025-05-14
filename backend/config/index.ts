@@ -32,6 +32,7 @@ export default {
   s3_access_key: process.env.S3_ACCESS_KEY,
   s3_secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
   s3_bucket_name: process.env.S3_BUCKET_NAME,
+  s3_bucket_region: process.env.S3_BUCKET_REGION,
   
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
 
