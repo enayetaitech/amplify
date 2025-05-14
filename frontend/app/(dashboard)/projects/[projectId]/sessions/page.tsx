@@ -37,7 +37,7 @@ const { data, isLoading, error } = useQuery<
 });
 
 
-
+console.log('session', data)
 
   // 2️⃣ Mutation to start a session
   const startSessionMutation = useMutation<ILiveSession, Error, string>({

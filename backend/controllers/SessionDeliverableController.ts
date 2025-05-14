@@ -29,8 +29,9 @@ export const createDeliverable = async (
     /* ── pull fields & file ─────────────────────────── */
     const { sessionId, projectId, type, uploadedBy, displayName } = req.body;
     
+    console.log('req.body', req.body)
     const file = req.file as Express.Multer.File | undefined;
-
+console.log('file', file)
     if (!file || !sessionId || !projectId || !type || !uploadedBy) {
       return next(
         new ErrorHandler(
@@ -92,7 +93,7 @@ export const getDeliverablesByProjectId = async (
  
     const { projectId } = req.params;
     const { type }      = req.query;          
-
+console.log('type', type)
     /* ––– pagination params ––– */
     const page  = Math.max(Number(req.query.page)  || 1, 1);
     const limit = Math.max(Number(req.query.limit) || 10, 1);
