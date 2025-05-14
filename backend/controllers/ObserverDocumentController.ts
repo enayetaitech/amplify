@@ -29,6 +29,8 @@ export const createObserverDocument = async (
       return next(new ErrorHandler("Only Admin, Moderator Or Observer can upload", 403));
     }
 
+    
+
     /* 3️⃣ upload binary to S3 */
     const { key: storageKey } = await uploadToS3(
       file.buffer,
@@ -36,6 +38,8 @@ export const createObserverDocument = async (
       file.originalname
     );
 
+
+    console.log('storageKey', storageKey)
     /* 4️⃣ create DB row */
     const doc = await ObserverDocumentModel.create({
       projectId,
