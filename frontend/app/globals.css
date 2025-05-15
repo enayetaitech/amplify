@@ -63,6 +63,7 @@
   --color-custom-pink:     #FF7E296E;
   --color-custom-dark-blue-1: #00293C;
   --color-custom-dark-blue-2: #031F3A;
+  --color-custom-dark-blue-3: #34646C;
   --color-custom-light-blue-1: #2976a5;
   --color-custom-light-blue-2: #369CFF;
   --color-custom-light-blue-3: #559FFB;
@@ -205,4 +206,11 @@
 
 .my_profile_main_section_shadow {
   box-shadow: 0px 0px 26px #00000029;
+}
+
+/* globals.css */
+.shadow-all-sides {
+  /* subtle box-shadow on all sides */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05),
+              0 -2px 4px rgba(0, 0, 0, 0.02);
 }

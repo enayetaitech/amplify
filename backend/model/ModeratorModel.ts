@@ -7,6 +7,7 @@ import { IModerator } from "../../shared/interface/ModeratorInterface";
 export interface IModeratorDocument
   extends Omit<IModerator, "_id" | "projectId">,
     Document {
+      _id: Types.ObjectId;
   projectId: Types.ObjectId;
 }
 
