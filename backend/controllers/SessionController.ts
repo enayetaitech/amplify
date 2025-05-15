@@ -9,7 +9,7 @@ import { DateTime } from "luxon";
 import * as sessionService from "../processors/liveSession/sessionService";
 import { ISession } from "../../shared/interface/SessionInterface";
 
-// ! highlight the fields you really need to keep the payload light
+// !  the fields you really need to keep the payload light
 const SESSION_POPULATE = [
   { path: "moderators", select: "firstName lastName email" },
   { path: "projectId",   select: "service" },
