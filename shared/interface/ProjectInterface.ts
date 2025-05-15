@@ -1,5 +1,9 @@
 // src/interfaces/project.interface.ts
 
+import { IModerator } from "./ModeratorInterface";
+import { ISession } from "./SessionInterface";
+import { ITag } from "./TagInterface";
+
 export interface IProjectSession {
   number: number;
   duration: string;
@@ -16,9 +20,9 @@ export interface IProject {
   startDate: Date;
   status: ProjectStatus;
   createdBy: string;       
-  tags: string[];
-  moderators: string[];
-  meetings: string[];
+  tags: ITag[];
+  moderators: IModerator[];
+  meetings: ISession[];
   projectPasscode?: string;
   cumulativeMinutes: number;
   service: ProjectService;

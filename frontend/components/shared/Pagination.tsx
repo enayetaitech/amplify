@@ -20,7 +20,7 @@ export default function CustomPagination({
       : [1, 2, "…", totalPages];
 
   return (
-    <Pagination className="flex justify-center mt-6">
+    <Pagination className="flex mt-6">
       <PaginationContent>
         {pages.map((p, idx) =>
           typeof p === "number" ? (
