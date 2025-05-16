@@ -12,10 +12,9 @@ import {
 } from "components/ui/select";
 import { CheckIcon } from "lucide-react";
 import {
-  IProjectSession,
   SessionRow,
 } from "@shared/interface/ProjectInterface";
-import { availableLanguages, durationMapping, durations } from "constant";
+import { availableLanguages,  durations } from "constant";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import {
   Command,
@@ -24,6 +23,10 @@ import {
   CommandList,
 } from "components/ui/command";
 import { Step3Props } from "@shared/interface/CreateProjectInterface";
+import { Tooltip, TooltipTrigger } from "components/ui/tooltip";
+import { TooltipContent } from "@radix-ui/react-tooltip";
+import { BiQuestionMark } from "react-icons/bi";
+import SessionsTable from "./SessionsTable";
 
 const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   // ========= Respondent Languages =========
@@ -48,14 +51,12 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   );
 
   // ========= Sessions =========
-  const [sessionRows, setSessionRows] = useState<SessionRow[]>(
-    formData.sessions && Array.isArray(formData.sessions)
-      ? formData.sessions.map((s: IProjectSession, index: number) => ({
-          id: String(index),
-          number: s.number,
-          duration: s.duration,
-        }))
-      : []
+ const [sessionRows, setSessionRows] = useState<SessionRow[]>(() =>
+    formData.sessions?.map((s, i) => ({
+      id: `${Date.now()}_${i}`,
+      number: s.number,
+      duration: s.duration,
+    })) || [{ id: Date.now().toString(), number: 1, duration: durations[0] }]
   );
 
   // ========= Update Parent State =========
@@ -114,66 +115,26 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     setOtherCountry(e.target.value);
   };
 
-  // ========= Sessions Handlers =========
-  const addSessionRow = () => {
-    const newRow: SessionRow = {
-      id: Date.now().toString(),
-      number: 1,
-      duration: durations[0],
-    };
-    setSessionRows((prev) => [...prev, newRow]);
-  };
+  
 
-  const updateSessionRow = <K extends keyof SessionRow>(
-    id: string,
-    field: K,
-    value: SessionRow[K]
-  ) => {
-    setSessionRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
-  };
 
-  const deleteSessionRow = (id: string) => {
-    setSessionRows((prev) => prev.filter((row) => row.id !== id));
-  };
 
-  const totalSessions = sessionRows.reduce(
-    (acc, row) => acc + Number(row.number),
-    0
-  );
-
-  const totalDurationMinutes = sessionRows.reduce(
-    (acc, row) =>
-      acc + Number(row.number) * (durationMapping[row.duration] || 0),
-    0
-  );
-
-  const totalHoursDecimal = totalDurationMinutes / 60;
-  const hoursText =
-    totalHoursDecimal % 1 === 0
-      ? String(totalHoursDecimal)
-      : totalHoursDecimal.toFixed(2);
 
   return (
     <div className="space-y-6">
       {/* Project Name Input */}
       <div>
-        <Label className="block text-sm font-medium text-gray-700">
-          Project Name*
-        </Label>
+        <Label className="text-sm font-medium">Project Name*</Label>
         <Input
           type="text"
+          className="mt-1 w-full"
           value={projectName}
           onChange={(e) => setProjectName(e.target.value)}
-          className="mt-1 w-full"
         />
       </div>
       {/* Multi-Select for Languages using Popover and Command */}
       <div>
-        <Label className="block text-sm font-medium text-gray-700">
-          Respondent Language(s)*
-        </Label>
+        <Label className="text-sm font-medium">Respondent Language(s)*</Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full text-left">
@@ -190,7 +151,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
                   <CommandItem
                     key={lang}
                     onSelect={() => toggleLanguage(lang)}
-                    className="cursor-pointer"
+                    className="cursor-pointer flex items-center"
                   >
                     {selectedLanguages.includes(lang) && (
                       <CheckIcon className="mr-2 h-4 w-4" />
@@ -204,41 +165,34 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         </Popover>
         {selectedLanguages.includes("Other") && (
           <div className="mt-2">
-            <Label className="block text-sm font-medium text-gray-700">
-              Other Language(s)*
-            </Label>
+            <Label className="text-sm font-medium">Other Language(s)*</Label>
             <Input
               type="text"
+              className="mt-1 w-full"
               value={otherLanguage}
               onChange={(e) => setOtherLanguage(e.target.value)}
             />
           </div>
         )}
         {formData.service === "Concierge" && (
-          <p className="text-sm text-gray-500 mt-2">
-            If selected Concierge Service, please note that all Amplify hosting
-            will be in English. If you need in-language hosting, please select
-            in-Language Services on the previous screen.
+          <p className="text-sm text-custom-orange-1 mt-2">
+            Please note that all Amplify hosting will be in English. If you need
+            in-language hosting, please select in-Language Services on the
+            previous screen.
           </p>
         )}
       </div>
 
-      {/* Respondent Country using Shadcn UI Select */}
+      {/* Respondent Country  */}
       <div>
-        <Label className="block text-sm font-medium text-gray-700">
-          Respondent Country
-        </Label>
+        <Label className="text-sm font-medium">Respondent Country</Label>
         <Select
           value={countrySelection}
           onValueChange={(value: "USA" | "Other") =>
             handleCountrySelection(value)
           }
         >
-          <SelectTrigger className="w-full">
-            <Button variant="outline" className="w-full text-left">
-              {countrySelection}
-            </Button>
-          </SelectTrigger>
+          <SelectTrigger className="w-full">{countrySelection}</SelectTrigger>
           <SelectContent>
             <SelectItem value="USA">USA</SelectItem>
             <SelectItem value="Other">Other</SelectItem>
@@ -246,11 +200,10 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         </Select>
         {countrySelection === "Other" && (
           <div className="mt-2">
-            <Label className="block text-sm font-medium text-gray-700">
-              Specify Country Name
-            </Label>
+            <Label className="text-sm font-medium">Specify Country Name</Label>
             <Input
               type="text"
+              className="mt-1 w-full"
               value={otherCountry}
               onChange={handleOtherCountryChange}
             />
@@ -260,8 +213,45 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
 
       {/* Sessions Table */}
       <div>
-        <h2 className="text-lg font-bold">Sessions</h2>
-        <table className="min-w-full mt-4 border">
+        <h2 className="text-lg font-bold flex items-center">
+          Sessions Information
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <BiQuestionMark className="ml-2 h-5 w-5 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              align="start"
+              className="
+        bg-white 
+        border border-gray-200 
+        rounded-lg 
+        p-3 
+        max-w-xs 
+        shadow-lg
+      "
+            >
+              <div className="text-sm text-gray-700">
+                If you have sessions of varying lengths, use the{" "}
+                <span
+                  className="
+            inline-flex items-center justify-center 
+            w-5 h-5 border-[1px]
+           border-custom-orange-2 p-0.5 
+            rounded-full 
+            text-custom-orange-2 
+            font-bold
+          "
+                >
+                  +
+                </span>{" "}
+                to add additional sessions.
+              </div>
+      
+            </TooltipContent>
+          </Tooltip>
+        </h2>
+        {/* <table className="min-w-full mt-4 border">
           <thead>
             <tr>
               <th className="border px-4 py-2">Number of Sessions</th>
@@ -328,7 +318,11 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         </table>
         <div className="mt-4">
           <Button onClick={addSessionRow}>+ Add Session</Button>
-        </div>
+        </div> */}
+        <SessionsTable
+          initialSessions={sessionRows}
+          onChange={(newRows) => setSessionRows(newRows)}
+        />
       </div>
     </div>
   );
