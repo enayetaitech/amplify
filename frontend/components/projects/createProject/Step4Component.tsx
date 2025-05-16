@@ -79,7 +79,7 @@ const totalCreditsNeeded = projectEstimateRows.reduce(
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 ml-20">
       <h1 className="text-3xl font-bold text-center">Project Review</h1>
 
       {/* Project Details */}
