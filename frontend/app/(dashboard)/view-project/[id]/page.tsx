@@ -277,7 +277,8 @@ const ViewProject = () => {
                   Fieldwork Start Date:
                 </span>
                 <span className="text-sm text-custom-dark-blue-1">
-                  {firstSessionDate.toLocaleDateString()}
+                  {firstSessionDate?.toLocaleDateString() ?? "–"}
+
                 </span>
               </div>
               <div className="flex items-center gap-1">

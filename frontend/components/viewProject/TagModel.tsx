@@ -6,18 +6,19 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+ 
 } from "components/ui/dialog";
-import { Button } from "components/ui/button";
 import { Badge } from "components/ui/badge";
 import { Plus, XIcon } from "lucide-react";
-import { ApiResponse } from "@shared/interface/ApiResponseInterface";
+
 import { ITag } from "@shared/interface/TagInterface";
 import api from "lib/api";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import {  useMutation, useQueryClient } from "@tanstack/react-query";
+
 import CreateTagModal from "./CreateTagModal";
 import CustomButton from "components/shared/CustomButton";
+import { toast } from "sonner";
+import ConfirmationModalComponent from "components/ConfirmationModalComponent";
 
 interface TagModalProps {
   projectId: string;
@@ -36,29 +37,26 @@ export default function TagModal({
   const [selectedTags, setSelectedTags] = useState<ITag[]>(existingTags);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // Fetch all available tags
-  const { data: allTags = [] } = useQuery<ITag[]>({
-    queryKey: ["tags"],
-    queryFn: async () => {
-      const res = await api.get<ApiResponse<ITag[]>>("/api/v1/tags");
-      return res.data.data;
-    },
-  });
+    // For confirmation dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState<ITag | null>(null);
 
-  // Mutation: save project.tags
-  const saveTags = useMutation<
-    ApiResponse<unknown>,
-    Error,
-    { projectId: string; tags: string[] }
-  >({
-    mutationFn: ({ projectId, tags }) =>
-      api.patch("/api/v1/projects/edit-project", { projectId, tags }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-      toast.success("Tags updated");
-      onOpenChange(false);
+   // Delete a tag globally
+  const deleteTag = useMutation<void, Error, string>({
+    mutationFn: async (tagId) => {
+      await api.delete(`/api/v1/tags/${tagId}`);
     },
-    onError: (err) => toast.error(err.message),
+    onSuccess: (_, tagId) => {
+      // Remove from local selection
+      setSelectedTags((st) => st.filter((t) => t._id !== tagId));
+      // Re-fetch tags list and project
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      toast.success("Tag deleted");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete tag: ${err.message}`);
+    },
   });
 
   // reset when opening
@@ -71,6 +69,24 @@ export default function TagModal({
     queryClient.setQueryData<ITag[]>(["tags"], (old = []) => [...old, tag]);
     setSelectedTags((st) => [...st, tag]);
     setIsCreateOpen(false);
+  };
+
+    const handleDeleteClick = (tag: ITag) => {
+    setTagToDelete(tag);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmYes = () => {
+    if (tagToDelete) {
+      deleteTag.mutate(tagToDelete._id);
+      setTagToDelete(null);
+    }
+    setConfirmOpen(false);
+  };
+
+  const handleConfirmCancel = () => {
+    setTagToDelete(null);
+    setConfirmOpen(false);
   };
 
   return (
@@ -99,24 +115,20 @@ export default function TagModal({
                 key={tag._id}
                 className="flex items-center text-white p-1 pl-2"
                 style={{ backgroundColor: tag.color }}
+               
               >
                 {tag.title}
                 <XIcon
-                  className="ml-1 h-4 w-4 cursor-pointer"
-                  onClick={() =>
-                    setSelectedTags((st) => st.filter((x) => x._id !== tag._id))
-                  }
-                />
+    onClick={() => handleDeleteClick(tag)}
+  className="ml-1 h-4 w-4 cursor-pointer"
+  style={{ pointerEvents: "all" }}
+/>
               </Badge>
             ))}
             {!selectedTags.length && (
               <p className="text-sm text-gray-500">No tags assigned</p>
             )}
           </div>
-
-          
-
-          
         </DialogContent>
       </Dialog>
       {/* nested create-tag dialog */}
@@ -125,6 +137,14 @@ export default function TagModal({
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onCreated={handleNewTag}
+      />
+
+      <ConfirmationModalComponent
+        open={confirmOpen}
+        onCancel={handleConfirmCancel}
+        onYes={handleConfirmYes}
+        heading="Delete Tag?"
+        text={`Are you sure you want to delete “${tagToDelete?.title}”? This cannot be undone.`}
       />
     </>
   );
