@@ -2,15 +2,18 @@
 import { Schema, model, Document, Types } from "mongoose";
 import { ISession } from "../../shared/interface/SessionInterface";
 
-// Omit the '_id', 'projectId', and 'moderators' from ISession,
-// then re-add them with ObjectId typings
-export interface ISessionDocument
-  extends Omit<ISession, "_id" | "projectId" | "moderators">,
-          Document {
+// Omit the raw string-IDs so we can re-add them as ObjectId
+type SessionDB = Omit<ISession, "_id" | "projectId" | "moderators"> & {
   projectId: Types.ObjectId;
   moderators: Types.ObjectId[];
-  createdAt?: Date;  
-  updatedAt?: Date; 
+};
+
+// Now extend Document<Types.ObjectId, {}, SessionDB>
+export interface ISessionDocument
+  extends Document<Types.ObjectId, {}, SessionDB>,
+          SessionDB {
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const SessionSchema = new Schema<ISessionDocument>(
