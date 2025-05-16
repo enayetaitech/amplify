@@ -9,10 +9,18 @@ import Step1 from "components/projects/createProject/Step1Component";
 import Step2 from "components/projects/createProject/Step2Component";
 import Step3 from "components/projects/createProject/Step3Component";
 import Step4 from "components/projects/createProject/Step4Component";
-import { IProjectFormState, StepProps } from "../../../../shared/interface/CreateProjectInterface"
+import {
+  IProjectFormState,
+  StepProps,
+} from "../../../../shared/interface/CreateProjectInterface";
 import { toast } from "sonner";
 import api from "lib/api";
-import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
+import {
+  ApiResponse,
+  ErrorResponse,
+} from "@shared/interface/ApiResponseInterface";
+import ComponentContainer from "components/shared/ComponentContainer";
+import CustomButton from "components/shared/CustomButton";
 
 const CreateProjectPage: React.FC = () => {
   const { user } = useGlobalContext();
@@ -29,8 +37,8 @@ const CreateProjectPage: React.FC = () => {
     respondentCountry: "",
     respondentLanguage: [],
     sessions: [],
-    firstDateOfStreaming: "", 
-    projectDate: "", 
+    firstDateOfStreaming: "",
+    projectDate: "",
     respondentsPerSession: 0,
     numberOfSessions: 0,
     sessionLength: "",
@@ -56,8 +64,7 @@ const CreateProjectPage: React.FC = () => {
     if (formData.service === "Concierge") {
       if (formData.firstDateOfStreaming) {
         const diffDays =
-          (new Date(formData.firstDateOfStreaming).getTime() -
-            Date.now()) /
+          (new Date(formData.firstDateOfStreaming).getTime() - Date.now()) /
           (1000 * 3600 * 24);
         if (diffDays < 14 || formData.addOns.length > 0) {
           return [Step1, Step2];
@@ -78,10 +85,8 @@ const CreateProjectPage: React.FC = () => {
 
   const StepComponent = steps[currentStep];
 
-
   // const nextStep = () => setCurrentStep((prev) => prev + 1);
-  const handleNext = () =>
-    saveMutation.mutate({ uniqueId, formData, userId });
+  const handleNext = () => saveMutation.mutate({ uniqueId, formData, userId });
 
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
@@ -115,47 +120,52 @@ const CreateProjectPage: React.FC = () => {
         axios.isAxiosError(err) && err.response?.data.message
           ? err.response.data.message
           : err.message;
-    
+
       toast.error(msg);
     },
   });
 
   const isLoading = saveMutation.isPending;
 
-  
-
   return (
-    <div className="min-h-screen p-6">
-      <h1 className="text-3xl font-bold mb-4 text-center">Create Project</h1>
-      <div className="mb-4 text-center">
-        <p>
-          Step {currentStep + 1} of {steps.length}
-        </p>
-      </div>
+    <ComponentContainer>
+      <div className="min-h-screen p-6 ml-8">
+        <h1 className="text-3xl font-bold mb-4 text-center">Create Project</h1>
+        <div className="mb-4 text-center">
+          <p>
+            Step {currentStep + 1} of {steps.length}
+          </p>
+        </div>
 
-      {/* Dynamic Step Rendering */}
-      <StepComponent
-        formData={formData}
-        updateFormData={updateFormData}
-        uniqueId={uniqueId}
-      />
+        {/* Dynamic Step Rendering */}
+        <StepComponent
+          formData={formData}
+          updateFormData={updateFormData}
+          uniqueId={uniqueId}
+        />
 
-      <div className="flex justify-between mt-6">
-        <Button variant="outline" onClick={handleBack} disabled={currentStep === 0}>
-          Back
-        </Button>
-        {/* Only show Next button if not on last step */}
-  {!(formData.service === "Concierge" && currentStep === 1) &&
-    !(formData.service === "Signature" && currentStep === 2) && (
-      <Button
-        onClick={handleNext}
-        disabled={isNextButtonDisabled() || isLoading}
-      >
-        {isLoading ? "Saving..." : "Next"}
-      </Button>
-  )}
+        <div className="flex justify-between mt-6">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 0}
+          >
+            Back
+          </Button>
+          {/* Only show Next button if not on last step */}
+          {!(formData.service === "Concierge" && currentStep === 1) &&
+            !(formData.service === "Signature" && currentStep === 2) && (
+              <CustomButton
+                onClick={handleNext}
+                disabled={isNextButtonDisabled() || isLoading}
+                className="bg-custom-teal hover:bg-custom-dark-blue-3"
+              >
+                {isLoading ? "Saving..." : "Next"}
+              </CustomButton>
+            )}
+        </div>
       </div>
-    </div>
+    </ComponentContainer>
   );
 };
 

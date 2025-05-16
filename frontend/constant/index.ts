@@ -32,3 +32,10 @@ export const creditPackages = [
 ];
 
 export const quantityOptions = [1, 2, 3, 4, 5, 6, 7, 8];
+
+export const optionalAddOnServices = [
+  "Top-Notch Recruiting",
+  "Insight-Driven Moderation and Project Design",
+  "Multi-Language Services",
+  "Asynchronous Activities (Pretasks, Bulletin Boards, etc.)",
+];
