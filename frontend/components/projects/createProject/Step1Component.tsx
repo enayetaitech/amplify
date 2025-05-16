@@ -50,12 +50,13 @@ const Step1: React.FC<Step1Props> = ({ formData, updateFormData }) => {
           className="absolute top-4 left-4 h-4 w-4 cursor-pointer accent-custom-teal"
         />
 
-        <CardHeader className="pt-6 pl-8">
+        <CardHeader className="pt-2 pl-8">
           <CardTitle className="text-custom-teal">
             Tier 1: Signature Platform Access
           </CardTitle>
         </CardHeader>
-        <CardContent className="mt-2 flex flex-col flex-1 justify-between">
+        <CardContent className="flex flex-col flex-1 justify-between">
+          <h1>DIY Streaming using Amplify&apos;s Virtual Backroom</h1>
           <ul className="list-disc pl-6 text-sm space-y-1 ">
             <li>Amplify’s Virtual Backroom Platform Access</li>
             <li>Live Streaming</li>
@@ -114,13 +115,14 @@ const Step1: React.FC<Step1Props> = ({ formData, updateFormData }) => {
           className="absolute top-4 left-4 h-4 w-4 cursor-pointer accent-custom-teal"
         />
 
-        <CardHeader className="pt-6 pl-8">
+        <CardHeader className="pt-2 pl-8">
           <CardTitle className="text-custom-teal">
             Tier 2: Concierge Platform Access
           </CardTitle>
         </CardHeader>
-        <CardContent className="mt-2 flex flex-col flex-1">
+        <CardContent className="flex flex-col flex-1">
           <div className="flex-1 space-y-4">
+            <h1>DIY Streaming using Amplify&apos;s Virtual Backroom</h1>
             <ul className="list-disc pl-6 text-sm space-y-1">
               <li>Everything in Tier 1, plus:</li>
               <ul className="list-disc pl-6">
