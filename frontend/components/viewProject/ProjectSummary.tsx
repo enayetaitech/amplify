@@ -92,9 +92,9 @@ export default function ProjectSummary({
   });
 
   return (
-    <Card>
+   <Card className="border-0 shadow-all-sides">
       <CardHeader className="flex justify-between items-center">
-        <CardTitle>Project Summary</CardTitle>
+        <CardTitle className="text-custom-teal">Project Summary</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center gap-1">
@@ -190,7 +190,7 @@ export default function ProjectSummary({
         <div className="flex items-center gap-1">
           <span className="text-sm text-gray-600">Fieldwork Start Date:</span>
           <span className="font-medium">
-            {firstSessionDate.toLocaleDateString()}
+            {firstSessionDate?.toLocaleDateString()}
           </span>
         </div>
 
@@ -202,6 +202,7 @@ export default function ProjectSummary({
             checked={project.recordingAccess}
             onCheckedChange={() => toggleRecording.mutate()}
             disabled={toggleRecording.isPending}
+            className="cursor-pointer"
           />
         </div>
       </CardContent>

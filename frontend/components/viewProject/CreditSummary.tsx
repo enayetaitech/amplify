@@ -25,9 +25,9 @@ export default function CreditSummary({ project }: CreditSummaryProps) {
   );
 
   return (
-    <Card>
+    <Card className="border-0 shadow-all-sides">
       <CardHeader>
-        <CardTitle>Credit Summary</CardTitle>
+        <CardTitle className="text-custom-teal">Credit Summary</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex justify-between">
