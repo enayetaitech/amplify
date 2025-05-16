@@ -115,7 +115,7 @@ const CreateProjectPage: React.FC = () => {
         axios.isAxiosError(err) && err.response?.data.message
           ? err.response.data.message
           : err.message;
-      console.error("Error saving progress:", msg);
+    
       toast.error(msg);
     },
   });

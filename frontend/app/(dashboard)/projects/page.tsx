@@ -58,9 +58,7 @@ const Projects: React.FC = () => {
 
   const projects = data?.data ?? [];
 
-  useEffect(() => {
-    console.log("Fetched projects:", projects);
-  }, [projects]);
+ 
 
   // Filter by name and (if selected) date range
   const filtered = (projects ?? [])?.filter((p) => {
@@ -73,7 +71,7 @@ const Projects: React.FC = () => {
     return matchesSearch && start >= dateRange[0] && start <= dateRange[1];
   });
 
-  console.log("filtered", filtered);
+  
 
   // If no user exists, you might choose to render a message or redirect
   if (!userId) {
@@ -109,6 +107,7 @@ const Projects: React.FC = () => {
         <CustomButton
           icon={<Plus />}
           className="bg-custom-orange-1 hover:bg-custom-orange-2 text-custom-white"
+          onClick={() => router.push("/create-project")}
         >
           Create New Project
         </CustomButton>

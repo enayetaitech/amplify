@@ -5,7 +5,6 @@ import { ITag } from "../../shared/interface/TagInterface";
  * so they line up with what Mongoose actually stores.
  */
 type TagDBProps = Omit<ITag, "_id" | "createdBy" | "projectId"> & {
-  _id: Types.ObjectId;
   createdBy: Types.ObjectId;
   projectId: Types.ObjectId;
 };

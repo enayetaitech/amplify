@@ -211,6 +211,6 @@
 /* globals.css */
 .shadow-all-sides {
   /* subtle box-shadow on all sides */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05),
-              0 -2px 4px rgba(0, 0, 0, 0.02);
+  box-shadow: 4 4px 8px rgba(0, 0, 0, 0.05),
+              4 -4px 8px rgba(0, 0, 0, 0.02);
 }

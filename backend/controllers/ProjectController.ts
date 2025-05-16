@@ -281,15 +281,17 @@ export const getProjectById = async (
     return next(new ErrorHandler("Project ID is required", 400));
   }
 
-    const project = await ProjectModel.findById(projectId);
+ // findById + populate all related paths
+  const project = await ProjectModel
+    .findById(projectId)
+    .populate(PROJECT_POPULATE)
+    .exec();
 
-    if (!project) {
-      return next(new ErrorHandler("Project not found", 404));
-    }
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
 
     sendResponse(res, project, "Project retrieved successfully", 200);
-  
-    
 };
 
 export const editProject = async (
@@ -322,6 +324,8 @@ export const editProject = async (
   if (description) {
     project.description = description;
   }
+
+console.log('req.body', req.body)
 
   // Save the updated project.
   const updatedProject = await project.save();
