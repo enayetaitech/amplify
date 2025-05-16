@@ -1,6 +1,6 @@
 // backend/processors/sessionService.ts
 
-import { Types } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { LiveSessionModel } from "../../model/LiveSessionModel";
 import { UserActivityModel } from "../../model/UserActivityModel";
 import ChatMessageModel from "../../model/ChatModel";
@@ -19,15 +19,26 @@ export interface EnqueueUserData {
  * Ensure there is a LiveSession for the given scheduled session.
  * If none exists, create it with ongoing=false.
  */
-export async function createLiveSession(sessionId: string) {
-  let live = await LiveSessionModel.findOne({ sessionId });
-  if (!live) {
-    live = await LiveSessionModel.create({
-      sessionId: new Types.ObjectId(sessionId),
-      ongoing: false,
-    });
-  }
-  return live;
+export async function createLiveSession(sessionId: string,  options?: { session?: ClientSession }) {
+  // include the session on the query (so even findOne is under txn)
+  const live = await LiveSessionModel.findOne(
+    { sessionId: new Types.ObjectId(sessionId) },
+    null,
+    { session: options?.session }
+  );
+   if (live) return live;
+    // create with the session option
+  const [created] = await LiveSessionModel.create(
+    [
+      {
+        sessionId: new Types.ObjectId(sessionId),
+        ongoing: false,
+      }
+    ],
+    { session: options?.session }
+  );
+
+  return created;
 }
 
 /**

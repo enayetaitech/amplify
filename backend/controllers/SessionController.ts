@@ -1,18 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import { sendResponse } from "../utils/ResponseHelpers";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import {  SessionModel } from "../model/SessionModel";
+import { ISessionDocument, SessionModel } from "../model/SessionModel";
 import ProjectModel from "../model/ProjectModel";
 import ModeratorModel from "../model/ModeratorModel";
 import { toTimestamp } from "../processors/session/sessionTimeConflictChecker";
 import { DateTime } from "luxon";
 import * as sessionService from "../processors/liveSession/sessionService";
-import { ISession } from "../../shared/interface/SessionInterface";
+import mongoose from "mongoose";
 
 // !  the fields you really need to keep the payload light
 const SESSION_POPULATE = [
   { path: "moderators", select: "firstName lastName email" },
-  { path: "projectId",   select: "service" },
+  { path: "projectId", select: "service" },
 ];
 
 export const createSessions = async (
@@ -66,9 +66,11 @@ export const createSessions = async (
     const startNew = toTimestamp(s.date, s.startTime, tz);
     const endNew = startNew + s.duration * 60_000;
 
-     // calendar day in this timeZone
-     const dayNew = DateTime.fromISO(
-      typeof s.date === "string" ? s.date : DateTime.fromJSDate(s.date).toISODate()!,
+    // calendar day in this timeZone
+    const dayNew = DateTime.fromISO(
+      typeof s.date === "string"
+        ? s.date
+        : DateTime.fromJSDate(s.date).toISODate()!,
       { zone: tz }
     ).toISODate();
 
@@ -108,12 +110,32 @@ export const createSessions = async (
   }));
 
   // 7. Bulk insert into MongoDB
-  const created = (await SessionModel.insertMany(docs)) as ISession[];
+  // ─── START TRANSACTION ────────────────────────────────────────────
+  const mongoSession = await mongoose.startSession();
+  mongoSession.startTransaction();
+  let created: ISessionDocument[];
 
-  for (const sess of created) {
-    await sessionService.createLiveSession(sess._id.toString());
+  try {
+    created = await SessionModel.insertMany(docs, { session: mongoSession });
+
+    for (const sess of created) {
+      await sessionService.createLiveSession(sess._id.toString(), {
+        session: mongoSession,
+      });
+    }
+
+    project.meetings.push(...created.map((s) => s._id));
+    await project.save({ session: mongoSession });
+
+    await mongoSession.commitTransaction();
+  } catch (err) {
+    await mongoSession.abortTransaction();
+    mongoSession.endSession();
+    return next(err);
+  } finally {
+    // always end the session
+    mongoSession.endSession();
   }
-
   // 8. Send uniform success response
   sendResponse(res, created, "Sessions created", 201);
 };
@@ -131,8 +153,8 @@ export const getSessionsByProject = async (
     const { projectId } = req.params;
 
     // ── pagination params ───────────────────────────────────────
-    const page  = Math.max(Number(req.query.page)  || 1, 1);   
-    const limit = Math.max(Number(req.query.limit) || 10, 1);  
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 10, 1);
 
     const skip = (page - 1) * limit;
 
@@ -143,7 +165,7 @@ export const getSessionsByProject = async (
         .skip(skip)
         .limit(limit)
         .populate(SESSION_POPULATE)
-        .lean(), 
+        .lean(),
       SessionModel.countDocuments({ projectId }),
     ]);
 
@@ -179,9 +201,9 @@ export const getSessionById = async (
 
     // 1. Lookup
     const session = await SessionModel.findById(id)
-    .populate(SESSION_POPULATE)
-    .lean();
-    
+      .populate(SESSION_POPULATE)
+      .lean();
+
     if (!session) {
       return next(new ErrorHandler("Session not found", 404));
     }
@@ -257,7 +279,9 @@ export const updateSession = async (
     const startNew = toTimestamp(newDate, newStartTime, newTz);
     const endNew = startNew + newDuration * 60_000;
     const dayNew = DateTime.fromISO(
-      typeof newDate === "string" ? newDate : DateTime.fromJSDate(newDate).toISODate()!,
+      typeof newDate === "string"
+        ? newDate
+        : DateTime.fromJSDate(newDate).toISODate()!,
       { zone: newTz }
     ).toISODate();
 
@@ -314,17 +338,20 @@ export const duplicateSession = async (
       return next(new ErrorHandler("Session not found", 404));
     }
 
-    // 2. Create a plain object and remove mongoose‐managed fields
-    const obj = original.toObject();
-    delete obj._id;
-    delete obj.createdAt;
-    delete obj.updatedAt;
+    const {
+      _id, // drop
+      createdAt, // drop
+      updatedAt, // drop
+      __v, // (optional) drop version key too
+      ...data // data now has only the session fields you care about
+    } = original.toObject();
+    
 
     // 3. Modify the title
-    obj.title = `${original.title} (copy)`;
+    data.title = `${original.title} (copy)`;
 
     // 4. Insert the new document
-    const copy = await SessionModel.create(obj);
+    const copy = await SessionModel.create(data);
 
     // 5. Return the duplicated session
     sendResponse(res, copy, "Session duplicated", 201);

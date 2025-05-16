@@ -25,7 +25,7 @@ router.get("/get-project-by-userId/:userId", authenticateJwt,
 router.get("/get-project-by-id/:projectId",authenticateJwt,
   authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"), catchError(getProjectById));
 
-// GET /api/v1/projects/edit-project 
+// PATCH /api/v1/projects/edit-project 
 router.patch("/edit-project", catchError(editProject));
 
 // GET /api/v1/projects/toggle-recording-access
