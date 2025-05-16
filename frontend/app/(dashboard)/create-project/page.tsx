@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { useGlobalContext } from "context/GlobalContext";
-import { Button } from "components/ui/button";
 import Step1 from "components/projects/createProject/Step1Component";
 import Step2 from "components/projects/createProject/Step2Component";
 import Step3 from "components/projects/createProject/Step3Component";
@@ -145,13 +144,13 @@ const CreateProjectPage: React.FC = () => {
         />
 
         <div className="flex justify-between mt-6">
-          <Button
+          <CustomButton
             variant="outline"
             onClick={handleBack}
             disabled={currentStep === 0}
           >
             Back
-          </Button>
+          </CustomButton>
           {/* Only show Next button if not on last step */}
           {!(formData.service === "Concierge" && currentStep === 1) &&
             !(formData.service === "Signature" && currentStep === 2) && (
