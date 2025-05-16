@@ -17,6 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGlobalContext } from "context/GlobalContext";
 import { toast } from "sonner";
 import CustomButton from "components/shared/CustomButton";
+import { AxiosError } from "axios";
 
 interface CreateTagModalProps {
   projectId: string;
@@ -50,7 +51,7 @@ export default function CreateTagModal({
   const [title, setTitle] = useState("");
   const [color, setColor] = useState(COLORS[0]);
 
-  const create = useMutation<ApiResponse<ITag>, Error, Partial<ITag>>({
+  const create = useMutation<ApiResponse<ITag>, AxiosError<ApiResponse<{ message: string }>>, Partial<ITag>>({
     mutationFn: async (payload) => {
       const res = await api.post<ApiResponse<ITag>>("/api/v1/tags", payload);
       return res.data;
@@ -62,7 +63,14 @@ export default function CreateTagModal({
       setTitle("");
       setColor(COLORS[0]);
     },
-    onError: (err) => toast.error(err.message),
+     onError: (err) => {
+    
+    const msg =
+      err.response?.data?.message ??
+      err.message;
+    console.error("Error creating tag:", err);
+    toast.error(msg);
+  },
   });
 
   const handleSave = () => {

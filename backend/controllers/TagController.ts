@@ -2,14 +2,12 @@ import { Request, Response, NextFunction } from "express";
 import { sendResponse } from "../utils/ResponseHelpers";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 
-
 import UserModel from "../model/UserModel";
 import ProjectModel from "../model/ProjectModel";
 import { TagDocument, TagModel } from "../model/TagModel";
 import mongoose from "mongoose";
 import { ITag } from "../../shared/interface/TagInterface";
 import { ClientSession } from "mongoose";
-
 
 export const createTag = async (
   req: Request,
@@ -55,48 +53,46 @@ export const createTag = async (
     }
 
     // ─── START TRANSACTION ───────────────────────────────────────────────
-  const session: ClientSession = await mongoose.startSession();
-  session.startTransaction();
+    const session: ClientSession = await mongoose.startSession();
+    session.startTransaction();
 
-  let tagDoc: TagDocument;
-  try {
-    // 4️⃣ Create & save tag under txn
-    tagDoc = new TagModel({ title, color, createdBy, projectId });
-    await tagDoc.save({ session });
+    let tagDoc: TagDocument;
+    try {
+      // 4️⃣ Create & save tag under txn
+      tagDoc = new TagModel({ title, color, createdBy, projectId });
+      await tagDoc.save({ session });
 
-    // 5️⃣ Push its ObjectId into project.tags & save
-    project.tags.push(tagDoc._id);
-    await project.save({ session });
+      // 5️⃣ Push its ObjectId into project.tags & save
+      project.tags.push(tagDoc._id);
+      await project.save({ session });
 
-    // 6️⃣ Commit both writes
-    await session.commitTransaction();
-  } catch (err) {
-    // 7️⃣ Roll back everything on error
-    await session.abortTransaction();
-    session.endSession();
-    return next(err);
-  } finally {
-    session.endSession();
-  }
-  // ─── TRANSACTION END ─────────────────────────────────────────────
+      // 6️⃣ Commit both writes
+      await session.commitTransaction();
+    } catch (err) {
+      // 7️⃣ Roll back everything on error
+      await session.abortTransaction();
+      session.endSession();
+      return next(err);
+    } finally {
+      session.endSession();
+    }
+    // ─── TRANSACTION END ─────────────────────────────────────────────
 
-  // 8️⃣ Convert to your shared ITag shape (if needed)
-  const responsePayload = {
-    ...tagDoc.toObject(),
-    _id:        tagDoc._id.toString(),
-    createdBy:  tagDoc.createdBy.toString(),
-    projectId:  tagDoc.projectId.toString(),
-    createdAt:  tagDoc.createdAt,
-    updatedAt:  tagDoc.updatedAt,
-  };
-
+    // 8️⃣ Convert to your shared ITag shape (if needed)
+    const responsePayload = {
+      ...tagDoc.toObject(),
+      _id: tagDoc._id.toString(),
+      createdBy: tagDoc.createdBy.toString(),
+      projectId: tagDoc.projectId.toString(),
+      createdAt: tagDoc.createdAt,
+      updatedAt: tagDoc.updatedAt,
+    };
 
     sendResponse(res, responsePayload, "Tag created", 201);
   } catch (err) {
     next(err);
   }
 };
-
 
 export const getTagsByProjectId = async (
   req: Request,
@@ -118,7 +114,6 @@ export const getTagsByProjectId = async (
   }
 };
 
-
 export const getTagsByUserId = async (
   req: Request,
   res: Response,
@@ -130,16 +125,16 @@ export const getTagsByUserId = async (
     const userExists = await UserModel.exists({ _id: userId });
     if (!userExists) return next(new ErrorHandler("User not found", 404));
 
-    const tags = await TagModel.find({ createdBy: userId }).sort({
-      title: 1,
-    }).lean();
+    const tags = await TagModel.find({ createdBy: userId })
+      .sort({
+        title: 1,
+      })
+      .lean();
     sendResponse(res, tags, "Tags fetched", 200);
   } catch (err) {
     next(err);
   }
 };
-
-
 
 export const editTag = async (
   req: Request,
@@ -183,8 +178,6 @@ export const editTag = async (
   }
 };
 
-
-
 export const deleteTag = async (
   req: Request,
   res: Response,
@@ -195,6 +188,8 @@ export const deleteTag = async (
 
     const deleted = await TagModel.findByIdAndDelete(id);
     if (!deleted) return next(new ErrorHandler("Tag not found", 404));
+
+    await ProjectModel.updateMany({ tags: id }, { $pull: { tags: id } });
 
     sendResponse(res, deleted, "Tag deleted", 200);
   } catch (err) {
