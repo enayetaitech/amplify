@@ -6,19 +6,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
- 
 } from "components/ui/dialog";
 import { Badge } from "components/ui/badge";
 import { Plus, XIcon } from "lucide-react";
-
 import { ITag } from "@shared/interface/TagInterface";
 import api from "lib/api";
-import {  useMutation, useQueryClient } from "@tanstack/react-query";
-
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import CreateTagModal from "./CreateTagModal";
 import CustomButton from "components/shared/CustomButton";
 import { toast } from "sonner";
 import ConfirmationModalComponent from "components/ConfirmationModalComponent";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
+import { useParams } from "next/navigation";
 
 interface TagModalProps {
   projectId: string;
@@ -33,15 +32,25 @@ export default function TagModal({
   onOpenChange,
   existingTags,
 }: TagModalProps) {
+  const { id } = useParams()
   const queryClient = useQueryClient();
   const [selectedTags, setSelectedTags] = useState<ITag[]>(existingTags);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-    // For confirmation dialog
+  // For confirmation dialog
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<ITag | null>(null);
 
-   // Delete a tag globally
+    // Fetch all available tags
+  const { data: allTags = [] } = useQuery<ITag[]>({
+    queryKey: ["tags"],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<ITag[]>>(`/api/v1/tags/project/${id}`);
+      return res.data.data;
+    },
+  });
+
+  // Delete a tag globally
   const deleteTag = useMutation<void, Error, string>({
     mutationFn: async (tagId) => {
       await api.delete(`/api/v1/tags/${tagId}`);
@@ -71,7 +80,7 @@ export default function TagModal({
     setIsCreateOpen(false);
   };
 
-    const handleDeleteClick = (tag: ITag) => {
+  const handleDeleteClick = (tag: ITag) => {
     setTagToDelete(tag);
     setConfirmOpen(true);
   };
@@ -95,7 +104,9 @@ export default function TagModal({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex justify-between items-center pt-5">
-              <DialogTitle className="text-custom-dark-blue-1">Assign Tags</DialogTitle>
+              <DialogTitle className="text-custom-dark-blue-1">
+                Assign Tags
+              </DialogTitle>
               <CustomButton
                 icon={<Plus />}
                 className="bg-custom-teal 
@@ -115,20 +126,34 @@ export default function TagModal({
                 key={tag._id}
                 className="flex items-center text-white p-1 pl-2"
                 style={{ backgroundColor: tag.color }}
-               
               >
                 {tag.title}
                 <XIcon
-    onClick={() => handleDeleteClick(tag)}
-  className="ml-1 h-4 w-4 cursor-pointer"
-  style={{ pointerEvents: "all" }}
-/>
+                  onClick={() => handleDeleteClick(tag)}
+                  className="ml-1 h-4 w-4 cursor-pointer"
+                  style={{ pointerEvents: "all" }}
+                />
               </Badge>
             ))}
             {!selectedTags.length && (
               <p className="text-sm text-gray-500">No tags assigned</p>
             )}
           </div>
+
+              {/* Quick-add from existing */}
+        <div className="flex flex-wrap gap-2 mb-4 max-h-40 overflow-auto">
+          {allTags
+            .filter((t) => !selectedTags.some((st) => st._id === t._id))
+            .map((tag) => (
+              <Badge
+                key={tag._id}
+                className="cursor-pointer hover:bg-blue-200"
+                onClick={() => setSelectedTags((st) => [...st, tag])}
+              >
+                {tag.title}
+              </Badge>
+            ))}
+        </div>
         </DialogContent>
       </Dialog>
       {/* nested create-tag dialog */}

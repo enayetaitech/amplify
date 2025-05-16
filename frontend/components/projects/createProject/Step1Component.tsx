@@ -5,9 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "components/ui/card";
 import { Input } from "components/ui/input";
 import { Step1Props } from "@shared/interface/CreateProjectInterface";
 
-
-
-
 const optionalAddOnServices = [
   "Top-Notch Recruiting",
   "Insight-Driven Moderation and Project Design",
