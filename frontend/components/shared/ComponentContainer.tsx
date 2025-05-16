@@ -5,7 +5,7 @@ interface ComponentContainerProps {
 }
 
 const ComponentContainer = ({ children }: ComponentContainerProps) => (
-  <div className="bg-container-bg ml-16">
+  <div className="bg-white ml-16">
     {children}
   </div>
 );
