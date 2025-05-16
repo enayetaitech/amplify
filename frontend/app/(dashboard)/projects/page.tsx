@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, {  useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
@@ -27,6 +27,7 @@ import {
 import { Badge } from "components/ui/badge";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import { useRouter } from "next/navigation";
+import { Card } from "components/ui/card";
 
 type DateRange = [Date, Date] | undefined;
 
@@ -58,8 +59,6 @@ const Projects: React.FC = () => {
 
   const projects = data?.data ?? [];
 
- 
-
   // Filter by name and (if selected) date range
   const filtered = (projects ?? [])?.filter((p) => {
     const matchesSearch = p.name
@@ -70,8 +69,6 @@ const Projects: React.FC = () => {
     const start = new Date(p.startDate);
     return matchesSearch && start >= dateRange[0] && start <= dateRange[1];
   });
-
-  
 
   // If no user exists, you might choose to render a message or redirect
   if (!userId) {
@@ -156,71 +153,77 @@ const Projects: React.FC = () => {
           </PopoverContent>
         </Popover>
       </div>
-      <div className="flex-grow mx-auto w-full">
-        {projects.length > 0 ? (
-          <div className="bg-white shadow-all-sides rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="flex-1">Project Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Moderator (Host)</TableHead>
-                  <TableHead>Start Time</TableHead>
-                  {/* <TableHead>Time Zone</TableHead> */}
-                  <TableHead className="text-center">Share</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-gray-200">
-                {filtered.map((project) => (
-                  <TableRow key={project._id}
-                  className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => router.push(`/view-project/${project._id}`)}
-                  >
-                    <TableCell className="flex-1">{project.name}</TableCell>
-                    <TableCell>
-                      {/* lightly-styled status badge */}
-                      <Badge variant="outline">{project.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {project.moderators && project.moderators.length > 0
-                        ? project.moderators.map((m) => m.firstName).join(", ")
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {project.startDate
-                        ? format(new Date(project.startDate), "HH:mm")
-                        : "—"}
-                    </TableCell>
-
-                    {/* <TableCell>{project.timeZone}</TableCell> */}
-                    <TableCell className="space-x-2 text-center">
-                      <CustomButton size="sm" variant="outline">
-                        Observer Link
-                      </CustomButton>
-                      <CustomButton size="sm" variant="outline">
-                        Participant Link
-                      </CustomButton>
-                    </TableCell>
+      <Card className="shadow-all-sides border-0 rounded-md">
+        <div className="flex-grow mx-auto w-full">
+          {projects.length > 0 ? (
+            <div className="bg-white shadow-all-sides  overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="flex-1">Project Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Moderator (Host)</TableHead>
+                    <TableHead>Start Time</TableHead>
+                    {/* <TableHead>Time Zone</TableHead> */}
+                    <TableHead className="text-center">Share</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody className="divide-y divide-gray-200 ">
+                  {filtered.map((project) => (
+                    <TableRow
+                      key={project._id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() =>
+                        router.push(`/view-project/${project._id}`)
+                      }
+                    >
+                      <TableCell className="flex-1">{project.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{project.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {project.moderators && project.moderators.length > 0
+                          ? project.moderators
+                              .map((m) => m.firstName)
+                              .join(", ")
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {project.startDate
+                          ? format(new Date(project.startDate), "HH:mm")
+                          : "—"}
+                      </TableCell>
 
-            <div className="p-4">
-              <CustomPagination
-                totalPages={totalPages}
-                currentPage={page}
-                onPageChange={(p) => {
-                  setPage(p);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-              />
+                      {/* <TableCell>{project.timeZone}</TableCell> */}
+                      <TableCell className="space-x-2 text-center">
+                        <CustomButton size="sm" variant="outline">
+                          Observer Link
+                        </CustomButton>
+                        <CustomButton size="sm" variant="outline">
+                          Participant Link
+                        </CustomButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <div className="">
+                <CustomPagination
+                  totalPages={totalPages}
+                  currentPage={page}
+                  onPageChange={(p) => {
+                    setPage(p);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ) : (
-          <NoSearchResult />
-        )}
-      </div>
+          ) : (
+            <NoSearchResult />
+          )}
+        </div>
+      </Card>
     </div>
   );
 };
