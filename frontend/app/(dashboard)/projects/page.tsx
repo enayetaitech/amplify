@@ -195,11 +195,14 @@ const Projects: React.FC = () => {
                       </TableCell>
 
                       {/* <TableCell>{project.timeZone}</TableCell> */}
-                      <TableCell className="space-x-2 text-center">
-                        <CustomButton size="sm" variant="outline">
+                      <TableCell className="space-x-2 text-center ">
+                        <CustomButton size="sm" variant="outline"
+                        className="bg-custom-teal"
+                        >
                           Observer Link
                         </CustomButton>
-                        <CustomButton size="sm" variant="outline">
+                        <CustomButton size="sm" variant="outline"
+                        className="bg-custom-teal">
                           Participant Link
                         </CustomButton>
                       </TableCell>

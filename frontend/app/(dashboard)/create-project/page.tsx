@@ -20,6 +20,7 @@ import {
 } from "@shared/interface/ApiResponseInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import CustomButton from "components/shared/CustomButton";
+import clsx from "clsx";
 
 const CreateProjectPage: React.FC = () => {
   const { user } = useGlobalContext();
@@ -126,6 +127,10 @@ const CreateProjectPage: React.FC = () => {
 
   const isLoading = saveMutation.isPending;
 
+  const isLastStep =
+    (formData.service === "Concierge" && currentStep === steps.length - 1) ||
+    (formData.service === "Signature" && currentStep === steps.length - 1);
+
   return (
     <ComponentContainer>
       <div className="min-h-screen p-6 ml-8">
@@ -143,25 +148,32 @@ const CreateProjectPage: React.FC = () => {
           uniqueId={uniqueId}
         />
 
-        <div className="flex justify-between mt-6">
+        <div className="flex justify-between mt-6  items-center">
           <CustomButton
-            variant="outline"
+            className={clsx(
+              "bg-custom-teal hover:bg-custom-dark-blue-3",
+              {
+                "ml-36": currentStep === 2,
+              },
+              {
+                "ml-6": currentStep === 1,
+              }
+            )}
             onClick={handleBack}
             disabled={currentStep === 0}
           >
             Back
           </CustomButton>
           {/* Only show Next button if not on last step */}
-          {!(formData.service === "Concierge" && currentStep === 1) &&
-            !(formData.service === "Signature" && currentStep === 2) && (
-              <CustomButton
-                onClick={handleNext}
-                disabled={isNextButtonDisabled() || isLoading}
-                className="bg-custom-teal hover:bg-custom-dark-blue-3"
-              >
-                {isLoading ? "Saving..." : "Next"}
-              </CustomButton>
-            )}
+          {!isLastStep && (
+            <CustomButton
+              onClick={handleNext}
+              disabled={isNextButtonDisabled() || isLoading}
+              className="bg-custom-teal hover:bg-custom-dark-blue-3"
+            >
+              {isLoading ? "Saving..." : "Next"}
+            </CustomButton>
+          )}
         </div>
       </div>
     </ComponentContainer>

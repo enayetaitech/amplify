@@ -11,10 +11,8 @@ import {
   SelectItem,
 } from "components/ui/select";
 import { CheckIcon } from "lucide-react";
-import {
-  SessionRow,
-} from "@shared/interface/ProjectInterface";
-import { availableLanguages,  durations } from "constant";
+import { SessionRow } from "@shared/interface/ProjectInterface";
+import { availableLanguages, durations } from "constant";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import {
   Command,
@@ -51,12 +49,13 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   );
 
   // ========= Sessions =========
- const [sessionRows, setSessionRows] = useState<SessionRow[]>(() =>
-    formData.sessions?.map((s, i) => ({
-      id: `${Date.now()}_${i}`,
-      number: s.number,
-      duration: s.duration,
-    })) || [{ id: Date.now().toString(), number: 1, duration: durations[0] }]
+  const [sessionRows, setSessionRows] = useState<SessionRow[]>(
+    () =>
+      formData.sessions?.map((s, i) => ({
+        id: `${Date.now()}_${i}`,
+        number: s.number,
+        duration: s.duration,
+      })) || [{ id: Date.now().toString(), number: 1, duration: durations[0] }]
   );
 
   // ========= Update Parent State =========
@@ -115,11 +114,6 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     setOtherCountry(e.target.value);
   };
 
-  
-
-
-
-
   return (
     <div className="space-y-6">
       {/* Project Name Input */}
@@ -176,8 +170,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         )}
         {formData.service === "Concierge" && (
           <p className="text-sm text-custom-orange-1 mt-2">
-            Please note that all Amplify hosting will be in English. If you need
-            in-language hosting, please select in-Language Services on the
+            Please note that all Amplify hosting will be in English. If you need in-language hosting, please select in-Language Services on the
             previous screen.
           </p>
         )}
@@ -247,78 +240,10 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
                 </span>{" "}
                 to add additional sessions.
               </div>
-      
             </TooltipContent>
           </Tooltip>
         </h2>
-        {/* <table className="min-w-full mt-4 border">
-          <thead>
-            <tr>
-              <th className="border px-4 py-2">Number of Sessions</th>
-              <th className="border px-4 py-2">Duration</th>
-              <th className="border px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessionRows.map((row) => (
-              <tr key={row.id}>
-                <td className="border px-4 py-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={row.number}
-                    onChange={(e) =>
-                      updateSessionRow(row.id, "number", Number(e.target.value))
-                    }
-                    className="w-full"
-                  />
-                </td>
-                <td className="border px-4 py-2">
-                  <Select
-                    value={row.duration}
-                    onValueChange={(value) =>
-                      updateSessionRow(row.id, "duration", value)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <Button variant="outline" className="w-full text-left">
-                        {row.duration}
-                      </Button>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {durations.map((d) => (
-                        <SelectItem key={d} value={d}>
-                          {d}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="border px-4 py-2 text-center">
-                  <Button
-                    variant="outline"
-                    onClick={() => deleteSessionRow(row.id)}
-                  >
-                    Delete
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            <tr>
-              <td className="border px-4 py-2 font-bold">
-                Total Sessions: {totalSessions}
-              </td>
-              <td className="border px-4 py-2 font-bold" colSpan={2}>
-                Total Duration: {hoursText} hour{hoursText !== "1" ? "s" : ""} (
-                {totalDurationMinutes} minute
-                {totalDurationMinutes !== 1 ? "s" : ""})
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div className="mt-4">
-          <Button onClick={addSessionRow}>+ Add Session</Button>
-        </div> */}
+    
         <SessionsTable
           initialSessions={sessionRows}
           onChange={(newRows) => setSessionRows(newRows)}

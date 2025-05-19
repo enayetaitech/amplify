@@ -44,6 +44,7 @@ export type Step2FormValues = {
  additionalInfo: string;
  inLanguageHosting?: "yes" | "no";
  recruitmentSpecs?: string;
+  provideInterpreter?: "yes" | "no" | "";
 };
 
 export interface Step3Props {
