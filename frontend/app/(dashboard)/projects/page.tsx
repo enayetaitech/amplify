@@ -1,5 +1,5 @@
 "use client";
-import React, {  useState } from "react";
+import React, { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
@@ -28,6 +28,8 @@ import { Badge } from "components/ui/badge";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import { useRouter } from "next/navigation";
 import { Card } from "components/ui/card";
+import { getFirstSessionDate } from "utils/getFirstSessionDate";
+import ShareDialog from "components/viewProject/ShareDialog";
 
 type DateRange = [Date, Date] | undefined;
 
@@ -39,6 +41,9 @@ const Projects: React.FC = () => {
   const [dateRange, setDateRange] = useState<DateRange>(undefined);
   const [page, setPage] = useState(1);
   const limit = 10;
+ // Modal state
+  const [activeShareType, setActiveShareType] = useState<"observer" | "participant" | null>(null);
+  const [shareProject, setShareProject] = useState<IProject | null>(null);
 
   const { data, error, isLoading } = useQuery<
     { data: IProject[]; meta: IPaginationMeta },
@@ -161,9 +166,9 @@ const Projects: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="flex-1">Project Name</TableHead>
+                    <TableHead>Tags</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Moderator (Host)</TableHead>
-                    <TableHead>Start Time</TableHead>
+                    <TableHead>Start Date</TableHead>
                     {/* <TableHead>Time Zone</TableHead> */}
                     <TableHead className="text-center">Share</TableHead>
                   </TableRow>
@@ -178,31 +183,44 @@ const Projects: React.FC = () => {
                       }
                     >
                       <TableCell className="flex-1">{project.name}</TableCell>
+                      <TableCell className="flex-1">
+                        {" "}
+                        {project.tags.length > 0
+                          ? project.tags.map((t) => t.title).join(", ")
+                          : "—"}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{project.status}</Badge>
                       </TableCell>
                       <TableCell>
-                        {project.moderators && project.moderators.length > 0
-                          ? project.moderators
-                              .map((m) => m.firstName)
-                              .join(", ")
-                          : "—"}
+                        {(() => {
+                          const firstDate = getFirstSessionDate(project);
+                          return firstDate
+                            ? format(firstDate, "MM/dd/yyyy")
+                            : "—";
+                        })()}
                       </TableCell>
-                      <TableCell>
-                        {project.startDate
-                          ? format(new Date(project.startDate), "HH:mm")
-                          : "—"}
-                      </TableCell>
-
-                      {/* <TableCell>{project.timeZone}</TableCell> */}
-                      <TableCell className="space-x-2 text-center ">
-                        <CustomButton size="sm" variant="outline"
-                        className="bg-custom-teal"
+                      <TableCell className="space-x-2 text-center "  onClick={(e) => e.stopPropagation()}>
+                        <CustomButton
+                          size="sm"
+                          variant="outline"
+                          className="bg-custom-teal"
+                         onClick={() => {
+                            setShareProject(project);
+                            setActiveShareType("observer");
+                          }}
                         >
                           Observer Link
                         </CustomButton>
-                        <CustomButton size="sm" variant="outline"
-                        className="bg-custom-teal">
+                        <CustomButton
+                          size="sm"
+                          variant="outline"
+                          className="bg-custom-teal"
+                          onClick={() => {
+                            setShareProject(project);
+                            setActiveShareType("participant");
+                          }}
+                        >
                           Participant Link
                         </CustomButton>
                       </TableCell>
@@ -227,6 +245,44 @@ const Projects: React.FC = () => {
           )}
         </div>
       </Card>
+  {/* Share Modal */}
+      {activeShareType && shareProject && (
+        <ShareDialog
+          open={true}
+          onOpenChange={() => {
+            setActiveShareType(null);
+            setShareProject(null);
+          }}
+          triggerLabel=""
+          badgeLabel={activeShareType === "observer" ? "Observer Link" : "Participant Link"}
+          description={
+            activeShareType === "observer"
+              ? `You have been invited to the observer for ${shareProject.name}.`
+              : "You have been invited to participate in an upcoming research session. Please check the confirmation details from your recruiter for the time and date of your session."
+          }
+          fields={
+            activeShareType === "observer"
+              ? [
+                  { label: "Meeting Link:", value: `${window.location.origin}/join/observer/${shareProject._id}` },
+                  { label: "Passcode:", value: shareProject.projectPasscode ?? "" },
+                ]
+              : [
+                  { label: "Project:", value: shareProject.name },
+                  { label: "Session Link:", value: `${window.location.origin}/join/participant/${shareProject._id}` },
+                ]
+          }
+          copyPayload={
+            activeShareType === "observer"
+              ? `Link: ${window.location.origin}/join/observer/${shareProject._id}\nPasscode: ${shareProject.projectPasscode ?? ""}`
+              : `${window.location.origin}/join/participant/${shareProject._id}`
+          }
+          footerText={
+            activeShareType === "observer"
+              ? "Once you click the link and enter your passcode, you will be prompted to create an account or login to your existing account. After completing this process once, you may then access your meeting via the link or your account login."
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 };

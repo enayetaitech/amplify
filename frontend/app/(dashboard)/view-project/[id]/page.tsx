@@ -35,46 +35,7 @@ const ViewProject = () => {
     enabled: !!projectId,
   });
 
-  // Get the earliest meeting date (or fall back to project.startDate if no meetings)
-  const firstSessionDate = React.useMemo(() => {
-    if (!project?.meetings?.length) {
-      return;
-    }
-
-    // 1. Build a Date object for each meeting (date + startTime)
-    const sessionDateTimes = project.meetings.map((m) => {
-      const meetingDate = new Date(m.date);
-      const [hour, minute] = m.startTime.split(":").map(Number);
-      return new Date(
-        meetingDate.getFullYear(),
-        meetingDate.getMonth(),
-        meetingDate.getDate(),
-        hour,
-        minute
-      );
-    });
-
-    // 2. Compute “today at midnight”
-    const now = new Date();
-    const todayMidnight = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-
-    // 3. Keep only sessions on or after today
-    const upcoming = sessionDateTimes.filter((dt) => dt >= todayMidnight);
-
-    // 4. If there are any, pick the earliest; otherwise fall back
-    if (upcoming.length) {
-      return upcoming.reduce(
-        (earliest, curr) => (curr < earliest ? curr : earliest),
-        upcoming[0]
-      );
-    } else {
-      return new Date(project!.startDate);
-    }
-  }, [project]);
+ 
 
   if (isLoading) return <p>Loading project…</p>;
   if (isError)
@@ -89,7 +50,7 @@ const ViewProject = () => {
           {/* Project Summary */}
           <ProjectSummary
             project={project!}
-            firstSessionDate={firstSessionDate!}
+         
             onTagEditClick={() => setIsTagModalOpen(true)}
           />
 

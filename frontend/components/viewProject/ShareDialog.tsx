@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { Copy } from "lucide-react";
 
 interface ShareDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   triggerLabel: string;
   badgeLabel: string;
   description: string;
@@ -25,6 +27,8 @@ interface ShareDialogProps {
 }
 
 const ShareDialog: React.FC<ShareDialogProps> = ({
+    open,
+  onOpenChange,
   triggerLabel,
   badgeLabel,
   description,
@@ -43,7 +47,8 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+       {triggerLabel && (
       <DialogTrigger asChild>
         <CustomButton
           icon={<Copy />}
@@ -52,7 +57,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
           {triggerLabel}
         </CustomButton>
       </DialogTrigger>
-
+ )}
       <DialogContent className="rounded-2xl w-[420px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-center text-custom-black">
