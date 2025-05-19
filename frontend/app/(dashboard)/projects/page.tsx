@@ -105,7 +105,6 @@ const Projects: React.FC = () => {
     return <p>User not found or not authenticated.</p>;
   }
 
-
   if (error) {
     let message: string;
     if (axios.isAxiosError(error)) {

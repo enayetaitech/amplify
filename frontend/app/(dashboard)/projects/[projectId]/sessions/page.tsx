@@ -11,33 +11,33 @@ import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
 import { Plus } from "lucide-react";
-import {SessionsTable } from "components/projects/sessions/SessionsTable";
+import { SessionsTable } from "components/projects/sessions/SessionsTable";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
+import AddSessionModal from "components/projects/sessions/AddSessionModal";
 
 const Sessions = () => {
   const { projectId } = useParams();
   const router = useRouter();
   const [openAddSessionModal, setOpenAddSessionModal] = useState(false);
-   const [page, setPage] = useState(1);
+  const [page, setPage] = useState(1);
   const limit = 10;
 
-const { data, isLoading, error } = useQuery<
-  { data: ISession[]; meta: IPaginationMeta },
-  Error
->({
-  queryKey: ["sessions", projectId, page],
-  queryFn: () =>
-    api
-      .get<{ data: ISession[]; meta: IPaginationMeta }>(
-        `/api/v1/sessions/project/${projectId}`,
-        { params: { page, limit } }
-      )
-      .then((res) => res.data),
-  placeholderData: keepPreviousData,
-});
+  const { data, isLoading, error } = useQuery<
+    { data: ISession[]; meta: IPaginationMeta },
+    Error
+  >({
+    queryKey: ["sessions", projectId, page],
+    queryFn: () =>
+      api
+        .get<{ data: ISession[]; meta: IPaginationMeta }>(
+          `/api/v1/sessions/project/${projectId}`,
+          { params: { page, limit } }
+        )
+        .then((res) => res.data),
+    placeholderData: keepPreviousData,
+  });
 
-
-console.log('session', data)
+  console.log("session", data);
 
   // 2️⃣ Mutation to start a session
   const startSessionMutation = useMutation<ILiveSession, Error, string>({
@@ -62,12 +62,11 @@ console.log('session', data)
     },
   });
 
-
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
   return (
     <ComponentContainer>
-      <div className="flex justify-between items-center bg-none pb-5 ">
+      <div className="flex justify-between items-center bg-none pb-5 lg:ml-10">
         <HeadingBlue25px>Session</HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
@@ -79,37 +78,42 @@ console.log('session', data)
           }}
         />
       </div>
-       {
-        isLoading ? <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">Loading Sessions...</p> : (
-          <div className="pt-5 bg-custom-white">
-           <SessionsTable
-        sessions={data!.data}
-        meta={data!.meta}
-        onPageChange={setPage}
-        onRowClick={(id) => router.push(`/session-details/${id}`)}
-        onModerate={(id) =>
-          router.push(`/session-details/${id}/moderate`)
-        }
-        onObserve={(id) =>
-          router.push(`/session-details/${id}/observe`)
-        }
-        onAction={(action, session) => {
-          switch (action) {
-            case "edit":
-              router.push(`/session-details/${session._id}/edit`);
-              break;
-            case "delete":
-              // call your delete mutation here
-              break;
-            case "duplicate":
-              // call your duplicate mutation here
-              break;
-          }
-        }}
-        />
-       </div>
-        )
-       }
+      {isLoading ? (
+        <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">
+          Loading Sessions...
+        </p>
+      ) : (
+        <div className="pt-5 bg-custom-white">
+          <SessionsTable
+            sessions={data!.data}
+            meta={data!.meta}
+            onPageChange={setPage}
+            onRowClick={(id) => router.push(`/session-details/${id}`)}
+            onModerate={(id) => router.push(`/session-details/${id}/moderate`)}
+            onObserve={(id) => router.push(`/session-details/${id}/observe`)}
+            onAction={(action, session) => {
+              switch (action) {
+                case "edit":
+                  router.push(`/session-details/${session._id}/edit`);
+                  break;
+                case "delete":
+                  break;
+                case "duplicate":
+                  break;
+              }
+            }}
+          />
+        </div>
+      )}
+      <AddSessionModal
+  open={openAddSessionModal}
+  onClose={() => setOpenAddSessionModal(false)}
+  onSave={() => {
+    const sessionId = "your-session-id"; 
+    startSessionMutation.mutate(sessionId);
+  }}
+  projectId={projectId}
+/>
     </ComponentContainer>
   );
 };
