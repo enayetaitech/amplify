@@ -6,7 +6,6 @@ import {
   SelectContent,
   SelectItem,
 } from "components/ui/select";
-import PaymentIntegration from "./PaymentIntegrationComponent";
 import { creditPackages, durationMapping, quantityOptions } from "constant";
 import {
   IProjectFormState,
@@ -22,12 +21,13 @@ import {
   TableRow,
 } from "components/ui/table";
 import ComponentContainer from "components/shared/ComponentContainer";
-import CustomButton from "components/shared/CustomButton";
+
+import PurchaseModal from "./PurchaseModal";
+import { useRouter } from "next/navigation";
 
 const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
   // State to determine whether to show the payment integration UI
-  const [showPaymentIntegration, setShowPaymentIntegration] = useState(false);
-
+  const router = useRouter()
   // State to hold the quantities of each credit package selected by the user
   const [purchaseQuantities, setPurchaseQuantities] = useState<{
     [key: number]: number;
@@ -37,6 +37,7 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
     15000: 0,
     50000: 0,
   });
+
 
   // Compute the project estimate rows based on sessions data
   const sessions = formData.sessions || [];
@@ -84,22 +85,7 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
     return acc + quantity * pkg.package;
   }, 0);
 
-  // When Pay Now is clicked, switch to the Payment Integration UI
-  const handlePayNow = () => {
-    setShowPaymentIntegration(true);
-  };
 
-  // Render the PaymentIntegration component if the user has clicked "Pay Now"
-  if (showPaymentIntegration) {
-    return (
-      <PaymentIntegration
-        totalPurchasePrice={totalPurchasePrice}
-        totalCreditsNeeded={totalPurchasedCredits}
-        projectData={formData as IProjectFormState}
-        uniqueId={uniqueId}
-      />
-    );
-  }
 
   return (
    <ComponentContainer>
@@ -130,7 +116,7 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
       {/* Project Estimate Table */}
       <div className="">
         <h2 className="text-xl font-semibold mb-2">Project Estimate</h2>
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-md py-0">
           <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader>
@@ -290,13 +276,21 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
         </p>
       </div>
 
-      {/* Pay Now Button */}
-      <div className="text-center">
-        <CustomButton
-        className="bg-custom-teal hover:bg-custom-dark-blue-3"
-        
-        onClick={handlePayNow}>Pay Now</CustomButton>
-      </div>
+       {/* Pay Now Modal Trigger */}
+ <div className="text-center mt-6">
+  {uniqueId && (
+  <PurchaseModal
+    creditPackages={creditPackages}
+    purchaseQuantities={purchaseQuantities}
+    totalPurchasePrice={totalPurchasePrice}
+    totalCreditsNeeded={totalPurchasedCredits}
+    onSuccess={() => router.push("/projects")}
+    uniqueId={uniqueId}
+    projectData={formData as IProjectFormState}
+  />
+)}
+
+ </div>
     </div>
    </ComponentContainer>
   );
