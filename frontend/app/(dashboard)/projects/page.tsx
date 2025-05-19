@@ -30,33 +30,43 @@ import { useRouter } from "next/navigation";
 import { Card } from "components/ui/card";
 import { getFirstSessionDate } from "utils/getFirstSessionDate";
 import ShareDialog from "components/viewProject/ShareDialog";
+import { ISession } from "@shared/interface/SessionInterface";
 
-type DateRange = [Date, Date] | undefined;
+interface DateRange {
+  from: Date | undefined;
+  to?: Date | undefined;
+}
+
+interface IProjectWithMeetings extends IProject {
+  meetingObjects?: ISession[];
+}
 
 const Projects: React.FC = () => {
   const { user } = useGlobalContext();
   const router = useRouter();
   const userId = user?._id;
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
   const limit = 10;
- // Modal state
-  const [activeShareType, setActiveShareType] = useState<"observer" | "participant" | null>(null);
+  // Modal state
+  const [activeShareType, setActiveShareType] = useState<
+    "observer" | "participant" | null
+  >(null);
   const [shareProject, setShareProject] = useState<IProject | null>(null);
 
   const { data, error, isLoading } = useQuery<
     { data: IProject[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["projects", userId, page],
+    queryKey: ["projects", userId, page, searchTerm],
     queryFn: () =>
       api
         .get<{
           data: IProject[];
           meta: IPaginationMeta;
         }>(`/api/v1/projects/get-project-by-userId/${userId}`, {
-          params: { page, limit },
+          params: { page, limit, search: searchTerm },
         })
         .then((res) => res.data),
     placeholderData: keepPreviousData,
@@ -65,14 +75,31 @@ const Projects: React.FC = () => {
   const projects = data?.data ?? [];
 
   // Filter by name and (if selected) date range
-  const filtered = (projects ?? [])?.filter((p) => {
-    const matchesSearch = p.name
+  const filtered = (projects as IProjectWithMeetings[]).filter((project) => {
+    const matchesSearch = project.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-    if (!dateRange) return matchesSearch;
 
-    const start = new Date(p.startDate);
-    return matchesSearch && start >= dateRange[0] && start <= dateRange[1];
+    if (!dateRange?.from || !dateRange.to) return matchesSearch;
+
+    const rangeStart = new Date(dateRange.from);
+    const rangeEnd = new Date(dateRange.to);
+
+    const projectStart = new Date(project.startDate);
+    const isProjectDateInRange =
+      projectStart >= rangeStart && projectStart <= rangeEnd;
+
+    const meetingDatesInRange = project.meetingObjects?.some(
+      (meeting) => {
+        const date = new Date(meeting.date);
+        const [h, m] = meeting.startTime?.split(":").map(Number) || [0, 0];
+        date.setHours(h);
+        date.setMinutes(m);
+        return date >= rangeStart && date <= rangeEnd;
+      }
+    );
+
+    return matchesSearch && (isProjectDateInRange || meetingDatesInRange);
   });
 
   // If no user exists, you might choose to render a message or redirect
@@ -135,10 +162,10 @@ const Projects: React.FC = () => {
               variant="outline"
               className="w-[220px] justify-start text-left rounded-none"
             >
-              {dateRange ? (
+              {dateRange?.from && dateRange.to ? (
                 <>
-                  {format(dateRange[0], "dd/MM/yy")} –{" "}
-                  {format(dateRange[1], "dd/MM/yy")}
+                  {format(dateRange.from, "dd/MM/yy")} –{" "}
+                  {format(dateRange.to, "dd/MM/yy")}
                 </>
               ) : (
                 <span className="text-muted-foreground">
@@ -151,8 +178,8 @@ const Projects: React.FC = () => {
           <PopoverContent align="start" className="w-auto p-0">
             <Calendar
               mode="range"
-              // selected={dateRange}
-              // onSelect={setDateRange}
+              selected={dateRange}
+              onSelect={setDateRange}
               initialFocus
             />
           </PopoverContent>
@@ -200,12 +227,15 @@ const Projects: React.FC = () => {
                             : "—";
                         })()}
                       </TableCell>
-                      <TableCell className="space-x-2 text-center "  onClick={(e) => e.stopPropagation()}>
+                      <TableCell
+                        className="space-x-2 text-center "
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <CustomButton
                           size="sm"
                           variant="outline"
                           className="bg-custom-teal"
-                         onClick={() => {
+                          onClick={() => {
                             setShareProject(project);
                             setActiveShareType("observer");
                           }}
@@ -245,7 +275,7 @@ const Projects: React.FC = () => {
           )}
         </div>
       </Card>
-  {/* Share Modal */}
+      {/* Share Modal */}
       {activeShareType && shareProject && (
         <ShareDialog
           open={true}
@@ -254,7 +284,11 @@ const Projects: React.FC = () => {
             setShareProject(null);
           }}
           triggerLabel=""
-          badgeLabel={activeShareType === "observer" ? "Observer Link" : "Participant Link"}
+          badgeLabel={
+            activeShareType === "observer"
+              ? "Observer Link"
+              : "Participant Link"
+          }
           description={
             activeShareType === "observer"
               ? `You have been invited to the observer for ${shareProject.name}.`
@@ -263,17 +297,28 @@ const Projects: React.FC = () => {
           fields={
             activeShareType === "observer"
               ? [
-                  { label: "Meeting Link:", value: `${window.location.origin}/join/observer/${shareProject._id}` },
-                  { label: "Passcode:", value: shareProject.projectPasscode ?? "" },
+                  {
+                    label: "Meeting Link:",
+                    value: `${window.location.origin}/join/observer/${shareProject._id}`,
+                  },
+                  {
+                    label: "Passcode:",
+                    value: shareProject.projectPasscode ?? "",
+                  },
                 ]
               : [
                   { label: "Project:", value: shareProject.name },
-                  { label: "Session Link:", value: `${window.location.origin}/join/participant/${shareProject._id}` },
+                  {
+                    label: "Session Link:",
+                    value: `${window.location.origin}/join/participant/${shareProject._id}`,
+                  },
                 ]
           }
           copyPayload={
             activeShareType === "observer"
-              ? `Link: ${window.location.origin}/join/observer/${shareProject._id}\nPasscode: ${shareProject.projectPasscode ?? ""}`
+              ? `Link: ${window.location.origin}/join/observer/${
+                  shareProject._id
+                }\nPasscode: ${shareProject.projectPasscode ?? ""}`
               : `${window.location.origin}/join/participant/${shareProject._id}`
           }
           footerText={

@@ -275,7 +275,7 @@ export default function SidebarContent({
           <div className="flex items-center gap-3">
             <Avatar>
               <AvatarImage src="/user.jpg" alt="avatar" />
-              <AvatarFallback>{user?.firstName.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{(user?.firstName?.[0] || 'U').toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="text-sm truncate">
               <p className="font-semibold">
@@ -290,7 +290,7 @@ export default function SidebarContent({
               size="icon"
               onClick={() => setShowLogoutMenu((v) => !v)}
             >
-              <FaBars /> {/* swap for BsThreeDotsVertical if you like */}
+              <FaBars /> 
             </Button>
             {showLogoutMenu && (
               <div className="absolute bottom-full right-0 mb-2 w-36 bg-white border rounded shadow-md">
