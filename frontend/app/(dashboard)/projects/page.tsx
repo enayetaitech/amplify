@@ -89,15 +89,13 @@ const Projects: React.FC = () => {
     const isProjectDateInRange =
       projectStart >= rangeStart && projectStart <= rangeEnd;
 
-    const meetingDatesInRange = project.meetingObjects?.some(
-      (meeting) => {
-        const date = new Date(meeting.date);
-        const [h, m] = meeting.startTime?.split(":").map(Number) || [0, 0];
-        date.setHours(h);
-        date.setMinutes(m);
-        return date >= rangeStart && date <= rangeEnd;
-      }
-    );
+    const meetingDatesInRange = project.meetingObjects?.some((meeting) => {
+      const date = new Date(meeting.date);
+      const [h, m] = meeting.startTime?.split(":").map(Number) || [0, 0];
+      date.setHours(h);
+      date.setMinutes(m);
+      return date >= rangeStart && date <= rangeEnd;
+    });
 
     return matchesSearch && (isProjectDateInRange || meetingDatesInRange);
   });
@@ -107,9 +105,6 @@ const Projects: React.FC = () => {
     return <p>User not found or not authenticated.</p>;
   }
 
-  // if (isLoading) {
-  //   return <p>Loading projects...</p>;
-  // }
 
   if (error) {
     let message: string;
@@ -201,61 +196,84 @@ const Projects: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-200 ">
-                  {filtered.map((project) => (
-                    <TableRow
-                      key={project._id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() =>
-                        router.push(`/view-project/${project._id}`)
-                      }
-                    >
-                      <TableCell className="flex-1">{project.name}</TableCell>
-                      <TableCell className="flex-1">
-                        {" "}
-                        {project.tags.length > 0
-                          ? project.tags.map((t) => t.title).join(", ")
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{project.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const firstDate = getFirstSessionDate(project);
-                          return firstDate
-                            ? format(firstDate, "MM/dd/yyyy")
-                            : "—";
-                        })()}
-                      </TableCell>
-                      <TableCell
-                        className="space-x-2 text-center "
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <CustomButton
-                          size="sm"
-                          variant="outline"
-                          className="bg-custom-teal"
-                          onClick={() => {
-                            setShareProject(project);
-                            setActiveShareType("observer");
-                          }}
+                  {isLoading
+                    ? // Show loading skeleton rows
+                      [...Array(5)].map((_, idx) => (
+                        <TableRow key={`skeleton-${idx}`}>
+                          <TableCell>
+                            <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse" />
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse mx-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    : filtered.map((project) => (
+                        <TableRow
+                          key={project._id}
+                          className="cursor-pointer hover:bg-gray-50"
+                          onClick={() =>
+                            router.push(`/view-project/${project._id}`)
+                          }
                         >
-                          Observer Link
-                        </CustomButton>
-                        <CustomButton
-                          size="sm"
-                          variant="outline"
-                          className="bg-custom-teal"
-                          onClick={() => {
-                            setShareProject(project);
-                            setActiveShareType("participant");
-                          }}
-                        >
-                          Participant Link
-                        </CustomButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <TableCell className="flex-1">
+                            {project.name}
+                          </TableCell>
+                          <TableCell className="flex-1">
+                            {" "}
+                            {project.tags.length > 0
+                              ? project.tags.map((t) => t.title).join(", ")
+                              : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{project.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const firstDate = getFirstSessionDate(project);
+                              return firstDate
+                                ? format(firstDate, "MM/dd/yyyy")
+                                : "—";
+                            })()}
+                          </TableCell>
+                          <TableCell
+                            className="space-x-2 text-center "
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <CustomButton
+                              size="sm"
+                              variant="outline"
+                              className="bg-custom-teal"
+                              onClick={() => {
+                                setShareProject(project);
+                                setActiveShareType("observer");
+                              }}
+                            >
+                              Observer Link
+                            </CustomButton>
+                            <CustomButton
+                              size="sm"
+                              variant="outline"
+                              className="bg-custom-teal"
+                              onClick={() => {
+                                setShareProject(project);
+                                setActiveShareType("participant");
+                              }}
+                            >
+                              Participant Link
+                            </CustomButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                 </TableBody>
               </Table>
 
