@@ -284,6 +284,14 @@ export const getProjectByUserId = async (
         as: "meetingObjects",
       },
     },
+      {
+    $lookup: {
+      from: "tags",
+      localField: "tags",
+      foreignField: "_id",
+      as: "tags",
+    },
+  },
     {
       $group: {
         _id: "$_id",
@@ -297,6 +305,7 @@ export const getProjectByUserId = async (
   ];
 
   const projects = await ProjectModel.aggregate(aggregationPipeline);
+
 
   // Separate aggregation for count
   const totalAgg: PipelineStage[] = [
