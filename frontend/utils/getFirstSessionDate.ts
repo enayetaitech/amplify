@@ -1,4 +1,3 @@
-// shared/utils/getFirstSessionDate.ts
 import { IProject } from "@shared/interface/ProjectInterface";
 
 export function getFirstSessionDate(project: IProject): Date | null {
@@ -6,17 +5,19 @@ export function getFirstSessionDate(project: IProject): Date | null {
     return project.startDate ? new Date(project.startDate) : null;
   }
 
-  const sessionDateTimes = project.meetings.map((m) => {
-    const meetingDate = new Date(m.date);
-    const [hour, minute] = m.startTime.split(":").map(Number);
-    return new Date(
-      meetingDate.getFullYear(),
-      meetingDate.getMonth(),
-      meetingDate.getDate(),
-      hour,
-      minute
-    );
-  });
+  const sessionDateTimes = project.meetings
+    .filter((m) => m?.startTime && m?.date)
+    .map((m) => {
+      const meetingDate = new Date(m.date);
+      const [hour, minute] = m.startTime.split(":").map(Number);
+      return new Date(
+        meetingDate.getFullYear(),
+        meetingDate.getMonth(),
+        meetingDate.getDate(),
+        hour,
+        minute
+      );
+    });
 
   const now = new Date();
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
