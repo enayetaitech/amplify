@@ -12,12 +12,13 @@ import { Input } from "components/ui/input";
 import CustomButton from "components/shared/CustomButton";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IModerator } from "@shared/interface/ModeratorInterface";
+import { useParams } from "next/navigation";
 
 
 interface AddModeratorModalProps {
   open: boolean;
   onClose: () => void;
-  projectId: string;
+
   onSuccess?: () => void;
 }
 
@@ -31,9 +32,15 @@ interface ModeratorFormData {
 const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
   open,
   onClose,
-  projectId,
+
   onSuccess,
 }) => {
+   const params = useParams();
+    // coerce it into a string (or throw if missing)
+    if (!params.projectId || Array.isArray(params.projectId)) {
+      throw new Error("projectId is required and must be a string");
+    }
+    const projectId = params.projectId;
   const [formData, setFormData] = useState<ModeratorFormData>({
     firstName: "",
     lastName: "",

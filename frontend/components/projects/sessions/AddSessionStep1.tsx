@@ -21,20 +21,33 @@ import {
 } from "components/ui/tooltip";
 import { timeZones } from "constant";
 import api from "lib/api";
-import { Info } from "lucide-react";
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import AddModeratorModal from "./AddModeratorModal";
+import { ISessionFormData } from "./AddSessionModal";
+import MultiSelectDropdown from "./MultiSelectDropdown";
+import { Info } from "lucide-react";
+import { useParams } from "next/navigation";
 
-const AddSessionStep1 = ({ projectId }: { projectId: string }) => {
+interface AddSessionStep1Props {
+  formData: ISessionFormData;
+  updateFormData: (fields: Partial<ISessionFormData>) => void;
+}
+
+const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
+  formData,
+  updateFormData,
+}) => {
+  const { projectId } = useParams();
   const limit = 100;
   const page = 1;
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const { data, isLoading, error, refetch:refetchModerators   } = useQuery<
-    { data: IModerator[]; meta: IPaginationMeta },
-    Error
-  >({
+  const {
+    data,
+    // isLoading,
+    error,
+    refetch: refetchModerators,
+  } = useQuery<{ data: IModerator[]; meta: IPaginationMeta }, Error>({
     queryKey: ["moderators", projectId],
     queryFn: () =>
       api
@@ -46,46 +59,53 @@ const AddSessionStep1 = ({ projectId }: { projectId: string }) => {
     placeholderData: keepPreviousData,
   });
 
+  useEffect(() => {
+    if (data?.data) {
+      updateFormData({ allModerators: data.data });
+    }
+  }, [data]);
+
+  // whenever numberOfSessions changes, rebuild the sessions array:
+  useEffect(() => {
+    updateFormData({
+      sessions: Array.from(
+        { length: formData.numberOfSessions },
+        (_, i) =>
+          formData.sessions[i] || {
+            title: "",
+            date: "",
+            startTime: "",
+            duration: "",
+            moderators: [],
+          }
+      ),
+    });
+  }, [formData.numberOfSessions]);
+
   if (error) {
     console.error("Error fetching moderators:", error.message);
   }
-  console.log("Moderators:", data);
+
   return (
     <div className="space-y-5">
       {/* Moderator Dropdown + Button */}
       <div>
-        <Label className="font-semibold text-sm mb-1 block">
-          Moderators<span className="text-red-500">*</span>
-        </Label>
-        <div className="flex gap-3 items-center">
-          <Select>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select moderators" />
-            </SelectTrigger>
-            <SelectContent className="border-0 cursor-pointer">
-              {isLoading ? (
-                <div className="px-4 py-2 text-sm text-muted-foreground">
-                  Loading moderators...
-                </div>
-              ) : data?.data.length ? (
-                data.data.map((moderator) => (
-                  <SelectItem
-                    key={moderator._id as string}
-                    value={moderator._id as string}
-                    className="cursor-pointer"
-                  >
-                    {moderator.firstName} {moderator.lastName}
-                  </SelectItem>
-                ))
-              ) : (
-                <div className="px-4 py-2 text-sm text-muted-foreground">
-                  No moderators found
-                </div>
-              )}
-            </SelectContent>
-          </Select>
-          <CustomButton className="bg-custom-teal text-white hover:bg-custom-dark-blue-3"
-           onClick={() => setShowAddModal(true)}
+        <div className="flex gap-3 items-end">
+          {/* Moderator Multi-Select */}
+          <div>
+            <Label className="font-semibold text-sm mb-1 block">
+              Moderators<span className="text-red-500">*</span>
+            </Label>
+            <MultiSelectDropdown
+              moderators={data?.data || []}
+              selected={formData.selectedModerators}
+              onChange={(ids) => updateFormData({ selectedModerators: ids })}
+            />
+          </div>
+
+          <CustomButton
+            className="bg-custom-teal text-white hover:bg-custom-dark-blue-3"
+            onClick={() => setShowAddModal(true)}
           >
             Add Study Moderator
           </CustomButton>
@@ -97,7 +117,10 @@ const AddSessionStep1 = ({ projectId }: { projectId: string }) => {
         <Label className="font-medium text-sm">
           Do you want the same moderator for all of your sessions?
         </Label>
-        <Switch className="cursor-pointer" />
+        <Switch className="cursor-pointer"
+        checked={formData.sameModerator}
+        onCheckedChange={(b) => updateFormData({ sameModerator: b })}
+        />
       </div>
 
       {/* Breakout Room Toggle with Tooltip */}
@@ -124,7 +147,11 @@ const AddSessionStep1 = ({ projectId }: { projectId: string }) => {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <Switch className="cursor-pointer" />
+        <Switch
+          checked={formData.breakoutRoom}
+          onCheckedChange={(b) => updateFormData({ breakoutRoom: b })}
+          className="cursor-pointer"
+        />
       </div>
 
       {/* Number of Sessions */}
@@ -132,7 +159,11 @@ const AddSessionStep1 = ({ projectId }: { projectId: string }) => {
         <Label className="font-semibold text-sm mb-1 block">
           Number of Sessions<span className="text-red-500">*</span>
         </Label>
-        <Select>
+        <Select
+          onValueChange={(val) =>
+            updateFormData({ numberOfSessions: Number(val) })
+          }
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select number" />
           </SelectTrigger>
@@ -151,7 +182,7 @@ const AddSessionStep1 = ({ projectId }: { projectId: string }) => {
         <Label className="font-semibold text-sm mb-1 block">
           Time Zone<span className="text-red-500">*</span>
         </Label>
-        <Select>
+        <Select onValueChange={(tz) => updateFormData({ timeZone: tz })}>
           <SelectTrigger>
             <SelectValue placeholder="Select timezone" />
           </SelectTrigger>
@@ -168,13 +199,10 @@ const AddSessionStep1 = ({ projectId }: { projectId: string }) => {
         </Select>
       </div>
       <AddModeratorModal
-  open={showAddModal}
-  onClose={() => setShowAddModal(false)}
-  projectId={projectId}
-  onSuccess={refetchModerators}
- 
-/>
-
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={refetchModerators}
+      />
     </div>
   );
 };
