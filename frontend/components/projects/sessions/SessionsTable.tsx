@@ -122,18 +122,23 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-5 w-5 text-gray-500" />
+                        <MoreVertical className="h-5 w-5 text-gray-500 cursor-pointer" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onAction("edit", s)}>
+                      <DropdownMenuItem onClick={() => onAction("edit", s)}
+                         className="cursor-pointer"
+                        >
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onAction("delete", s)}>
+                      <DropdownMenuItem onClick={() => onAction("delete", s)}
+                         className="cursor-pointer"
+                        >
                         Delete
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onAction("duplicate", s)}
+                        className="cursor-pointer"
                       >
                         Duplicate
                       </DropdownMenuItem>
@@ -156,46 +161,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
               </TableCell>
             </TableRow>
           </TableFooter>
-          {/* <TableFooter>
-          <TableRow>
-            <TableCell colSpan={8} className="px-6 py-4 bg-white">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
-                  Showing{" "}
-                  {(meta.page - 1) * meta.limit + 1} to{" "}
-                  {Math.min(meta.page * meta.limit, meta.totalItems)} of{" "}
-                  {meta.totalItems} entries
-                </span>
-                <div className="flex space-x-1">
-                  <Button
-                    size="sm"
-                    disabled={!meta.hasPrev}
-                    onClick={() => onPageChange(meta.page - 1)}
-                  >
-                    Previous
-                  </Button>
-                  {[...Array(meta.totalPages)].map((_, i) => (
-                    <Button
-                      key={i}
-                      size="sm"
-                      variant={meta.page === i + 1 ? "default" : "outline"}
-                      onClick={() => onPageChange(i + 1)}
-                    >
-                      {i + 1}
-                    </Button>
-                  ))}
-                  <Button
-                    size="sm"
-                    disabled={!meta.hasNext}
-                    onClick={() => onPageChange(meta.page + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </TableCell>
-          </TableRow>
-        </TableFooter> */}
+         
         </Table>
       </div>
     </div>

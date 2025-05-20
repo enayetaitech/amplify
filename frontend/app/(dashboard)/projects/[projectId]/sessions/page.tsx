@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -13,9 +13,11 @@ import { Plus } from "lucide-react";
 import { SessionsTable } from "components/projects/sessions/SessionsTable";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import AddSessionModal from "components/projects/sessions/AddSessionModal";
+import { toast } from "sonner";
 
 const Sessions = () => {
   const { projectId } = useParams();
+   const queryClient = useQueryClient(); 
   const router = useRouter();
   const [openAddSessionModal, setOpenAddSessionModal] = useState(false);
   const [page, setPage] = useState(1);
@@ -60,6 +62,35 @@ const Sessions = () => {
   //   },
   // });
 
+  const deleteSession = useMutation({
+    mutationFn: (sessionId: string) =>
+      api.delete(`/api/v1/sessions/${sessionId}`),
+    onSuccess: () => {
+      toast.success("Session deleted");
+      queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Could not delete session");
+    },
+  });
+
+    // 🔁 Mutation to duplicate a session
+  const duplicateSession = useMutation<ISession, Error, string>({
+    mutationFn: (sessionId) =>
+      api
+        .post<{ data: ISession }>(`/api/v1/sessions/${sessionId}/duplicate`)
+        .then(res => res.data.data),
+    onSuccess: () => {
+      toast.success("Session duplicated");
+      // refetch list so our new one appears
+      queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+      
+    },
+    onError: err => {
+      toast.error(err.message || "Could not duplicate session");
+    },
+  });
+
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
   return (
@@ -95,8 +126,16 @@ const Sessions = () => {
                   router.push(`/session-details/${session._id}/edit`);
                   break;
                 case "delete":
+                  if (
+                    window.confirm(
+                      "Are you sure you want to delete this session?"
+                    )
+                  ) {
+                    deleteSession.mutate(session._id);
+                  }
                   break;
                 case "duplicate":
+                  duplicateSession.mutate(session._id);
                   break;
               }
             }}
@@ -106,7 +145,6 @@ const Sessions = () => {
       <AddSessionModal
         open={openAddSessionModal}
         onClose={() => setOpenAddSessionModal(false)}
-      
       />
     </ComponentContainer>
   );
