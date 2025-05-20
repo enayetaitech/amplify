@@ -14,6 +14,7 @@ import { SessionsTable } from "components/projects/sessions/SessionsTable";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import AddSessionModal from "components/projects/sessions/AddSessionModal";
 import { toast } from "sonner";
+import axios from "axios";
 
 const Sessions = () => {
   const { projectId } = useParams();
@@ -69,8 +70,12 @@ const Sessions = () => {
       toast.success("Session deleted");
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
     },
-    onError: (err: any) => {
-      toast.error(err.message || "Could not delete session");
+    onError: (err) => {
+
+       const msg = axios.isAxiosError(err)
+       ? err.response?.data.message ?? err.message
+       : "Could not delete session"
+      toast.error(msg);
     },
   });
 
