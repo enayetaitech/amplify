@@ -1,6 +1,11 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -15,15 +20,33 @@ import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import AddSessionModal from "components/projects/sessions/AddSessionModal";
 import { toast } from "sonner";
 import axios from "axios";
+import EditSessionModal, { EditSessionValues } from "components/projects/sessions/EditSessionModal";
+import ConfirmationModalComponent from "components/ConfirmationModalComponent";
+
+// 1. Define a proper variables type instead of using `any`
+interface EditSessionInput {
+  id: string;
+  values: EditSessionValues;
+}
+
 
 const Sessions = () => {
   const { projectId } = useParams();
-   const queryClient = useQueryClient(); 
+  const queryClient = useQueryClient();
   const router = useRouter();
-  const [openAddSessionModal, setOpenAddSessionModal] = useState(false);
-  const [page, setPage] = useState(1);
   const limit = 10;
 
+  const [page, setPage] = useState(1);
+
+  const [openAddSessionModal, setOpenAddSessionModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [toDeleteId, setToDeleteId] = useState<string | null>(null);
+
+  console.log('session to edit', sessionToEdit)
+
+  // Getting session data for session table
   const { data, isLoading, error } = useQuery<
     { data: ISession[]; meta: IPaginationMeta },
     Error
@@ -38,7 +61,6 @@ const Sessions = () => {
         .then((res) => res.data),
     placeholderData: keepPreviousData,
   });
-
 
   // 2️⃣ Mutation to start a session
   // const startSessionMutation = useMutation<ILiveSession, Error, string>({
@@ -63,6 +85,9 @@ const Sessions = () => {
   //   },
   // });
 
+  //
+
+  // Mutation to delete session
   const deleteSession = useMutation({
     mutationFn: (sessionId: string) =>
       api.delete(`/api/v1/sessions/${sessionId}`),
@@ -71,30 +96,49 @@ const Sessions = () => {
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
     },
     onError: (err) => {
-
-       const msg = axios.isAxiosError(err)
-       ? err.response?.data.message ?? err.message
-       : "Could not delete session"
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data.message ?? err.message
+        : "Could not delete session";
       toast.error(msg);
     },
   });
 
-    // 🔁 Mutation to duplicate a session
+  // 🔁 Mutation to duplicate a session
   const duplicateSession = useMutation<ISession, Error, string>({
     mutationFn: (sessionId) =>
       api
         .post<{ data: ISession }>(`/api/v1/sessions/${sessionId}/duplicate`)
-        .then(res => res.data.data),
+        .then((res) => res.data.data),
     onSuccess: () => {
       toast.success("Session duplicated");
-      // refetch list so our new one appears
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
-      
     },
-    onError: err => {
+    onError: (err) => {
       toast.error(err.message || "Could not duplicate session");
     },
   });
+
+  // ❗️ Mutation to save edits
+ const editSession = useMutation<ISession, Error, EditSessionInput>({
+  // 1. mutationFn instead of positional args
+  mutationFn: ({ id, values }) =>
+    api
+      .patch<{ data: ISession }>(`/api/v1/sessions/${id}`, values)
+      .then(res => res.data.data),
+
+  // 2. onSuccess now receives (data, variables, context)
+   onSuccess() {
+    toast.success("Session updated");
+    queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+    setOpenEditModal(false);
+  },
+
+  // 4. onError only takes the Error it needs
+  onError(error) {
+    toast.error(error.message || "Could not update session");
+  },
+});
+
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
@@ -128,16 +172,12 @@ const Sessions = () => {
             onAction={(action, session) => {
               switch (action) {
                 case "edit":
-                  router.push(`/session-details/${session._id}/edit`);
+                  setSessionToEdit(session);
+                  setOpenEditModal(true);
                   break;
                 case "delete":
-                  if (
-                    window.confirm(
-                      "Are you sure you want to delete this session?"
-                    )
-                  ) {
-                    deleteSession.mutate(session._id);
-                  }
+                   setToDeleteId(session._id);
+                  setConfirmOpen(true);
                   break;
                 case "duplicate":
                   duplicateSession.mutate(session._id);
@@ -150,6 +190,34 @@ const Sessions = () => {
       <AddSessionModal
         open={openAddSessionModal}
         onClose={() => setOpenAddSessionModal(false)}
+      />
+
+       <EditSessionModal
+        open={openEditModal}
+        session={sessionToEdit}
+        onClose={() => setOpenEditModal(false)}
+        onSave={(values) => {
+          if (sessionToEdit) {
+            editSession.mutate({ id: sessionToEdit._id, values });
+          }
+        }}
+      />
+
+        <ConfirmationModalComponent
+        open={confirmOpen}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setToDeleteId(null);
+        }}
+        onYes={() => {
+          if (toDeleteId) {
+            deleteSession.mutate(toDeleteId);
+          }
+          setConfirmOpen(false);
+          setToDeleteId(null);
+        }}
+        heading="Delete Session?"
+        text="Are you sure you want to delete this session? This action cannot be undone."
       />
     </ComponentContainer>
   );

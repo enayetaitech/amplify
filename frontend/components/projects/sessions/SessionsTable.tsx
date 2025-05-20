@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import {
@@ -12,12 +12,7 @@ import {
   TableCell,
 } from "components/ui/table";
 import { Button } from "components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "components/ui/dropdown-menu";
+
 import { ChevronsUpDown, MoreVertical } from "lucide-react";
 import CustomPagination from "components/shared/Pagination";
 
@@ -43,6 +38,23 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   onObserve,
   onAction,
 }) => {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  // ref to the currently-open menu, for click-outside handling
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        openMenuId &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setOpenMenuId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuId]);
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto lg:ml-10">
       <div className="bg-white rounded-lg shadow-lg">
@@ -115,35 +127,57 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   </div>
                 </TableCell>
 
-                <TableCell
-                  className="px-6 py-4 whitespace-nowrap text-right"
+             <TableCell
+                  className="px-6 py-4 whitespace-nowrap text-right relative"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-5 w-5 text-gray-500 cursor-pointer" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onAction("edit", s)}
-                         className="cursor-pointer"
-                        >
+                  {/* trigger */}
+                  <button
+                    onClick={() =>
+                      setOpenMenuId(openMenuId === s._id ? null : s._id)
+                    }
+                    className="p-2 rounded hover:bg-gray-100 focus:outline-none cursor-pointer"
+                    aria-haspopup="true"
+                    aria-expanded={openMenuId === s._id}
+                  >
+                    <MoreVertical className="h-5 w-5 text-gray-500 cursor-pointer" />
+                  </button>
+
+                  {/* custom pop-over */}
+                  {openMenuId === s._id && (
+                    <div
+                      ref={menuRef}
+                      className="absolute right-10 top-5 mt-2 w-32 bg-white border border-gray-200 rounded shadow-lg z-10 cursor-pointer"
+                    >
+                      <button
+                        onClick={() => {
+                          onAction("edit", s);
+                          setOpenMenuId(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      >
                         Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onAction("delete", s)}
-                         className="cursor-pointer"
-                        >
+                      </button>
+                      <button
+                        onClick={() => {
+                          onAction("delete", s);
+                          setOpenMenuId(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      >
                         Delete
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onAction("duplicate", s)}
-                        className="cursor-pointer"
+                      </button>
+                      <button
+                        onClick={() => {
+                          onAction("duplicate", s);
+                          setOpenMenuId(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                       >
                         Duplicate
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      </button>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
