@@ -1,12 +1,11 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
-import { ILiveSession } from "@shared/interface/LiveSessionInterface";
-import { toast } from "sonner";
+
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
@@ -37,30 +36,29 @@ const Sessions = () => {
     placeholderData: keepPreviousData,
   });
 
-  console.log("session", data);
 
   // 2️⃣ Mutation to start a session
-  const startSessionMutation = useMutation<ILiveSession, Error, string>({
-    // 1️⃣ the actual mutation function, which takes the sessionId
-    mutationFn: (sessionId) =>
-      api
-        .post<{ data: ILiveSession }>(`/api/v1/liveSessions/${sessionId}/start`)
-        .then((res) => {
-          console.log("Live session response", res.data.data);
-          return res.data.data;
-        }),
+  // const startSessionMutation = useMutation<ILiveSession, Error, string>({
+  //   // 1️⃣ the actual mutation function, which takes the sessionId
+  //   mutationFn: (sessionId) =>
+  //     api
+  //       .post<{ data: ILiveSession }>(`/api/v1/liveSessions/${sessionId}/start`)
+  //       .then((res) => {
+  //         console.log("Live session response", res.data.data);
+  //         return res.data.data;
+  //       }),
 
-    // 2️⃣ what to do when it succeeds
-    onSuccess: (liveSession) => {
-      console.log("moderator navigated to ->", liveSession._id);
-      router.push(`/meeting/${liveSession._id}`);
-    },
+  //   // 2️⃣ what to do when it succeeds
+  //   onSuccess: (liveSession) => {
+  //     console.log("moderator navigated to ->", liveSession._id);
+  //     router.push(`/meeting/${liveSession._id}`);
+  //   },
 
-    // 3️⃣ optional error handling
-    onError: (err) => {
-      toast.error(err.message || "Could not start session");
-    },
-  });
+  //   // 3️⃣ optional error handling
+  //   onError: (err) => {
+  //     toast.error(err.message || "Could not start session");
+  //   },
+  // });
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
@@ -106,14 +104,10 @@ const Sessions = () => {
         </div>
       )}
       <AddSessionModal
-  open={openAddSessionModal}
-  onClose={() => setOpenAddSessionModal(false)}
-  onSave={() => {
-    const sessionId = "your-session-id"; 
-    startSessionMutation.mutate(sessionId);
-  }}
-  projectId={projectId}
-/>
+        open={openAddSessionModal}
+        onClose={() => setOpenAddSessionModal(false)}
+      
+      />
     </ComponentContainer>
   );
 };

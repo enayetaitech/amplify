@@ -37,6 +37,8 @@ export const createSessions = async (
       )
     );
   }
+console.log('req.body', req.body)
+console.log("req.body.sessions =", JSON.stringify(req.body.sessions, null, 2));
 
   // 2. Project existence check
   const project = await ProjectModel.findById(projectId);

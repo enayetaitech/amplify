@@ -1,12 +1,12 @@
 export const durations = [
-  "30 minutes",
-  "45 minutes",
-  "1 hour (60 minutes)",
-  "1.25 hour (75 minutes)",
-  "1.5 hour (90 minutes)",
-  "2 hour (120 minutes)",
-  "2.5 hour (150 minutes)",
-  "3 hour (180+ minutes)",
+  { label: "30 minutes", minutes: 30 },
+  { label: "45 minutes", minutes: 45 },
+  { label: "1 hour (60 minutes)", minutes: 60 },
+  { label: "1.25 hour (75 minutes)", minutes: 75 },
+  { label: "1.5 hour (90 minutes)", minutes: 90 },
+  { label: "2 hour (120 minutes)", minutes: 120 },
+  { label: "2.5 hour (150 minutes)", minutes: 150 },
+  { label: "3 hour (180+ minutes)", minutes: 180 },
 ];
 
 // Map each duration option to its minute value for calculation purposes
@@ -21,8 +21,13 @@ export const durationMapping: Record<string, number> = {
   "3 hour (180+ minutes)": 180,
 };
 
-
-export const availableLanguages = ["English", "French", "German", "Spanish", "Other"];
+export const availableLanguages = [
+  "English",
+  "French",
+  "German",
+  "Spanish",
+  "Other",
+];
 
 export const creditPackages = [
   { package: 500, cost: 750 },

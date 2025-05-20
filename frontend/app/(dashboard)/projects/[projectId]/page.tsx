@@ -25,7 +25,7 @@ export default function ProjectOverviewPage() {
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">About this project</h2>
       <p>{project?.name || 'No description provided.'}</p>
-      {/* …more overview content here (stats, dates, etc.)… */}
+     
     </div>
   )
 }
