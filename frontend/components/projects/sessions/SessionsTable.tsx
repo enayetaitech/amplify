@@ -46,7 +46,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto lg:ml-10">
       <div className="bg-white rounded-lg shadow-lg">
-        <Table className="min-w-full divide-y divide-gray-200">
+        <Table className="min-w-full divide-y divide-gray-200 ">
           <TableHeader>
             <TableRow className="">
               {[
@@ -60,7 +60,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
               ].map((col) => (
                 <TableHead
                   key={col}
-                  className="px-6 py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider"
+                  className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words"
                 >
                   <div className="inline-flex items-center space-x-1">
                     <span>{col}</span>
