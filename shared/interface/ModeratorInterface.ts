@@ -1,3 +1,5 @@
+export type Role = "Admin" | "Moderator" | "Observer";
+
 export interface IModerator {
   _id?: string;
   firstName: string;
@@ -5,6 +7,7 @@ export interface IModerator {
   email: string;
   companyName: string;
   adminAccess: boolean;
+  roles: Role[];
   projectId: string;
   isVerified: boolean;
   isActive: boolean;

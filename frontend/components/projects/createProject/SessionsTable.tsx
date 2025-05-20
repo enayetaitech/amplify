@@ -18,17 +18,16 @@ import {
 } from "components/ui/dropdown-menu";
 import { MoreVertical, Plus, Trash } from "lucide-react";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "components/ui/select";
-import { durationMapping, durations } from "constant";
+import { durationMapping, durationStep3 } from "constant";
 import { IProjectSession, SessionRow } from "@shared/interface/ProjectInterface";
 
 export default function SessionsTable({
-  onChange,            // (rows: SessionRow[]) => void
-  initialSessions = [],// optional prefill
+  onChange,
+  initialSessions = [],
 }: {
   onChange: (rows: SessionRow[]) => void;
   initialSessions?: IProjectSession[];
 }) {
-  // initialize with either passed-in sessions or one blank row
   const [rows, setRows] = useState<SessionRow[]>(() => {
     if (initialSessions.length) {
       return initialSessions.map((s, i) => ({
@@ -38,7 +37,7 @@ export default function SessionsTable({
       }));
     }
     return [
-      { id: Date.now().toString(), number: 1, duration: durations[0] },
+      { id: Date.now().toString(), number: 1, duration: durationStep3[0] },
     ];
   });
 
@@ -50,7 +49,7 @@ export default function SessionsTable({
   const addRow = () => {
     setRows((prev) => [
       ...prev,
-      { id: Date.now().toString(), number: 1, duration: durations[0] },
+      { id: Date.now().toString(), number: 1, duration: durationStep3[0] },
     ]);
   };
   const deleteRow = (id: string) => {
@@ -112,7 +111,7 @@ export default function SessionsTable({
                   {row.duration}
                 </SelectTrigger>
                 <SelectContent>
-                  {durations.map((d) => (
+                  {durationStep3.map((d) => (
                     <SelectItem key={d} value={d}>
                       {d}
                     </SelectItem>

@@ -5,14 +5,15 @@ import ProjectFormModel, {
 } from "../model/ProjectFormModel";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import ProjectModel from "../model/ProjectModel";
-import mongoose, { PipelineStage } from "mongoose";
+import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
+import mongoose, { PipelineStage, Types } from "mongoose";
 import {
   projectCreateAndPaymentConfirmationEmailTemplate,
   projectInfoEmailTemplate,
 } from "../constants/emailTemplates";
 import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
 import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
+import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
 
 // ! the fields you really need to keep the payload light
 const PROJECT_POPULATE = [
@@ -116,10 +117,36 @@ export const createProjectByExternalAdmin = async (
     }
 
     // Create the project
-    const createdProject = await ProjectModel.create(
-      [{ ...projectData, createdBy: userId }],
-      { session }
-    );
+    // const createdProject = await ProjectModel.create(
+    //   [{ ...projectData, createdBy: userId }],
+    //   { session }
+    // );
+
+const project = new ProjectModel({
+      ...projectData,
+      createdBy: userId,
+    } as Partial<IProjectDocument>);
+    await project.save({ session });
+
+    // 3️⃣ Add external admin as moderator
+    const moderator = new ModeratorModel({
+      firstName:   user.firstName,
+      lastName:    user.lastName,
+      email:       user.email,
+      companyName: user.companyName,
+      roles:       ["Admin"],     // new roles array
+      adminAccess: true,          // if you still use this legacy flag
+      projectId:   project._id,
+      isVerified:  true,
+      isActive:    true,
+    } as Partial<IModeratorDocument>);
+    await moderator.save({ session });
+
+    // 4️⃣ Push moderator._id into project.moderators
+    project.moderators.push(moderator._id as Types.ObjectId);
+    await project.save({ session });
+
+
 
     // Delete draft if uniqueId exists
     if (uniqueId) {
@@ -169,7 +196,7 @@ export const createProjectByExternalAdmin = async (
       html: emailContent,
     });
 
-    sendResponse(res, createdProject, "Project created successfully", 201);
+    sendResponse(res, project, "Project created successfully", 201);
   } catch (error) {
     await session.abortTransaction();
     session.endSession();

@@ -1,3 +1,4 @@
+
 export const durations = [
   { label: "30 minutes", minutes: 30 },
   { label: "45 minutes", minutes: 45 },
@@ -8,7 +9,16 @@ export const durations = [
   { label: "2.5 hour (150 minutes)", minutes: 150 },
   { label: "3 hour (180+ minutes)", minutes: 180 },
 ];
-
+export const durationStep3 = [
+  "30 minutes",
+  "45 minutes",
+  "1 hour (60 minutes)",
+  "1.25 hour (75 minutes)",
+  "1.5 hour (90 minutes)",
+  "2 hour (120 minutes)",
+  "2.5 hour (150 minutes)",
+  "3 hour (180+ minutes)",
+];
 // Map each duration option to its minute value for calculation purposes
 export const durationMapping: Record<string, number> = {
   "30 minutes": 30,
