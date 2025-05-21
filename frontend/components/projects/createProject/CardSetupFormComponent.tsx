@@ -62,8 +62,8 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
       toast.success("Card saved successfully");
       onCardSaved();
     },
-    onError: (err) => {
-      toast.error(err.message || "Error saving card");
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 

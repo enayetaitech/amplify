@@ -60,13 +60,10 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
       setUser({ ...user!, stripeCustomerId: res.data.data.stripeCustomerId });
       setStep(2);
     },
-    onError: (err) => {
-      console.error(err);
-      toast.error("Failed to create customer");
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
-
-
 
   // Mutation to hit create-project-by-external-admin endpoint
   // const createProjectMutation = useMutation({
@@ -122,10 +119,6 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
     }
   };
 
-  // const handlePurchase = () => {
-  //   purchaseMutation.mutate();
-  // };
-
   // Reset on close
   useEffect(() => {
     if (!open) setStep(1);
@@ -134,11 +127,9 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        
-          <Button className="bg-custom-teal hover:bg-custom-dark-blue-3">
+        <Button className="bg-custom-teal hover:bg-custom-dark-blue-3">
           Pay Now
         </Button>
-      
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -188,20 +179,17 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
             </Card>
 
             {/* Billing */}
-            {
-              !user?.billingInfo && (
-                <BillingForm
-                  onSuccess={() => {
-                    // After billing saved, refetch user from server
-                    api.get("/api/v1/users/me").then((r) => {
-                      setUser(r.data.data.user);
-                      handleNext();
-                    });
-                  }}
-                />
-              )
-            
-            }
+            {!user?.billingInfo && (
+              <BillingForm
+                onSuccess={() => {
+                  // After billing saved, refetch user from server
+                  api.get("/api/v1/users/me").then((r) => {
+                    setUser(r.data.data.user);
+                    handleNext();
+                  });
+                }}
+              />
+            )}
           </>
         )}
 
@@ -217,10 +205,6 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
         )}
 
         <DialogFooter className="flex justify-end space-x-2">
-          {/* <CustomButton variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </CustomButton> */}
-
           {step === 1 && (
             <CustomButton
               onClick={handleNext}
@@ -233,7 +217,6 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               Next
             </CustomButton>
           )}
-   
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -39,7 +39,6 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   onAction,
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  // ref to the currently-open menu, for click-outside handling
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -55,6 +54,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
+  
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto lg:ml-10">
       <div className="bg-white rounded-lg shadow-lg">

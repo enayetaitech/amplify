@@ -18,7 +18,6 @@ import { useParams } from "next/navigation";
 interface AddModeratorModalProps {
   open: boolean;
   onClose: () => void;
-
   onSuccess?: () => void;
 }
 
@@ -32,7 +31,6 @@ interface ModeratorFormData {
 const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
   open,
   onClose,
-
   onSuccess,
 }) => {
    const params = useParams();
@@ -65,8 +63,8 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
       onSuccess?.();
     },
 
-    onError: (err) => {
-      toast.error(err.message || "Failed to add moderator");
+    onError: (error) => {
+    toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 

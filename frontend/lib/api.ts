@@ -57,7 +57,7 @@ api.interceptors.response.use(
       return new Promise<AxiosResponse<unknown>>((resolve, reject) => {
         axios
           .post(
-            `${BASE_URL}/auth/refresh`,
+            `${BASE_URL}/api/v1/auth/refresh`,
             null,
             { withCredentials: true }
           )
@@ -75,6 +75,17 @@ api.interceptors.response.use(
       });
     }
 
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  response => response,
+  (error: unknown) => {
+    if (axios.isAxiosError<{ message: string }>(error) && error.response?.data?.message) {
+      // override the built-in AxiosError.message
+      error.message = error.response.data.message;
+    }
     return Promise.reject(error);
   }
 );

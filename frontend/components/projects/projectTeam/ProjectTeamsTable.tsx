@@ -12,7 +12,8 @@ import {
   TableCell,
 } from "components/ui/table";
 import { ChevronsUpDown, Pencil } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
+import EditModeratorModal from "./EditModeratorModal";
 
 export interface ProjectTeamsTableProps {
   moderators: IModerator[];
@@ -25,6 +26,20 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
   meta,
   onPageChange,
 }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeModerator, setActiveModerator] = useState<IModerator | null>(
+    null
+  );
+
+  const openModal = (mod: IModerator) => {
+    setActiveModerator(mod);
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setActiveModerator(null);
+  };
+
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto">
       <div className="bg-white rounded-lg shadow-lg">
@@ -42,7 +57,7 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                   </div>
                 </TableHead>
               ))}
-              <TableHead className="px-6 py-3" /> {/* action menu */}
+              <TableHead className="px-6 py-3" />
             </TableRow>
           </TableHeader>
 
@@ -53,9 +68,11 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                   {m.firstName} {m.lastName}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {m.roles?.length
-          ? m.roles.join(", ")
-          : <span className="text-gray-400">No role assigned</span>}
+                  {m.roles?.length ? (
+                    m.roles.join(", ")
+                  ) : (
+                    <span className="text-gray-400">No role assigned</span>
+                  )}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {/*activity log*/}
@@ -63,6 +80,7 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
                   <CustomButton
                     icon={<Pencil />}
+                    onClick={() => openModal(m)}
                     className=" bg-custom-orange-1 text-white hover:bg-custom-orange-2 font-semibold px-2"
                   />
                 </TableCell>
@@ -84,6 +102,11 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
           </TableFooter>
         </Table>
       </div>
+      <EditModeratorModal
+        open={isModalOpen}
+        moderator={activeModerator}
+        onClose={closeModal}
+      />
     </div>
   );
 };

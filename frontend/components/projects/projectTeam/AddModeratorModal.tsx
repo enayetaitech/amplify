@@ -37,13 +37,19 @@ export interface AddModeratorValues {
 interface AddModeratorModalProps {
   open: boolean;
   onClose: () => void;
-
 }
+
+const textFields = [
+  { name: "firstName" as const, label: "First Name", type: "text" },
+  { name: "lastName" as const, label: "Last Name", type: "text" },
+  { name: "email" as const, label: "Email", type: "email" },
+  { name: "companyName" as const, label: "Company Name", type: "text" },
+];
 
 export default function AddModeratorModal({
   open,
   onClose,
-  }: AddModeratorModalProps) {
+}: AddModeratorModalProps) {
   const form = useForm<AddModeratorValues>({
     defaultValues: {
       firstName: "",
@@ -53,48 +59,32 @@ export default function AddModeratorModal({
       roles: [],
     },
   });
-    const params = useParams();
-    if (!params.projectId || Array.isArray(params.projectId)) {
-      throw new Error("projectId is required and must be a string");
-    }
-    const projectId = params.projectId;
-  // const watchedRoles = form.watch("roles");
+  const params = useParams();
+  if (!params.projectId || Array.isArray(params.projectId)) {
+    throw new Error("projectId is required and must be a string");
+  }
+  const projectId = params.projectId;
   const queryClient = useQueryClient();
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingRole, setPendingRole] = useState<string | null>(null);
   const [prevRoles, setPrevRoles] = useState<string[]>([]);
 
-   const createProjectTeamMember = useMutation({
+  const createProjectTeamMember = useMutation({
     mutationFn: (payload: AddModeratorValues & { projectId: string }) =>
       api.post("/api/v1/moderators/add-moderator", payload),
     onSuccess: () => {
       toast.success("Moderator added!");
       queryClient.invalidateQueries({
-        queryKey: ["projectTeam", projectId ],
+        queryKey: ["projectTeam", projectId],
       });
       form.reset();
       onClose();
     },
-    onError: (err) => {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      toast.error(message);
+    onError: (error) => {
+    toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
-
-  // const handleRoleChange = (role: string, checked: boolean) => {
-  //   const current = form.getValues("roles");
-  //   if (role === "Admin" && checked) {
-  //     setPrevRoles(current);
-  //     setPendingRole("Admin");
-  //     setIsConfirmOpen(true);
-  //   } else {
-  //     form.setValue(
-  //       "roles",
-  //       checked ? [...current, role] : current.filter((r) => r !== role)
-  //     );
-  //   }
-  // };
 
   const onConfirm = (yes: boolean) => {
     if (yes && pendingRole) {
@@ -106,7 +96,7 @@ export default function AddModeratorModal({
     setIsConfirmOpen(false);
   };
 
-   const onSubmit = form.handleSubmit((values) => {
+  const onSubmit = form.handleSubmit((values) => {
     createProjectTeamMember.mutate({
       ...values,
       projectId,
@@ -124,103 +114,63 @@ export default function AddModeratorModal({
           <Form {...form}>
             <form onSubmit={onSubmit} className="space-y-4">
               {/* First Name */}
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="First Name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Last Name */}
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Last Name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Email */}
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="Email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Company */}
-              <FormField
-                control={form.control}
-                name="companyName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Company Name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {textFields.map(({ name, label, type }) => (
+                <FormField
+                  key={name}
+                  control={form.control}
+                  name={name}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{label}</FormLabel>
+                      <FormControl>
+                        <Input type={type} placeholder={label} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ))}
 
               {/* Roles */}
               <FormField
-  control={form.control}
-  name="roles"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Role</FormLabel>
-      <FormControl>
-        <div className="space-y-2">
-          {["Admin", "Moderator", "Observer"].map((role) => (
-            <div key={role} className="flex items-center space-x-2">
-              <Checkbox
-                checked={field.value.includes(role)}
-                onCheckedChange={(checked) => {
-                  // same confirm logic for Admin
-                  if (role === "Admin" && checked) {
-                    setPrevRoles(field.value);
-                    setPendingRole("Admin");
-                    setIsConfirmOpen(true);
-                  } else {
-                    field.onChange(
-                      checked
-                        ? [...field.value, role]
-                        : field.value.filter((r) => r !== role)
-                    );
-                  }
-                }}
+                control={form.control}
+                name="roles"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <FormControl>
+                      <div className="space-y-2">
+                        {["Admin", "Moderator", "Observer"].map((role) => (
+                          <div
+                            key={role}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              checked={field.value.includes(role)}
+                              onCheckedChange={(checked) => {
+                                // same confirm logic for Admin
+                                if (role === "Admin" && checked) {
+                                  setPrevRoles(field.value);
+                                  setPendingRole("Admin");
+                                  setIsConfirmOpen(true);
+                                } else {
+                                  field.onChange(
+                                    checked
+                                      ? [...field.value, role]
+                                      : field.value.filter((r) => r !== role)
+                                  );
+                                }
+                              }}
+                            />
+                            <span>{role}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <span>{role}</span>
-            </div>
-          ))}
-        </div>
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-
 
               <DialogFooter className="pt-4">
                 <Button

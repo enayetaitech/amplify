@@ -52,11 +52,8 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
     onSuccess();
   },
 
-  onError: (err) => {
-    const msg = axios.isAxiosError(err)
-      ? err.response?.data?.message ?? err.message
-      : "Error saving billing info";
-    toast.error(msg);
+  onError: (error) => {
+    toast.error(error instanceof Error ? error.message : "Unknown error");
   },
 });
 

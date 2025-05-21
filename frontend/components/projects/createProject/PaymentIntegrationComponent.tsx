@@ -8,7 +8,6 @@ import { loadStripe } from "@stripe/stripe-js";
 import CardSetupForm from "./CardSetupFormComponent";
 import BillingForm from "./BillingFormComponent";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import { IProject } from "@shared/interface/ProjectInterface";
 import {
   IProjectFormState,
@@ -78,12 +77,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       createProjectMutation.mutate();
       console.log("purchase mutation done");
     },
-    onError: (err) => {
-      toast.error(
-        axios.isAxiosError(err)
-          ? err.response?.data?.message || "Payment failed"
-          : "Payment failed"
-      );
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
   // Mutation to hit create-project-by-external-admin endpoint
@@ -101,13 +96,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       queryClient.invalidateQueries({ queryKey: ["projectsByUser", user?._id] });
       router.push("/projects");
     },
-    onError: (err) => {
-      console.log("error in purchase integration", err);
-      toast.error(
-        axios.isAxiosError(err)
-          ? err.response?.data?.message || "Project creation failed"
-          : "Project creation failed"
-      );
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 
@@ -138,8 +128,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
     setChargeLoading(true);
 
     const amountCents = Math.round(totalPurchasePrice * 100);
-    console.log("Charging amount (cents):", amountCents);
-    if (!user.stripeCustomerId) {
+        if (!user.stripeCustomerId) {
       return toast.error("No Stripe customer ID available");
     }
 

@@ -115,12 +115,8 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
       onClose();
       setStep(1);
     },
-    onError: (err) => {
-         if (err instanceof Error) {
-      toast.error(err.message);
-    } else {
-      toast.error("An unknown error occurred.");
-    }
+    onError: (error) => {
+    toast.error(error instanceof Error ? error.message : "Unknown error");
   }
   });
 
