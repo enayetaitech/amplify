@@ -8,7 +8,7 @@ const router = express.Router();
 // POST /api/v1/moderators/add-moderator
 router.post("/add-moderator", catchError(addModerator));
 
-// POST /api/v1/moderators/:moderatorId
+// PUT /api/v1/moderators/:moderatorId
 router.put("/:moderatorId", catchError(editModerator));
 
 // POST /api/v1/moderators/project/:projectId

@@ -5,21 +5,22 @@ import ProjectFormModel, {
 } from "../model/ProjectFormModel";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import ProjectModel from "../model/ProjectModel";
-import mongoose from "mongoose";
+import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
+import mongoose, { PipelineStage, Types } from "mongoose";
 import {
   projectCreateAndPaymentConfirmationEmailTemplate,
   projectInfoEmailTemplate,
 } from "../constants/emailTemplates";
 import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
 import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
+import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
 
 // ! the fields you really need to keep the payload light
 const PROJECT_POPULATE = [
   { path: "moderators", select: "firstName lastName email" },
-  { path: "meetings",   select: "title date startTime duration timeZone " },
-  { path: "createdBy",   select: "firstName lastName email" },
-  { path: "tags",   select: "title color" },
+  { path: "meetings", select: "title date startTime duration timeZone " },
+  { path: "createdBy", select: "firstName lastName email" },
+  { path: "tags", select: "title color" },
 ];
 
 export const saveProgress = async (
@@ -116,10 +117,36 @@ export const createProjectByExternalAdmin = async (
     }
 
     // Create the project
-    const createdProject = await ProjectModel.create(
-      [{ ...projectData, createdBy: userId }],
-      { session }
-    );
+    // const createdProject = await ProjectModel.create(
+    //   [{ ...projectData, createdBy: userId }],
+    //   { session }
+    // );
+
+const project = new ProjectModel({
+      ...projectData,
+      createdBy: userId,
+    } as Partial<IProjectDocument>);
+    await project.save({ session });
+
+    // 3️⃣ Add external admin as moderator
+    const moderator = new ModeratorModel({
+      firstName:   user.firstName,
+      lastName:    user.lastName,
+      email:       user.email,
+      companyName: user.companyName,
+      roles:       ["Admin"],     // new roles array
+      adminAccess: true,          // if you still use this legacy flag
+      projectId:   project._id,
+      isVerified:  true,
+      isActive:    true,
+    } as Partial<IModeratorDocument>);
+    await moderator.save({ session });
+
+    // 4️⃣ Push moderator._id into project.moderators
+    project.moderators.push(moderator._id as Types.ObjectId);
+    await project.save({ session });
+
+
 
     // Delete draft if uniqueId exists
     if (uniqueId) {
@@ -169,7 +196,7 @@ export const createProjectByExternalAdmin = async (
       html: emailContent,
     });
 
-    sendResponse(res, createdProject, "Project created successfully", 201);
+    sendResponse(res, project, "Project created successfully", 201);
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -234,37 +261,114 @@ export const getProjectByUserId = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId } = req.params;
+  const { search = "", page = 1, limit = 10 } = req.query;
 
   if (!userId) {
     return next(new ErrorHandler("User ID is required", 400));
   }
 
-    // ── pagination params ───────────────────────────────────────
-    const page  = Math.max(Number(req.query.page)  || 1, 1);
-    const limit = Math.max(Number(req.query.limit) || 10, 1);
-    const skip  = (page - 1) * limit;
+  // ── pagination params ───────────────────────────────────────
+  const pageNum = Math.max(Number(page), 1);
+  const limitNum = Math.max(Number(limit), 1);
+  const skip = (pageNum - 1) * limitNum;
 
-    // ── parallel queries: data + count ─────────────────────────
-    const [projects, total] = await Promise.all([
-      ProjectModel.find({ createdBy: userId })
-        .sort({ name: 1 })  
-        .skip(skip)
-        .limit(limit)
-        .populate(PROJECT_POPULATE)
-        .lean(),
-      ProjectModel.countDocuments({ createdBy: userId }),
-    ]);
+  const searchRegex = new RegExp(search as string, "i");
 
-    // ── build meta payload ─────────────────────────────────────
-    const totalPages = Math.ceil(total / limit);
-    const meta = {
-      page,
-      limit,
-      totalItems: total,
-      totalPages,
-      hasPrev: page > 1,
-      hasNext: page < totalPages,
-    };
+ const baseMatch: PipelineStage.Match = {
+    $match: {
+      createdBy: new mongoose.Types.ObjectId(userId),
+    },
+  };
+
+  const searchMatch: PipelineStage.Match = {
+    $match: {
+      $or: [
+        { name: { $regex: searchRegex } },
+        { "moderators.firstName": { $regex: searchRegex } },
+        { "moderators.lastName": { $regex: searchRegex } },
+        { "moderators.companyName": { $regex: searchRegex } },
+      ],
+    },
+  };
+
+  const aggregationPipeline: PipelineStage[] = [
+    baseMatch,
+    {
+      $lookup: {
+        from: "moderators",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "moderators",
+      },
+    },
+    { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
+    searchMatch,
+    {
+      $lookup: {
+        from: "sessions",
+        localField: "meetings",
+        foreignField: "_id",
+        as: "meetingObjects",
+      },
+    },
+      {
+    $lookup: {
+      from: "tags",
+      localField: "tags",
+      foreignField: "_id",
+      as: "tags",
+    },
+  },
+    {
+      $group: {
+        _id: "$_id",
+        doc: { $first: "$$ROOT" },
+      },
+    },
+    { $replaceRoot: { newRoot: "$doc" } },
+    { $sort: { name: 1 } },
+    { $skip: skip },
+    { $limit: limitNum },
+  ];
+
+  const projects = await ProjectModel.aggregate(aggregationPipeline);
+
+
+  // Separate aggregation for count
+  const totalAgg: PipelineStage[] = [
+    baseMatch,
+    {
+      $lookup: {
+        from: "moderators",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "moderators",
+      },
+    },
+    { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
+    searchMatch,
+    {
+      $group: {
+        _id: "$_id",
+      },
+    },
+    {
+      $count: "total",
+    },
+  ];
+
+  const totalCountAgg = await ProjectModel.aggregate(totalAgg);
+  const totalCount = totalCountAgg[0]?.total || 0;
+  const totalPages = Math.ceil(totalCount / limitNum);
+
+  const meta = {
+    page: pageNum,
+    limit: limitNum,
+    totalItems: totalCount,
+    totalPages,
+    hasPrev: pageNum > 1,
+    hasNext: pageNum < totalPages,
+  };
 
   // Send the result back to the frontend using your sendResponse utility
   sendResponse(res, projects, "Projects retrieved successfully", 200, meta);
@@ -281,9 +385,8 @@ export const getProjectById = async (
     return next(new ErrorHandler("Project ID is required", 400));
   }
 
- // findById + populate all related paths
-  const project = await ProjectModel
-    .findById(projectId)
+  // findById + populate all related paths
+  const project = await ProjectModel.findById(projectId)
     .populate(PROJECT_POPULATE)
     .exec();
 
@@ -291,7 +394,7 @@ export const getProjectById = async (
     return next(new ErrorHandler("Project not found", 404));
   }
 
-    sendResponse(res, project, "Project retrieved successfully", 200);
+  sendResponse(res, project, "Project retrieved successfully", 200);
 };
 
 export const editProject = async (
@@ -325,7 +428,7 @@ export const editProject = async (
     project.description = description;
   }
 
-console.log('req.body', req.body)
+  console.log("req.body", req.body);
 
   // Save the updated project.
   const updatedProject = await project.save();
@@ -351,8 +454,13 @@ export const toggleRecordingAccess = async (
 
   // Toggle the recordingAccess field
   project.recordingAccess = !project.recordingAccess;
-  
+
   // Save the updated project
   const updatedProject = await project.save();
-  sendResponse(res, updatedProject, "Recording access toggled successfully", 200);
+  sendResponse(
+    res,
+    updatedProject,
+    "Recording access toggled successfully",
+    200
+  );
 };

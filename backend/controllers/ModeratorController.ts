@@ -10,6 +10,7 @@ import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcess
 import { moderatorAddedEmailTemplate } from "../constants/emailTemplates";
 import mongoose, { Types } from "mongoose";
 
+const ALLOWED_ROLES = ["Admin", "Moderator", "Observer"] as const;
 /**
  * Controller to add a new moderator to a project.
  * - Validates input
@@ -25,17 +26,30 @@ export const addModerator = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { firstName, lastName, email, companyName, adminAccess, projectId } =
+  const { firstName, lastName, email, companyName, adminAccess, roles,  projectId } =
     req.body;
-
+    console.log('req.body', req.body)
   // 1️⃣ Validate required fields
-  if (!firstName || !lastName || !email || !companyName || !projectId) {
+  if (!firstName || !lastName || !email || !companyName || !projectId ||
+    !Array.isArray(roles)) {
     return next(
       new ErrorHandler(
-        "firstName, lastName, email, companyName, and projectId are required",
+        "firstName, lastName, email, companyName, roles[] and projectId are required",
         400
       )
     );
+  }
+
+  // 1a️⃣ Validate roles values
+  for (const r of roles) {
+    if (!ALLOWED_ROLES.includes(r as typeof ALLOWED_ROLES[number])) {
+      return next(
+        new ErrorHandler(
+          `Invalid role "${r}". Must be one of: ${ALLOWED_ROLES.join(", ")}`,
+          400
+        )
+      );
+    }
   }
 
   // 2️⃣ Prevent adding the same email twice to a single project
@@ -54,7 +68,6 @@ export const addModerator = async (
   if (!project) {
     return next(new ErrorHandler("Project not found", 404));
   }
-
   // 4️⃣ Lookup the project owner (creator) to get their full name
   const creator = await User.findById(project.createdBy);
   if (!creator) {
@@ -69,11 +82,12 @@ export const addModerator = async (
 // console.log('let moderator', moderator)
    try{
   // 5️⃣ Create and save the new moderator document
-     moderator = new ModeratorModel({
+  moderator = new ModeratorModel({
   firstName,
   lastName,
   email,
   companyName,
+   roles,  
   adminAccess: !!adminAccess,
   projectId,
 });
@@ -81,7 +95,6 @@ export const addModerator = async (
 // 2️⃣ Save it, passing the session as part of save-options
 await moderator.save({ session });
 
-    console.log('moderator', moderator)
 
   // 2️⃣ push into project's moderators array in the same session
     project.moderators.push(moderator._id as Types.ObjectId);

@@ -1,7 +1,7 @@
 // src/models/moderator.model.ts
 
 import { Schema, model, Document, Types } from "mongoose";
-import { IModerator } from "../../shared/interface/ModeratorInterface";
+import { IModerator, Role } from "../../shared/interface/ModeratorInterface";
 
 // Omit the '_id' from IModerator to avoid conflicts with Document's '_id'
 export interface IModeratorDocument
@@ -17,10 +17,16 @@ const moderatorSchema = new Schema<IModeratorDocument>(
     lastName: { type: String, required: true },
     email: { type: String, required: true },
     companyName: { type: String, required: true },
+     roles: {
+      type: [String],
+      enum: ["Admin", "Moderator", "Observer"] as Role[],
+      default: [],
+      required: true,
+    },
     adminAccess: { type: Boolean, default: false },
     projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
     isVerified: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
   },
   {
     timestamps: true,

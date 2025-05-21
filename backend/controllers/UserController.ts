@@ -111,7 +111,7 @@ export const loginUser = async (
 
   const { ip, deviceType, platform, browser, location } = (req as any).deviceInfo;
 
-  console.log("ip, deviceType, platform, browser, location", ip, deviceType, platform, browser, location)
+  
 
   if (!email || !password) {
     return next(new ErrorHandler("Email and password are required", 400));
@@ -133,6 +133,7 @@ export const loginUser = async (
   const isMatch = await bcrypt.compare(password, user.password);
 
   if (!isMatch) {
+    console.log('Invalid credentials')
     return next(new ErrorHandler("Invalid credentials", 401));
   }
 

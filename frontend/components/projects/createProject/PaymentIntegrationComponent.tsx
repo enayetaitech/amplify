@@ -2,14 +2,12 @@
 "use client";
 import React, { useState } from "react";
 import { Elements } from "@stripe/react-stripe-js";
-import { Button } from "components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import CardSetupForm from "./CardSetupFormComponent";
 import BillingForm from "./BillingFormComponent";
-import { useMutation } from "@tanstack/react-query";
-import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IProject } from "@shared/interface/ProjectInterface";
 import {
   IProjectFormState,
@@ -19,6 +17,8 @@ import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IUser } from "@shared/interface/UserInterface";
+import { Card } from "components/ui/card";
+import CustomButton from "components/shared/CustomButton";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
@@ -32,6 +32,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 }) => {
   const { user, setUser } = useGlobalContext();
   const router = useRouter();
+  const queryClient = useQueryClient()
 
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [chargeLoading, setChargeLoading] = useState(false);
@@ -54,9 +55,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   const chargeMutation = useMutation<
     // TData
     { data: { user: typeof user } },
-    // TError
     unknown,
-    // TVariables
     { amount: number; credits: number; userId: string; customerId: string }
   >({
     mutationFn: ({ amount, credits, customerId, userId }) =>
@@ -71,19 +70,15 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
         .then((res) => res.data),
     onSuccess: (apiResp) => {
       const updatedUser = apiResp.data.user;
-      // persist and update context
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
+      console.log("user set");
       toast.success("Payment successful");
-      // now create project
       createProjectMutation.mutate();
+      console.log("purchase mutation done");
     },
-    onError: (err) => {
-      toast.error(
-        axios.isAxiosError(err)
-          ? err.response?.data?.message || "Payment failed"
-          : "Payment failed"
-      );
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
   // Mutation to hit create-project-by-external-admin endpoint
@@ -98,14 +93,11 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       }),
     onSuccess: () => {
       toast.success("Project created successfully!");
+      queryClient.invalidateQueries({ queryKey: ["projectsByUser", user?._id] });
       router.push("/projects");
     },
-    onError: (err) => {
-      toast.error(
-        axios.isAxiosError(err)
-          ? err.response?.data?.message || "Project creation failed"
-          : "Project creation failed"
-      );
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 
@@ -136,8 +128,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
     setChargeLoading(true);
 
     const amountCents = Math.round(totalPurchasePrice * 100);
-    console.log("Charging amount (cents):", amountCents);
-    if (!user.stripeCustomerId) {
+        if (!user.stripeCustomerId) {
       return toast.error("No Stripe customer ID available");
     }
 
@@ -153,8 +144,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   const hasCard = Boolean(user.creditCardInfo?.last4);
 
   return (
-    <div className="space-y-6 p-6">
-      <h2 className="text-2xl font-bold">Payment Integration</h2>
+    <div className="space-y-6">
+      {/* <h2 className="text-2xl font-bold">Payment Integration</h2> */}
       {/* Billing Form */}
       {!hasBilling && (
         <div>
@@ -164,25 +155,47 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       )}
       {/* Card Setup Form */}
       {hasBilling && (!hasCard || isChangingCard) && (
-        <CardSetupForm onCardSaved={() => setIsChangingCard(false)} />
+        <CardSetupForm
+          onCardSaved={() => {
+            const amountCents = Math.round(totalPurchasePrice * 100);
+            if (!user?.stripeCustomerId) {
+              return toast.error("No Stripe customer ID available");
+            }
+
+            chargeMutation.mutate({
+              amount: amountCents,
+              credits: totalCreditsNeeded,
+              customerId: user.stripeCustomerId,
+              userId: user._id!,
+            });
+          }}
+        />
       )}
       {/* Saved Card Display */}
       {hasBilling && hasCard && !isChangingCard && (
-        <div className="space-y-4 border p-4 rounded-md">
+        <Card className="space-y-4 border-0 shadow-sm p-4">
           <p>
             Your saved card ending in{" "}
             <span className="font-medium">{user.creditCardInfo?.last4}</span> is
             on file.
           </p>
           <div className="flex space-x-4">
-            <Button onClick={handleUseSavedCard} disabled={chargeLoading}>
+            <CustomButton
+              className="bg-custom-teal hover:bg-custom-dark-blue-3"
+              onClick={handleUseSavedCard}
+              disabled={chargeLoading}
+            >
               {chargeLoading ? "Processing..." : "Use this Card"}
-            </Button>
-            <Button variant="outline" onClick={() => setIsChangingCard(true)}>
+            </CustomButton>
+            <CustomButton
+              className="bg-custom-teal hover:bg-custom-dark-blue-3"
+              onClick={() => setIsChangingCard(true)}
+              disabled={chargeLoading}
+            >
               Change Card
-            </Button>
+            </CustomButton>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
