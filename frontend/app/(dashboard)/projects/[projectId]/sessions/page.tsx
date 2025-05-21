@@ -36,15 +36,14 @@ const Sessions = () => {
   const router = useRouter();
   const limit = 10;
 
-  const [page, setPage] = useState(1);
-
   const [openAddSessionModal, setOpenAddSessionModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
-  const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  
+  const [page, setPage] = useState(1);
+  const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
-  console.log('session to edit', sessionToEdit)
 
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<

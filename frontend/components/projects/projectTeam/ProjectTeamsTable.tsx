@@ -46,14 +46,16 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
             </TableRow>
           </TableHeader>
 
-          <TableBody className="bg-white divide-y divide-gray-100 text-center">
+          <TableBody className="bg-white divide-y divide-gray-100 text-left">
             {moderators.map((m) => (
               <TableRow key={m._id} className="cursor-pointer hover:bg-gray-50">
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {m.firstName} {m.lastName}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {/* role */}
+                  {m.roles?.length
+          ? m.roles.join(", ")
+          : <span className="text-gray-400">No role assigned</span>}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {/*activity log*/}

@@ -28,7 +28,7 @@ export const addModerator = async (
 ): Promise<void> => {
   const { firstName, lastName, email, companyName, adminAccess, roles,  projectId } =
     req.body;
-
+    console.log('req.body', req.body)
   // 1️⃣ Validate required fields
   if (!firstName || !lastName || !email || !companyName || !projectId ||
     !Array.isArray(roles)) {
@@ -68,7 +68,6 @@ export const addModerator = async (
   if (!project) {
     return next(new ErrorHandler("Project not found", 404));
   }
-
   // 4️⃣ Lookup the project owner (creator) to get their full name
   const creator = await User.findById(project.createdBy);
   if (!creator) {
