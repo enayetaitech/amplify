@@ -1,6 +1,9 @@
 "use client";
 
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery
+} from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
@@ -11,28 +14,26 @@ import { Plus } from "lucide-react";
 import CustomButton from "components/shared/CustomButton";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import ProjectTeamsTable from "components/projects/projectTeam/ProjectTeamsTable";
-import AddModeratorModal, { AddModeratorValues } from "components/projects/projectTeam/AddModeratorModal";
+import AddModeratorModal from "components/projects/projectTeam/AddModeratorModal";
 
 const ProjectTeam = () => {
   const { projectId } = useParams();
-    const qc = useQueryClient();
 
   const [openAddModeratorModal, setOpenAddModeratorModal] = useState(false);
   const [page, setPage] = useState(1);
-    const limit = 10;
+  const limit = 10;
 
-  const {
-    data,
-    isLoading,
-    error,
-  } = useQuery<
+  const { data, isLoading, error } = useQuery<
     { data: IModerator[]; meta: IPaginationMeta },
     Error
   >({
     queryKey: ["projectTeam", projectId, page],
     queryFn: () =>
       api
-        .get<{ data: IModerator[]; meta: IPaginationMeta }>(`/api/v1/moderators/project/${projectId}`, { params: { page, limit } })
+        .get<{ data: IModerator[]; meta: IPaginationMeta }>(
+          `/api/v1/moderators/project/${projectId}`,
+          { params: { page, limit } }
+        )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
   });
@@ -43,14 +44,6 @@ const ProjectTeam = () => {
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
-    const handleSave = async (values: AddModeratorValues) => {
-    await api.post("/api/v1/moderators", {
-      ...values,
-      projectId,
-    });
-    
-    qc.invalidateQueries({ queryKey:["projectTeam", projectId]});
-  };
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
@@ -66,23 +59,24 @@ const ProjectTeam = () => {
         />
       </div>
 
-         <AddModeratorModal
+      <AddModeratorModal
         open={openAddModeratorModal}
         onClose={() => setOpenAddModeratorModal(false)}
-        onSave={handleSave}
       />
 
-      {
-        isLoading ? <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">Loading Sessions...</p> : (
-          <div className="pt-5 bg-custom-white">
-            <ProjectTeamsTable
+      {isLoading ? (
+        <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">
+          Loading Sessions...
+        </p>
+      ) : (
+        <div className="pt-5 bg-custom-white">
+          <ProjectTeamsTable
             moderators={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
-            />
-          </div>
-          
-          )}
+          />
+        </div>
+      )}
     </ComponentContainer>
   );
 };

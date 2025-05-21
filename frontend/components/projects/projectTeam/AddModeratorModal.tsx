@@ -11,59 +11,90 @@ import {
 } from "components/ui/dialog";
 import { Button } from "components/ui/button";
 import { Input } from "components/ui/input";
-import { Label } from "components/ui/label";
 import { Checkbox } from "components/ui/checkbox";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "components/ui/form";
 import ConfirmationModalComponent from "components/ConfirmationModalComponent";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "lib/api";
+import { toast } from "sonner";
+import { useParams } from "next/navigation";
 
 export interface AddModeratorValues {
   firstName: string;
   lastName: string;
   email: string;
-  company: string;
+  companyName: string;
   roles: string[];
 }
 
 interface AddModeratorModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (values: AddModeratorValues) => Promise<void>;
+
 }
 
 export default function AddModeratorModal({
   open,
   onClose,
-  onSave,
-}: AddModeratorModalProps) {
+  }: AddModeratorModalProps) {
   const form = useForm<AddModeratorValues>({
     defaultValues: {
       firstName: "",
       lastName: "",
       email: "",
-      company: "",
+      companyName: "",
       roles: [],
     },
   });
+    const params = useParams();
+    if (!params.projectId || Array.isArray(params.projectId)) {
+      throw new Error("projectId is required and must be a string");
+    }
+    const projectId = params.projectId;
+  // const watchedRoles = form.watch("roles");
+  const queryClient = useQueryClient();
 
-    const watchedRoles = form.watch("roles");
-
-    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingRole, setPendingRole] = useState<string | null>(null);
   const [prevRoles, setPrevRoles] = useState<string[]>([]);
 
-  const handleRoleChange = (role: string, checked: boolean) => {
-    const current = form.getValues("roles");
-    if (role === "Admin" && checked) {
-      setPrevRoles(current);
-      setPendingRole("Admin");
-      setIsConfirmOpen(true);
-    } else {
-      form.setValue(
-        "roles",
-        checked ? [...current, role] : current.filter((r) => r !== role)
-      );
-    }
-  };
+   const createProjectTeamMember = useMutation({
+    mutationFn: (payload: AddModeratorValues & { projectId: string }) =>
+      api.post("/api/v1/moderators/add-moderator", payload),
+    onSuccess: () => {
+      toast.success("Moderator added!");
+      queryClient.invalidateQueries({
+        queryKey: ["projectTeam", projectId ],
+      });
+      form.reset();
+      onClose();
+    },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(message);
+    },
+  });
+
+  // const handleRoleChange = (role: string, checked: boolean) => {
+  //   const current = form.getValues("roles");
+  //   if (role === "Admin" && checked) {
+  //     setPrevRoles(current);
+  //     setPendingRole("Admin");
+  //     setIsConfirmOpen(true);
+  //   } else {
+  //     form.setValue(
+  //       "roles",
+  //       checked ? [...current, role] : current.filter((r) => r !== role)
+  //     );
+  //   }
+  // };
 
   const onConfirm = (yes: boolean) => {
     if (yes && pendingRole) {
@@ -75,10 +106,11 @@ export default function AddModeratorModal({
     setIsConfirmOpen(false);
   };
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    await onSave(values);
-    form.reset();
-    onClose();
+   const onSubmit = form.handleSubmit((values) => {
+    createProjectTeamMember.mutate({
+      ...values,
+      projectId,
+    });
   });
 
   return (
@@ -139,7 +171,7 @@ export default function AddModeratorModal({
               {/* Company */}
               <FormField
                 control={form.control}
-                name="company"
+                name="companyName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company Name</FormLabel>
@@ -152,21 +184,43 @@ export default function AddModeratorModal({
               />
 
               {/* Roles */}
-              <div className="space-y-2">
-                <Label>Role</Label>
-                {["Admin", "Moderator", "Observer"].map((role) => (
-                  <div key={role} className="flex items-center space-x-2">
-                    <Checkbox
-                      checked={watchedRoles.includes(role)}
-                      onCheckedChange={(checked) =>
-                        handleRoleChange(role, !!checked)
-                      }
-                    />
-                    <span>{role}</span>
-                  </div>
-                ))}
-                <FormMessage name="roles" />
-              </div>
+              <FormField
+  control={form.control}
+  name="roles"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Role</FormLabel>
+      <FormControl>
+        <div className="space-y-2">
+          {["Admin", "Moderator", "Observer"].map((role) => (
+            <div key={role} className="flex items-center space-x-2">
+              <Checkbox
+                checked={field.value.includes(role)}
+                onCheckedChange={(checked) => {
+                  // same confirm logic for Admin
+                  if (role === "Admin" && checked) {
+                    setPrevRoles(field.value);
+                    setPendingRole("Admin");
+                    setIsConfirmOpen(true);
+                  } else {
+                    field.onChange(
+                      checked
+                        ? [...field.value, role]
+                        : field.value.filter((r) => r !== role)
+                    );
+                  }
+                }}
+              />
+              <span>{role}</span>
+            </div>
+          ))}
+        </div>
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
 
               <DialogFooter className="pt-4">
                 <Button
@@ -185,7 +239,7 @@ export default function AddModeratorModal({
         </DialogContent>
       </Dialog>
 
-     <ConfirmationModalComponent
+      <ConfirmationModalComponent
         open={isConfirmOpen}
         heading="Confirm Admin Role"
         text="Are you sure you want to add this person as an Admin for this project? Adding an Admin authorizes this individual to incur charges on your behalf."

@@ -109,7 +109,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
     onSuccess: () => {
       toast.success("Sessions created!");
       queryClient.invalidateQueries({
-        queryKey: ["sessions", projectId],
+        queryKey: ["sessions", projectId, 'project', projectId],
       });
       setFormData(initialFormData);
       onClose();
