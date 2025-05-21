@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import CardSetupForm from "./CardSetupFormComponent";
 import BillingForm from "./BillingFormComponent";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { IProject } from "@shared/interface/ProjectInterface";
 import {
@@ -33,6 +33,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 }) => {
   const { user, setUser } = useGlobalContext();
   const router = useRouter();
+  const queryClient = useQueryClient()
 
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [chargeLoading, setChargeLoading] = useState(false);
@@ -97,6 +98,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       }),
     onSuccess: () => {
       toast.success("Project created successfully!");
+      queryClient.invalidateQueries({ queryKey: ["projectsByUser", user?._id] });
       router.push("/projects");
     },
     onError: (err) => {

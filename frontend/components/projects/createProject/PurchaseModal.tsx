@@ -27,15 +27,12 @@ import PaymentIntegrationWrapper from "./PaymentIntegrationComponent";
 import { Card } from "components/ui/card";
 import CustomButton from "components/shared/CustomButton";
 import { IProjectFormState } from "@shared/interface/CreateProjectInterface";
-import { IProject } from "@shared/interface/ProjectInterface";
 
 interface PurchaseModalProps {
   creditPackages: { package: number; cost: number }[];
   purchaseQuantities: Record<number, number>;
   totalPurchasePrice: number;
   totalCreditsNeeded: number;
-  onSuccess: () => void;
-  uniqueId: string;
   projectData: IProjectFormState;
 }
 
@@ -44,8 +41,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   purchaseQuantities,
   totalPurchasePrice,
   totalCreditsNeeded,
-  onSuccess,
-  uniqueId,
+
   projectData,
 }) => {
   const { user, setUser } = useGlobalContext();
@@ -70,24 +66,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
     },
   });
 
-  // 2️⃣ Charge & create project
-  const purchaseMutation = useMutation({
-    mutationFn: () =>
-      api.post("/api/v1/payment/charge", {
-        customerId: user!.stripeCustomerId,
-        amount: Math.round(totalPurchasePrice * 100),
-        currency: "usd",
-        userId: user!._id,
-        purchasedCredit: totalCreditsNeeded,
-      }),
-    onSuccess: () => {
-      toast.success("Purchase successful!");
-      onSuccess();
-    },
-    onError: () => {
-      toast.error("Purchase failed");
-    },
-  });
+
 
   // Mutation to hit create-project-by-external-admin endpoint
   // const createProjectMutation = useMutation({
@@ -143,9 +122,9 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
     }
   };
 
-  const handlePurchase = () => {
-    purchaseMutation.mutate();
-  };
+  // const handlePurchase = () => {
+  //   purchaseMutation.mutate();
+  // };
 
   // Reset on close
   useEffect(() => {
@@ -221,14 +200,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                   }}
                 />
               )
-              // : (
-              //   <p className="mt-4">
-              //     Billing on file.{" "}
-              //     <Button variant="link" onClick={handleNext}>
-              //       Next &rarr;
-              //     </Button>
-              //   </p>
-              // )
+            
             }
           </>
         )}
@@ -261,15 +233,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               Next
             </CustomButton>
           )}
-          {/* {step === 2 && (
-            <CustomButton
-              onClick={handlePurchase}
-              disabled={purchaseMutation.isPending}
-                 className="bg-custom-teal hover:bg-custom-dark-blue-3"
-            >
-              {purchaseMutation.isPending ? "Processing…" : "Purchase"}
-            </CustomButton>
-          )} */}
+   
         </DialogFooter>
       </DialogContent>
     </Dialog>
