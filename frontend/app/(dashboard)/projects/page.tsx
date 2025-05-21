@@ -4,9 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
 import { IProject } from "@shared/interface/ProjectInterface";
-import axios from "axios";
 import NoSearchResult from "components/NoSearchResult";
-
 import CustomButton from "components/shared/CustomButton";
 import { CalendarIcon, Plus, SearchIcon } from "lucide-react";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
@@ -31,6 +29,7 @@ import { Card } from "components/ui/card";
 import { getFirstSessionDate } from "utils/getFirstSessionDate";
 import ShareDialog from "components/viewProject/ShareDialog";
 import { ISession } from "@shared/interface/SessionInterface";
+import { toast } from "sonner";
 
 interface DateRange {
   from: Date | undefined;
@@ -106,16 +105,9 @@ const Projects: React.FC = () => {
   }
 
   if (error) {
-    let message: string;
-    if (axios.isAxiosError(error)) {
-      // server error shape: { success: false, message: string }
-      message = error.response?.data?.message ?? error.message;
-    } else {
-      // fallback for non-Axios errors
-      message = (error as Error).message || "Unknown error";
-    }
+    toast.error(error instanceof Error ? error.message : "Unknown error");
     return (
-      <p className="p-6 text-red-600">Error loading projects: {message}</p>
+      <p className="p-6 text-red-600"></p>
     );
   }
 

@@ -38,9 +38,7 @@ const ProjectTeam = () => {
     placeholderData: keepPreviousData,
   });
 
-  console.log("projectTeam", data);
-
-  if (isLoading) return <p>Loading project team…</p>;
+    if (isLoading) return <p>Loading project team…</p>;
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 

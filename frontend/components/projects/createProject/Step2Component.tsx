@@ -123,13 +123,7 @@ const Step2: React.FC<Step2Props> = ({
     },
 
     onError: (error: unknown) => {
-      console.error("Error sending project info", error);
-
-      if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message || "Something went wrong");
-      } else {
-        toast.error("An unexpected error occurred.");
-      }
+     toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 
