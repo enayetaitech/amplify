@@ -21,14 +21,9 @@ import {
   TableRow,
 } from "components/ui/table";
 import ComponentContainer from "components/shared/ComponentContainer";
-
 import PurchaseModal from "./PurchaseModal";
-import { useRouter } from "next/navigation";
 
 const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
-  // State to determine whether to show the payment integration UI
-  const router = useRouter()
-  // State to hold the quantities of each credit package selected by the user
   const [purchaseQuantities, setPurchaseQuantities] = useState<{
     [key: number]: number;
   }>({
@@ -284,8 +279,6 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
     purchaseQuantities={purchaseQuantities}
     totalPurchasePrice={totalPurchasePrice}
     totalCreditsNeeded={totalPurchasedCredits}
-    onSuccess={() => router.push("/projects")}
-    uniqueId={uniqueId}
     projectData={formData as IProjectFormState}
   />
 )}
