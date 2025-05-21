@@ -1,9 +1,3 @@
-// interface sessions {
-//   _id : string;
-//   duration: string;
-//   number: number;
-// }
-
 import { IProjectSession } from "@shared/interface/ProjectInterface";
 
 

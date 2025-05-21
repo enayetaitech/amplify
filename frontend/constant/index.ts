@@ -1,4 +1,15 @@
+
 export const durations = [
+  { label: "30 minutes", minutes: 30 },
+  { label: "45 minutes", minutes: 45 },
+  { label: "1 hour (60 minutes)", minutes: 60 },
+  { label: "1.25 hour (75 minutes)", minutes: 75 },
+  { label: "1.5 hour (90 minutes)", minutes: 90 },
+  { label: "2 hour (120 minutes)", minutes: 120 },
+  { label: "2.5 hour (150 minutes)", minutes: 150 },
+  { label: "3 hour (180+ minutes)", minutes: 180 },
+];
+export const durationStep3 = [
   "30 minutes",
   "45 minutes",
   "1 hour (60 minutes)",
@@ -8,7 +19,6 @@ export const durations = [
   "2.5 hour (150 minutes)",
   "3 hour (180+ minutes)",
 ];
-
 // Map each duration option to its minute value for calculation purposes
 export const durationMapping: Record<string, number> = {
   "30 minutes": 30,
@@ -21,8 +31,13 @@ export const durationMapping: Record<string, number> = {
   "3 hour (180+ minutes)": 180,
 };
 
-
-export const availableLanguages = ["English", "French", "German", "Spanish", "Other"];
+export const availableLanguages = [
+  "English",
+  "French",
+  "German",
+  "Spanish",
+  "Other",
+];
 
 export const creditPackages = [
   { package: 500, cost: 750 },
@@ -32,3 +47,38 @@ export const creditPackages = [
 ];
 
 export const quantityOptions = [1, 2, 3, 4, 5, 6, 7, 8];
+
+export const optionalAddOnServices = [
+  "Top-Notch Recruiting",
+  "Insight-Driven Moderation and Project Design",
+  "Multi-Language Services",
+  "Asynchronous Activities (Pretasks, Bulletin Boards, etc.)",
+];
+
+// constants/timezones.ts
+
+export const timeZones = [
+  { value: "Pacific/Midway", utc: "-11", name: "Midway Island" },
+  { value: "Pacific/Honolulu", utc: "-10", name: "Hawaii" },
+  { value: "America/Anchorage", utc: "-9", name: "Alaska" },
+  { value: "America/Los_Angeles", utc: "-8", name: "Pacific Time" },
+  { value: "America/Denver", utc: "-7", name: "Mountain Time" },
+  { value: "America/Chicago", utc: "-6", name: "Central Time" },
+  { value: "America/New_York", utc: "-5", name: "Eastern Time" },
+  { value: "America/Halifax", utc: "-4", name: "Atlantic Time" },
+  { value: "America/Sao_Paulo", utc: "-3", name: "Brasilia" },
+  { value: "Atlantic/South_Georgia", utc: "-2", name: "Mid-Atlantic" },
+  { value: "Atlantic/Azores", utc: "-1", name: "Azores" },
+  { value: "UTC", utc: "+0", name: "UTC" },
+  { value: "Europe/London", utc: "+0", name: "London" },
+  { value: "Europe/Berlin", utc: "+1", name: "Berlin" },
+  { value: "Europe/Moscow", utc: "+3", name: "Moscow" },
+  { value: "Asia/Dubai", utc: "+4", name: "Dubai" },
+  { value: "Asia/Karachi", utc: "+5", name: "Pakistan" },
+  { value: "Asia/Dhaka", utc: "+6", name: "Bangladesh" },
+  { value: "Asia/Bangkok", utc: "+7", name: "Bangkok" },
+  { value: "Asia/Shanghai", utc: "+8", name: "China" },
+  { value: "Asia/Tokyo", utc: "+9", name: "Japan" },
+  { value: "Australia/Sydney", utc: "+10", name: "Sydney" },
+  { value: "Pacific/Auckland", utc: "+12", name: "Auckland" },
+];

@@ -12,16 +12,15 @@ import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IProject } from "@shared/interface/ProjectInterface";
 import { toast } from "sonner";
+import { getFirstSessionDate } from "utils/getFirstSessionDate";
 
 interface ProjectSummaryProps {
   project: IProject;
-  firstSessionDate: Date;
   onTagEditClick: () => void;
 }
 
 export default function ProjectSummary({
   project,
-  firstSessionDate,
   onTagEditClick,
 }: ProjectSummaryProps) {
   const projectId = project._id!;
@@ -32,7 +31,11 @@ export default function ProjectSummary({
   const [newInternalName, setNewInternalName] = useState(
     project.internalProjectName || ""
   );
-  const editName = useMutation<ApiResponse<IProject>, Error, { projectId: string; internalProjectName: string }>({
+  const editName = useMutation<
+    ApiResponse<IProject>,
+    Error,
+    { projectId: string; internalProjectName: string }
+  >({
     mutationFn: async ({ projectId, internalProjectName }) => {
       const res = await api.patch<ApiResponse<IProject>>(
         "/api/v1/projects/edit-project",
@@ -50,8 +53,14 @@ export default function ProjectSummary({
 
   // Description editing
   const [editingDesc, setEditingDesc] = useState(false);
-  const [newDescription, setNewDescription] = useState(project.description || "");
-  const editDesc = useMutation<ApiResponse<IProject>, Error, { projectId: string; description: string }>({
+  const [newDescription, setNewDescription] = useState(
+    project.description || ""
+  );
+  const editDesc = useMutation<
+    ApiResponse<IProject>,
+    Error,
+    { projectId: string; description: string }
+  >({
     mutationFn: async ({ projectId, description }) => {
       const res = await api.patch<ApiResponse<IProject>>(
         "/api/v1/projects/edit-project",
@@ -74,25 +83,29 @@ export default function ProjectSummary({
         "/api/v1/projects/toggle-recording-access",
         { projectId }
       );
-      
+
       return res.data;
     },
     onSuccess: (response) => {
-        const updated = response.data;
-    // Show a different message depending on the new state
-    if (updated.recordingAccess) {
-      toast.success("Recording access granted");
-    } else {
-      toast.success("Recording access revoked");
-    }
+      const updated = response.data;
+      // Show a different message depending on the new state
+      if (updated.recordingAccess) {
+        toast.success("Recording access granted");
+      } else {
+        toast.success("Recording access revoked");
+      }
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-      
     },
     onError: (err) => toast.error(err.message),
   });
 
+  const firstSessionDate = React.useMemo(
+    () => getFirstSessionDate(project),
+    [project]
+  );
+
   return (
-   <Card className="border-0 shadow-all-sides">
+    <Card className="border-0 shadow-all-sides">
       <CardHeader className="flex justify-between items-center">
         <CardTitle className="text-custom-teal">Project Summary</CardTitle>
       </CardHeader>
@@ -115,7 +128,10 @@ export default function ProjectSummary({
               <Button
                 size="icon"
                 onClick={() =>
-                  editName.mutate({ projectId, internalProjectName: newInternalName })
+                  editName.mutate({
+                    projectId,
+                    internalProjectName: newInternalName,
+                  })
                 }
                 disabled={editName.isPending}
               >
@@ -190,7 +206,7 @@ export default function ProjectSummary({
         <div className="flex items-center gap-1">
           <span className="text-sm text-gray-600">Fieldwork Start Date:</span>
           <span className="font-medium">
-            {firstSessionDate?.toLocaleDateString()}
+            {firstSessionDate ? firstSessionDate.toLocaleDateString() : "—"}
           </span>
         </div>
 

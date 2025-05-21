@@ -2,16 +2,18 @@
 "use client";
 import React from "react";
 import { toast } from "sonner";
-import { Button } from "components/ui/button";
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { CardSetupFormProps } from "@shared/interface/CreateProjectInterface";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
+import {
+  ApiResponse,
+  ErrorResponse,
+} from "@shared/interface/ApiResponseInterface";
 import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
 import { IUser } from "@shared/interface/UserInterface";
-
-
+import { Card } from "components/ui/card";
+import CustomButton from "components/shared/CustomButton";
 
 export const CardSetupForm: React.FC<CardSetupFormProps> = ({
   onCardSaved,
@@ -19,12 +21,11 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
   const stripe = useStripe();
   const elements = useElements();
   const { user, setUser } = useGlobalContext();
-  
+
   const qc = useQueryClient();
 
-  
-    // 1️⃣ Fetch Setup Intent
-    const { data: clientSecret, isLoading: loadingSecret } = useQuery<
+  // 1️⃣ Fetch Setup Intent
+  const { data: clientSecret, isLoading: loadingSecret } = useQuery<
     string,
     ErrorResponse
   >({
@@ -41,11 +42,7 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
   });
 
   // 2️⃣ Save the payment method to your backend
-  const saveCardMutation = useMutation<
-    IUser,
-    ErrorResponse,
-    string
-  >({
+  const saveCardMutation = useMutation<IUser, ErrorResponse, string>({
     mutationFn: async (paymentMethodId) => {
       if (!user) throw new Error("Not authenticated");
       const res = await api.post<ApiResponse<{ user: IUser }>>(
@@ -65,8 +62,8 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
       toast.success("Card saved successfully");
       onCardSaved();
     },
-    onError: (err) => {
-      toast.error(err.message || "Error saving card");
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 
@@ -78,10 +75,9 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
     if (!cardEl) return;
 
     // Confirm setup intent with Stripe.js
-    const { error, setupIntent } = await stripe.confirmCardSetup(
-      clientSecret,
-      { payment_method: { card: cardEl } }
-    );
+    const { error, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
+      payment_method: { card: cardEl },
+    });
     if (error) {
       toast.error(error.message || "Error during card setup");
       return;
@@ -89,54 +85,51 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
 
     // Extract the payment method ID
     const pmField = setupIntent.payment_method;
-    const pmId =
-      typeof pmField === "string" ? pmField : pmField?.id;
+    const pmId = typeof pmField === "string" ? pmField : pmField?.id;
     if (!pmId) {
       toast.error("Unable to retrieve payment method ID");
       return;
     }
 
     // Kick off the backend mutation
-    saveCardMutation.mutate(pmId);
+    saveCardMutation.mutate(pmId, {
+      onSuccess: () => {
+        onCardSaved(); 
+      },
+    });
   };
 
   if (loadingSecret) {
     return <p>Loading payment form…</p>;
   }
 
-  
-
   return (
-    <form
-    onSubmit={handleSubmit}
-    className="space-y-4 border p-4 rounded-md"
-  >
-    <h2 className="text-lg font-semibold">Enter Card Details</h2>
+    <Card className="border-0 p-4 shadow-sm">
+      <form onSubmit={handleSubmit} className="space-y-4 ">
+        <h2 className="text-lg font-semibold">Enter Card Details</h2>
 
-    <div className="border p-4 rounded-md">
-      <CardElement
-        options={{
-          style: {
-            base: {
-              fontSize: "16px",
-              color: "#32325d",
-              "::placeholder": { color: "#aab7c4" },
-            },
-          },
-        }}
-      />
-    </div>
-
-    <Button
-      type="submit"
-      disabled={!stripe || saveCardMutation.isPending}
-    >
-      {saveCardMutation.isPending
-        ? "Saving Card..."
-        : "Save Card & Pay"}
-    </Button>
-  </form>
-    
+        <div className="border p-4 rounded-md">
+          <CardElement
+            options={{
+              style: {
+                base: {
+                  fontSize: "16px",
+                  color: "#32325d",
+                  "::placeholder": { color: "#aab7c4" },
+                },
+              },
+            }}
+          />
+        </div>
+        <CustomButton
+          type="submit"
+          disabled={!stripe || saveCardMutation.isPending}
+          className="bg-custom-teal hover:bg-custom-dark-blue-3"
+        >
+          {saveCardMutation.isPending ? "Saving Card..." : "Save Card & Pay"}
+        </CustomButton>
+      </form>
+    </Card>
   );
 };
 

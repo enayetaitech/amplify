@@ -84,6 +84,7 @@ const Login = () => {
    },
 
    onError: (err) => {
+    console.log('error', err)
      const msg = axios.isAxiosError(err)
        ? err.response?.data.message ?? err.message
        : "Login failed";
