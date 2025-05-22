@@ -142,7 +142,7 @@ export const downloadDeliverable = async (
 
     if (!deliverable) return next(new ErrorHandler("Not found", 404));
 
-    const url = getSignedUrl(deliverable.storageKey, 120);
+    const url = getSignedUrl(deliverable.storageKey, 300);
     res.redirect(url); 
   
 };
