@@ -21,7 +21,7 @@ router.get(
 router.get("/:id/download", catchError(downloadDeliverable));
 
 // POST   /api/v1/sessionDeliverables/download        
-router.post("/download", catchError(downloadMultipleDeliverable));
+router.post("/download-bulk", catchError(downloadMultipleDeliverable));
 
 // DELETE /api/v1/sessionDeliverables/:id             
 router.delete("/:id", catchError(deleteDeliverable));
