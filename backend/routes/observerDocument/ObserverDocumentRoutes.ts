@@ -23,7 +23,7 @@ router.get("/:id/download", catchError(downloadObserverDocument));
 
 // POST   /api/v1/observerDocuments/download
 
-router.post("/download", catchError(downloadObserverDocumentsBulk));
+router.post("/download-bulk", catchError(downloadObserverDocumentsBulk));
 
 /* DELETE /api/v1/observerDocuments/:id */
 router.delete("/:id", catchError(deleteObserverDocument));
