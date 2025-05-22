@@ -18,42 +18,45 @@ export const createPoll = async (
   const { projectId, sessionId, title, questions, createdBy, createdByRole } =
     req.body;
 
+    console.log('req.body', req.body)
+
   /* 1. Basic payload validation ------------------------------------ */
-  if (!projectId || !sessionId || !title || !createdBy || !createdByRole) {
+  if (!projectId  || !title || !createdBy || !createdByRole) {
     return next(
       new ErrorHandler(
-        "projectId, sessionId, title, createdBy, createdByRole are required",
+        "projectId,  title, createdBy, createdByRole are required",
         400
       )
     );
   }
 
-  if (!["ADMIN", "MODERATOR"].includes(createdByRole)) {
+  if (!["Admin", "Moderator"].includes(createdByRole)) {
     return next(
       new ErrorHandler("Only Admin or Moderator can create polls", 403)
     );
   }
-
   if (!Array.isArray(questions) || questions.length === 0) {
     return next(new ErrorHandler("questions array is required", 400));
   }
+ 
   
   /* 2. Per-question validation ------------------------------------- */
   for (let i = 0; i < questions.length; i++) {
     if (validateQuestion(questions[i], i, next)) return; // stop on first error
   }
-
+ console.log('done')
   /* 3. Create poll -------------------------------------------------- */
 
     const poll = await PollModel.create({
       projectId,
-      sessionId,
+      // sessionId,
       title: title.trim(),
       questions,
       createdBy,
       createdByRole,
     });
 
+    console.log('poll', poll)
     sendResponse(res, poll, "Poll created", 201);
   
 };

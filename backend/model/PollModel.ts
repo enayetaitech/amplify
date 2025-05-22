@@ -74,7 +74,7 @@ const PollSchema = new Schema<PollDocument>(
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     createdByRole: {
       type: String,
-      enum: ["ADMIN", "MODERATOR"],
+      enum: ["Admin", "Moderator"],
       required: true,
     },
 
