@@ -1,6 +1,11 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
@@ -8,7 +13,7 @@ import { IObserverDocument } from "@shared/interface/ObserverDocumentInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
-import { Download, Upload } from "lucide-react";
+import { Download, Trash2, Upload } from "lucide-react";
 import CustomPagination from "components/shared/Pagination";
 import {
   Table,
@@ -32,6 +37,12 @@ import UploadObserverDocument from "components/projects/observerDocuments/Upload
 
 type CheckedState = boolean | "indeterminate";
 
+interface PopulatedUser {
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
 const ObserverDocuments = () => {
   const params = useParams();
   const projectId =
@@ -43,6 +54,9 @@ const ObserverDocuments = () => {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const limit = 10;
+  const queryClient = useQueryClient();
+
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const { data, isLoading, error } = useQuery<
     { data: IObserverDocument[]; meta: IPaginationMeta },
@@ -60,7 +74,50 @@ const ObserverDocuments = () => {
     placeholderData: keepPreviousData,
   });
 
-  console.log("observerDocuments", data);
+     // 2️⃣ Mutation for single-download
+  const downloadOneMutation = useMutation<string, unknown, string>({
+    // Using onMutate so we can fire off the download immediately
+    mutationFn: (id) => Promise.resolve(id),
+    onMutate: (id) => {
+      window.open(
+        `http://localhost:8008/api/v1/observerDocuments/${id}/download`,
+        "_blank"
+      );
+    },
+  });
+
+    // bulk-download
+   const downloadAllMutation = useMutation<string[], unknown, string[]>({
+    mutationFn: (ids) =>
+      api
+        .post<{
+          success: boolean;
+          message: string;
+          data: Array<{ key: string; url: string }>;
+        }>("/api/v1/observerDocuments/download-bulk", { ids })
+        .then((res) => res.data.data.map((d) => d.url)),
+    onSuccess: (urls) => {
+      
+      urls.forEach((url) => window.open(url, "_blank"));
+    },
+    onError: (err) => {
+      console.error("Bulk download failed", err);
+    },
+  });
+
+   // DELETE mutation
+  const deleteMutation = useMutation<string, unknown, string>({
+    mutationFn: (id) =>
+      api.delete(`/api/v1/observerDocuments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["observerDocs", projectId, page]
+      });
+    },
+    onError: (err) => {
+      console.error("Delete failed", err);
+    },
+  });
 
   // 3️⃣ now safe to guard
   if (!projectId) {
@@ -101,34 +158,30 @@ const ObserverDocuments = () => {
     );
   };
 
+
+
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
         <HeadingBlue25px>Observer Documents</HeadingBlue25px>
-        <Dialog>
+        <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
           <DialogTrigger asChild>
             <CustomButton
               icon={<Upload />}
               text="Upload"
               variant="default"
-              className="bg-custom-orange-2 text-white hover:bg-custom-orange-1 px-2"
+              className="bg-custom-orange-2 text-white hover:bg-custom-orange-1"
             />
           </DialogTrigger>
-
-          <DialogContent className="sm:max-w-[480px]">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-custom-dark-blue-1">Upload Observer Document</DialogTitle>
+              <DialogTitle>Upload Observer Document</DialogTitle>
             </DialogHeader>
-
-            {/* pass only projectId and a way to close */}
             <UploadObserverDocument
               projectId={projectId}
-             
+              onClose = {() => {setUploadOpen(false)}}
             />
-
-            <DialogFooter>
-              {/* you can also render a Cancel button here if needed */}
-            </DialogFooter>
+            <DialogFooter />
           </DialogContent>
         </Dialog>
       </div>
@@ -152,18 +205,17 @@ const ObserverDocuments = () => {
                     <CustomButton
                       icon={<Download />}
                       variant="outline"
-                      // onClick={() => downloadAllMutation.mutate(selectedIds)}
-                      // disabled={
-                      //   selectedIds.length === 0 ||
-                      //   downloadAllMutation.isPending
-                      // }
+                      onClick={() => downloadAllMutation.mutate(selectedIds)}
+                      disabled={
+                        selectedIds.length === 0 ||
+                        downloadAllMutation.isPending
+                      }
                       size="sm"
                       className="cursor-pointer hover:text-custom-dark-blue-1 hover:bg-white outline-0 border-0 shadow-lg bg-white"
                     >
-                      {/* {downloadAllMutation.isPending
+                      {downloadAllMutation.isPending
                         ? "Downloading..."
-                        : "Download All"} */}
-                      Download All
+                        : "Download All"}
                     </CustomButton>
                   </div>
                 </TableHead>
@@ -188,23 +240,29 @@ const ObserverDocuments = () => {
                     <TableCell>{del.displayName}</TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell>
-                      {typeof del.projectId !== "string"
-                        ? (del.projectId as { firstName: string }).firstName
-                        : ""}
+                       {((del.addedBy as unknown) as PopulatedUser).firstName}
                     </TableCell>
-                    <TableCell className="text-center">
+                     <TableCell className="text-center flex justify-center gap-2">
                       <CustomButton
-                        className="bg-custom-dark-blue-3 hover:bg-custom-dark-blue-2 rounded-lg"
-                        // onClick={() =>
-                        //   downloadOneMutation.mutate(del._id)
-                        // }
-                        // disabled={downloadOneMutation.isPending}
+                        className="bg-custom-teal hover:bg-custom-dark-blue-3 rounded-lg"
+                        onClick={() =>
+                          downloadOneMutation.mutate(del._id)
+                        }
+                        disabled={downloadOneMutation.isPending}
                       >
-                        {/* {downloadOneMutation.isPending
+                        {downloadOneMutation.isPending
                           ? "Downloading..."
-                          : "Download"} */}{" "}
-                        Download
+                          : "Download"}
                       </CustomButton>
+                        {/* Delete */}
+                  <CustomButton
+                    size="sm"
+                    className="bg-custom-orange-1 hover:bg-custom-orange-2"
+                    onClick={() => deleteMutation.mutate(del._id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 size={16} />
+                  </CustomButton>
                     </TableCell>
                   </TableRow>
                 ))
