@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, {  useState } from "react";
 import { ISessionDeliverable } from "@shared/interface/SessionDeliverableInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
@@ -78,22 +78,15 @@ const SessionDeliverables = () => {
         }>("/api/v1/sessionDeliverables/download-bulk", { ids })
         .then((res) => res.data.data.map((d) => d.url)),
     onSuccess: (urls) => {
-      console.log("urls", urls);
+      
       urls.forEach((url) => window.open(url, "_blank"));
     },
     onError: (err) => {
       console.error("Bulk download failed", err);
-      // Optional: toast.error("Bulk download failed");
     },
   });
 
-  // log whenever new data arrives
-  useEffect(() => {
-    if (data) {
-      console.log("sessionDeliverables", selectedType, data);
-    }
-    setSelectedIds([]);
-  }, [data, selectedType, page]);
+
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 

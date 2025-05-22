@@ -1,6 +1,10 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  // useQueryClient,
+} from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
@@ -32,6 +36,12 @@ import UploadObserverDocument from "components/projects/observerDocuments/Upload
 
 type CheckedState = boolean | "indeterminate";
 
+interface PopulatedUser {
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
 const ObserverDocuments = () => {
   const params = useParams();
   const projectId =
@@ -43,6 +53,9 @@ const ObserverDocuments = () => {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const limit = 10;
+  // const queryClient = useQueryClient();
+
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const { data, isLoading, error } = useQuery<
     { data: IObserverDocument[]; meta: IPaginationMeta },
@@ -105,30 +118,24 @@ const ObserverDocuments = () => {
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
         <HeadingBlue25px>Observer Documents</HeadingBlue25px>
-        <Dialog>
+        <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
           <DialogTrigger asChild>
             <CustomButton
               icon={<Upload />}
               text="Upload"
               variant="default"
-              className="bg-custom-orange-2 text-white hover:bg-custom-orange-1 px-2"
+              className="bg-custom-orange-2 text-white hover:bg-custom-orange-1"
             />
           </DialogTrigger>
-
-          <DialogContent className="sm:max-w-[480px]">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-custom-dark-blue-1">Upload Observer Document</DialogTitle>
+              <DialogTitle>Upload Observer Document</DialogTitle>
             </DialogHeader>
-
-            {/* pass only projectId and a way to close */}
             <UploadObserverDocument
               projectId={projectId}
-             
+              onClose = {() => {setUploadOpen(false)}}
             />
-
-            <DialogFooter>
-              {/* you can also render a Cancel button here if needed */}
-            </DialogFooter>
+            <DialogFooter />
           </DialogContent>
         </Dialog>
       </div>
@@ -188,9 +195,7 @@ const ObserverDocuments = () => {
                     <TableCell>{del.displayName}</TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell>
-                      {typeof del.projectId !== "string"
-                        ? (del.projectId as { firstName: string }).firstName
-                        : ""}
+                       {((del.addedBy as unknown) as PopulatedUser).firstName}
                     </TableCell>
                     <TableCell className="text-center">
                       <CustomButton

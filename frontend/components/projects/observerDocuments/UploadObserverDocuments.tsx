@@ -20,12 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "components/ui/select";
+import { toast } from "sonner";
 
 interface UploadProps {
   projectId: string;
+  onClose: ()=> void;
 }
 
-const UploadObserverDocument: React.FC<UploadProps> = ({ projectId }) => {
+const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) => {
   const [file, setFile] = useState<File | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
   const queryClient = useQueryClient();
@@ -76,10 +78,11 @@ const UploadObserverDocument: React.FC<UploadProps> = ({ projectId }) => {
     onSuccess: () => {
       setFile(null);
       setSessionId("");
-      // refetch the document list
-      queryClient.invalidateQueries({
+        queryClient.invalidateQueries({
         queryKey: ["observerDocs", projectId],
       });
+      onClose()
+      toast.success("Document uploaded successfully.")
     },
   });
 
