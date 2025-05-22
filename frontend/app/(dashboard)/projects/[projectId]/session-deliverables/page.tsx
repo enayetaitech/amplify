@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "components/ui/table";
-import { Checkbox,  } from "components/ui/checkbox";
+import { Checkbox } from "components/ui/checkbox";
 import CustomButton from "components/shared/CustomButton";
 import { Download } from "lucide-react";
 
@@ -33,7 +33,6 @@ const deliverableTabs = [
 ];
 
 type CheckedState = boolean | "indeterminate";
-
 
 const SessionDeliverables = () => {
   const { projectId } = useParams();
@@ -57,26 +56,34 @@ const SessionDeliverables = () => {
     placeholderData: keepPreviousData,
   });
 
-   // 2️⃣ Mutation for single-download
+  // 2️⃣ Mutation for single-download
   const downloadOneMutation = useMutation<string, unknown, string>({
     // Using onMutate so we can fire off the download immediately
     mutationFn: (id) => Promise.resolve(id),
     onMutate: (id) => {
-      window.open(`http://localhost:8008/api/v1/sessionDeliverables/${id}/download`, "_blank");
+      window.open(
+        `http://localhost:8008/api/v1/sessionDeliverables/${id}/download`,
+        "_blank"
+      );
     },
   });
 
-  // 3️⃣ Mutation for bulk-download
   const downloadAllMutation = useMutation<string[], unknown, string[]>({
     mutationFn: (ids) =>
       api
-        .post<string[]>("/api/v1/sessionDeliverables/download-bulk", { ids })
-        .then((res) => res.data),
+        .post<{
+          success: boolean;
+          message: string;
+          data: Array<{ key: string; url: string }>;
+        }>("/api/v1/sessionDeliverables/download-bulk", { ids })
+        .then((res) => res.data.data.map((d) => d.url)),
     onSuccess: (urls) => {
+      console.log("urls", urls);
       urls.forEach((url) => window.open(url, "_blank"));
     },
     onError: (err) => {
       console.error("Bulk download failed", err);
+      // Optional: toast.error("Bulk download failed");
     },
   });
 
@@ -117,8 +124,6 @@ const SessionDeliverables = () => {
       isTrue ? [...prev, id] : prev.filter((sid) => sid !== id)
     );
   };
-
-
 
   return (
     <ComponentContainer>
@@ -167,7 +172,7 @@ const SessionDeliverables = () => {
                   <div className="flex items-center gap-2">
                     <Checkbox
                       checked={allSelected}
-                     onCheckedChange={toggleSelectAll}
+                      onCheckedChange={toggleSelectAll}
                       aria-label="Select all"
                       className="cursor-pointer"
                     />
@@ -183,7 +188,7 @@ const SessionDeliverables = () => {
                       className="cursor-pointer hover:text-custom-dark-blue-1 hover:bg-white outline-0 border-0 shadow-lg bg-white"
                     >
                       {downloadAllMutation.isPending
-                        ? "Downloading..."
+                        ? "Preparing..."
                         : "Download All"}
                     </CustomButton>
                   </div>
@@ -199,8 +204,8 @@ const SessionDeliverables = () => {
                   <TableRow key={del._id}>
                     <TableCell className="w-[48px]">
                       <Checkbox
-                       checked={selectedIds.includes(del._id)}
-    onCheckedChange={toggleSelectOne(del._id)}
+                        checked={selectedIds.includes(del._id)}
+                        onCheckedChange={toggleSelectOne(del._id)}
                         aria-label={`Select ${del.displayName}`}
                         className="cursor-pointer"
                       />
@@ -208,10 +213,9 @@ const SessionDeliverables = () => {
                     <TableCell>{del.displayName}</TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell className="text-center">
-                      <CustomButton className="bg-custom-dark-blue-3 hover:bg-custom-dark-blue-2 rounded-lg"
-                        onClick={() =>
-                          downloadOneMutation.mutate(del._id)
-                        }
+                      <CustomButton
+                        className="bg-custom-dark-blue-3 hover:bg-custom-dark-blue-2 rounded-lg"
+                        onClick={() => downloadOneMutation.mutate(del._id)}
                         disabled={downloadOneMutation.isPending}
                       >
                         {downloadOneMutation.isPending
