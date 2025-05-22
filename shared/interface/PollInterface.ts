@@ -93,7 +93,7 @@ export interface IPoll {
   questions: PollQuestion[];
 
   createdBy: string;
-  createdByRole: "ADMIN" | "MODERATOR";
+  createdByRole: "Admin" | "Moderator";
   lastModified: Date;
 
   responsesCount: number;
