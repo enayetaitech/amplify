@@ -419,40 +419,7 @@ const Polls = () => {
     updateQuestion(id, { answers: q.answers.filter((_, j) => j !== i) });
   };
 
-  // Fill-in-Blank: insert <blank N> at cursor
-  // function addBlank(id: string) {
-  //   const q = questions.find((x) => x.id === id)!;
-  //   const n = (q.answers ?? []).length + 1;
-  //   const tag = `<blank ${n}>`;
-
-  //   const input = inputRefs.current[id];
-  //   if (input) {
-  //     const {
-  //       value,
-  //       selectionStart = value.length,
-  //       selectionEnd = value.length,
-  //     } = input;
-  //     const before = value.slice(0, selectionStart);
-  //     const after = value.slice(selectionEnd);
-  //     const newPrompt = before + tag + after;
-  //     updateQuestion(id, {
-  //       prompt: newPrompt,
-  //       answers: [...(q.answers || []), ""], // track count if you like
-  //     });
-  //     // restore focus/caret
-  //     setTimeout(() => {
-  //       input.focus();
-  //       const pos = before.length + tag.length;
-  //       input.setSelectionRange(pos, pos);
-  //     });
-  //   } else {
-  //     // fallback: just append
-  //     updateQuestion(id, {
-  //       prompt: q.prompt + tag,
-  //       answers: [...(q.answers || []), ""],
-  //     });
-  //   }
-  // }
+  
 // Fill-in-Blank: insert <blank N> at cursor
 function addBlank(id: string) {
   const q = questions.find((x) => x.id === id)!
