@@ -27,7 +27,7 @@ const ObserverDocSchema = new Schema<ObserverDocument>(
     addedBy:     { type: Schema.Types.ObjectId, ref: "User", required: true },
     addedByRole: {
       type: String,
-      enum: ["ADMIN", "MODERATOR", "OBSERVER"],
+      enum: ["Admin", "Moderator", "Observer"],
       required: true,
     },
   },
