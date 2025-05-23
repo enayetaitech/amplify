@@ -1,0 +1,56 @@
+# Base stage with dependencies
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Install OS & build dependencies
+RUN apk update && apk add --no-cache \
+    ttf-freefont \
+    chromium \
+    git \
+    build-base \
+    python3 \
+    py3-pip \
+    automake \
+    autoconf \
+    libtool \
+    linux-headers \
+    libstdc++ \
+    libc6-compat \
+    net-tools \
+    iputils \
+    curl
+
+# Symlink for python if needed
+RUN ln -sf python3 /usr/bin/python
+
+# Application build stage
+FROM base AS run
+
+WORKDIR /app
+
+# Pre-clean (these folders should not exist before copying; better to use .dockerignore)
+# Still keeping these lines in case of dirty Docker context
+RUN rm -rf frontend/.next \
+           frontend/node_modules
+
+# Copy only necessary package files first for caching
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+
+# Install dependencies
+RUN cd frontend && npm install --force
+
+# Copy the rest of the app
+COPY . .
+
+# Build the frontend
+RUN cd frontend && npm run build
+
+# Set correct working directory
+WORKDIR /app/frontend
+
+# Expose the Next.js port
+EXPOSE 8979
+
+# Start the application
+CMD ["npm", "run", "start", "--", "-p", "8979"]
