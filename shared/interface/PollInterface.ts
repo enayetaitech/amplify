@@ -1,16 +1,18 @@
 /* ──────────────────────────  Question unions  ────────────────────────── */
 
-type BaseQuestion = {
+export type QuestionType =
+  | "SINGLE_CHOICE"
+  | "MULTIPLE_CHOICE"
+  | "MATCHING"
+  | "RANK_ORDER"
+  | "SHORT_ANSWER"
+  | "LONG_ANSWER"
+  | "FILL_IN_BLANK"
+  | "RATING_SCALE";
+
+export type BaseQuestion = {
   _id: string; 
-  type:
-    | "SINGLE_CHOICE"
-    | "MULTIPLE_CHOICE"
-    | "MATCHING"
-    | "RANK_ORDER"
-    | "SHORT_ANSWER"
-    | "LONG_ANSWER"
-    | "FILL_IN_BLANK"
-    | "RATING_SCALE";
+  type: QuestionType;
   prompt: string;
   required: boolean;
   image?: string; 
@@ -102,3 +104,44 @@ export interface IPoll {
   createdAt: Date;
   updatedAt: Date;
 }
+
+
+export interface DraftQuestion {
+  id: string;
+  prompt: string;
+  type: QuestionType;
+  options: string[];
+  answers: string[];
+  rows: string[];
+  columns: string[];
+  required: boolean;
+  correctAnswer: number;
+  showDropdown: boolean;
+  correctAnswers: number[];
+  scoreFrom: number;
+  scoreTo: number;
+  lowLabel: string;
+  highLabel: string;
+  minChars: number;
+  maxChars: number;
+}
+
+export type CreatePollPayload = {
+  projectId: string;
+  sessionId?: string;
+  title: string;
+  questions: APIPollQuestion[];
+  createdBy: string;
+  createdByRole: string;
+};
+
+export type APIPollQuestion =
+  | (DraftQuestion & {})
+  | { id: string;
+      prompt: string;
+      required: boolean;
+      type: "RANK_ORDER";
+      rows: string[];
+      columns: string[];
+    };
+
