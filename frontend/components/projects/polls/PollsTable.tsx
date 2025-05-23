@@ -20,13 +20,16 @@ interface PollsTableProps {
   polls: IPoll[];
   meta: IPaginationMeta;
   onPageChange: (newPage: number) => void;
+    onDelete: (pollId: string) => void;
 }
 
 const PollsTable: React.FC<PollsTableProps> = ({
   polls,
   meta,
   onPageChange,
+  onDelete,
 }) => {
+  
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto ">
       <div className="bg-white rounded-lg shadow-lg">
@@ -86,7 +89,7 @@ const PollsTable: React.FC<PollsTableProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => console.log("Delete poll", poll._id)}
+                    onClick={() => onDelete(poll._id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

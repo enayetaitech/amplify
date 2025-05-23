@@ -1,5 +1,5 @@
 "use client";
-import {  keepPreviousData, useQuery } from "@tanstack/react-query";
+import {  keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
@@ -10,10 +10,13 @@ import { useGlobalContext } from "context/GlobalContext";
 import AddPollDialog from "components/projects/polls/AddPollDialog";
 import PollsTable from "components/projects/polls/PollsTable";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
+import { toast } from "sonner";
+import axios from "axios";
 
 const Polls = () => {
   const { projectId } = useParams() as { projectId?: string };
   const { user } = useGlobalContext();
+  const queryClient = useQueryClient();
     const limit = 10;
     const [page, setPage] = useState(1);
   
@@ -31,8 +34,23 @@ const Polls = () => {
     placeholderData: keepPreviousData,
   });
 
+  // Delete mutation
+  const deleteMutation = useMutation<void, Error, string>(
+    { mutationFn: (pollId: string) =>
+      api.delete(`/api/v1/polls/${pollId}`),
+      onSuccess: () => {
+        toast.success("Poll deleted");
+        queryClient.invalidateQueries({queryKey:["polls", projectId]});
+      },
+      onError: (err) => {
+        const msg = axios.isAxiosError(err)
+        ? err.response?.data.message ?? err.message
+        : "Could not delete poll";
+      toast.error(msg);
+      },
+    }
+  );
   
-  if (isLoading) return <p>Loading polls…</p>;
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
   return (
@@ -52,6 +70,7 @@ const Polls = () => {
             polls={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
+            onDelete={(pollId) => deleteMutation.mutate(pollId)}
             />
           </div>
         )
