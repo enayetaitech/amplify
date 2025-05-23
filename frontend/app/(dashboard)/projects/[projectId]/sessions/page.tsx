@@ -10,7 +10,6 @@ import api from "lib/api";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
-
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
