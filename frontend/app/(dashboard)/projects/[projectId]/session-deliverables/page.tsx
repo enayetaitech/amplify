@@ -62,7 +62,7 @@ const SessionDeliverables = () => {
     mutationFn: (id) => Promise.resolve(id),
     onMutate: (id) => {
       window.open(
-        `http://localhost:8008/api/v1/sessionDeliverables/${id}/download`,
+        `https://bamplify.hgsingalong.com/api/v1/sessionDeliverables/${id}/download`,
         "_blank"
       );
     },
