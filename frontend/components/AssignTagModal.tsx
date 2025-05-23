@@ -26,7 +26,7 @@ interface AssignTagModalProps {
   userId: string;
   project: Project;
   onClose: () => void;
-  fetchProjects: (userId: string, page: number) => Promise<void>;
+  fetchProjects: () => void;
   page: number;
   open: boolean;
 }
@@ -44,6 +44,8 @@ const AssignTagModal: React.FC<AssignTagModalProps> = ({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tagsToRemove, setTagsToRemove] = useState<string[]>([]);
+
+console.log(page)
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -119,7 +121,7 @@ const AssignTagModal: React.FC<AssignTagModalProps> = ({
       );
 
       if (response.ok) {
-        await fetchProjects(userId, page);
+        fetchProjects();
         onClose();
       } else {
         console.error("Failed to update tags");

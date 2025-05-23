@@ -14,7 +14,7 @@ const api: AxiosInstance = axios.create({
 });
 
 interface FailedQueueItem {
-  resolve: (value?: AxiosResponse<unknown>) => void;
+  resolve: () => void;
   reject: (error: unknown) => void;
 }
 
@@ -47,7 +47,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       if (isRefreshing) {
-        return new Promise<AxiosResponse<unknown>>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(() => api(originalRequest));
       }

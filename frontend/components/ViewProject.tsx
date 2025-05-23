@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -9,76 +9,122 @@ import { Button } from "./ui/button";
 import Search from "./Search";
 import ProjectFilter from "./ProjectFilter";
 import NoSearchResult from "./NoSearchResult";
-import ProjectTable from "./ProjectTable";
+import ProjectTable, { Project } from "./ProjectTable";
+import { IUser } from "@shared/interface/UserInterface";
 
-interface Project {
-  _id: string;
-  // Add other project properties as needed
-}
+type FullRole =
+  | "SuperAdmin"
+  | "AmplifyAdmin"
+  | "AmplifyModerator"
+  | "AmplifyObserver"
+  | "AmplifyParticipant"
+  | "AmplifyTechHost"
+  | "Admin"  
+  | "Moderator"
+  | "Observer"
+  | "Participant";
 
-interface FilterValues {
+
+export interface FilterValues {
   startDate: string;
   endDate: string;
   status: string;
   role: string;
   tag: string;
-  [key: string]: string;
-}
-
-interface User {
-  _id: string;
-  role: string;
-  // Add other user properties as needed
+  [key: string]: string | undefined;
 }
 
 interface GlobalContextType {
-  user: User | null;
+  user: IUser | null;
 }
+
+const emptyFilters: FilterValues = {
+  startDate: "",
+  endDate:   "",
+  status:    "",
+  role:      "",
+  tag:       "",
+};
 
 const ViewProject = () => {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("All");
+  // const [selectedStatus, setSelectedStatus] = useState("All");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const { user } = useGlobalContext() as GlobalContextType;
 
-  const fetchProjects = async (
-    userId?: string,
+  const role = user!.role as FullRole;
+
+  const fetchProjects = useCallback(
+  async (
+    userId: string,
     page = 1,
     searchQuery = "",
-    filters: FilterValues = {}
+    filters: FilterValues = emptyFilters
   ) => {
-    if (!userId) return;
-
-    setLoading(true);
+    if (!userId) return
+    setLoading(true)
     try {
       const endpoint =
-        user?.role === "SuperAdmin" ||
-        user?.role === "AmplifyAdmin" ||
-        user?.role === "AmplifyTechHost"
+        role === "SuperAdmin" ||
+        role === "AmplifyAdmin" ||
+        role === "AmplifyTechHost"
           ? `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/project/getAllProjectsForAmplify`
-          : `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/get-all/project/${userId}`;
+          : `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/get-all/project/${userId}`
 
       const response = await axios.get(endpoint, {
-        params: {
-          page,
-          limit: 10,
-          search: searchQuery,
-          ...filters,
-        },
-      });
-
-      setProjects(response.data.projects);
-      setTotalPages(response.data.totalPages);
-    } catch (error) {
-      console.error("Error fetching projects:", error);
+        params: { page, limit: 10, search: searchQuery, ...filters },
+      })
+      setProjects(response.data.projects)
+      setTotalPages(response.data.totalPages)
+    } catch (err) {
+      console.error("Error fetching projects:", err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  },
+  [role]  // only depends on `role`
+)
+
+  // const fetchProjects = 
+  
+  // async (
+  //   userId?: string,
+  //   page = 1,
+  //   searchQuery = "",
+  //   filters: FilterValues = emptyFilters
+  // ) => {
+  //   if (!userId) return;
+
+  //   setLoading(true);
+  //   try {
+  //     const endpoint =
+  //       role === "SuperAdmin" ||
+  //       role === "AmplifyAdmin" ||
+  //       role === "AmplifyTechHost"
+  //         ? `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/project/getAllProjectsForAmplify`
+  //         : `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/get-all/project/${userId}`;
+
+  //     const response = await axios.get(endpoint, {
+  //       params: {
+  //         page,
+  //         limit: 10,
+  //         search: searchQuery,
+  //         ...filters,
+  //       },
+  //     });
+
+  //     setProjects(response.data.projects);
+  //     setTotalPages(response.data.totalPages);
+  //   } catch (error) {
+  //     console.error("Error fetching projects:", error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   useEffect(() => {
     if (user?._id) {
@@ -89,29 +135,31 @@ const ViewProject = () => {
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     setPage(1);
-    fetchProjects(user?._id, 1, term);
+    fetchProjects(user!._id, 1, term);
   };
 
-  const handleStatusSelect = (status: string) => {
-    setSelectedStatus(status);
-  };
+  // const handleStatusSelect = (status: string) => {
+  //   setSelectedStatus(status);
+  // };
 
-  const handleRefresh = () => {
-    fetchProjects(user?._id, page);
-  };
+  // const handleRefresh = () => {
+  //   fetchProjects(user?._id, page);
+  // };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    fetchProjects(user?._id, newPage);
+    fetchProjects(user!._id, newPage);
   };
 
   const handleFilter = (filters: FilterValues) => {
     setPage(1);
-    fetchProjects(user?._id, 1, searchTerm, filters);
+    fetchProjects(user!._id, 1, searchTerm, filters);
   };
 
+
+
   const handleCreateProject = () => {
-    if (user?.role === "SuperAdmin" || user?.role === "AmplifyAdmin") {
+    if (role === "SuperAdmin" || role === "AmplifyAdmin") {
       router.push("/dashboard/create-project-amplify-admin");
     } else {
       router.push("/dashboard/create-project");
@@ -172,7 +220,7 @@ const ViewProject = () => {
         ) : projects && projects.length > 0 ? (
           <ProjectTable
             projects={projects}
-            fetchProjects={fetchProjects}
+            fetchProjects={() => fetchProjects(user!._id, page, searchTerm)}
             user={user}
             page={page}
             totalPages={totalPages}

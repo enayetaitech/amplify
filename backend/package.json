@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+       "build:shared": "tsc --build ../shared",
+    "build:backend": "tsc --build",
+    "build": "npm run build:shared && npm run build:backend",
     "start:prod": "node ./dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only ./server.ts",
     "start": "ts-node ./server.ts"

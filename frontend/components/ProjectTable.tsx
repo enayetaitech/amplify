@@ -6,7 +6,6 @@ import { FaShareAlt, FaTrash, FaUser } from "react-icons/fa";
 import axios from "axios";
 import { useDashboard } from "context/DashboardContext";
 import { Card, CardContent } from "components/ui/card";
-// Shadcn imports
 import { Button } from "components/ui/button";
 import {
   Table,
@@ -39,6 +38,20 @@ import {
 import AssignTagModal from "./AssignTagModal";
 import ShareProjectModal from "./ShareProjectModal";
 
+import { IUser } from "@shared/interface/UserInterface";
+
+type FullRole =
+  | "SuperAdmin"
+  | "AmplifyAdmin"
+  | "AmplifyModerator"
+  | "AmplifyObserver"
+  | "AmplifyParticipant"
+  | "AmplifyTechHost"
+  | "Admin"  
+  | "Moderator"
+  | "Observer"
+  | "Participant";
+
 // Define TypeScript interfaces
 interface Tag {
   _id: string;
@@ -51,7 +64,7 @@ interface Person {
   role: string;
 }
 
-interface Project {
+export interface Project {
   _id: string;
   name: string;
   status: "Draft" | "Closed" | "Active" | "Complete" | "Inactive" | "Paused";
@@ -66,15 +79,18 @@ interface Project {
   meetings?: { link: string }[];
 }
 
-interface User {
-  _id: string;
-  role?: string;
-}
+// interface User {
+//   _id: string;
+//   role?: string;
+// }
+// type Project = IProject;
+type User    = IUser;
+
 
 interface ProjectTableProps {
   projects: Project[];
   fetchProjects: () => void;
-  user: User;
+  user: User | null;
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -104,14 +120,15 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const getRole = (project: Project): string => {
-    if (project.createdBy === user?._id) {
-      return "Admin";
-    } else {
-      const person = project?.people?.find((p) => p.userId === user?._id);
-      return person ? person.role : "No Role";
-    }
-  };
+  const role = user!.role as FullRole;
+  // const getRole = (project: Project): string => {
+  //   if (project.createdBy === user?._id) {
+  //     return "Admin";
+  //   } else {
+  //     const person = project?.people?.find((p) => p.userId === user?._id);
+  //     return person ? person.role : "No Role";
+  //   }
+  // };
 
   const renderStatus = (status: Project["status"]) => {
     const statusStyles = {
@@ -201,23 +218,38 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     setIsModalOpen(false);
   };
 
-  const handleClickOutside = (event: MouseEvent) => {
+  useEffect(() => {
+  if (!isModalOpen) return;
+
+  const onClickOutside = (event: MouseEvent) => {
     if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-      closeModal();
+      setIsModalOpen(false);
     }
   };
 
-  useEffect(() => {
-    if (isModalOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
+  document.addEventListener("mousedown", onClickOutside);
+  return () => {
+    document.removeEventListener("mousedown", onClickOutside);
+  };
+}, [isModalOpen]);
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isModalOpen]);
+  // const handleClickOutside = (event: MouseEvent) => {
+  //   if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+  //     closeModal();
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   if (isModalOpen) {
+  //     document.addEventListener("mousedown", handleClickOutside);
+  //   } else {
+  //     document.removeEventListener("mousedown", handleClickOutside);
+  //   }
+
+  //   return () => {
+  //     document.removeEventListener("mousedown", handleClickOutside);
+  //   };
+  // }, [isModalOpen, handleClickOutside]);
 
   const getContrastColor = (bgColor: string): string => {
     // Remove the "#" if it exists
@@ -238,7 +270,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   // Custom Pagination component using shadcn's Pagination
   const CustomPagination = () => {
     const getPageNumbers = () => {
-      let pages = [];
+      const pages = [];
       const maxVisiblePages = 5;
 
       if (totalPages <= maxVisiblePages) {
@@ -484,7 +516,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               <BsFillEnvelopeAtFill />
               <span>Assign Tag</span>
             </li>
-            {(user?.role === "SuperAdmin" || user?.role === "AmplifyAdmin") && (
+            {(role === "SuperAdmin" || role === "AmplifyAdmin") && (
               <li
                 className="py-2 px-4 hover:bg-gray-100 cursor-pointer text-gray-700 flex justify-start items-center gap-2"
                 onClick={() => initiateDelete(selectedProject!)}
@@ -500,11 +532,12 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       {/* AssignTag Modal */}
       {isAssignTagModalOpen && selectedProject && (
         <AssignTagModal
-          userId={user._id}
+          userId={user!._id}
           project={selectedProject}
           onClose={() => setIsAssignTagModalOpen(false)}
           fetchProjects={fetchProjects}
           page={page}
+          open={isAssignTagModalOpen} 
         />
       )}
 
@@ -513,6 +546,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
         <ShareProjectModal
           project={selectedProject}
           onClose={() => setIsShareProjectModalOpen(false)}
+          open={isShareProjectModalOpen} 
         />
       )}
 

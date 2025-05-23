@@ -1,0 +1,1 @@
+{"version":3,"file":"GroupMessage.d.ts","sourceRoot":"","sources":["../../model/GroupMessage.ts"],"names":[],"mappings":"AAAA,OAAiB,EAAE,QAAQ,EAAU,KAAK,EAAE,MAAM,UAAU,CAAC;AAC7D,OAAO,EAAE,aAAa,EAAE,MAAM,8CAA8C,CAAC;AAE7E,MAAM,WAAW,gBACf,SAAQ,IAAI,CAAC,aAAa,EAAE,KAAK,CAAC,EAChC,QAAQ;CAAG;AAcf,eAAO,MAAM,iBAAiB,EAAE,KAAK,CAAC,gBAAgB,CACgB,CAAC;AAEvE,eAAe,iBAAiB,CAAC"}

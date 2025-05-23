@@ -35,12 +35,12 @@ interface PollData {
 
 interface User {
   _id: string;
-  [key: string]: any;
+  // [key: string]: any;
 }
 
 interface Project {
   _id: string;
-  [key: string]: any;
+  // [key: string]: any;
 }
 
 interface MatchingPollModalProps {

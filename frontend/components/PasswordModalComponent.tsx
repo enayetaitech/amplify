@@ -82,10 +82,8 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
         toast.success(response.data.message || 'Password updated successfully.')
         onClose()
       }
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || 'An unexpected error occurred.'
-      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     }
   }
 

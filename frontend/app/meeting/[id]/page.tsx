@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useMeeting } from "context/MeetingContext";
 import { useGlobalContext } from "context/GlobalContext";
@@ -22,10 +22,22 @@ export default function Meeting() {
   const hasJoined = useRef(false);
 
     // derive “me” either from AuthContext (moderator) or localStorage (participant)
-  const me = user
-    ? { name: user.firstName, email: user.email, role: user.role as IParticipant["role"] }
-    : JSON.parse(localStorage.getItem("liveSessionUser")!) as IWaitingUser;
-
+  // const me = user
+  //   ? { name: user.firstName, email: user.email, role: user.role as IParticipant["role"] }
+  //   : JSON.parse(localStorage.getItem("liveSessionUser")!) as IWaitingUser;
+  // memoize “me” so it doesn’t change each render
+  const me = useMemo(() => {
+    if (user) {
+      return {
+        name: user.firstName,
+        email: user.email,
+        role: user.role as IParticipant["role"],
+      };
+    }
+    const raw = localStorage.getItem("liveSessionUser");
+    if (!raw) throw new Error("Missing liveSessionUser in localStorage");
+    return JSON.parse(raw) as IWaitingUser;
+  }, [user]);
 
   const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
   const [participants, setParticipants] = useState<IParticipant[]>([]);
@@ -51,7 +63,7 @@ console.log('participant', participants)
         setParticipants(rooms.participantList);
       }
     );
-  }, [sessionId, socket, user]);
+  }, [sessionId, socket, me]);
 
   useEffect(() => {
     if (!socket ) return;

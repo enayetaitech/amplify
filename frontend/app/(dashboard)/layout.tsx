@@ -36,7 +36,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className='sticky top-0 md:w-[260px] h-screen z-10'>
           <DashboardSidebarComponent
             handleLogoutModalOpen={handleLogoutModalOpen}
-            isLogoutModalOpen={isLogoutModalOpen}
+            // isLogoutModalOpen={isLogoutModalOpen}
             
           />
         </div>

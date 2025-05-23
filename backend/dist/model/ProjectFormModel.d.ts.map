@@ -1,0 +1,1 @@
+{"version":3,"file":"ProjectFormModel.d.ts","sourceRoot":"","sources":["../../model/ProjectFormModel.ts"],"names":[],"mappings":"AAAA,OAAO,EAAiB,QAAQ,EAAE,KAAK,EAAE,MAAM,UAAU,CAAC;AAC1D,OAAO,EAAE,YAAY,EAAE,MAAM,6CAA6C,CAAC;AAE3E,MAAM,WAAW,oBAAqB,SAAQ,IAAI,CAAC,YAAY,EAAE,MAAM,CAAC,EAAE,QAAQ;IAChF,IAAI,EAAE,KAAK,CAAC,QAAQ,CAAC;CACtB;;;;;;AA6CD,wBAA6E"}
