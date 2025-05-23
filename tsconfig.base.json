@@ -12,8 +12,14 @@
     }
   ],
   "compilerOptions": {
-    "rootDir": ".",
-    "baseUrl": ".",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+     "baseUrl": ".",
     "paths": {
       "@shared/*": ["shared/*"],
       "@backend/*": ["backend/*"],
