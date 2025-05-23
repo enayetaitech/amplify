@@ -43,23 +43,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSessionHistory = exports.endSession = exports.startSession = void 0;
-const ResponseHelpers_1 = require("../utils/ResponseHelpers");
+const responseHelpers_1 = require("../utils/responseHelpers");
 const sessionService = __importStar(require("../processors/liveSession/sessionService"));
 const startSession = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { sessionId } = req.params;
     const live = yield sessionService.startSession(sessionId);
-    (0, ResponseHelpers_1.sendResponse)(res, live, "Meeting started", 200);
+    (0, responseHelpers_1.sendResponse)(res, live, "Meeting started", 200);
 });
 exports.startSession = startSession;
 const endSession = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { sessionId } = req.params;
     const live = yield sessionService.endSession(sessionId);
-    (0, ResponseHelpers_1.sendResponse)(res, { sessionId: live.sessionId }, "Meeting ended", 200);
+    (0, responseHelpers_1.sendResponse)(res, { sessionId: live.sessionId }, "Meeting ended", 200);
 });
 exports.endSession = endSession;
 const getSessionHistory = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { sessionId } = req.params;
     const history = yield sessionService.getSessionHistory(sessionId);
-    (0, ResponseHelpers_1.sendResponse)(res, history, "Session history retrieved", 200);
+    (0, responseHelpers_1.sendResponse)(res, history, "Session history retrieved", 200);
 });
 exports.getSessionHistory = getSessionHistory;

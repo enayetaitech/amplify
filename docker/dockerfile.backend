@@ -49,4 +49,4 @@ EXPOSE 8978
 WORKDIR /app/backend
 
 # Start the application
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "dev"]
