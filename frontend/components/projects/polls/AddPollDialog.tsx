@@ -445,8 +445,6 @@ const AddPollDialog = ({
                     </Select>
                   </div>
                 </div>
-
-                {/* Per-type UI */}
                 {q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER" ? (
                   <div className="grid grid-cols-2 gap-6">
                     <div className="flex items-center gap-2">

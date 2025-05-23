@@ -1,0 +1,1 @@
+{"version":3,"file":"ObserverGroupMessage.d.ts","sourceRoot":"","sources":["../../model/ObserverGroupMessage.ts"],"names":[],"mappings":"AAAA,OAAiB,EAAE,QAAQ,EAAU,KAAK,EAAE,MAAM,UAAU,CAAC;AAC7D,OAAO,EAAE,qBAAqB,EAAE,MAAM,sDAAsD,CAAC;AAE7F,UAAU,wBACR,SAAQ,IAAI,CAAC,qBAAqB,EAAE,KAAK,CAAC,EACxC,QAAQ;CAAG;AAcf,eAAO,MAAM,yBAAyB,EAAE,KAAK,CAAC,wBAAwB,CAInE,CAAC;AAEJ,eAAe,yBAAyB,CAAC"}
