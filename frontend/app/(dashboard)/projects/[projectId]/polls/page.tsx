@@ -1,36 +1,37 @@
 "use client";
-
-import {  useQuery } from "@tanstack/react-query";
+import {  keepPreviousData, useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
-import React from "react";
+import React, { useState } from "react";
 import { IPoll } from "@shared/interface/PollInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/HeadingBlue25pxComponent";
 import { useGlobalContext } from "context/GlobalContext";
 import AddPollDialog from "components/projects/polls/AddPollDialog";
-
-
+import PollsTable from "components/projects/polls/PollsTable";
+import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 
 const Polls = () => {
   const { projectId } = useParams() as { projectId?: string };
   const { user } = useGlobalContext();
+    const limit = 10;
+    const [page, setPage] = useState(1);
   
   const {
-    data: polls,
+    data,
     isLoading,
     error,
-  } = useQuery<IPoll[], Error>({
-    queryKey: ["polls", projectId],
+  } = useQuery<{ data: IPoll[]; meta: IPaginationMeta }, Error>({
+    queryKey: ["polls", projectId, page],
     queryFn: () =>
       api
-        .get(`/api/v1/polls/project/${projectId}`)
-        .then((res) => res.data.data),
-    enabled: Boolean(projectId),
+        .get<{ data: IPoll[]; meta: IPaginationMeta }>(`/api/v1/polls/project/${projectId}`,
+          { params: { page, limit } })
+        .then((res) => res.data),
+    placeholderData: keepPreviousData,
   });
 
-    console.log("Polls", polls);
-
+  
   if (isLoading) return <p>Loading polls…</p>;
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
@@ -42,6 +43,19 @@ const Polls = () => {
           <AddPollDialog projectId={projectId} user={user} />
         )}
       </div>
+      {
+        isLoading ? ( <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">
+          Loading Sessions...
+        </p>) : (
+          <div className="pt-5 bg-custom-white">
+            <PollsTable
+            polls={data!.data}
+            meta={data!.meta}
+            onPageChange={setPage}
+            />
+          </div>
+        )
+      }
     </ComponentContainer>
   );
 };
