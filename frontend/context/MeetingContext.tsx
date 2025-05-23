@@ -12,6 +12,9 @@ import { io, Socket } from "socket.io-client";
 // context value
 interface MeetingContextValue {
   socket: Socket | null;
+  joinRoom: (params:any,callback:(params:any) => any) => void; 
+  onObserverWaitingRoomUpdate: (callback: (list: any[]) => void) => void;
+  offObserverWaitingRoomUpdate: (callback: (list: any[]) => void) => void;
 }
 
 const MeetingContext = createContext<MeetingContextValue | undefined>(
@@ -28,6 +31,7 @@ export function useMeeting(): MeetingContextValue {
 
 type MeetingProviderProps = {
   children: ReactNode;
+
 };
 
 export function MeetingProvider({ children }: MeetingProviderProps) {
@@ -52,9 +56,31 @@ export function MeetingProvider({ children }: MeetingProviderProps) {
     };
   }, []);
 
+  // Implement the required context functions
+  const joinRoom = (params: any, callback: (params: any) => any) => {
+    if (socket) {
+      socket.emit("joinRoom", params, callback);
+    }
+  };
+
+  const onObserverWaitingRoomUpdate = (callback: (list: any[]) => void) => {
+    if (socket) {
+      socket.on("observerWaitingRoomUpdate", callback);
+    }
+  };
+
+  const offObserverWaitingRoomUpdate = (callback: (list: any[]) => void) => {
+    if (socket) {
+      socket.off("observerWaitingRoomUpdate", callback);
+    }
+  };
+
   const contextValue = useMemo(
     () => ({
       socket,
+      joinRoom,
+      onObserverWaitingRoomUpdate,
+      offObserverWaitingRoomUpdate,
     }),
     [socket]
   );

@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  backend-server:
+    container_name: backend
+    build:
+      context: ../
+      dockerfile: docker/dockerfile.backend 
+    environment:
+      - PORT=8978
+    ports:
+      - "8978:8978"
+
+  frontend-server:
+    container_name: frontend
+    build:
+      context: ../
+      dockerfile: docker/dockerfile.frontend 
+    ports:
+      - "8979:8979"
+    depends_on:
+      - backend-server
+      
