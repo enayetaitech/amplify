@@ -2,7 +2,7 @@
 import mongoose, { Document, Schema, Model, Types } from "mongoose";
 import { IWaitingRoomChat } from "../../shared/interface/WaitingRoomChatInterface";
 
-interface IParticipantWaitingRoomChatDocument extends Omit<IWaitingRoomChat, "sessionId" | "_id">, Document {sessionId: Types.ObjectId;}
+export interface IParticipantWaitingRoomChatDocument extends Omit<IWaitingRoomChat, "sessionId" | "_id">, Document {sessionId: Types.ObjectId;}
 
 const ParticipantWaitingRoomChatSchema  = new Schema<IParticipantWaitingRoomChatDocument>(
   {

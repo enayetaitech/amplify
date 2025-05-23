@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Button } from "components/ui/button";
 import { Label } from "components/ui/label";
-import axios, { AxiosError } from "axios";
+import  { AxiosError } from "axios";
 import { toast } from "sonner";
 
 import { IBillingInfo } from "@shared/interface/UserInterface";

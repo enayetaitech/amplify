@@ -1,4 +1,4 @@
-interface FilterValues {
+export interface FilterValues {
   startDate: string;
   endDate: string;
   status: string;

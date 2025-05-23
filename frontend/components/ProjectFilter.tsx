@@ -17,12 +17,13 @@ import { Label } from "components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import { cn } from "lib/utils";
 
-interface FilterValues {
+export interface FilterValues {
   startDate: string;
   endDate: string;
   status: string;
   role: string;
   tag: string;
+  [key: string]: string | undefined;
 }
 
 interface ProjectFilterProps {
@@ -37,7 +38,7 @@ const ProjectFilter = ({ onFilter }: ProjectFilterProps) => {
   const [tag, setTag] = useState("");
 
   const statusOptions = ["Draft", "Active", "Complete", "Inactive", "Closed"];
-  const roleOptions = ["All", "Admin", "Moderator", "Observer"];
+  // const roleOptions = ["All", "Admin", "Moderator", "Observer"];
 
   useEffect(() => {
     const filters: FilterValues = {

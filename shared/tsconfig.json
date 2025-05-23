@@ -13,9 +13,6 @@
     "moduleResolution": "node",
     "skipLibCheck": true
   },
-  "include": [
-    "interface/**/*.ts",
-    "utils/**/*.ts"
-  ],
+    "include": ["interface/**/*.ts","utils/**/*.ts"],
   "exclude": ["node_modules"]
 }

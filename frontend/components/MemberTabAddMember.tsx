@@ -73,26 +73,48 @@ const MemberTabAddMember: React.FC<MemberTabAddMemberProps> = ({
   const { user } = useGlobalContext() as { user: User };
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const fetchContacts = async () => {
-    try {
-      const apiEndpoint =
-        user?.role === "SuperAdmin" || user?.role === "AmplifyAdmin"
-          ? `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/users/getAllAmplifyAdminsByAdminId`
-          : `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/create/contact-from-member-tab/${userId}/${project?._id}`;
+  // const fetchContacts = async () => {
+  //   try {
+  //     const apiEndpoint =
+  //       user?.role === "SuperAdmin" || user?.role === "AmplifyAdmin"
+  //         ? `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/users/getAllAmplifyAdminsByAdminId`
+  //         : `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/create/contact-from-member-tab/${userId}/${project?._id}`;
 
-      const response = await axios.get(apiEndpoint, { withCredentials: true });
-      setPeoples(response.data);
-    } catch (error) {
-      console.error("Error fetching contacts:", error);
-      toast.error("Failed to fetch contacts");
-    }
-  };
+  //     const response = await axios.get(apiEndpoint, { withCredentials: true });
+  //     setPeoples(response.data);
+  //   } catch (error) {
+  //     console.error("Error fetching contacts:", error);
+  //     toast.error("Failed to fetch contacts");
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   if (open) {
+  //     fetchContacts();
+  //   }
+  // }, [open, userId, project?._id, ]);
 
   useEffect(() => {
-    if (open) {
-      fetchContacts();
-    }
-  }, [open, userId, project?._id]);
+    if (!open) return;
+
+    // define it here so it's not recreated every render
+    const fetchContacts = async () => {
+      try {
+        const apiEndpoint =
+          user?.role === "SuperAdmin" || user?.role === "AmplifyAdmin"
+            ? `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/users/getAllAmplifyAdminsByAdminId`
+            : `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/create/contact-from-member-tab/${userId}/${project?._id}`;
+
+        const response = await axios.get(apiEndpoint, { withCredentials: true });
+        setPeoples(response.data);
+      } catch (error) {
+        console.error("Error fetching contacts:", error);
+        toast.error("Failed to fetch contacts");
+      }
+    };
+
+    fetchContacts();
+  }, [open, user?.role, userId, project?._id]);
 
   // Filter out existing members
   const existingMemberIds = new Set(
@@ -183,8 +205,8 @@ const MemberTabAddMember: React.FC<MemberTabAddMemberProps> = ({
       if (response.status === 200) {
         toast.success(response.data.message);
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to send email");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     } finally {
       setIsLoading(false);
     }

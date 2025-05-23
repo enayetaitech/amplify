@@ -1,0 +1,1 @@
+{"version":3,"file":"SearchPropsInterface.d.ts","sourceRoot":"","sources":["../../interface/SearchPropsInterface.ts"],"names":[],"mappings":"AAAA,UAAU,WAAW;IACnB,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,QAAQ,EAAE,CAAC,KAAK,EAAE,MAAM,KAAK,IAAI,CAAC;IAClC,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,aAAa,CAAC,EAAE,MAAM,CAAC;CACxB"}

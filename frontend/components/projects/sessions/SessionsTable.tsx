@@ -12,7 +12,6 @@ import {
   TableCell,
 } from "components/ui/table";
 import { Button } from "components/ui/button";
-
 import { ChevronsUpDown, MoreVertical } from "lucide-react";
 import CustomPagination from "components/shared/Pagination";
 
@@ -80,7 +79,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   </div>
                 </TableHead>
               ))}
-              <TableHead className="px-6 py-3" /> {/* action menu */}
+              <TableHead className="px-6 py-3" /> 
             </TableRow>
           </TableHeader>
 

@@ -23,7 +23,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   handleTabChange,
 }) => {
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+    <Tabs value={activeTab}  onValueChange={(val: string) => handleTabChange(val as TabValue)} className="w-full">
       <TabsList className="w-full justify-start overflow-x-auto">
         {Object.entries(tabDisplayNames).map(([value, display]) => (
           <TabsTrigger
