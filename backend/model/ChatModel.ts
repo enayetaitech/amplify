@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 import { IChatMessage } from "../../shared/interface/ChatMessageInterface";
 
-interface IChatMessageDoc
+export interface IChatMessageDoc
   extends Omit<IChatMessage, "_id">,
     Document {}
 

@@ -23,6 +23,7 @@ import {
   verifyRefreshToken,
 } from "../utils/tokenService";
 import { AuthRequest } from "../middlewares/authenticateJwt";
+import { Types } from "mongoose";
 
 export const createAccount = async (
   req: Request,
@@ -137,9 +138,13 @@ export const loginUser = async (
     return next(new ErrorHandler("Invalid credentials", 401));
   }
 
-  const accessToken = signAccessToken({ userId: user._id, role: user.role });
+  const idString =  typeof user._id === 'string'
+    ? user._id
+    : (user._id as Types.ObjectId).toString();
 
-  const refreshToken = signRefreshToken({ userId: user._id });
+  const accessToken = signAccessToken({ userId: idString, role: user.role });
+
+  const refreshToken = signRefreshToken({ userId: idString, });
 
   // parse the expiry strings from config
   const accessMaxAge = parseExpiryToMs(config.jwt_access_token_expires_in!);

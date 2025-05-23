@@ -2,7 +2,7 @@
 import mongoose, { Document, Schema, Model, Types } from "mongoose";
 import { ILiveSession } from "../../shared/interface/LiveSessionInterface";
 
-interface ILiveSessionDocument extends Omit<ILiveSession,'_id'| "sessionId">, Document {sessionId: Types.ObjectId;}
+export interface ILiveSessionDocument extends Omit<ILiveSession,'_id'| "sessionId">, Document {sessionId: Types.ObjectId;}
 
 
 const WaitingRoomParticipantSchema = new Schema<

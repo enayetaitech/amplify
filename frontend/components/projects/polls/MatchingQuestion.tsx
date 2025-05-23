@@ -7,7 +7,7 @@ import { Input } from "components/ui/input";
 import CustomButton from "components/shared/CustomButton";
 
 export interface MatchingQuestionProps {
-  id: string;
+  // id: string;
   options: string[];
   answers: string[];
   onOptionChange: (index: number, value: string) => void;
@@ -19,7 +19,7 @@ export interface MatchingQuestionProps {
 }
 
 const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
-  id,
+  // id,
   options,
   answers,
   onOptionChange,

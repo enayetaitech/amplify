@@ -21,7 +21,7 @@ import {
 } from "components/ui/tooltip";
 import { timeZones } from "constant";
 import api from "lib/api";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AddModeratorModal from "./AddModeratorModal";
 import { ISessionFormData } from "./AddSessionModal";
 import MultiSelectDropdown from "./MultiSelectDropdown";
@@ -41,6 +41,7 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
   const limit = 100;
   const page = 1;
   const [showAddModal, setShowAddModal] = useState(false);
+  const prevNumRef = useRef<number>(formData.numberOfSessions);
 
   const {
     data,
@@ -59,14 +60,13 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
     placeholderData: keepPreviousData,
   });
 
-  useEffect(() => {
-    if (data?.data) {
-      updateFormData({ allModerators: data.data });
+   useEffect(() => {
+    // only re-run when the count changes
+    if (prevNumRef.current === formData.numberOfSessions) {
+      return;
     }
-  }, [data]);
+    prevNumRef.current = formData.numberOfSessions;
 
-  // whenever numberOfSessions changes, rebuild the sessions array:
-  useEffect(() => {
     updateFormData({
       sessions: Array.from(
         { length: formData.numberOfSessions },
@@ -80,7 +80,35 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
           }
       ),
     });
-  }, [formData.numberOfSessions]);
+  // now include both pieces of formData that we reference
+  }, [
+    formData.numberOfSessions,
+    formData.sessions,
+    updateFormData,
+  ]);
+
+  // useEffect(() => {
+  //   if (data?.data) {
+  //     updateFormData({ allModerators: data.data });
+  //   }
+  // }, [data, updateFormData]);
+
+  // // whenever numberOfSessions changes, rebuild the sessions array:
+  // useEffect(() => {
+  //   updateFormData({
+  //     sessions: Array.from(
+  //       { length: formData.numberOfSessions },
+  //       (_, i) =>
+  //         formData.sessions[i] || {
+  //           title: "",
+  //           date: "",
+  //           startTime: "",
+  //           duration: "",
+  //           moderators: [],
+  //         }
+  //     ),
+  //   });
+  // }, [formData.numberOfSessions, updateFormData]);
 
   if (error) {
     console.error("Error fetching moderators:", error.message);

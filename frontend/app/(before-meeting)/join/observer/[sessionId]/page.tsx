@@ -9,6 +9,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useMeeting } from 'context/MeetingContext';
 import { Input } from 'components/ui/input';
 import { Button } from 'components/ui/button';
+import { IObserverWaitingUser } from '@shared/interface/LiveSessionInterface';
 
 
 const observerJoinSchema = z.object({
@@ -40,7 +41,7 @@ const ObserverJoinMeeting: React.FC = () => {
         role: 'Observer',
       },
       ({ observers }) => {
-        // once joined, send them to the waiting room
+        console.log('observers', observers)
         router.push(
           `/waiting-room/observer/${sessionId}`
         );
@@ -50,7 +51,7 @@ const ObserverJoinMeeting: React.FC = () => {
 
   // subscribe to real‐time observer waiting‐room updates
   useEffect(() => {
-    const handleUpdate = (list: any[]) => {
+    const handleUpdate = (list: IObserverWaitingUser[]) => {
       console.log('observer waiting room now has', list.length, 'members');
     };
     onObserverWaitingRoomUpdate(handleUpdate);

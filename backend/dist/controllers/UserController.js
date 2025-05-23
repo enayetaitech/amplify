@@ -91,8 +91,11 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         console.log('Invalid credentials');
         return next(new ErrorHandler_1.default("Invalid credentials", 401));
     }
-    const accessToken = (0, tokenService_1.signAccessToken)({ userId: user._id, role: user.role });
-    const refreshToken = (0, tokenService_1.signRefreshToken)({ userId: user._id });
+    const idString = typeof user._id === 'string'
+        ? user._id
+        : user._id.toString();
+    const accessToken = (0, tokenService_1.signAccessToken)({ userId: idString, role: user.role });
+    const refreshToken = (0, tokenService_1.signRefreshToken)({ userId: idString, });
     // parse the expiry strings from config
     const accessMaxAge = (0, tokenService_1.parseExpiryToMs)(index_1.default.jwt_access_token_expires_in);
     const refreshMaxAge = (0, tokenService_1.parseExpiryToMs)(index_1.default.jwt_refresh_token_expires_in);

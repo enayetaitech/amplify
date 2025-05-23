@@ -8,7 +8,7 @@ import CustomButton from "components/shared/CustomButton";
 import { Input } from "components/ui/input";
 
 export interface RatingScaleQuestionProps {
-  id: string;
+  // id: string;
   scoreFrom: number;
   scoreTo: number;
   lowLabel: string;
@@ -20,7 +20,7 @@ export interface RatingScaleQuestionProps {
 }
 
 const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
-  id,
+  // id,
   scoreFrom,
   scoreTo,
   lowLabel,

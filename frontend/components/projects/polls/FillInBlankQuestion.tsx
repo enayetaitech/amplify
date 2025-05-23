@@ -7,7 +7,7 @@ import { Label } from "@radix-ui/react-label";
 import { Input } from "components/ui/input";
 
 export interface FillInBlankQuestionProps {
-  id: string;
+  // id: string;
   answers: string[];
   onAddBlank: () => void;
   onAnswerChange: (index: number, value: string) => void;
@@ -16,7 +16,7 @@ export interface FillInBlankQuestionProps {
 }
 
 const FillInBlankQuestion: React.FC<FillInBlankQuestionProps> = ({
-  id,
+  // id,
   answers,
   onAddBlank,
   onAnswerChange,
