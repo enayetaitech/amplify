@@ -18,6 +18,7 @@ import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import { toast } from "sonner";
 import axios from "axios";
 import EditPollDialog from "components/projects/polls/EditPollDialog";
+import PreviewPollDialog from "components/projects/polls/PreviewPollDialog";
 
 const Polls = () => {
   const { projectId } = useParams() as { projectId?: string };
@@ -26,6 +27,7 @@ const Polls = () => {
   const limit = 10;
   const [page, setPage] = useState(1);
   const [editingPoll, setEditingPoll] = useState<IPoll | null>(null);
+  const [previewing, setPreviewing] = useState<IPoll | null>(null);
 
   const { data, isLoading, error } = useQuery<
     { data: IPoll[]; meta: IPaginationMeta },
@@ -79,6 +81,7 @@ const Polls = () => {
             onPageChange={setPage}
             onDelete={(pollId) => deleteMutation.mutate(pollId)}
             onEdit={poll => setEditingPoll(poll)}
+            onPreview={(p) => setPreviewing(p)}
           />
         </div>
       )}
@@ -86,6 +89,13 @@ const Polls = () => {
         <EditPollDialog
           poll={editingPoll}
           onClose={() => setEditingPoll(null)}
+        />
+      )}
+
+      {previewing && (
+        <PreviewPollDialog
+          poll={previewing}
+          onClose={() => setPreviewing(null)}
         />
       )}
     </ComponentContainer>

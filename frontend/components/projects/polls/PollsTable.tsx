@@ -22,6 +22,7 @@ interface PollsTableProps {
   onPageChange: (newPage: number) => void;
   onDelete: (pollId: string) => void;
   onEdit: (poll: IPoll) => void;
+  onPreview: (poll: IPoll) => void;
 }
 
 const PollsTable: React.FC<PollsTableProps> = ({
@@ -29,7 +30,8 @@ const PollsTable: React.FC<PollsTableProps> = ({
   meta,
   onPageChange,
   onDelete,
-  onEdit
+  onEdit,
+  onPreview,
 }) => {
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto ">
@@ -76,7 +78,7 @@ const PollsTable: React.FC<PollsTableProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => console.log("Preview poll", poll._id)}
+                    onClick={() => onPreview(poll)}
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
