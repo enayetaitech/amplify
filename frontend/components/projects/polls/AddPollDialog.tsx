@@ -513,7 +513,7 @@ const AddPollDialog = ({
                   />
                 ) : q.type === "MATCHING" ? (
                   <MatchingQuestion
-                    id={q.id}
+                    // id={q.id}
                     options={q.options}
                     answers={q.answers}
                     onOptionChange={(i, val) => updateOption(q.id, i, val)}
@@ -525,7 +525,7 @@ const AddPollDialog = ({
                   />
                 ) : q.type === "RANK_ORDER" ? (
                   <RankOrderQuestion
-                    id={q.id}
+                    // id={q.id}
                     rows={q.options}
                     columns={q.answers}
                     onRowChange={(i, val) => updateOption(q.id, i, val)}
@@ -537,7 +537,7 @@ const AddPollDialog = ({
                   />
                 ) : q.type === "RATING_SCALE" ? (
                   <RatingScaleQuestion
-                    id={q.id}
+                    // id={q.id}
                     scoreFrom={q.scoreFrom}
                     scoreTo={q.scoreTo}
                     lowLabel={q.lowLabel}
@@ -558,7 +558,7 @@ const AddPollDialog = ({
                 ) : (
                   q.type === "FILL_IN_BLANK" && (
                     <FillInBlankQuestion
-                      id={q.id}
+                      // id={q.id}
                       answers={q.answers}
                       onAddBlank={() => addBlank(q.id)}
                       onAnswerChange={(idx, val) =>

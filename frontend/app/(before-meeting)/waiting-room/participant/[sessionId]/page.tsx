@@ -15,15 +15,22 @@ interface JoinAck {
 
 
 export default function ParticipantWaitingRoom() {
-  const { sessionId } = useParams();
+  const { sessionId } = useParams() as { sessionId: string };;
   const router = useRouter();
   const { socket } = useMeeting();
 
-  const me = JSON.parse(localStorage.getItem("liveSessionUser")!) as {
-    name: string;
-    email: string;
-    role: string;
-  };
+  // const me = JSON.parse(localStorage.getItem("liveSessionUser")!) as {
+  //   name: string;
+  //   email: string;
+  //   role: string;
+  // };
+
+      // load & memoize me once so it’s stable across renders
+    const [me] = useState(() => {
+      const raw = localStorage.getItem("liveSessionUser");
+     if (!raw) throw new Error("No liveSessionUser in localStorage");
+     return JSON.parse(raw) as { name: string; email: string; role: string };
+    });
 
   const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
 
@@ -91,7 +98,7 @@ export default function ParticipantWaitingRoom() {
       socket.off("participantListUpdate");
       socket.off("participant-waiting-room:receive-message");
     };
-  }, [sessionId, socket]);
+  }, [sessionId, socket,router, me ]);
 
   const sendMessage = () => {
     if (!chatInput.trim()) return;

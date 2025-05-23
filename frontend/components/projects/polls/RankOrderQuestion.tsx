@@ -7,7 +7,7 @@ import { Input } from "components/ui/input";
 import CustomButton from "components/shared/CustomButton";
 
 export interface RankOrderQuestionProps {
-  id: string;
+  // id: string;
   rows: string[];
   columns: string[];
   onRowChange: (index: number, value: string) => void;
@@ -19,7 +19,7 @@ export interface RankOrderQuestionProps {
 }
 
 const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
-  id,
+  // id,
   rows,
   columns,
   onRowChange,

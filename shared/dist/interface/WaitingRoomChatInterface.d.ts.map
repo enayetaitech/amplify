@@ -1,0 +1,1 @@
+{"version":3,"file":"WaitingRoomChatInterface.d.ts","sourceRoot":"","sources":["../../interface/WaitingRoomChatInterface.ts"],"names":[],"mappings":"AACA,MAAM,WAAW,gBAAgB;IAC/B,GAAG,EAAE,MAAM,CAAC;IACZ,SAAS,EAAE,MAAM,CAAC;IAClB,KAAK,EAAE,MAAM,CAAC;IACd,UAAU,EAAE,MAAM,CAAC;IACnB,IAAI,EAAE,aAAa,GAAG,UAAU,GAAG,WAAW,CAAC;IAC/C,OAAO,EAAE,MAAM,CAAC;IAChB,SAAS,EAAE,IAAI,CAAC;CACjB"}

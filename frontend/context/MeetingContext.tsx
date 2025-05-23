@@ -1,4 +1,5 @@
 "use client";
+import { IObserverWaitingUser } from "@shared/interface/LiveSessionInterface";
 import React, {
   createContext,
   useContext,
@@ -9,9 +10,16 @@ import React, {
 } from "react";
 import { io, Socket } from "socket.io-client";
 
-// context value
-interface MeetingContextValue {
+
+
+export interface MeetingContextValue {
   socket: Socket | null;
+  joinRoom: (
+    payload: { sessionId: string; name: string; email: string; role: "Observer" },
+    cb: (data: { observers: IObserverWaitingUser[] }) => void
+  ) => void;
+  onObserverWaitingRoomUpdate: (handler: (list: IObserverWaitingUser[]) => void) => void;
+  offObserverWaitingRoomUpdate: (handler: (list: IObserverWaitingUser[]) => void) => void;
 }
 
 const MeetingContext = createContext<MeetingContextValue | undefined>(
@@ -52,15 +60,37 @@ export function MeetingProvider({ children }: MeetingProviderProps) {
     };
   }, []);
 
-  const contextValue = useMemo(
+     const joinRoom: MeetingContextValue["joinRoom"] = (payload, cb) => {
+    // Only emit if socket is ready
+    socket?.emit("observer:join", payload, cb);
+  };
+
+  const onObserverWaitingRoomUpdate: MeetingContextValue["onObserverWaitingRoomUpdate"] = (
+    handler
+  ) => {
+    socket?.on("observer:waiting_room_update", handler);
+  };
+
+  const offObserverWaitingRoomUpdate: MeetingContextValue["offObserverWaitingRoomUpdate"] = (
+    handler
+  ) => {
+    socket?.off("observer:waiting_room_update", handler);
+  };
+
+
+  const value = useMemo<MeetingContextValue>(
     () => ({
       socket,
+      joinRoom,
+      onObserverWaitingRoomUpdate,
+      offObserverWaitingRoomUpdate,
     }),
     [socket]
   );
 
+
   return (
-    <MeetingContext.Provider value={contextValue}>
+    <MeetingContext.Provider value={value}>
       {children}
     </MeetingContext.Provider>
   );

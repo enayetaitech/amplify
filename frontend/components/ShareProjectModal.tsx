@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 interface Project {
   name: string;
-  projectPasscode: string;
+  projectPasscode?: string;
 }
 
 interface ShareProjectModalProps {
@@ -27,7 +27,7 @@ const ShareProjectModal: React.FC<ShareProjectModalProps> = ({
   onClose,
   open,
 }) => {
-  const [accessLevel, setAccessLevel] = useState("Observer Access");
+  const [accessLevel] = useState("Observer Access");
 
   const handleCopyInvite = () => {
     const inviteText =

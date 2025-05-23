@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 import { IObserverGroupMessage } from "../../shared/interface/ObserverGroupMessageInterface";
 
-interface IObserverGroupMessageDoc
+export interface IObserverGroupMessageDoc
   extends Omit<IObserverGroupMessage, "_id">,
     Document {}
 

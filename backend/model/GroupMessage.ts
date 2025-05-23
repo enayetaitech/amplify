@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 import { IGroupMessage } from "../../shared/interface/GroupMessageInterface";
 
-interface IGroupMessageDoc
+export interface IGroupMessageDoc
   extends Omit<IGroupMessage, "_id">,
     Document {}
 

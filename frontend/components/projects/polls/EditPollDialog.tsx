@@ -433,7 +433,7 @@ console.log('Edit poll', poll)
                   />
                 ) : q.type === "MATCHING" ? (
                   <MatchingQuestion
-                    id={q.id}
+                    // id={q.id}
                     options={q.options}
                     answers={q.answers}
                     onOptionChange={(i, v) => updateOption(q.id, i, v)}
@@ -445,7 +445,7 @@ console.log('Edit poll', poll)
                   />
                 ) : q.type === "RANK_ORDER" ? (
                   <RankOrderQuestion
-                    id={q.id}
+                    // id={q.id}
                     rows={q.rows}
                     columns={q.columns}
                        onRowChange={(i, v) =>
@@ -477,7 +477,7 @@ console.log('Edit poll', poll)
                   />
                 ) : q.type === "RATING_SCALE" ? (
                   <RatingScaleQuestion
-                    id={q.id}
+                    // id={q.id}
                     scoreFrom={q.scoreFrom}
                     scoreTo={q.scoreTo}
                     lowLabel={q.lowLabel}
@@ -490,7 +490,7 @@ console.log('Edit poll', poll)
                 ) : (
                   q.type === "FILL_IN_BLANK" && (
                     <FillInBlankQuestion
-                      id={q.id}
+                      // id={q.id}
                       answers={q.answers}
                       onAddBlank={() => addBlank(q.id)}
                       onAnswerChange={(i, v) => updateAnswer(q.id, i, v)}
