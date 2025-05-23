@@ -1,0 +1,52 @@
+# Use the official Node.js 20 Alpine image
+FROM node:20-alpine AS base
+
+# Set the working directory
+WORKDIR /app
+
+# Install OS dependencies including build tools and libraries needed to build your project
+RUN apk update && apk add --no-cache \
+    ttf-freefont \
+    chromium \
+    git \
+    build-base \
+    python3 \
+    py3-pip \
+    automake \
+    autoconf \
+    libtool \
+    linux-headers \
+    libstdc++ \
+    libc6-compat \
+    net-tools \
+    iputils \
+    curl \
+    openssl \
+    openssl-dev
+
+# Create symbolic link for `python` if needed
+RUN ln -sf python3 /usr/bin/python
+
+# Create a second stage for actual running
+FROM base AS run
+
+# Set working directory again (new layer)
+WORKDIR /app
+
+# Copy package files first for better layer caching
+COPY backend/package.json backend/package-lock.json ./backend/
+
+# Install dependencies
+RUN cd backend && npm install --force
+
+# Copy the full app (excluding Docker context)
+COPY . .
+
+# Expose necessary ports
+EXPOSE 8978
+
+# Set working directory to backend
+WORKDIR /app/backend
+
+# Start the application
+CMD ["npm", "run", "start"]

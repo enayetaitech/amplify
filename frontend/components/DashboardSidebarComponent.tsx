@@ -8,7 +8,7 @@ import Logo from "./LogoComponent";
 import SidebarContent from "./sidebar/SidebarContent";
 
 export default function DashboardSidebar({
-  handleLogoutModalOpen,
+  handleLogoutModalOpen
 }: {
   handleLogoutModalOpen: () => void;
 }) {

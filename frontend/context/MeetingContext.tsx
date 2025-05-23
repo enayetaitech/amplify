@@ -14,12 +14,14 @@ import { io, Socket } from "socket.io-client";
 
 export interface MeetingContextValue {
   socket: Socket | null;
+
   joinRoom: (
     payload: { sessionId: string; name: string; email: string; role: "Observer" },
     cb: (data: { observers: IObserverWaitingUser[] }) => void
   ) => void;
   onObserverWaitingRoomUpdate: (handler: (list: IObserverWaitingUser[]) => void) => void;
   offObserverWaitingRoomUpdate: (handler: (list: IObserverWaitingUser[]) => void) => void;
+
 }
 
 const MeetingContext = createContext<MeetingContextValue | undefined>(
@@ -36,6 +38,7 @@ export function useMeeting(): MeetingContextValue {
 
 type MeetingProviderProps = {
   children: ReactNode;
+
 };
 
 export function MeetingProvider({ children }: MeetingProviderProps) {
@@ -60,6 +63,7 @@ export function MeetingProvider({ children }: MeetingProviderProps) {
     };
   }, []);
 
+
      const joinRoom: MeetingContextValue["joinRoom"] = (payload, cb) => {
     // Only emit if socket is ready
     socket?.emit("observer:join", payload, cb);
@@ -79,6 +83,7 @@ export function MeetingProvider({ children }: MeetingProviderProps) {
 
 
   const value = useMemo<MeetingContextValue>(
+
     () => ({
       socket,
       joinRoom,
