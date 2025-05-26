@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import EditPollDialog from "components/projects/polls/EditPollDialog";
 import PreviewPollDialog from "components/projects/polls/PreviewPollDialog";
+import ConfirmationModalComponent from "components/ConfirmationModalComponent";
 
 const Polls = () => {
   const { projectId } = useParams() as { projectId?: string };
@@ -28,6 +29,9 @@ const Polls = () => {
   const [page, setPage] = useState(1);
   const [editingPoll, setEditingPoll] = useState<IPoll | null>(null);
   const [previewing, setPreviewing] = useState<IPoll | null>(null);
+  const [pendingDeletePoll, setPendingDeletePoll] = useState<string | null>(null)
+
+
 
   const { data, isLoading, error } = useQuery<
     { data: IPoll[]; meta: IPaginationMeta },
@@ -79,7 +83,7 @@ const Polls = () => {
             polls={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
-            onDelete={(pollId) => deleteMutation.mutate(pollId)}
+            onDelete={(pollId) => setPendingDeletePoll(pollId)}
             onEdit={poll => setEditingPoll(poll)}
             onPreview={(p) => setPreviewing(p)}
           />
@@ -96,6 +100,19 @@ const Polls = () => {
         <PreviewPollDialog
           poll={previewing}
           onClose={() => setPreviewing(null)}
+        />
+      )}
+
+      {pendingDeletePoll && (
+        <ConfirmationModalComponent
+          open={true}
+          heading="Delete this poll?"
+          text="This action cannot be undone. Are you sure you want to delete this poll?"
+          onCancel={() => setPendingDeletePoll(null)}
+          onYes={() => {
+            deleteMutation.mutate(pendingDeletePoll)
+            setPendingDeletePoll(null)
+          }}
         />
       )}
     </ComponentContainer>
