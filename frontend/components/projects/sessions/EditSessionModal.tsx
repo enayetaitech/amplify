@@ -134,7 +134,7 @@ export default function EditSessionModal({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent>
+      <DialogContent className="w-full max-w-[calc(100%-2rem)] sm:max-w-lg ">
         <DialogTitle>Edit Session</DialogTitle>
         <Form {...form}>
           <form
