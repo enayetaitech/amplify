@@ -90,7 +90,7 @@ export default function EditSessionModal({
     defaultValues: {
       title: session?.title ?? "",
       date: session
-        ? session.date.toISOString().slice(0, 10)
+        ? new Date(session.date).toISOString().slice(0, 10)
         : new Date().toISOString().slice(0, 10),
       startTime: session?.startTime ?? "",
       duration: session?.duration ?? 30,
