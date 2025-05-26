@@ -60,7 +60,7 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
     placeholderData: keepPreviousData,
   });
 
-   useEffect(() => {
+  useEffect(() => {
     // only re-run when the count changes
     if (prevNumRef.current === formData.numberOfSessions) {
       return;
@@ -80,12 +80,8 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
           }
       ),
     });
-  // now include both pieces of formData that we reference
-  }, [
-    formData.numberOfSessions,
-    formData.sessions,
-    updateFormData,
-  ]);
+    // now include both pieces of formData that we reference
+  }, [formData.numberOfSessions, formData.sessions, updateFormData]);
 
   // useEffect(() => {
   //   if (data?.data) {
@@ -116,10 +112,8 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
 
   return (
     <div className="space-y-5">
-      {/* Moderator Dropdown + Button */}
       <div>
         <div className="flex gap-3 items-end">
-          {/* Moderator Multi-Select */}
           <div>
             <Label className="font-semibold text-sm mb-1 block">
               Moderators<span className="text-red-500">*</span>
@@ -145,9 +139,10 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
         <Label className="font-medium text-sm">
           Do you want the same moderator for all of your sessions?
         </Label>
-        <Switch className="cursor-pointer"
-        checked={formData.sameModerator}
-        onCheckedChange={(b) => updateFormData({ sameModerator: b })}
+        <Switch
+          className="cursor-pointer"
+          checked={formData.sameModerator}
+          onCheckedChange={(b) => updateFormData({ sameModerator: b })}
         />
       </div>
 

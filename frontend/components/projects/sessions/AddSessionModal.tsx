@@ -109,7 +109,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
     onSuccess: () => {
       toast.success("Sessions created!");
       queryClient.invalidateQueries({
-        queryKey: ["sessions", projectId, 'project', projectId],
+        queryKey: ["sessions", projectId],
       });
       setFormData(initialFormData);
       onClose();
@@ -170,8 +170,8 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-6xl overflow-x-auto border-0">
+    <Dialog open={open} onOpenChange={onClose} >
+      <DialogContent className="w-6xl overflow-x-auto border-0">
         <DialogHeader>
           <DialogTitle>Add Session</DialogTitle>
         </DialogHeader>
