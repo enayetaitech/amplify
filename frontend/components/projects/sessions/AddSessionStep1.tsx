@@ -83,11 +83,13 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
     // now include both pieces of formData that we reference
   }, [formData.numberOfSessions, formData.sessions, updateFormData]);
 
-  // useEffect(() => {
-  //   if (data?.data) {
-  //     updateFormData({ allModerators: data.data });
-  //   }
-  // }, [data, updateFormData]);
+useEffect(() => {
+  // if we have fetched moderators and haven’t set them yet…
+  if (data?.data && formData.allModerators?.length === 0) {
+    updateFormData({ allModerators: data.data });
+  }
+  // we only really care about when `data.data` changes:
+}, [data?.data]);
 
   // // whenever numberOfSessions changes, rebuild the sessions array:
   // useEffect(() => {
