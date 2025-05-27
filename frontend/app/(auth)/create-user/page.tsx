@@ -182,7 +182,14 @@ const Register = () => {
             <CardContent>
               <Form {...form}>
                 <form
-                  onSubmit={form.handleSubmit(onSubmit)}
+                  onSubmit={form.handleSubmit(
+                  onSubmit,
+                  (errors) => {
+                    if (errors.terms) {
+                      toast.error(errors.terms.message);
+                   }
+                 }
+                )}
                   className="lg:px-24 px-4 space-y-4"
                 >
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
@@ -370,9 +377,9 @@ const Register = () => {
                             </Button>
                           </div>
                         </FormControl>
-                        <FormDescription className="text-orange-500 text-xs">
+                        {/* <FormDescription className="text-orange-500 text-xs">
                           Password must contain 9 or more characters
-                        </FormDescription>
+                        </FormDescription> */}
                         <FormMessage />
                       </FormItem>
                     )}
