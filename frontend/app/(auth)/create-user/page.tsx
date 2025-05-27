@@ -22,7 +22,7 @@ import { Input } from "components/ui/input";
 import { Checkbox } from "components/ui/checkbox";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { FieldErrors, useForm } from "react-hook-form";
 import Logo from "components/LogoComponent";
 import { useMutation } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
@@ -49,10 +49,22 @@ interface CountryCode {
 // Zod schema updated
 const registerSchema = z
   .object({
-    firstName: z.string().min(1, { message: "First Name is required" }),
-    lastName: z.string().min(1, { message: "Last Name is required" }),
+     firstName: z
+      .string()
+      .min(1, { message: "First Name is required" })
+      .regex(/^[A-Za-z ]+$/, { message: "First Name can only contain letters and spaces" }),
+
+    lastName: z
+      .string()
+      .min(1, { message: "Last Name is required" })
+      .regex(/^[A-Za-z ]+$/, { message: "Last Name can only contain letters and spaces" }),
+
     email: z.string().email({ message: "Please enter a valid email address" }),
-    companyName: z.string().min(1, { message: "Company name is required" }),
+     companyName: z
+      .string()
+      .min(1, { message: "Company name is required" })
+      .regex(/^[A-Za-z ]+$/, { message: "Company Name can only contain letters and spaces" }),
+
     phoneNumber: z.string().min(10, { message: "Phone number is required" }),
     password: z.string().min(9, {
       message: "Password must be at least 9 characters long",
@@ -118,6 +130,14 @@ const Register = () => {
     fetchCountries();
   }, []);
 
+    const handleErrors = (errors: FieldErrors<RegisterFormValues>) => {
+    Object.values(errors).forEach((fieldError) => {
+      if (fieldError?.message) {
+        toast.error(fieldError.message);
+      }
+    });
+  };
+
   const registerMutation = useMutation({
     mutationFn: async (values: RegisterFormValues) => {
       const res = await api.post<ApiResponse<IUser>>(
@@ -158,6 +178,8 @@ const Register = () => {
     registerMutation.mutate(values);
   };
 
+   const handleRegister = form.handleSubmit(onSubmit, handleErrors);
+
   return (
     <div>
       <div className="hidden lg:justify-center lg:items-start lg:flex bg-white h-10">
@@ -182,14 +204,7 @@ const Register = () => {
             <CardContent>
               <Form {...form}>
                 <form
-                  onSubmit={form.handleSubmit(
-                  onSubmit,
-                  (errors) => {
-                    if (errors.terms) {
-                      toast.error(errors.terms.message);
-                   }
-                 }
-                )}
+                  onSubmit={handleRegister}
                   className="lg:px-24 px-4 space-y-4"
                 >
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
