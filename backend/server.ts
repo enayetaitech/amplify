@@ -13,7 +13,7 @@ import { initSocket } from "./socket";
 const app = express();
 console.log("Starting server...",config.frontend_base_url);
 // ✅ CORS config
-const allowedOrigins = [config.frontend_base_url as string];
+const allowedOrigins = [config.frontend_base_url as string,  "http://localhost:3000",];
 app.use(
   cors({
     origin: (origin, callback) => {

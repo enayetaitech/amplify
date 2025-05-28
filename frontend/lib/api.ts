@@ -6,7 +6,7 @@ import axios, {
   AxiosResponse,
 } from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://bamplify.hgsingalong.com';
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL ?? 'https://bamplify.hgsingalong.com';
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,

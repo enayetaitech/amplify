@@ -53,6 +53,10 @@ export const createAccount = async (
     return next(new ErrorHandler("User already exists", 400));
   }
 
+  if (await User.findOne({ phoneNumber })) {
+    return next(new ErrorHandler("phoneNumber already exists", 409));
+  }
+
   if (!isStrongPassword(password)) {
     return next(
       new ErrorHandler(
