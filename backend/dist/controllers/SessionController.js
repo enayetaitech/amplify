@@ -57,7 +57,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteSession = exports.duplicateSession = exports.updateSession = exports.getSessionById = exports.getSessionsByProject = exports.createSessions = void 0;
-const ResponseHelpers_1 = require("../utils/ResponseHelpers");
+const responseHelpers_1 = require("../utils/responseHelpers");
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
 const SessionModel_1 = require("../model/SessionModel");
 const ProjectModel_1 = __importDefault(require("../model/ProjectModel"));
@@ -157,7 +157,7 @@ const createSessions = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
         mongoSession.endSession();
     }
     // 8. Send uniform success response
-    (0, ResponseHelpers_1.sendResponse)(res, created, "Sessions created", 201);
+    (0, responseHelpers_1.sendResponse)(res, created, "Sessions created", 201);
 });
 exports.createSessions = createSessions;
 /**
@@ -191,7 +191,7 @@ const getSessionsByProject = (req, res, next) => __awaiter(void 0, void 0, void 
             hasPrev: page > 1,
             hasNext: page < totalPages,
         };
-        (0, ResponseHelpers_1.sendResponse)(res, sessions, "Sessions fetched", 200, meta);
+        (0, responseHelpers_1.sendResponse)(res, sessions, "Sessions fetched", 200, meta);
     }
     catch (err) {
         next(err);
@@ -213,7 +213,7 @@ const getSessionById = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
             return next(new ErrorHandler_1.default("Session not found", 404));
         }
         // 2. Return it
-        (0, ResponseHelpers_1.sendResponse)(res, session, "Session fetched", 200);
+        (0, responseHelpers_1.sendResponse)(res, session, "Session fetched", 200);
     }
     catch (err) {
         next(err);
@@ -295,7 +295,7 @@ const updateSession = (req, res, next) => __awaiter(void 0, void 0, void 0, func
             return next(new ErrorHandler_1.default("Session not found during update", 404));
         }
         // 11. Return the updated session
-        (0, ResponseHelpers_1.sendResponse)(res, updated, "Session updated", 200);
+        (0, responseHelpers_1.sendResponse)(res, updated, "Session updated", 200);
     }
     catch (err) {
         next(err);
@@ -321,7 +321,7 @@ const duplicateSession = (req, res, next) => __awaiter(void 0, void 0, void 0, f
         // 4. Insert the new document
         const copy = yield SessionModel_1.SessionModel.create(data);
         // 5. Return the duplicated session
-        (0, ResponseHelpers_1.sendResponse)(res, copy, "Session duplicated", 201);
+        (0, responseHelpers_1.sendResponse)(res, copy, "Session duplicated", 201);
     }
     catch (err) {
         next(err);
@@ -338,7 +338,7 @@ const deleteSession = (req, res, next) => __awaiter(void 0, void 0, void 0, func
             return next(new ErrorHandler_1.default("Session not found", 404));
         }
         // 3. Success—return the deleted doc for confirmation
-        (0, ResponseHelpers_1.sendResponse)(res, deleted, "Session deleted", 200);
+        (0, responseHelpers_1.sendResponse)(res, deleted, "Session deleted", 200);
     }
     catch (err) {
         next(err);

@@ -18,4 +18,4 @@ export declare const catchError: (handler: (req: Request, res: Response, next: N
  * @returns A JSON response with a consistent format.
  */
 export declare const sendResponse: <T, U>(res: Response, data: T, message?: string, statusCode?: number, meta?: U) => Response;
-//# sourceMappingURL=ResponseHelpers.d.ts.map
+//# sourceMappingURL=responseHelpers.d.ts.map
