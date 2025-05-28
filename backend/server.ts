@@ -11,9 +11,9 @@ import http from "http";
 import { initSocket } from "./socket";
 
 const app = express();
-
+console.log("Starting server...",config.frontend_base_url);
 // ✅ CORS config
-const allowedOrigins = ["http://localhost:3000"];
+const allowedOrigins = [config.frontend_base_url as string];
 app.use(
   cors({
     origin: (origin, callback) => {

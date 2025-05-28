@@ -2,17 +2,17 @@ import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import {
   resetPasswordEmailTemplate,
   verificationEmailTemplate,
 } from "../constants/emailTemplates";
-import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
-import { sanitizeUser } from "../processors/user/RemovePasswordFromUserObjectProcessor";
+import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { sanitizeUser } from "../processors/user/removePasswordFromUserObjectProcessor";
 import config from "../config/index";
 
 import jwt from "jsonwebtoken";
-import { isStrongPassword } from "../processors/user/IsStrongPasswordProcessor";
+import { isStrongPassword } from "../processors/user/isStrongPasswordProcessor";
 import ProjectModel from "../model/ProjectModel";
 import { isValidEmail } from "../processors/user/IsValidEmailProcessor";
 import {

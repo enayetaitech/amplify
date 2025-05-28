@@ -14,12 +14,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getModeratorsByProjectId = exports.toggleModeratorStatus = exports.getModeratorById = exports.editModerator = exports.addModerator = void 0;
 const ModeratorModel_1 = __importDefault(require("../model/ModeratorModel"));
-const ResponseHelpers_1 = require("../utils/ResponseHelpers");
+const responseHelpers_1 = require("../utils/responseHelpers");
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
 const ProjectModel_1 = __importDefault(require("../model/ProjectModel"));
 const UserModel_1 = __importDefault(require("../model/UserModel"));
 const config_1 = __importDefault(require("../config"));
-const SendVerifyAccountEmailProcessor_1 = require("../processors/sendEmail/SendVerifyAccountEmailProcessor");
+const sendVerifyAccountEmailProcessor_1 = require("../processors/sendEmail/sendVerifyAccountEmailProcessor");
 const emailTemplates_1 = require("../constants/emailTemplates");
 const mongoose_1 = __importDefault(require("mongoose"));
 const ALLOWED_ROLES = ["Admin", "Moderator", "Observer"];
@@ -102,13 +102,13 @@ const addModerator = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         projectName: project.name,
         loginUrl: `${config_1.default.frontend_base_url}/login`,
     });
-    yield (0, SendVerifyAccountEmailProcessor_1.sendEmail)({
+    yield (0, sendVerifyAccountEmailProcessor_1.sendEmail)({
         to: email,
         subject: `You’ve been added to "${project.name}"`,
         html: emailHtml,
     });
     // 7️⃣ Respond to the API client with the newly created moderator
-    (0, ResponseHelpers_1.sendResponse)(res, moderator, "Moderator added successfully", 201);
+    (0, responseHelpers_1.sendResponse)(res, moderator, "Moderator added successfully", 201);
 });
 exports.addModerator = addModerator;
 /**
@@ -149,7 +149,7 @@ const editModerator = (req, res, next) => __awaiter(void 0, void 0, void 0, func
     }
     // 3️⃣ Save and respond
     yield moderator.save();
-    (0, ResponseHelpers_1.sendResponse)(res, moderator, "Moderator updated successfully", 200);
+    (0, responseHelpers_1.sendResponse)(res, moderator, "Moderator updated successfully", 200);
 });
 exports.editModerator = editModerator;
 /**
@@ -161,7 +161,7 @@ const getModeratorById = (req, res, next) => __awaiter(void 0, void 0, void 0, f
     if (!moderator) {
         return next(new ErrorHandler_1.default("Moderator not found", 404));
     }
-    (0, ResponseHelpers_1.sendResponse)(res, moderator, "Moderator retrieved successfully", 200);
+    (0, responseHelpers_1.sendResponse)(res, moderator, "Moderator retrieved successfully", 200);
 });
 exports.getModeratorById = getModeratorById;
 /**
@@ -181,7 +181,7 @@ const toggleModeratorStatus = (req, res, next) => __awaiter(void 0, void 0, void
     // 3️⃣ Save and respond
     yield moderator.save();
     const status = moderator.isActive ? "re-activated" : "deactivated";
-    (0, ResponseHelpers_1.sendResponse)(res, moderator, `Moderator ${status} successfully`, 200);
+    (0, responseHelpers_1.sendResponse)(res, moderator, `Moderator ${status} successfully`, 200);
 });
 exports.toggleModeratorStatus = toggleModeratorStatus;
 /**
@@ -212,6 +212,6 @@ const getModeratorsByProjectId = (req, res, next) => __awaiter(void 0, void 0, v
         hasPrev: page > 1,
         hasNext: page < totalPages,
     };
-    (0, ResponseHelpers_1.sendResponse)(res, moderators, "Moderators for project retrieved", 200, meta);
+    (0, responseHelpers_1.sendResponse)(res, moderators, "Moderators for project retrieved", 200, meta);
 });
 exports.getModeratorsByProjectId = getModeratorsByProjectId;

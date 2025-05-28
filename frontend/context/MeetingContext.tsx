@@ -47,7 +47,7 @@ export function MeetingProvider({ children }: MeetingProviderProps) {
   useEffect(() => {
     // 1️⃣ actually capture the return value of io()
     const s = io(
-      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8008",
+      process.env.NEXT_PUBLIC_SOCKET_URL || "https://bamplify.hgsingalong.com",
       {
         // any client options…
       }

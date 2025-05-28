@@ -16,7 +16,7 @@ exports.deleteObserverDocument = exports.downloadObserverDocumentsBulk = exports
 const uploadToS3_1 = require("../utils/uploadToS3");
 const ObserverDocumentModel_1 = require("../model/ObserverDocumentModel");
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
-const ResponseHelpers_1 = require("../utils/ResponseHelpers");
+const responseHelpers_1 = require("../utils/responseHelpers");
 const mongoose_1 = __importDefault(require("mongoose"));
 const createObserverDocument = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     /* 1️⃣ pull form-data fields */
@@ -46,7 +46,7 @@ const createObserverDocument = (req, res, next) => __awaiter(void 0, void 0, voi
         addedByRole,
     });
     /* 5️⃣ success response */
-    (0, ResponseHelpers_1.sendResponse)(res, doc, "Observer document uploaded", 201);
+    (0, responseHelpers_1.sendResponse)(res, doc, "Observer document uploaded", 201);
 });
 exports.createObserverDocument = createObserverDocument;
 /**
@@ -84,7 +84,7 @@ const getObserverDocumentsByProjectId = (req, res, next) => __awaiter(void 0, vo
             hasPrev: page > 1,
             hasNext: page < totalPages,
         };
-        (0, ResponseHelpers_1.sendResponse)(res, docs, "Observer documents fetched", 200, meta);
+        (0, responseHelpers_1.sendResponse)(res, docs, "Observer documents fetched", 200, meta);
     }
     catch (err) {
         next(err);
@@ -132,7 +132,7 @@ const downloadObserverDocumentsBulk = (req, res, next) => __awaiter(void 0, void
     /* build meta for any ids that didn’t resolve */
     const foundIds = new Set(docs.map((d) => d._id.toString()));
     const notFound = validIds.filter((id) => !foundIds.has(id));
-    (0, ResponseHelpers_1.sendResponse)(res, signedUrls, "Signed URLs generated", 200, notFound.length ? { notFound } : undefined);
+    (0, responseHelpers_1.sendResponse)(res, signedUrls, "Signed URLs generated", 200, notFound.length ? { notFound } : undefined);
 });
 exports.downloadObserverDocumentsBulk = downloadObserverDocumentsBulk;
 /**
@@ -161,6 +161,6 @@ const deleteObserverDocument = (req, res, next) => __awaiter(void 0, void 0, voi
     /* 4️⃣ delete DB row */
     yield doc.deleteOne();
     /* 5️⃣ success response */
-    (0, ResponseHelpers_1.sendResponse)(res, doc, "Observer document deleted", 200);
+    (0, responseHelpers_1.sendResponse)(res, doc, "Observer document deleted", 200);
 });
 exports.deleteObserverDocument = deleteObserverDocument;

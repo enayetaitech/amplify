@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { SessionDeliverableModel } from "../model/SessionDeliverableModel";
 import ProjectModel from "../model/ProjectModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import { deleteFromS3, getSignedUrl, getSignedUrls, uploadToS3 } from "../utils/uploadToS3";
 import { SessionModel } from "../model/SessionModel";
 import { Socket } from "dgram";
