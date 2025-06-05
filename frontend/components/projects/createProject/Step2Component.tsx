@@ -1,76 +1,21 @@
 "use client";
 
 import React from "react";
-import {  UseFormRegister, FieldErrors } from "react-hook-form";
-import { Input } from "components/ui/input";
 import { Textarea } from "components/ui/textarea";
 import {
-  Step2FormValues,
   Step2Props,
 } from "@shared/interface/CreateProjectInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import CustomButton from "components/shared/CustomButton";
 import { useStep2 } from "hooks/useStep2";
+import { FormInput } from "./step2Component/FormInput";
+import { FormRadioGroup } from "./step2Component/FormRadioGroup";
 
 // Reusable input block
-const FormInput = ({
-  label,
-  type = "text",
-  register,
-  name,
-  required,
-  error,
-}: {
-  label: string;
-  type?: string;
-  register: UseFormRegister<Step2FormValues>;
-  name: keyof Step2FormValues;
-  required?: boolean;
-  error?: FieldErrors<Step2FormValues>[keyof Step2FormValues];
-}) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700">{label}</label>
-    <Input
-      type={type}
-      {...register(name, { required })}
-      className="mt-1 w-full"
-    />
-    {error && <p className="text-red-500 text-xs">This field is required</p>}
-  </div>
-);
+
 
 // Reusable radio group
-const FormRadioGroup = ({
-  label,
-  name,
-  options,
-  register,
-  error,
-}: {
-  label: string;
-  name: keyof Step2FormValues;
-  options: string[];
-  register: UseFormRegister<Step2FormValues>;
-  error?: FieldErrors<Step2FormValues>[keyof Step2FormValues];
-}) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700">{label}</label>
-    <div className="flex items-center gap-6 mt-1">
-      {options.map((val) => (
-        <label key={val} className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            value={val}
-            {...register(name, { required: true })}
-            className="accent-custom-orange-1"
-          />
-          <span className="text-sm capitalize">{val}</span>
-        </label>
-      ))}
-    </div>
-    {error && <p className="text-red-500 text-xs">Please select an option</p>}
-  </div>
-);
+
 
 const Step2: React.FC<Step2Props> = ({
   formData,
