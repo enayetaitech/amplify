@@ -3,16 +3,12 @@
 import React, { useState } from "react";
 import { Button } from "components/ui/button";
 import { Label } from "components/ui/label";
-import  { AxiosError } from "axios";
-import { toast } from "sonner";
 import { IBillingInfo } from "@shared/interface/UserInterface";
 import { BillingFormProps } from "@shared/interface/CreateProjectInterface";
 import { useGlobalContext } from "context/GlobalContext";
 import { Input } from "components/ui/input";
-import { useMutation } from "@tanstack/react-query";
-import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
-import api from "lib/api";
 import { Card, CardContent } from "components/ui/card";
+import { useSaveBilling } from "hooks/useSaveBilling";
 
 const fieldLabels: Record<keyof IBillingInfo, string> = {
   address: "Street Address",
@@ -33,28 +29,9 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
   });
 
  
-  const saveBilling = useMutation<
-  ApiResponse<null>,
-  AxiosError<ErrorResponse>,
-  IBillingInfo
->({
-  mutationFn: (info) =>
-    api
-      .post<ApiResponse<null>>(
-        "/api/v1/payment/save-billing-info",
-        { userId: user?._id, billingInfo: info }
-      )
-      .then((res) => res.data),
-
-  onSuccess: () => {
-    toast.success("Billing info saved successfully");
+const saveBilling = useSaveBilling(() => {
     onSuccess();
-  },
-
-  onError: (error) => {
-    toast.error(error instanceof Error ? error.message : "Unknown error");
-  },
-});
+  });
 
   const handleChange = (key: keyof IBillingInfo, value: string) => {
     setBillingInfo((prev) => ({ ...prev, [key]: value }));
@@ -62,7 +39,11 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveBilling.mutate(billingInfo);
+
+    const userId = user?._id;
+    if (!userId) return;
+  
+    saveBilling.mutate({ userId, billingInfo });
   };
 
   return (
