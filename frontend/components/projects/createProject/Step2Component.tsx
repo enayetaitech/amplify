@@ -1,20 +1,16 @@
 "use client";
 
 import React from "react";
-import { useForm, SubmitHandler, UseFormRegister, FieldErrors } from "react-hook-form";
+import {  UseFormRegister, FieldErrors } from "react-hook-form";
 import { Input } from "components/ui/input";
 import { Textarea } from "components/ui/textarea";
-import { useRouter } from "next/navigation";
-import axios from "axios";
-import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
 import {
-  IProjectFormState,
   Step2FormValues,
   Step2Props,
 } from "@shared/interface/CreateProjectInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import CustomButton from "components/shared/CustomButton";
+import { useStep2 } from "hooks/useStep2";
 
 // Reusable input block
 const FormInput = ({
@@ -81,62 +77,16 @@ const Step2: React.FC<Step2Props> = ({
   updateFormData,
   uniqueId,
 }) => {
-  const router = useRouter();
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm<Step2FormValues>({
-    defaultValues: {
-      respondentsPerSession: formData.respondentsPerSession,
-      numberOfSessions: formData.numberOfSessions,
-      sessionLength: formData.sessionLength,
-      preWorkDetails: formData.preWorkDetails,
-      selectedLanguage: formData.selectedLanguage,
-      languageSessionBreakdown: formData.languageSessionBreakdown,
-      additionalInfo: formData.additionalInfo,
-      inLanguageHosting:
-        (formData.inLanguageHosting as "yes" | "no") || undefined,
-      recruitmentSpecs: formData.recruitmentSpecs || "",
-      provideInterpreter: formData.provideInterpreter || "",
-    },
+    const { register, handleSubmit, watch, errors, onSubmit, isLoading } = useStep2({
+    formData,
+    updateFormData,
+    uniqueId,
   });
-
+  
   const watchInLanguageHosting = watch("inLanguageHosting");
 
-  const mutation = useMutation({
-    mutationFn: (data: {
-      userId: string;
-      uniqueId: string | null;
-      formData: IProjectFormState;
-    }) =>
-      axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/api/v1/projects/email-project-info`,
-        data
-      ),
-
-    onSuccess: () => {
-      toast.success("Project information sent successfully");
-      router.push("/projects");
-    },
-
-    onError: (error: unknown) => {
-     toast.error(error instanceof Error ? error.message : "Unknown error");
-    },
-  });
-
-  const onSubmit: SubmitHandler<Step2FormValues> = (data) => {
-    const mergedData = { ...formData, ...data };
-    updateFormData(data);
-
-    mutation.mutate({
-      userId: formData.user,
-      uniqueId,
-      formData: mergedData,
-    });
-  };
+  
 
   return (
     <ComponentContainer>
@@ -268,8 +218,9 @@ const Step2: React.FC<Step2Props> = ({
           <CustomButton
             type="submit"
             className="bg-custom-teal hover:bg-custom-dark-blue-3"
+             disabled={isLoading}
           >
-            Submit Project Information
+            {isLoading ? "Submitting..." : "Submit Project Information"}
           </CustomButton>
         </div>
       </form>
