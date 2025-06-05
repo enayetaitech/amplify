@@ -20,7 +20,6 @@ import {
 } from "components/ui/form";
 import { Input } from "components/ui/input";
 import { Checkbox } from "components/ui/checkbox";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldErrors, useForm } from "react-hook-form";
 import Logo from "components/LogoComponent";
@@ -34,13 +33,13 @@ import {
   CommandItem,
 } from "components/ui/command";
 import { cn } from "lib/utils";
-
 import api from "lib/api";
 import { IUser } from "@shared/interface/UserInterface";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import FooterComponent from "components/FooterComponent";
 import TextInputField from "components/createAccount/TextInputField";
 import PasswordField from "components/createAccount/PasswordField";
+import { RegisterFormValues, registerSchema } from "schemas/registerSchema";
 
 
 interface CountryCode {
@@ -48,46 +47,10 @@ interface CountryCode {
   code: string;
   iso: string;
 }
-// Zod schema updated
-const registerSchema = z
-  .object({
-     firstName: z
-      .string()
-      .min(1, { message: "First Name is required" })
-      .regex(/^[A-Za-z ]+$/, { message: "First Name can only contain letters and spaces" }),
 
-    lastName: z
-      .string()
-      .min(1, { message: "Last Name is required" })
-      .regex(/^[A-Za-z ]+$/, { message: "Last Name can only contain letters and spaces" }),
-
-    email: z.string().email({ message: "Please enter a valid email address" }),
-     companyName: z
-      .string()
-      .min(1, { message: "Company name is required" })
-      .regex(/^[A-Za-z ]+$/, { message: "Company Name can only contain letters and spaces" }),
-
-    phoneNumber: z.string().min(10, { message: "Phone number is required" }),
-    password: z.string().min(9, {
-      message: "Password must be at least 9 characters long",
-    }),
-    confirmPassword: z
-      .string()
-      .min(1, { message: "Please confirm your password" }),
-    terms: z.boolean().refine((val) => val === true, {
-      message: "You must accept the Terms & Conditions",
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
   const router = useRouter();
-  // const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -117,7 +80,7 @@ const Register = () => {
           "https://api.npoint.io/900fa8cc45c942a0c38e"
         );
         setCountries(response.data);
-        // Default to US or first country in the list
+      
         const defaultCountry =
           response.data.find((c: CountryCode) => c.iso === "US") ||
           response.data[0];
