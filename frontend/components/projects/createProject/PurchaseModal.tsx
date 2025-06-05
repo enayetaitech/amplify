@@ -59,7 +59,6 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   // Helpers
   const handleNext = () => {
     if (!user?.billingInfo) {
-      // user just filled billing form → mutate to createCustomer
       createCustomerMutation.mutate();
     } else {
       setStep(2);
