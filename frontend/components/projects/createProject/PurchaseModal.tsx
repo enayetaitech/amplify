@@ -21,11 +21,12 @@ import {
 import BillingForm from "./BillingFormComponent";
 import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
+import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 import PaymentIntegrationWrapper from "./PaymentIntegrationComponent";
 import { Card } from "components/ui/card";
 import CustomButton from "components/shared/CustomButton";
 import { IProjectFormState } from "@shared/interface/CreateProjectInterface";
-import { useCreateCustomer } from "hooks/useCreateCustomer";
 
 interface PurchaseModalProps {
   creditPackages: { package: number; cost: number }[];
@@ -47,10 +48,25 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
-   const createCustomerMutation = useCreateCustomer();
-  
+  // 1️⃣ Ensure Stripe Customer exists before step 2
+  const createCustomerMutation = useMutation({
+    mutationFn: () =>
+      api.post("/api/v1/payment/create-customer", {
+        userId: user?._id,
+        billingInfo: user?.billingInfo,
+      }),
+    onSuccess: (res) => {
+      // response contains stripeCustomerId
+      setUser({ ...user!, stripeCustomerId: res.data.data.stripeCustomerId });
+      setStep(2);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
 
-  
+ 
+
   // Helpers
   const handleNext = () => {
     if (!user?.billingInfo) {
@@ -61,20 +77,10 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
     }
   };
 
-   // When mutation succeeds, advance to step 2
-  useEffect(() => {
-    if (createCustomerMutation.isSuccess) {
-      setStep(2);
-    }
-  }, [createCustomerMutation.isSuccess]);
-
   // Reset on close
   useEffect(() => {
-     if (!open) {
-      setStep(1);
-      createCustomerMutation.reset();
-    }
-  }, [open, createCustomerMutation]);
+    if (!open) setStep(1);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
