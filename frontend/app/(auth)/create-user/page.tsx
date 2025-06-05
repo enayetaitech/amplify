@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import axios from "axios";
 import Image from "next/image";
-import { Check, ChevronsUpDown} from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -24,15 +23,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldErrors, useForm } from "react-hook-form";
 import Logo from "components/LogoComponent";
 import { useMutation } from "@tanstack/react-query";
-import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "components/ui/command";
-import { cn } from "lib/utils";
 import api from "lib/api";
 import { IUser } from "@shared/interface/UserInterface";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
@@ -40,13 +30,9 @@ import FooterComponent from "components/FooterComponent";
 import TextInputField from "components/createAccount/TextInputField";
 import PasswordField from "components/createAccount/PasswordField";
 import { RegisterFormValues, registerSchema } from "schemas/registerSchema";
-
-
-interface CountryCode {
-  country: string;
-  code: string;
-  iso: string;
-}
+import { useCountryList } from "hooks/useCountryList";
+import { registerDefaults } from "constant";
+import CountrySelector from "components/createAccount/countrySelector";
 
 
 const Register = () => {
@@ -54,46 +40,11 @@ const Register = () => {
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phoneNumber: "",
-      companyName: "",
-      password: "",
-      confirmPassword: "",
-      terms: false,
-    },
+    defaultValues: registerDefaults
   });
-  const [countries, setCountries] = useState<CountryCode[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState<CountryCode | null>(
-    null
-  );
 
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        setIsLoading(true);
-        const response = await axios.get(
-          "https://api.npoint.io/900fa8cc45c942a0c38e"
-        );
-        setCountries(response.data);
-      
-        const defaultCountry =
-          response.data.find((c: CountryCode) => c.iso === "US") ||
-          response.data[0];
-        setSelectedCountry(defaultCountry);
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error fetching country data:", error);
-        setIsLoading(false);
-      }
-    };
 
-    fetchCountries();
-  }, []);
+  const { countries, isLoading: countriesLoading, selectedCountry, setSelectedCountry } = useCountryList();
 
     const handleErrors = (errors: FieldErrors<RegisterFormValues>) => {
     Object.values(errors).forEach((fieldError) => {
@@ -209,65 +160,12 @@ const Register = () => {
                           <FormItem className="w-full">
                             <FormLabel>Phone Number</FormLabel>
                             <div className="flex">
-                              <Popover open={open} onOpenChange={setOpen}>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={open}
-                                    disabled={isLoading}
-                                    className="w-32 justify-between border-r-0 rounded-r-none"
-                                  >
-                                    {selectedCountry ? (
-                                      <div className="flex items-center">
-                                        <span className="mr-1">
-                                          {selectedCountry.iso}
-                                        </span>
-                                        <span>+{selectedCountry.code}</span>
-                                      </div>
-                                    ) : (
-                                      "Select country"
-                                    )}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-64 p-0">
-                                  <Command>
-                                    <CommandInput placeholder="Search country or code..." />
-                                    <CommandEmpty>
-                                      No country found.
-                                    </CommandEmpty>
-                                    <CommandGroup className="max-h-64 overflow-y-auto">
-                                      {countries.map((country) => (
-                                        <CommandItem
-                                          key={country.iso}
-                                          value={`${country.country} ${country.code} ${country.iso}`}
-                                          onSelect={() => {
-                                            setSelectedCountry(country);
-                                            setOpen(false);
-                                          }}
-                                        >
-                                          <Check
-                                            className={cn(
-                                              "mr-2 h-4 w-4",
-                                              selectedCountry?.iso ===
-                                                country.iso
-                                                ? "opacity-100"
-                                                : "opacity-0"
-                                            )}
-                                          />
-                                          <div className="flex justify-between w-full">
-                                            <span>{country.country}</span>
-                                            <span className="text-gray-500">
-                                              +{country.code}
-                                            </span>
-                                          </div>
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                              <CountrySelector
+                                countries={countries}
+                                isLoading={countriesLoading}
+                                selectedCountry={selectedCountry}
+                                onSelect={setSelectedCountry}
+                              />
 
                               <FormControl>
                                 <Input
