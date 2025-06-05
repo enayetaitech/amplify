@@ -21,12 +21,11 @@ import {
 import BillingForm from "./BillingFormComponent";
 import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
-import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
 import PaymentIntegrationWrapper from "./PaymentIntegrationComponent";
 import { Card } from "components/ui/card";
 import CustomButton from "components/shared/CustomButton";
 import { IProjectFormState } from "@shared/interface/CreateProjectInterface";
+import { useCreateCustomer } from "hooks/useCreateCustomer";
 
 interface PurchaseModalProps {
   creditPackages: { package: number; cost: number }[];
@@ -48,24 +47,14 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
-  // 1️⃣ Ensure Stripe Customer exists before step 2
-  const createCustomerMutation = useMutation({
-    mutationFn: () =>
-      api.post("/api/v1/payment/create-customer", {
-        userId: user?._id,
-        billingInfo: user?.billingInfo,
-      }),
-    onSuccess: (res) => {
-      // response contains stripeCustomerId
-      setUser({ ...user!, stripeCustomerId: res.data.data.stripeCustomerId });
-      setStep(2);
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unknown error");
-    },
-  });
+ const createCustomerMutation = useCreateCustomer();
 
- 
+  // 2️⃣ When createCustomerMutation succeeds, move to step 2
+  useEffect(() => {
+    if (createCustomerMutation.isSuccess) {
+      setStep(2);
+    }
+  }, [createCustomerMutation.isSuccess]);
 
   // Helpers
   const handleNext = () => {
@@ -76,11 +65,6 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
       setStep(2);
     }
   };
-
-  // Reset on close
-  useEffect(() => {
-    if (!open) setStep(1);
-  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
