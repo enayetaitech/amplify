@@ -140,13 +140,16 @@ const Register = () => {
 
   const registerMutation = useMutation({
     mutationFn: async (values: RegisterFormValues) => {
+      const fullPhoneNumber = selectedCountry
+      ? `+${selectedCountry.code}${values.phoneNumber}`
+      : values.phoneNumber;
       const res = await api.post<ApiResponse<IUser>>(
         `/api/v1/users/register`,
         {
           firstName: values.firstName,
           lastName: values.lastName,
           email: values.email,
-          phoneNumber: values.phoneNumber,
+          phoneNumber: fullPhoneNumber,
           companyName: values.companyName,
           password: values.password,
           termsAccepted: values.terms,

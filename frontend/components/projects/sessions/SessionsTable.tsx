@@ -117,10 +117,14 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex space-x-2">
-                    <Button size="sm" onClick={() => onModerate(s._id)}>
+                    <Button 
+                    className="bg-custom-orange-1"
+                    size="sm" onClick={() => onModerate(s._id)}>
                       Moderate
                     </Button>
-                    <Button size="sm" onClick={() => onObserve(s._id)}>
+                    <Button size="sm" 
+                    className="bg-custom-dark-blue-1"
+                    onClick={() => onObserve(s._id)}>
                       Observe
                     </Button>
                   </div>
