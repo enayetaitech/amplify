@@ -146,7 +146,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Credit Package</TableHead>
+                    <TableHead>Credits</TableHead>
                     <TableHead>Cost</TableHead>
                     <TableHead>Total Price (USD)</TableHead>
                   </TableRow>

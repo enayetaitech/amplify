@@ -106,7 +106,7 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
   return (
     <Card className="border-0 p-4 shadow-sm">
       <form onSubmit={handleSubmit} className="space-y-4 ">
-        <h2 className="text-lg font-semibold">Enter Card Details</h2>
+        <h2 className="text-lg font-semibold">Billing Details</h2>
 
         <div className="border p-4 rounded-md">
           <CardElement
