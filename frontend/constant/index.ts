@@ -1,3 +1,4 @@
+import { LoginFormValues } from "schemas/loginSchema";
 import { RegisterFormValues } from "schemas/registerSchema";
 
 export const durations = [
@@ -95,3 +96,9 @@ export const registerDefaults: RegisterFormValues = {
   confirmPassword: "",
   terms: false,
 };
+
+export const loginDefaults: LoginFormValues={
+   email: "",
+      password: "Ab123456@",
+      rememberMe: false,
+}
