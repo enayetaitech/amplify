@@ -39,6 +39,7 @@ import api from "lib/api";
 import { IUser } from "@shared/interface/UserInterface";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import FooterComponent from "components/FooterComponent";
+import TextInputField from "components/createAccount/TextInputField";
 
 
 interface CountryCode {
@@ -211,55 +212,29 @@ const Register = () => {
                   className="lg:px-24 px-4 space-y-4"
                 >
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
-                    <FormField
+                           <TextInputField
                       control={form.control}
                       name="firstName"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter your first name"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      label="First Name"
+                      placeholder="Enter your first name"
+                      className="flex-1"
                     />
-                    <FormField
+                    <TextInputField
                       control={form.control}
                       name="lastName"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter your last name"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      label="Last Name"
+                      placeholder="Enter your last name"
+                      className="flex-1"
                     />
+                  
                   </div>
-                  <FormField
+              
+                     <TextInputField
                     control={form.control}
                     name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="Enter your email"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Email"
+                    placeholder="Enter your email"
+                    type="email"
                   />
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
                     <div className="flex-1">
@@ -350,21 +325,13 @@ const Register = () => {
                         )}
                       />
                     </div>
-                    <FormField
+                  
+                        <TextInputField
                       control={form.control}
                       name="companyName"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Company Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter your company name"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      label="Company Name"
+                      placeholder="Enter your company name"
+                      className="flex-1"
                     />
                   </div>
                   <FormField
@@ -395,9 +362,7 @@ const Register = () => {
                             </Button>
                           </div>
                         </FormControl>
-                        {/* <FormDescription className="text-orange-500 text-xs">
-                          Password must contain 9 or more characters
-                        </FormDescription> */}
+                     
                         <FormMessage />
                       </FormItem>
                     )}
