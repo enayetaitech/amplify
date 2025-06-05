@@ -60,8 +60,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
 
   // ========= Update Parent State =========
   useEffect(() => {
-    // Compute final respondent languages:
-    // Replace "Other" with the input from the otherLanguage field, if provided.
+ 
     const computedLanguages = selectedLanguages.includes("Other")
       ? [
           ...selectedLanguages.filter((lang) => lang !== "Other"),

@@ -28,8 +28,7 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
     postalCode: "",
   });
 
- 
-const saveBilling = useSaveBilling(() => {
+  const saveBilling = useSaveBilling(() => {
     onSuccess();
   });
 
@@ -42,18 +41,20 @@ const saveBilling = useSaveBilling(() => {
 
     const userId = user?._id;
     if (!userId) return;
-  
+
     saveBilling.mutate({ userId, billingInfo });
   };
 
   return (
-   <Card className="border-0 shadow-sm py-0">
-     <CardContent className="p-6">
+    <Card className="border-0 shadow-sm py-0">
+      <CardContent className="p-6">
         <h2 className="text-xl font-semibold mb-4">Billing Details</h2>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Full-width Street Address */}
           <div className="flex flex-col">
-            <Label htmlFor="address" className="mb-1">{fieldLabels.address} *</Label>
+            <Label htmlFor="address" className="mb-1">
+              {fieldLabels.address} *
+            </Label>
             <Input
               id="address"
               placeholder="Enter Street Address"
@@ -65,22 +66,35 @@ const saveBilling = useSaveBilling(() => {
 
           {/* Three-column Zip / City / State */}
           <div className="grid grid-cols-3 gap-4">
-            {(["postalCode", "city", "state"] as (keyof IBillingInfo)[]).map((field) => (
-              <div key={field} className="flex flex-col">
-                <Label htmlFor={field} className="mb-1">
-                  {fieldLabels[field]} *
-                </Label>
-                <Input
-                  id={field}
-                  placeholder={`Enter ${fieldLabels[field]}`}
-                  value={billingInfo[field]}
-                  onChange={(e) => handleChange(field, e.target.value)}
-                  required
-                />
-              </div>
-            ))}
+            {(["postalCode", "city", "state"] as (keyof IBillingInfo)[]).map(
+              (field) => (
+                <div key={field} className="flex flex-col">
+                  <Label htmlFor={field} className="mb-1">
+                    {fieldLabels[field]} *
+                  </Label>
+                  <Input
+                    id={field}
+                    placeholder={`Enter ${fieldLabels[field]}`}
+                    value={billingInfo[field]}
+                    onChange={(e) => handleChange(field, e.target.value)}
+                    required
+                  />
+                </div>
+              )
+            )}
           </div>
-
+          <div className="flex flex-col">
+            <Label htmlFor="country" className="mb-1">
+              {fieldLabels.country} *
+            </Label>
+            <Input
+              id="country"
+              placeholder="Enter Country"
+              value={billingInfo.country}
+              onChange={(e) => handleChange("country", e.target.value)}
+              required
+            />
+          </div>
           {/* Next button centered */}
           <div className="text-center">
             <Button
