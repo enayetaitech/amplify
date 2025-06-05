@@ -1,10 +1,8 @@
 "use client";
 
 import React from "react";
-import axios, { AxiosError } from "axios";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "components/ui/card";
 import {
@@ -13,77 +11,42 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  
 } from "components/ui/form";
 import { Checkbox } from "components/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { FieldErrors, useForm } from "react-hook-form";
 import { Button } from "components/ui/button";
 import Logo from "components/LogoComponent";
-import { useGlobalContext } from "context/GlobalContext";
-import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
-import { useMutation } from "@tanstack/react-query";
-import api from "lib/api";
 import FooterComponent from "components/FooterComponent";
-import { IUser } from "@shared/interface/UserInterface";
 import TextInputField from "components/createAccount/TextInputField";
 import PasswordField from "components/createAccount/PasswordField";
 import { LoginFormValues, loginSchema } from "schemas/loginSchema";
+import { loginDefaults } from "constant";
+import { useLogin } from "hooks/useLogin";
 
 
 
 
 const Login = () => {
-  const router = useRouter();
-  const { setUser } = useGlobalContext();
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "Ab123456@",
-      rememberMe: false,
-    },
+    defaultValues: loginDefaults
   });
 
-   // Mutation for login
-   const loginMutation = useMutation<
-   ApiResponse<{ user: IUser; token: string }>,
-   AxiosError<ErrorResponse>,
-   LoginFormValues
- >({
-   mutationFn: (vals) =>
-     api
-       .post<ApiResponse<{ user: IUser; token: string }>>(
-         "/api/v1/users/login",
-         {
-           email: vals.email,
-           password: vals.password,
-         },
-         { withCredentials: true }
-       )
-       .then((res) => res.data),
+  const loginMutation = useLogin();
 
-   onSuccess: (resp) => {
-     const { user } = resp.data;
-     setUser(user);
-     localStorage.setItem("user", JSON.stringify(user));
-     toast.success(resp.message);
-     router.replace("/projects");
-   },
+  const handleErrors = (errors: FieldErrors<LoginFormValues>) => {
+    Object.values(errors).forEach((fieldError) => {
+      if (fieldError?.message) {
+        toast.error(fieldError.message);
+      }
+    });
+  };
 
-   onError: (err) => {
-    console.log('error', err)
-     const msg = axios.isAxiosError(err)
-       ? err.response?.data.message ?? err.message
-       : "Login failed";
-     toast.error(msg);
-   },
- });
-
- const onSubmit = form.handleSubmit((vals) => {
-   loginMutation.mutate(vals);
- });
+  const onSubmit = form.handleSubmit((vals) => {
+    loginMutation.mutate(vals);
+  }, handleErrors);
 
 
   return (
