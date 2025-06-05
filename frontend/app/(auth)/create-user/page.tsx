@@ -1,9 +1,7 @@
 "use client";
 
 import React from "react";
-import axios from "axios";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "components/ui/card";
@@ -22,10 +20,6 @@ import { Checkbox } from "components/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldErrors, useForm } from "react-hook-form";
 import Logo from "components/LogoComponent";
-import { useMutation } from "@tanstack/react-query";
-import api from "lib/api";
-import { IUser } from "@shared/interface/UserInterface";
-import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import FooterComponent from "components/FooterComponent";
 import TextInputField from "components/createAccount/TextInputField";
 import PasswordField from "components/createAccount/PasswordField";
@@ -33,20 +27,23 @@ import { RegisterFormValues, registerSchema } from "schemas/registerSchema";
 import { useCountryList } from "hooks/useCountryList";
 import { registerDefaults } from "constant";
 import CountrySelector from "components/createAccount/countrySelector";
-
+import { useRegister } from "hooks/useRegister";
 
 const Register = () => {
-  const router = useRouter();
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: registerDefaults
+    defaultValues: registerDefaults,
   });
 
+  const {
+    countries,
+    isLoading: countriesLoading,
+    selectedCountry,
+    setSelectedCountry,
+  } = useCountryList();
 
-  const { countries, isLoading: countriesLoading, selectedCountry, setSelectedCountry } = useCountryList();
-
-    const handleErrors = (errors: FieldErrors<RegisterFormValues>) => {
+  const handleErrors = (errors: FieldErrors<RegisterFormValues>) => {
     Object.values(errors).forEach((fieldError) => {
       if (fieldError?.message) {
         toast.error(fieldError.message);
@@ -54,50 +51,16 @@ const Register = () => {
     });
   };
 
-  const registerMutation = useMutation({
-    mutationFn: async (values: RegisterFormValues) => {
-      const fullPhoneNumber = selectedCountry
+   const registerMutation = useRegister();
+
+   const onSubmit = (values: RegisterFormValues) => {
+    const fullPhoneNumber = selectedCountry
       ? `+${selectedCountry.code}${values.phoneNumber}`
       : values.phoneNumber;
-      const res = await api.post<ApiResponse<IUser>>(
-        `/api/v1/users/register`,
-        {
-          firstName: values.firstName,
-          lastName: values.lastName,
-          email: values.email,
-          phoneNumber: fullPhoneNumber,
-          companyName: values.companyName,
-          password: values.password,
-          termsAccepted: values.terms,
-          role: "Admin",
-        }
-      );
-      return res.data.data;
-    },
-    onSuccess: (data, variables) => {
-      toast.success("Your registration was successful!");
-      router.push(
-        `/account-activation?email=${encodeURIComponent(variables.email)}`
-      );
-    },
-    onError: (error: unknown) => {
-      if (axios.isAxiosError(error)) {
-        console.error("error", error);
-        const message = error.response?.data?.message || "Registration failed";
-        console.error("message", message);
-        toast.error(message);
-      } else {
-        console.error("Unexpected error", error);
-        toast.error("Registration failed");
-      }
-    },
-  });
 
-  const onSubmit = (values: RegisterFormValues) => {
-    registerMutation.mutate(values);
+    registerMutation.mutate({ values, fullPhoneNumber });
   };
-
-   const handleRegister = form.handleSubmit(onSubmit, handleErrors);
+  const handleRegister = form.handleSubmit(onSubmit, handleErrors);
 
   return (
     <div>
@@ -127,7 +90,7 @@ const Register = () => {
                   className="lg:px-24 px-4 space-y-4"
                 >
                   <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
-                           <TextInputField
+                    <TextInputField
                       control={form.control}
                       name="firstName"
                       label="First Name"
@@ -141,10 +104,9 @@ const Register = () => {
                       placeholder="Enter your last name"
                       className="flex-1"
                     />
-                  
                   </div>
-              
-                     <TextInputField
+
+                  <TextInputField
                     control={form.control}
                     name="email"
                     label="Email"
@@ -187,8 +149,8 @@ const Register = () => {
                         )}
                       />
                     </div>
-                  
-                        <TextInputField
+
+                    <TextInputField
                       control={form.control}
                       name="companyName"
                       label="Company Name"
@@ -197,21 +159,21 @@ const Register = () => {
                     />
                   </div>
                   {/* Password */}
-                 <PasswordField
-                   control={form.control}
-                   name="password"
-                  label="Password"
-                   placeholder="Enter your password"
-                 />
+                  <PasswordField
+                    control={form.control}
+                    name="password"
+                    label="Password"
+                    placeholder="Enter your password"
+                  />
 
-                 {/* Confirm Password */}
-                 <PasswordField
-                   control={form.control}
-                   name="confirmPassword"
-                   label="Confirm Password"
-                   placeholder="Confirm your password"
-                 />
-               
+                  {/* Confirm Password */}
+                  <PasswordField
+                    control={form.control}
+                    name="confirmPassword"
+                    label="Confirm Password"
+                    placeholder="Confirm your password"
+                  />
+
                   <FormField
                     control={form.control}
                     name="terms"
