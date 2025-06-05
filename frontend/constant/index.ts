@@ -1,3 +1,4 @@
+import { RegisterFormValues } from "schemas/registerSchema";
 
 export const durations = [
   { label: "30 minutes", minutes: 30 },
@@ -84,3 +85,13 @@ export const timeZones = [
 ];
 
 
+export const registerDefaults: RegisterFormValues = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phoneNumber: "",
+  companyName: "",
+  password: "",
+  confirmPassword: "",
+  terms: false,
+};
