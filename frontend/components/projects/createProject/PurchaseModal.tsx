@@ -21,12 +21,11 @@ import {
 import BillingForm from "./BillingFormComponent";
 import { useGlobalContext } from "context/GlobalContext";
 import api from "lib/api";
-import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
 import PaymentIntegrationWrapper from "./PaymentIntegrationComponent";
 import { Card } from "components/ui/card";
 import CustomButton from "components/shared/CustomButton";
 import { IProjectFormState } from "@shared/interface/CreateProjectInterface";
+import { useCreateCustomer } from "hooks/useCreateCustomer";
 
 interface PurchaseModalProps {
   creditPackages: { package: number; cost: number }[];
@@ -48,67 +47,10 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
-  // 1️⃣ Ensure Stripe Customer exists before step 2
-  const createCustomerMutation = useMutation({
-    mutationFn: () =>
-      api.post("/api/v1/payment/create-customer", {
-        userId: user?._id,
-        billingInfo: user?.billingInfo,
-      }),
-    onSuccess: (res) => {
-      // response contains stripeCustomerId
-      setUser({ ...user!, stripeCustomerId: res.data.data.stripeCustomerId });
-      setStep(2);
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unknown error");
-    },
-  });
+   const createCustomerMutation = useCreateCustomer();
+  
 
-  // Mutation to hit create-project-by-external-admin endpoint
-  // const createProjectMutation = useMutation({
-  //   mutationFn: () =>
-  //     api.post("/api/v1/projects/create-project-by-external-admin", {
-  //       userId: user?._id,
-  //       uniqueId,
-  //       projectData: formatProjectData(projectData as IProjectFormState),
-  //       totalPurchasePrice,
-  //       totalCreditsNeeded,
-  //     }),
-  //   onSuccess: () => {
-  //     toast.success("Project created successfully!");
-  //     router.push("/projects");
-  //   },
-  //   onError: (err) => {
-  //     toast.error(
-  //       axios.isAxiosError(err)
-  //         ? err.response?.data?.message || "Project creation failed"
-  //         : "Project creation failed"
-  //     );
-  //   },
-  // });
-
-  // Function to format raw form data into the payload format expected by the backend
-  // const formatProjectData = (rawData: IProjectFormState): Partial<IProject> => {
-  //   return {
-  //     name: rawData.name,
-  //     description: "",
-  //     startDate: new Date(rawData.firstDateOfStreaming),
-  //     service: rawData.service as "Concierge" | "Signature",
-  //     respondentCountry: rawData.respondentCountry,
-  //     respondentLanguage: Array.isArray(rawData.respondentLanguage)
-  //       ? rawData.respondentLanguage.join(", ")
-  //       : rawData.respondentLanguage,
-  //     sessions: rawData.sessions.map((session) => ({
-  //       number: session.number,
-  //       duration: session.duration,
-  //     })),
-  //     cumulativeMinutes: 0,
-  //     status: "Draft",
-  //     tags: [],
-  //   };
-  // };
-
+  
   // Helpers
   const handleNext = () => {
     if (!user?.billingInfo) {
@@ -119,10 +61,20 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
     }
   };
 
+   // When mutation succeeds, advance to step 2
+  useEffect(() => {
+    if (createCustomerMutation.isSuccess) {
+      setStep(2);
+    }
+  }, [createCustomerMutation.isSuccess]);
+
   // Reset on close
   useEffect(() => {
-    if (!open) setStep(1);
-  }, [open]);
+     if (!open) {
+      setStep(1);
+      createCustomerMutation.reset();
+    }
+  }, [open, createCustomerMutation]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
