@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import axios, { AxiosError } from "axios";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,14 +13,14 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
+  
 } from "components/ui/form";
-import { Input } from "components/ui/input";
+
 import { Checkbox } from "components/ui/checkbox";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Eye, EyeOff } from "lucide-react";
+
 import { Button } from "components/ui/button";
 import Logo from "components/LogoComponent";
 
@@ -32,6 +32,8 @@ import api from "lib/api";
 
 import FooterComponent from "components/FooterComponent";
 import { IUser } from "@shared/interface/UserInterface";
+import TextInputField from "components/createAccount/TextInputField";
+import PasswordField from "components/createAccount/PasswordField";
 
 
 const loginSchema = z.object({
@@ -45,7 +47,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const Login = () => {
   const router = useRouter();
   const { setUser } = useGlobalContext();
-  const [showPassword, setShowPassword] = useState(false);
+ 
 
 
   // Initialize the form with react-hook-form and zod validation
@@ -123,54 +125,22 @@ const Login = () => {
                   onSubmit={onSubmit}
                   className="lg:px-24 px-4 space-y-4"
                 >
-                  <FormField
+                  
+                       {/* Email Field */}
+                  <TextInputField
                     control={form.control}
                     name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email Address</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter your email"
-                            type="email"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Email Address"
+                    placeholder="Enter your email"
+                    type="email"
                   />
-                  <FormField
+
+                  {/* Password Field */}
+                  <PasswordField
                     control={form.control}
                     name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              placeholder="Enter your password"
-                              type={showPassword ? "text" : "password"}
-                              {...field}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute right-0 top-0 h-full pr-2"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Password"
+                    placeholder="Enter your password"
                   />
                   <div className="flex items-center justify-between">
                     <FormField
