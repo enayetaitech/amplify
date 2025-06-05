@@ -1,37 +1,26 @@
 "use client";
-
 import React from "react";
 import { Textarea } from "components/ui/textarea";
-import {
-  Step2Props,
-} from "@shared/interface/CreateProjectInterface";
+import { Step2Props } from "@shared/interface/CreateProjectInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import CustomButton from "components/shared/CustomButton";
 import { useStep2 } from "hooks/useStep2";
 import { FormInput } from "./step2Component/FormInput";
 import { FormRadioGroup } from "./step2Component/FormRadioGroup";
 
-// Reusable input block
-
-
-// Reusable radio group
-
-
 const Step2: React.FC<Step2Props> = ({
   formData,
   updateFormData,
   uniqueId,
 }) => {
+  const { register, handleSubmit, watch, errors, onSubmit, isLoading } =
+    useStep2({
+      formData,
+      updateFormData,
+      uniqueId,
+    });
 
-    const { register, handleSubmit, watch, errors, onSubmit, isLoading } = useStep2({
-    formData,
-    updateFormData,
-    uniqueId,
-  });
-  
   const watchInLanguageHosting = watch("inLanguageHosting");
-
-  
 
   return (
     <ComponentContainer>
@@ -50,7 +39,6 @@ const Step2: React.FC<Step2Props> = ({
         </div>
 
         {/* Basic Project Info Fields */}
-
         <FormInput
           label="Number of Respondents per Session"
           name="respondentsPerSession"
@@ -131,7 +119,6 @@ const Step2: React.FC<Step2Props> = ({
           />
         )}
 
-   
         {watchInLanguageHosting === "yes" && (
           <FormRadioGroup
             label="Will you provide an interpreter?"
@@ -163,7 +150,7 @@ const Step2: React.FC<Step2Props> = ({
           <CustomButton
             type="submit"
             className="bg-custom-teal hover:bg-custom-dark-blue-3"
-             disabled={isLoading}
+            disabled={isLoading}
           >
             {isLoading ? "Submitting..." : "Submit Project Information"}
           </CustomButton>
