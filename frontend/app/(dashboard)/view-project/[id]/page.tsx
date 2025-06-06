@@ -7,7 +7,6 @@ import ProjectSummary from "components/viewProject/ProjectSummary";
 import SessionAccess from "components/viewProject/SessionAccess";
 import TagModal from "components/viewProject/TagModel";
 import { useProject } from "hooks/useProject";
-
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
 
@@ -23,7 +22,6 @@ const ViewProject = () => {
     error,
   } = useProject(projectId);
  
-
   if (isLoading) return <p>Loading project…</p>;
   if (isError)
     return <p className="text-red-500">Error: {(error as Error).message}</p>;
