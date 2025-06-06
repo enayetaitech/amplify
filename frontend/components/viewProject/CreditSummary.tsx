@@ -14,7 +14,7 @@ interface CreditSummaryProps {
 }
 
 export default function CreditSummary({ project }: CreditSummaryProps) {
-  console.log("project", project);
+
   const router = useRouter();
 
   const originalEstimateCreditSummary =
