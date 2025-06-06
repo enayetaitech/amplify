@@ -1,13 +1,10 @@
 "use client";
 import React, { useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useGlobalContext } from "context/GlobalContext";
-import api from "lib/api";
 import { IProject } from "@shared/interface/ProjectInterface";
 import NoSearchResult from "components/NoSearchResult";
 import CustomButton from "components/shared/CustomButton";
-import { CalendarIcon, Plus, SearchIcon } from "lucide-react";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import { CalendarIcon,  SearchIcon } from "lucide-react";
 import { Input } from "components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import { Button } from "components/ui/button";
@@ -23,21 +20,18 @@ import {
   TableRow,
 } from "components/ui/table";
 import { Badge } from "components/ui/badge";
-import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import { useRouter } from "next/navigation";
 import { Card } from "components/ui/card";
 import { getFirstSessionDate } from "utils/getFirstSessionDate";
 import ShareDialog from "components/viewProject/ShareDialog";
-import { ISession } from "@shared/interface/SessionInterface";
 import { toast } from "sonner";
+import { useProjectFilter } from "hooks/useProjectFilter";
+import { useProjects } from "hooks/useProjects";
+import ProjectsHeader from "components/projects/ProjectsHeader";
 
 interface DateRange {
   from: Date | undefined;
   to?: Date | undefined;
-}
-
-interface IProjectWithMeetings extends IProject {
-  meetingObjects?: ISession[];
 }
 
 const Projects: React.FC = () => {
@@ -53,81 +47,32 @@ const Projects: React.FC = () => {
     "observer" | "participant" | null
   >(null);
   const [shareProject, setShareProject] = useState<IProject | null>(null);
-
-  const { data, error, isLoading } = useQuery<
-    { data: IProject[]; meta: IPaginationMeta },
-    Error
-  >({
-    queryKey: ["projects", userId, page, searchTerm],
-    queryFn: () =>
-      api
-        .get<{
-          data: IProject[];
-          meta: IPaginationMeta;
-        }>(`/api/v1/projects/get-project-by-userId/${userId}`, {
-          params: { page, limit, search: searchTerm },
-        })
-        .then((res) => res.data),
-    placeholderData: keepPreviousData,
+  // ---- useProjects hook ----
+  const { projects, meta, isLoading, error } = useProjects({
+    userId,
+    page,
+    limit,
+    search: searchTerm,
   });
+  const totalPages = meta.totalPages;
 
-  const projects = data?.data ?? [];
+  const filtered = useProjectFilter(projects, searchTerm, dateRange);
 
-  // Filter by name and (if selected) date range
-  const filtered = (projects as IProjectWithMeetings[]).filter((project) => {
-    const matchesSearch = project.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-
-    if (!dateRange?.from || !dateRange.to) return matchesSearch;
-
-    const rangeStart = new Date(dateRange.from);
-    const rangeEnd = new Date(dateRange.to);
-
-    const projectStart = new Date(project.startDate);
-    const isProjectDateInRange =
-      projectStart >= rangeStart && projectStart <= rangeEnd;
-
-    const meetingDatesInRange = project.meetingObjects?.some((meeting) => {
-      const date = new Date(meeting.date);
-      const [h, m] = meeting.startTime?.split(":").map(Number) || [0, 0];
-      date.setHours(h);
-      date.setMinutes(m);
-      return date >= rangeStart && date <= rangeEnd;
-    });
-
-    return matchesSearch && (isProjectDateInRange || meetingDatesInRange);
-  });
-
-  // If no user exists, you might choose to render a message or redirect
   if (!userId) {
     return <p>User not found or not authenticated.</p>;
   }
 
   if (error) {
     toast.error(error instanceof Error ? error.message : "Unknown error");
-    return (
-      <p className="p-6 text-red-600"></p>
-    );
+    return <p className="p-6 text-red-600"></p>;
   }
-
-  const totalPages = data?.meta.totalPages ?? 0;
 
   return (
     <div className="p-6">
       {/* heading and upload button */}
-      <div className="flex justify-between items-center">
-        <HeadingBlue25px>Projects Dashboard</HeadingBlue25px>
 
-        <CustomButton
-          icon={<Plus />}
-          className="bg-custom-orange-1 hover:bg-custom-orange-2 text-custom-white"
-          onClick={() => router.push("/create-project")}
-        >
-          Create New Project
-        </CustomButton>
-      </div>
-
+      <ProjectsHeader onCreateClick={() => router.push("/create-project")} />
+        
       {/* search bar and date filter */}
       <div className="flex justify-between gap-4 my-6">
         {/* Search */}
