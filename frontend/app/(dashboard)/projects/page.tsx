@@ -4,11 +4,6 @@ import { useGlobalContext } from "context/GlobalContext";
 import { IProject } from "@shared/interface/ProjectInterface";
 import NoSearchResult from "components/NoSearchResult";
 import CustomButton from "components/shared/CustomButton";
-import { CalendarIcon,  SearchIcon } from "lucide-react";
-import { Input } from "components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
-import { Button } from "components/ui/button";
-import { Calendar } from "components/ui/calendar";
 import { format } from "date-fns";
 import CustomPagination from "components/shared/Pagination";
 import {
@@ -28,6 +23,7 @@ import { toast } from "sonner";
 import { useProjectFilter } from "hooks/useProjectFilter";
 import { useProjects } from "hooks/useProjects";
 import ProjectsHeader from "components/projects/ProjectsHeader";
+import ProjectsFilter from "components/projects/ProjectsFilter";
 
 interface DateRange {
   from: Date | undefined;
@@ -72,50 +68,19 @@ const Projects: React.FC = () => {
       {/* heading and upload button */}
 
       <ProjectsHeader onCreateClick={() => router.push("/create-project")} />
-        
-      {/* search bar and date filter */}
-      <div className="flex justify-between gap-4 my-6">
-        {/* Search */}
-        <div className="relative flex-1 max-w-sm">
-          <Input
-            placeholder="Search projects..."
-            className="pl-9 rounded-none"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        </div>
 
-        {/* Date-range picker */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-[220px] justify-start text-left rounded-none"
-            >
-              {dateRange?.from && dateRange.to ? (
-                <>
-                  {format(dateRange.from, "dd/MM/yy")} –{" "}
-                  {format(dateRange.to, "dd/MM/yy")}
-                </>
-              ) : (
-                <span className="text-muted-foreground">
-                  DD/MM/YY – DD/MM/YY
-                </span>
-              )}
-              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-0">
-            <Calendar
-              mode="range"
-              selected={dateRange}
-              onSelect={setDateRange}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
+      <ProjectsFilter
+        searchTerm={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setPage(1);
+        }}
+        dateRange={dateRange}
+        onDateRangeChange={(r) => {
+          setDateRange(r);
+          setPage(1);
+        }}
+      />
       <Card className="shadow-all-sides border-0 rounded-md">
         <div className="flex-grow mx-auto w-full">
           {projects.length > 0 ? (
