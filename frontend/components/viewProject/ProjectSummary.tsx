@@ -7,12 +7,11 @@ import { Textarea } from "components/ui/textarea";
 import { Button } from "components/ui/button";
 import { CheckIcon, PencilIcon, XIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "lib/api";
-import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IProject } from "@shared/interface/ProjectInterface";
-import { toast } from "sonner";
 import { getFirstSessionDate } from "utils/getFirstSessionDate";
+import { useEditProjectName } from "hooks/useEditProjectName";
+import { useEditProjectDescription } from "hooks/useEditProjectDescription";
+import { useToggleRecordingAccess } from "hooks/useToggleRecordingAccess";
 
 interface ProjectSummaryProps {
   project: IProject;
@@ -24,80 +23,27 @@ export default function ProjectSummary({
   onTagEditClick,
 }: ProjectSummaryProps) {
   const projectId = project._id!;
-  const queryClient = useQueryClient();
 
   // Internal-name editing
   const [editingName, setEditingName] = useState(false);
   const [newInternalName, setNewInternalName] = useState(
     project.internalProjectName || ""
   );
-  const editName = useMutation<
-    ApiResponse<IProject>,
-    Error,
-    { projectId: string; internalProjectName: string }
-  >({
-    mutationFn: async ({ projectId, internalProjectName }) => {
-      const res = await api.patch<ApiResponse<IProject>>(
-        "/api/v1/projects/edit-project",
-        { projectId, internalProjectName }
-      );
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-      toast.success("Internal project name updated");
-      setEditingName(false);
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  const { mutate: editName, isPending: isEditingName } =
+    useEditProjectName(projectId);
 
   // Description editing
   const [editingDesc, setEditingDesc] = useState(false);
   const [newDescription, setNewDescription] = useState(
     project.description || ""
   );
-  const editDesc = useMutation<
-    ApiResponse<IProject>,
-    Error,
-    { projectId: string; description: string }
-  >({
-    mutationFn: async ({ projectId, description }) => {
-      const res = await api.patch<ApiResponse<IProject>>(
-        "/api/v1/projects/edit-project",
-        { projectId, description }
-      );
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-      toast.success("Description updated");
-      setEditingDesc(false);
-    },
-    onError: (err) => toast.error(err.message),
-  });
+
+  const { mutate: editDesc, isPending: isEditingDesc } =
+    useEditProjectDescription(projectId);
 
   // Toggle recording access
-  const toggleRecording = useMutation<ApiResponse<IProject>, Error, void>({
-    mutationFn: async () => {
-      const res = await api.patch<ApiResponse<IProject>>(
-        "/api/v1/projects/toggle-recording-access",
-        { projectId }
-      );
-
-      return res.data;
-    },
-    onSuccess: (response) => {
-      const updated = response.data;
-      // Show a different message depending on the new state
-      if (updated.recordingAccess) {
-        toast.success("Recording access granted");
-      } else {
-        toast.success("Recording access revoked");
-      }
-      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  const { mutate: toggleRecording, isPending: isTogglingRecording } =
+    useToggleRecordingAccess(projectId);
 
   const firstSessionDate = React.useMemo(
     () => getFirstSessionDate(project),
@@ -128,12 +74,16 @@ export default function ProjectSummary({
               <Button
                 size="icon"
                 onClick={() =>
-                  editName.mutate({
-                    projectId,
-                    internalProjectName: newInternalName,
-                  })
+                  editName(
+                    { projectId, internalProjectName: newInternalName },
+                    {
+                      onSuccess: () => {
+                        setEditingName(false);
+                      },
+                    }
+                  )
                 }
-                disabled={editName.isPending}
+                disabled={isEditingName}
               >
                 <CheckIcon className="h-4 w-4" />
               </Button>
@@ -144,7 +94,10 @@ export default function ProjectSummary({
           ) : (
             <div
               className="flex items-center gap-1 cursor-pointer text-sm"
-              onClick={() => setEditingName(true)}
+              onClick={() => {
+                setNewInternalName(project.internalProjectName || "");
+                setEditingName(true);
+              }}
             >
               <PencilIcon className="h-2.5 w-2.5" /> Edit
             </div>
@@ -166,9 +119,16 @@ export default function ProjectSummary({
                 <Button
                   size="icon"
                   onClick={() =>
-                    editDesc.mutate({ projectId, description: newDescription })
+                    editDesc(
+                      { projectId, description: newDescription },
+                      {
+                        onSuccess: () => {
+                          setEditingDesc(false);
+                        },
+                      }
+                    )
                   }
-                  disabled={editDesc.isPending}
+                  disabled={isEditingDesc}
                 >
                   <CheckIcon className="h-4 w-4" />
                 </Button>
@@ -216,8 +176,8 @@ export default function ProjectSummary({
           </span>
           <Switch
             checked={project.recordingAccess}
-            onCheckedChange={() => toggleRecording.mutate()}
-            disabled={toggleRecording.isPending}
+            onCheckedChange={() => toggleRecording()}
+            disabled={isTogglingRecording}
             className="cursor-pointer"
           />
         </div>
