@@ -42,6 +42,7 @@ export function useLogin() {
     },
 
     onError: (err) => {
+      console.log('err', err)
       const msg = axios.isAxiosError(err)
         ? err.response?.data.message ?? err.message
         : "Login failed";
