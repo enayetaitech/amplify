@@ -141,13 +141,13 @@ export default function RegisterForm() {
               <div className="space-y-1 leading-none">
                 <FormLabel className="font-semibold text-base">
                   I agree to the{" "}
-                  <Link href="/terms-of-condition" className="text-blue-500 font-bold">
+                  <Link target="_blank" href="/terms-of-condition" className="text-blue-500 font-bold">
                     Terms & Conditions
                   </Link>
                 </FormLabel>
                 <FormDescription className="text-sm">
                   Your personal data will be used to support your experience throughout this website to manage access to your account, and for other purposes described in our{" "}
-                  <Link href="/privacy-policy" className="text-blue-500 underline">
+                  <Link target="_blank" href="/privacy-policy" className="text-blue-500 underline">
                     Privacy Policy
                   </Link>
                   .

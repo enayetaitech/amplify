@@ -6,12 +6,14 @@ export const registerSchema = z
     firstName: z
       .string()
       .min(1, { message: "First Name is required" })
+      .max(50, { message: "First Name can be at most 50 characters long" })
       .regex(/^[A-Za-z ]+$/, {
         message: "First Name can only contain letters and spaces",
       }),
     lastName: z
       .string()
       .min(1, { message: "Last Name is required" })
+       .max(50, { message: "Last Name can be at most 50 characters long" })
       .regex(/^[A-Za-z ]+$/, {
         message: "Last Name can only contain letters and spaces",
       }),
@@ -19,6 +21,7 @@ export const registerSchema = z
     companyName: z
       .string()
       .min(1, { message: "Company name is required" })
+      .max(50, { message: "Company Name can be at most 50 characters long" })
       .regex(/^[A-Za-z ]+$/, {
         message: "Company Name can only contain letters and spaces",
       }),
