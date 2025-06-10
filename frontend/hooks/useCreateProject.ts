@@ -38,7 +38,7 @@ export function useCreateProject() {
     projectDate: "",
     respondentsPerSession: 0,
     numberOfSessions: 0,
-    sessionLength: "",
+    sessionLength: 0,
     recruitmentSpecs: "",
     preWorkDetails: "",
     selectedLanguage: "",
