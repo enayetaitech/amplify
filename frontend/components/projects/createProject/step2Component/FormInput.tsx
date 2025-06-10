@@ -9,6 +9,8 @@ export const FormInput = ({
   name,
   required,
   error,
+  pattern,
+  patternMessage,
 }: {
   label: string;
   type?: string;
@@ -16,6 +18,8 @@ export const FormInput = ({
   name: keyof Step2FormValues;
   required?: boolean;
   error?: FieldErrors<Step2FormValues>[keyof Step2FormValues];
+  pattern?: RegExp;
+  patternMessage?: string;
 }) => {
   
   const validation = {
@@ -30,6 +34,14 @@ export const FormInput = ({
           min: { value: 0, message: "Value cannot be negative" },
         }
       : {}),
+      ...(pattern
+      ? {
+          pattern: {
+            value: pattern,
+            message: patternMessage || "Invalid format",
+          },
+        }
+      : {}),
   } as RegisterOptions<Step2FormValues, typeof name>;
   return (
   <div>
@@ -40,6 +52,6 @@ export const FormInput = ({
            {...register(name, validation)}
       className="mt-1 w-full"
     />
-    {error && <p className="text-red-500 text-xs">This field is required</p>}
+    {error && <p className="text-red-500 text-xs">{error?.message}</p>}
   </div>
 )};
