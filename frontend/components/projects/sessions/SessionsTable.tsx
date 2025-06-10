@@ -84,7 +84,6 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  console.log('sessions', sessions)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

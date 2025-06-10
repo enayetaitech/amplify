@@ -191,6 +191,7 @@ const Sessions = () => {
         }}
         heading="Delete Session?"
         text="Are you sure you want to delete this session? This action cannot be undone."
+        cancelText="No"
       />
     </ComponentContainer>
   );
