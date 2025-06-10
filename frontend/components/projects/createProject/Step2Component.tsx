@@ -65,86 +65,91 @@ const Step2: React.FC<Step2Props> = ({
           error={errors.sessionLength}
         />
 
-        <FormInput
-          label="What are the target recruitment spaces?"
-          name="recruitmentSpecs"
-          register={register}
-          required
-          error={errors.recruitmentSpecs}
-        />
+        {formData.addOns?.includes("Top-Notch Recruiting") && (
+          <>
+            <FormInput
+              label="What are the target recruitment specs? Please include as much information as possible."
+              name="recruitmentSpecs"
+              register={register}
+              required
+              error={errors.recruitmentSpecs}
+            />
+            <FormInput
+              label="Will there be any pre–work or additional assignments?"
+              name="preWorkDetails"
+              register={register}
+              required
+              error={errors.preWorkDetails}
+            />
+          </>
+        )}
 
-        <FormInput
-          label="Will there be any pre–work or additional assignments?"
-          name="preWorkDetails"
-          register={register}
-          required
-          error={errors.preWorkDetails}
-        />
+        {/* Conditional: Multi-Language Services */}
+        {formData.addOns.includes("Multi-Language Services") && (
+          <>
+            <FormInput
+              label="What language(s)?"
+              name="selectedLanguage"
+              register={register}
+              required
+              error={errors.selectedLanguage}
+            />
 
-        <FormInput
-          label="What language?"
-          name="selectedLanguage"
-          register={register}
-          required
-          error={errors.selectedLanguage}
-        />
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            If some sessions will be in English and some will be non–English,
-            please specify how many of each:
-          </label>
-          <Textarea
-            {...register("languageSessionBreakdown", { required: true })}
-            className="mt-1 w-full"
-          />
-          {errors.languageSessionBreakdown && (
-            <p className="text-red-500 text-xs">This field is required</p>
-          )}
-        </div>
+            <div className="space-y-2">
+              <p className="text-sm">
+                Amplify can provide in-language hosting services for check-in
+                and participant assistance in many languages.
+              </p>
+              <FormRadioGroup
+                label="Will you need in-language hosting?"
+                name="inLanguageHosting"
+                options={["yes", "no"]}
+                register={register}
+                error={errors.inLanguageHosting}
+              />
+            </div>
 
+            {watchInLanguageHosting === "yes" && (
+              <div className="space-y-2">
+                <p className="text-sm">
+                  Amplify can provide the technology for including an
+                  interpreter in the session, as well as the audio service to
+                  allow observers to listen to both in-language and interpreted
+                  audio.
+                </p>
+                <FormRadioGroup
+                  label="Will you provide an interpreter?"
+                  name="provideInterpreter"
+                  options={["yes", "no"]}
+                  register={register}
+                  error={errors.provideInterpreter}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                If some sessions will be in English and some will be
+                non-English, please specify how many of each you will conduct:
+              </label>
+              <Textarea
+                {...register("languageSessionBreakdown", { required: true })}
+                className="mt-1 w-full"
+              />
+              {errors.languageSessionBreakdown && (
+                <p className="text-red-500 text-xs">This field is required</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Anything else */}
         <div>
           <label className="block text-sm font-medium text-gray-700">
             Anything else we should know about the project?
           </label>
           <Textarea {...register("additionalInfo")} className="mt-1 w-full" />
         </div>
-
-        {formData.addOns.includes("Multi-Language Services") && (
-          <FormRadioGroup
-            label="Will you need hosting in a language other than English?"
-            name="inLanguageHosting"
-            options={["yes", "no"]}
-            register={register}
-            error={errors.inLanguageHosting}
-          />
-        )}
-
-        {watchInLanguageHosting === "yes" && (
-          <FormRadioGroup
-            label="Will you provide an interpreter?"
-            name="provideInterpreter"
-            options={["yes", "no"]}
-            register={register}
-            error={errors.provideInterpreter}
-          />
-        )}
-
-        {/* Conditional Field: If Top–Notch Recruiting was selected */}
-        {formData.addOns.includes("Top-Notch Recruiting") && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              What are the target recruitment specs? Please include as much
-              information as possible:
-            </label>
-            <Textarea
-              {...register("recruitmentSpecs", { required: true })}
-              className="mt-1 w-full"
-            />
-            {errors.recruitmentSpecs && (
-              <p className="text-red-500 text-xs">This field is required</p>
-            )}
-          </div>
-        )}
 
         <div className="text-center">
           <CustomButton
