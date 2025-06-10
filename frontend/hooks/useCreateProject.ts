@@ -36,9 +36,9 @@ export function useCreateProject() {
     sessions: [],
     firstDateOfStreaming: "",
     projectDate: "",
-    respondentsPerSession: 0,
-    numberOfSessions: 0,
-    sessionLength: 0,
+    respondentsPerSession: 1,
+    numberOfSessions: 1,
+    sessionLength: 30,
     recruitmentSpecs: "",
     preWorkDetails: "",
     selectedLanguage: "",
@@ -134,6 +134,17 @@ const isLastStep =
     if (currentStep === 0) {
       return !formData.service || !formData.firstDateOfStreaming;
     }
+
+    if (steps[currentStep] === Step3) {
+      const nameEmpty = !formData.name?.trim();
+      const noLang   =
+        !formData.respondentLanguage ||
+        (Array.isArray(formData.respondentLanguage) &&
+         formData.respondentLanguage.length === 0);
+      return nameEmpty || noLang;
+    }
+
+    
     return false;
   };
 
