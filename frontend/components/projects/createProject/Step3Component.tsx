@@ -123,6 +123,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
           className="mt-1 w-full"
           value={projectName}
           onChange={(e) => setProjectName(e.target.value)}
+          required
         />
       </div>
       {/* Multi-Select for Languages using Popover and Command */}
@@ -156,6 +157,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
             </Command>
           </PopoverContent>
         </Popover>
+        
         {selectedLanguages.includes("Other") && (
           <div className="mt-2">
             <Label className="text-sm font-medium">Other Language(s)*</Label>
