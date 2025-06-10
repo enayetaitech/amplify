@@ -9,6 +9,7 @@ import { useGlobalContext } from "context/GlobalContext";
 import { Input } from "components/ui/input";
 import { Card, CardContent } from "components/ui/card";
 import { useSaveBilling } from "hooks/useSaveBilling";
+import { toast } from "sonner";
 
 const fieldLabels: Record<keyof IBillingInfo, string> = {
   address: "Street Address",
@@ -33,7 +34,16 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
   });
 
   const handleChange = (key: keyof IBillingInfo, value: string) => {
-    setBillingInfo((prev) => ({ ...prev, [key]: value }));
+  let newValue = value;
+
+  if (["city", "state", "country"].includes(key)) {
+    const filtered = value.replace(/[^A-Za-z\s]/g, "");
+    if (filtered !== value) {
+      toast.error("Only letters and spaces allowed");
+    }
+    newValue = filtered;
+  }
+    setBillingInfo((prev) => ({ ...prev, [key]: newValue }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
