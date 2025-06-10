@@ -32,8 +32,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
   formData,
   updateFormData,
 }) => {
-  const { allModerators = [], selectedModerators, sessions,
-   } = formData;
+  const { allModerators = [], selectedModerators, sessions } = formData;
 
   // only the ones picked in step 1
   const availableMods = allModerators.filter((m) =>
@@ -48,7 +47,6 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
     );
     updateFormData({ sessions: updated });
   };
-
 
   return (
     <div className="space-y-4">
@@ -69,8 +67,8 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
               {sessions.map((sess, idx) => {
                 // if sameModerator, always show the step-1 picks
                 const rowMods = formData.sameModerator
-                   ? formData.selectedModerators
-    : sess.moderators;
+                  ? formData.selectedModerators
+                  : sess.moderators;
 
                 return (
                   <TableRow key={idx}>
@@ -131,11 +129,11 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                         moderators={availableMods}
                         selected={rowMods}
                         onChange={(ids) => {
-            if (!formData.sameModerator) {
-              updateSession(idx, { moderators: ids });
-            }
-          }}
-          disabled={formData.sameModerator}
+                          if (!formData.sameModerator) {
+                            updateSession(idx, { moderators: ids });
+                          }
+                        }}
+                        disabled={formData.sameModerator}
                       />
                     </TableCell>
                   </TableRow>
