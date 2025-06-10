@@ -29,7 +29,7 @@ const projectSchema = new Schema<IProjectDocument>(
     projectPasscode: {
       type: String,
       default: () =>
-        Math.floor(100000000 + Math.random() * 900000000).toString(),
+        Math.floor(10000000 + Math.random() * 90000000).toString(),
     },
     cumulativeMinutes: { type: Number, default: 0 },
     service: {
