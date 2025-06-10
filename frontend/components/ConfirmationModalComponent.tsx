@@ -15,6 +15,7 @@ interface ConfirmationModalProps {
   onYes: () => void
   heading: string
   text: string
+  cancelText?: 'Cancel' | 'No'
 }
 
 const ConfirmationModalComponent: React.FC<ConfirmationModalProps> = ({
@@ -23,6 +24,7 @@ const ConfirmationModalComponent: React.FC<ConfirmationModalProps> = ({
   onYes,
   heading,
   text,
+  cancelText = 'Cancel',
 }) => {
   return (
     <Dialog open={open} onOpenChange={onCancel}>
@@ -31,7 +33,7 @@ const ConfirmationModalComponent: React.FC<ConfirmationModalProps> = ({
           <DialogTitle className='text-[#031F3A] text-2xl'>
             {heading}
           </DialogTitle>
-          <DialogDescription className='text-[#AFAFAF] text-[11px]'>
+          <DialogDescription className=' text-[13px]'>
             {text}
           </DialogDescription>
         </DialogHeader>
@@ -43,7 +45,7 @@ const ConfirmationModalComponent: React.FC<ConfirmationModalProps> = ({
             onClick={onCancel}
             className='rounded-xl py-1 px-7 shadow-[0px_3px_6px_#031F3A59] text-base'
           >
-            Cancel
+           {cancelText}
           </Button>
           <Button
             variant='orange'
