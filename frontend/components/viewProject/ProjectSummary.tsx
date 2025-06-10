@@ -223,12 +223,18 @@ export default function ProjectSummary({
               </TooltipContent>
             </Tooltip>
           </span>
+          <div className="flex items-center space-x-2">
+
           <Switch
             checked={project.recordingAccess}
             onCheckedChange={() => toggleRecording()}
             disabled={isTogglingRecording}
             className="cursor-pointer"
-          />
+            />
+             <span className="text-sm font-medium">
+          {project.recordingAccess ? "Yes" : "No"}
+        </span>
+            </div>
         </div>
       </CardContent>
     </Card>
