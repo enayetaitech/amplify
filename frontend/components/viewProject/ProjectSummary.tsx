@@ -66,15 +66,15 @@ export default function ProjectSummary({
         <div className="flex justify-between">
           <span className="text-sm text-gray-600 flex items-center gap-2">
             <span className="flex items-center">
-              Internal Project Name  
-            <Tooltip>
-            <TooltipTrigger asChild>
-              <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
-            </TooltipTrigger>
-            <TooltipContent
-              side="top"
-              align="start"
-              className="
+              Internal Project Name
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  align="start"
+                  className="
         bg-white 
         border border-gray-200 
         rounded-lg 
@@ -82,15 +82,14 @@ export default function ProjectSummary({
         max-w-xs 
         shadow-lg
       "
-            >
-              <div className="text-sm text-gray-700">
-                What will participants call your project?
-                
-              </div>
-            </TooltipContent>
-          </Tooltip> 
+                >
+                  <div className="text-sm text-gray-700">
+                    What will participants call your project?
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             </span>
-          : {project.internalProjectName}
+            : {project.internalProjectName}
           </span>
           {editingName ? (
             <div className="flex items-center gap-2">
@@ -199,7 +198,30 @@ export default function ProjectSummary({
 
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">
-            Observer Reading Access:
+            Service Type: {project.service}
+           
+          </span>
+          
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600 flex">
+            Observer Recording Access:{" "}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                align="start"
+                className="bg-white border border-gray-200 
+        rounded-lg p-3 max-w-xs shadow-lg"
+              >
+                <div className="text-sm text-gray-700">
+                  Do you want all your Observers to be able to access all
+                  Recordings and Transcripts for the project?
+                </div>
+              </TooltipContent>
+            </Tooltip>
           </span>
           <Switch
             checked={project.recordingAccess}
