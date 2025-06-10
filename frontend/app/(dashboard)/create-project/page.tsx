@@ -21,10 +21,27 @@ const CreateProjectPage: React.FC = () => {
     uniqueId
   } = useCreateProject();
 
+    const stepTitles: Record<number, string[]> = {
+    2: [
+      "Choose Service",   // step 0
+      "Project Information Request" // step 1
+    ],
+    3: [
+      "Choose Service",      // step 0
+      "Tell us about your project", // step 1
+      "Review & Pay"             // step 2
+    ]
+  };
+
+  // fallback to "Create Project" if something unexpected happens
+  const heading =
+    stepTitles[totalSteps]?.[currentStep] ??
+    "Create Project";
+
   return (
     <ComponentContainer>
       <div className="min-h-screen p-6 ml-8">
-        <h1 className="text-3xl font-bold mb-4 text-center">Create Project</h1>
+        <h1 className="text-3xl font-bold mb-4 text-center">{heading}</h1>
         <div className="mb-4 text-center">
           <p>
             Step {currentStep + 1} of {totalSteps}
