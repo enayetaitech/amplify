@@ -12,6 +12,8 @@ import { getFirstSessionDate } from "utils/getFirstSessionDate";
 import { useEditProjectName } from "hooks/useEditProjectName";
 import { useEditProjectDescription } from "hooks/useEditProjectDescription";
 import { useToggleRecordingAccess } from "hooks/useToggleRecordingAccess";
+import { Tooltip, TooltipContent, TooltipTrigger } from "components/ui/tooltip";
+import { BiQuestionMark } from "react-icons/bi";
 
 interface ProjectSummaryProps {
   project: IProject;
@@ -62,8 +64,33 @@ export default function ProjectSummary({
         </div>
 
         <div className="flex justify-between">
-          <span className="text-sm text-gray-600">
-            Internal Project Name: {project.internalProjectName}
+          <span className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="flex items-center">
+              Internal Project Name  
+            <Tooltip>
+            <TooltipTrigger asChild>
+              <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              align="start"
+              className="
+        bg-white 
+        border border-gray-200 
+        rounded-lg 
+        p-3 
+        max-w-xs 
+        shadow-lg
+      "
+            >
+              <div className="text-sm text-gray-700">
+                What will participants call your project?
+                
+              </div>
+            </TooltipContent>
+          </Tooltip> 
+            </span>
+          : {project.internalProjectName}
           </span>
           {editingName ? (
             <div className="flex items-center gap-2">
