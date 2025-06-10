@@ -45,7 +45,7 @@ const ProjectTeam = () => {
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
-        <HeadingBlue25px>Project Team</HeadingBlue25px>
+        <HeadingBlue25px>Project Team View</HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
           text="Add Moderator"

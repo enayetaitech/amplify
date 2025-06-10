@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/responseHelpers";
+import { sendResponse } from "../utils/ResponseHelpers";
 import ProjectFormModel, {
   IProjectFormDocument,
 } from "../model/ProjectFormModel";
@@ -11,7 +11,7 @@ import {
   projectCreateAndPaymentConfirmationEmailTemplate,
   projectInfoEmailTemplate,
 } from "../constants/emailTemplates";
-import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
 import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
 import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
 
