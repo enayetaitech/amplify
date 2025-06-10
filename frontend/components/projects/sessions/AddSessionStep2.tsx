@@ -50,7 +50,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
 
   return (
     <div className="space-y-4">
-      <Label className="text-base font-semibold">Session Schedule</Label>
+      <Label className="text-base font-semibold">Session Table</Label>
       <div className="overflow-x-auto">
         <Card className="max-h-[400px] overflow-y-auto border-0 shadow-sm py-0 min-w-[900px]">
           <Table>
