@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
-import { sendResponse } from "../utils/responseHelpers";
+import { sendResponse } from "../utils/ResponseHelpers"
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import ProjectModel from "../model/ProjectModel";
 import User from "../model/UserModel";
 
 import config from "../config";
-import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
 import { moderatorAddedEmailTemplate } from "../constants/emailTemplates";
 import mongoose, { Types } from "mongoose";
 
