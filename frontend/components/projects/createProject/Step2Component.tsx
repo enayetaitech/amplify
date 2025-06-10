@@ -93,6 +93,8 @@ const Step2: React.FC<Step2Props> = ({
               register={register}
               required
               error={errors.selectedLanguage}
+              pattern={/^[a-zA-Z\s,]+$/}
+  patternMessage="Please enter only letters, spaces, and commas"
             />
 
             <div className="space-y-2">
