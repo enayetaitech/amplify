@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -26,6 +25,7 @@ import { Card } from "components/ui/card";
 import CustomButton from "components/shared/CustomButton";
 import { IProjectFormState } from "@shared/interface/CreateProjectInterface";
 import { useCreateCustomer } from "hooks/useCreateCustomer";
+import { toast } from "sonner";
 
 interface PurchaseModalProps {
   creditPackages: { package: number; cost: number }[];
@@ -67,11 +67,18 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-custom-teal hover:bg-custom-dark-blue-3">
-          Pay Now
-        </Button>
-      </DialogTrigger>
+         <Button
+       className="bg-custom-teal hover:bg-custom-dark-blue-3"
+       onClick={() => {
+         if (totalCreditsNeeded === 0) {
+           toast.error("You have to select a credit package");
+         } else {
+           setOpen(true);
+         }
+       }}
+     >
+       Pay Now
+     </Button>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
