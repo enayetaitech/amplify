@@ -69,7 +69,20 @@ export function useStep2({
 
   // 3) onSubmit merges Step2 values into formData and triggers mutation
   const onSubmit: SubmitHandler<Step2FormValues> = (data) => {
-    // Merge Step2 fields into the overall formData
+    const { respondentsPerSession, numberOfSessions, sessionLength } = data;
+
+ // ① Prevent zero‐values right at submit time
+    if (
+      respondentsPerSession === 0 ||
+      numberOfSessions === 0 ||
+      sessionLength === 0
+    ) {
+      toast.error(
+        "Respondents per session, Number of session and session length all three fields must have value at least 1."
+      );
+      return; // stop here
+    }
+
     const mergedData: IProjectFormState = { ...formData, ...data };
     updateFormData(data);
 
