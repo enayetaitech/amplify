@@ -19,7 +19,13 @@ import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IUser } from "@shared/interface/UserInterface";
 import { Card } from "components/ui/card";
 import CustomButton from "components/shared/CustomButton";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "components/ui/dialog";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
@@ -33,15 +39,13 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 }) => {
   const { user, setUser } = useGlobalContext();
   const router = useRouter();
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const [isChangingCard, setIsChangingCard] = useState(false);
   const [chargeLoading, setChargeLoading] = useState(false);
 
   const [showCreatedModal, setShowCreatedModal] = useState(false);
-  const [createdProjectId, setCreatedProjectId] = useState<string | null>(
-    null
-  );
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
 
   // 1️⃣ A helper to re-fetch the logged-in user's profile
   const refetchUser = async () => {
@@ -78,10 +82,9 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       const updatedUser = apiResp.data.user;
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
-     
+
       toast.success("Payment successful");
       createProjectMutation.mutate();
-      
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Unknown error");
@@ -102,13 +105,13 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
         totalCreditsNeeded,
       }),
     onSuccess: (response) => {
-      console.log('create project response', response)
-      const newId = response.data.data._id
-      setCreatedProjectId(newId)
-      setShowCreatedModal(true)
-      // toast.success("Project created successfully!");
-      queryClient.invalidateQueries({ queryKey: ["projectsByUser", user?._id] });
-      // router.push("/projects");
+      console.log("create project response", response);
+      const newId = response.data.data._id;
+      setCreatedProjectId(newId);
+      setShowCreatedModal(true);
+      queryClient.invalidateQueries({
+        queryKey: ["projectsByUser", user?._id],
+      });
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Unknown error");
@@ -142,7 +145,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
     setChargeLoading(true);
 
     const amountCents = Math.round(totalPurchasePrice * 100);
-        if (!user.stripeCustomerId) {
+    if (!user.stripeCustomerId) {
       return toast.error("No Stripe customer ID available");
     }
 
@@ -221,15 +224,12 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
           }
           setShowCreatedModal(open);
         }}
-        
       >
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Project Created!</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            Do you want to set up your project now?
-          </div>
+          <div className="py-4">Do you want to set up your project now?</div>
           <DialogFooter className="flex justify-end space-x-2">
             <CustomButton
               variant="outline"
