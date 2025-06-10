@@ -80,33 +80,18 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
           }
       ),
     });
-    // now include both pieces of formData that we reference
+
   }, [formData.numberOfSessions, formData.sessions, updateFormData]);
 
-useEffect(() => {
-  // if we have fetched moderators and haven’t set them yet…
-  if (data?.data && formData.allModerators?.length === 0) {
-    updateFormData({ allModerators: data.data });
-  }
-  // we only really care about when `data.data` changes:
-}, [data?.data]);
+  useEffect(() => {
+    
+    if (data?.data && formData.allModerators?.length === 0) {
+      updateFormData({ allModerators: data.data });
+    }
+  
+  }, [data?.data]);
 
-  // // whenever numberOfSessions changes, rebuild the sessions array:
-  // useEffect(() => {
-  //   updateFormData({
-  //     sessions: Array.from(
-  //       { length: formData.numberOfSessions },
-  //       (_, i) =>
-  //         formData.sessions[i] || {
-  //           title: "",
-  //           date: "",
-  //           startTime: "",
-  //           duration: "",
-  //           moderators: [],
-  //         }
-  //     ),
-  //   });
-  // }, [formData.numberOfSessions, updateFormData]);
+
 
   if (error) {
     console.error("Error fetching moderators:", error.message);
@@ -141,11 +126,16 @@ useEffect(() => {
         <Label className="font-medium text-sm">
           Do you want the same moderator for all of your sessions?
         </Label>
-        <Switch
-          className="cursor-pointer"
-          checked={formData.sameModerator}
-          onCheckedChange={(b) => updateFormData({ sameModerator: b })}
-        />
+        <div className="flex items-center gap-2">
+          <Switch
+            className="cursor-pointer"
+            checked={formData.sameModerator}
+            onCheckedChange={(b) => updateFormData({ sameModerator: b })}
+          />
+          <span className="text-sm font-medium">
+            {formData.sameModerator ? "Yes" : "No"}
+          </span>
+        </div>
       </div>
 
       {/* Breakout Room Toggle with Tooltip */}
@@ -172,11 +162,16 @@ useEffect(() => {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <Switch
-          checked={formData.breakoutRoom}
-          onCheckedChange={(b) => updateFormData({ breakoutRoom: b })}
-          className="cursor-pointer"
-        />
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={formData.breakoutRoom}
+            onCheckedChange={(b) => updateFormData({ breakoutRoom: b })}
+            className="cursor-pointer"
+          />
+          <span className="text-sm font-medium">
+            {formData.breakoutRoom ? "Yes" : "No"}
+          </span>
+        </div>
       </div>
 
       {/* Number of Sessions */}
