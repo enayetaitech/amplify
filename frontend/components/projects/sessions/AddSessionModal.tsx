@@ -171,9 +171,9 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose} >
-      <DialogContent className="w-full max-w-6xl overflow-x-auto border-0">
+      <DialogContent className="w-full max-w-5xl overflow-x-auto border-0">
         <DialogHeader>
-          <DialogTitle>Add Session</DialogTitle>
+          <DialogTitle>Add New Session</DialogTitle>
         </DialogHeader>
         {step === 1 && (
           <>

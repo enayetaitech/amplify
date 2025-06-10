@@ -121,7 +121,7 @@ const Sessions = () => {
         <HeadingBlue25px>Session</HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
-          text="Add Session"
+          text="Add New Session"
           variant="default"
           className=" bg-custom-orange-2 text-white hover:bg-custom-orange-1 font-semibold px-2"
           onClick={() => {

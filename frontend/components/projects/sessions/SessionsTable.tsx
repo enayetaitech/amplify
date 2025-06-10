@@ -107,7 +107,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
           <TableHeader>
             <TableRow className="">
               {[
-                "Title",
+                "Session Title",
                 "Start Date & Time",
                 "Service Type",
                 "Participant Count",
