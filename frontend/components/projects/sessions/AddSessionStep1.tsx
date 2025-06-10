@@ -25,8 +25,8 @@ import React, { useEffect, useRef, useState } from "react";
 import AddModeratorModal from "./AddModeratorModal";
 import { ISessionFormData } from "./AddSessionModal";
 import MultiSelectDropdown from "./MultiSelectDropdown";
-import { Info } from "lucide-react";
 import { useParams } from "next/navigation";
+import { BiQuestionMark } from "react-icons/bi";
 
 interface AddSessionStep1Props {
   formData: ISessionFormData;
@@ -147,10 +147,7 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info
-                  size={16}
-                  className="text-muted-foreground cursor-pointer"
-                />
+                      <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs bg-white text-black shadow-sm">
                 Breakout rooms allow you to split participants into separate
