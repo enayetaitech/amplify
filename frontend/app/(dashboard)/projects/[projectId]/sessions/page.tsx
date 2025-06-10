@@ -22,12 +22,11 @@ import axios from "axios";
 import EditSessionModal, { EditSessionValues } from "components/projects/sessions/EditSessionModal";
 import ConfirmationModalComponent from "components/ConfirmationModalComponent";
 
-// 1. Define a proper variables type instead of using `any`
+
 interface EditSessionInput {
   id: string;
   values: EditSessionValues;
 }
-
 
 const Sessions = () => {
   const { projectId } = useParams();
@@ -60,30 +59,6 @@ const Sessions = () => {
     placeholderData: keepPreviousData,
   });
 
-  // 2️⃣ Mutation to start a session
-  // const startSessionMutation = useMutation<ILiveSession, Error, string>({
-  //   // 1️⃣ the actual mutation function, which takes the sessionId
-  //   mutationFn: (sessionId) =>
-  //     api
-  //       .post<{ data: ILiveSession }>(`/api/v1/liveSessions/${sessionId}/start`)
-  //       .then((res) => {
-  //         console.log("Live session response", res.data.data);
-  //         return res.data.data;
-  //       }),
-
-  //   // 2️⃣ what to do when it succeeds
-  //   onSuccess: (liveSession) => {
-  //     console.log("moderator navigated to ->", liveSession._id);
-  //     router.push(`/meeting/${liveSession._id}`);
-  //   },
-
-  //   // 3️⃣ optional error handling
-  //   onError: (err) => {
-  //     toast.error(err.message || "Could not start session");
-  //   },
-  // });
-
-  //
 
   // Mutation to delete session
   const deleteSession = useMutation({

@@ -28,6 +28,50 @@ export interface SessionsTableProps {
   ) => void;
 }
 
+// helper to format Date+Time in Pacific with the “Pacific” label
+function formatDateTimeWithZone(
+  date: Date | string,
+  timeStr: string,
+  timeZone: string
+): string {
+  // normalize to a Date object
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+
+  // apply the hour/minute
+  const [hour, minute] = timeStr.split(":").map(Number);
+  const dt = new Date(dateObj);
+  dt.setHours(hour, minute, 0, 0);
+
+  // format the date part in that zone
+  const formattedDate = dt.toLocaleDateString("en-US", {
+    timeZone,
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  // format the time part (e.g. “3 p.m.”)
+  const formattedTime = dt
+    .toLocaleTimeString("en-US", {
+      timeZone,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+    })
+    .toLowerCase()
+    .replace(/:00/, "")
+    .replace(/\s?pm$/, " p.m.")
+    .replace(/\s?am$/, " a.m."); // if you want “a.m.” too
+
+  // pull the region after the slash
+  const region = timeZone.split("/").pop() ?? timeZone;
+
+  return `${formattedDate}, ${formattedTime} ${region}`;
+}
+
+
+
+
 export const SessionsTable: React.FC<SessionsTableProps> = ({
   sessions,
   meta,
@@ -39,6 +83,8 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  console.log('sessions', sessions)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -94,7 +140,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   {s.title}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {new Date(s.date).toLocaleDateString()} {s.startTime}
+                  {formatDateTimeWithZone(s.date, s.startTime, s.timeZone)}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {" "}
