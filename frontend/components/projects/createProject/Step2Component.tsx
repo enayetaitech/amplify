@@ -139,7 +139,7 @@ const Step2: React.FC<Step2Props> = ({
                 className="mt-1 w-full"
               />
               {errors.languageSessionBreakdown && (
-                <p className="text-red-500 text-xs">This field is required</p>
+                <p className="text-red-500 text-xs mt-2">This field is required</p>
               )}
             </div>
           </>
