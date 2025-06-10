@@ -40,7 +40,7 @@ export interface ISessionFormData {
 }
 
 const initialFormData: ISessionFormData = {
-  numberOfSessions: 1,
+  numberOfSessions: 0,
   selectedModerators: [],
   allModerators: [],
   timeZone: "",
