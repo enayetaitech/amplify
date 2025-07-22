@@ -50,7 +50,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   const [otherCountry, setOtherCountry] = useState<string>(
     isInitiallyOther ? formData.respondentCountry : ""
   );
-
+const [otherCountryError, setOtherCountryError] = useState<string>("");
   // ========= Sessions =========
   const [sessionRows, setSessionRows] = useState<SessionRow[]>(
     () =>
@@ -74,6 +74,13 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         ]
       : selectedLanguages;
 
+       if (countrySelection === "Other" && !validateOtherCountry()) {
+    return;
+  }
+  // if “Other Language” is invalid, skip too
+  if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
+    return;
+  }
     const finalCountry =
       countrySelection === "USA" ? "USA" : otherCountry.trim();
 
@@ -117,6 +124,10 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
 
   const handleOtherCountryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setOtherCountry(e.target.value);
+
+     if (otherCountryError) {
+    setOtherCountryError("");
+  }
   };
 
    const handleOtherLanguageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,6 +161,25 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     }
   };
 
+const validateOtherCountry = () => {
+  const trimmed = otherCountry.trim();
+  if (!trimmed) {
+    setOtherCountryError("Please enter a country.");
+    return false;
+  }
+  if (!ALPHA_REGEX.test(trimmed)) {
+    setOtherCountryError("Only letters and spaces are allowed.");
+    return false;
+  }
+  setOtherCountryError("");
+  return true;
+};
+
+const handleOtherCountryBlur = () => {
+  if (countrySelection === "Other") {
+    validateOtherCountry();
+  }
+}
 
 
   return (
@@ -238,10 +268,14 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
             <Label className="text-sm font-medium">Specify Country Name</Label>
             <Input
               type="text"
-              className="mt-1 w-full"
-              value={otherCountry}
-              onChange={handleOtherCountryChange}
+               className={`mt-1 w-full ${otherCountryError ? "border-red-500" : ""}`}
+           value={otherCountry}
+           onChange={handleOtherCountryChange}
+           onBlur={handleOtherCountryBlur}
             />
+            {otherCountryError && (
+         <p className="text-red-500 text-sm">{otherCountryError}</p>
+        )}
           </div>
         )}
       </div>
