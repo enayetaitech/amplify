@@ -40,7 +40,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             
           />
         </div>
-        <div className='overflow-x-hidden flex-grow h-full'>{children}</div>
+        <div className='overflow-x-hidden flex-grow h-full'>{children}
+          {/* footer */}
+      <FooterComponent />
+        </div>
       </div>
 
       {/* logout modal */}
@@ -51,8 +54,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         />
       )}
 
-      {/* footer */}
-      <FooterComponent />
+      
     </div>
   )
 }
