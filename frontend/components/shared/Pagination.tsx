@@ -3,6 +3,8 @@ import { Pagination,
   PaginationContent,
   PaginationItem,
   PaginationLink, } from "components/ui/pagination";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import getPages from "utils/getPages";
 
 export default function CustomPagination({
   totalPages,
@@ -13,14 +15,34 @@ export default function CustomPagination({
   currentPage: number;
   onPageChange: (page: number) => void;
 }) {
-  // only show “1”, “2”, “…”, last
-  const pages: (number | "…")[] =
-    totalPages <= 4
-      ? Array.from({ length: totalPages }, (_, i) => i + 1)
-      : [1, 2, "…", totalPages];
-
+ 
+    const pages = getPages(totalPages, currentPage);
+  const isFirst = currentPage === 1;
+  const isLast = currentPage === totalPages;
   return (
-    <Pagination className="flex mt-6">
+    <Pagination className="flex mt-6 list-none p-">
+      {/* ← Previous */}
+       <PaginationItem>
+        <PaginationLink
+          href="#"
+          // semantic disabled
+          aria-disabled={isFirst}
+          // visually disable & block clicks
+          className={`p-2 rounded ${
+            isFirst
+              ? "pointer-events-none opacity-50"
+              : "hover:bg-gray-100"
+          }`}
+          onClick={(e) => {
+            e.preventDefault();
+            if (!isFirst) onPageChange(currentPage - 1);
+          }}
+        >
+          {/* replace text with the Lucide icon */}
+          <ChevronLeft className="w-4 h-4" />
+        </PaginationLink>
+      </PaginationItem>
+
       <PaginationContent>
         {pages.map((p, idx) =>
           typeof p === "number" ? (
@@ -51,6 +73,25 @@ export default function CustomPagination({
           )
         )}
       </PaginationContent>
+
+      {/* Next → */}
+              <PaginationItem>
+        <PaginationLink
+          href="#"
+          aria-disabled={isLast}
+          className={`p-2 rounded ${
+            isLast
+              ? "pointer-events-none opacity-50"
+              : "hover:bg-gray-100"
+          }`}
+          onClick={(e) => {
+            e.preventDefault();
+            if (!isLast) onPageChange(currentPage + 1);
+          }}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </PaginationLink>
+      </PaginationItem>
     </Pagination>
   );
 }
