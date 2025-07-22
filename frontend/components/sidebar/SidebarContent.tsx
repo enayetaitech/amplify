@@ -47,12 +47,13 @@ export default function SidebarContent({
     queryKey: ["projectsByUser", userId],
     queryFn: () =>
       api
-        .get(`/api/v1/projects/get-project-by-userId/${userId}`)
+        .get(`/api/v1/projects/get-project-by-userId/${userId}?search=&page=1&limit=100`)
         .then((r) => r.data.data),
     staleTime: 300_000,
     enabled: Boolean(userId),
   });
 
+  console.log('projects', projects)
   const [projectsOpen, setProjectsOpen] = useState(
     pathname.startsWith("/projects")
   );
