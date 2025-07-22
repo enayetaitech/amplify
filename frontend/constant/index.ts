@@ -102,3 +102,5 @@ export const loginDefaults: LoginFormValues={
       password: "Ab123456@",
       rememberMe: false,
 }
+
+export const ALPHA_REGEX = /^[A-Za-z\s]+$/;
