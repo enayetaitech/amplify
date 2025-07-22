@@ -12,7 +12,7 @@ import {
 } from "components/ui/select";
 import { CheckIcon } from "lucide-react";
 import { SessionRow } from "@shared/interface/ProjectInterface";
-import { availableLanguages, durations } from "constant";
+import { ALPHA_REGEX, availableLanguages, durations } from "constant";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import {
   Command,
@@ -26,6 +26,8 @@ import { TooltipContent } from "@radix-ui/react-tooltip";
 import { BiQuestionMark } from "react-icons/bi";
 import SessionsTable from "./SessionsTable";
 
+
+
 const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   // ========= Respondent Languages =========
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
@@ -36,6 +38,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
       : []
   );
   const [otherLanguage, setOtherLanguage] = useState<string>("");
+  const [otherLangError,  setOtherLangError]  = useState<string>("");
   const [projectName, setProjectName] = useState<string>(formData.name || "");
 
   // ========= Respondent Country =========
@@ -60,7 +63,10 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
 
   // ========= Update Parent State =========
   useEffect(() => {
- 
+      if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
+      return;
+    }
+
     const computedLanguages = selectedLanguages.includes("Other")
       ? [
           ...selectedLanguages.filter((lang) => lang !== "Other"),
@@ -112,6 +118,39 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   const handleOtherCountryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setOtherCountry(e.target.value);
   };
+
+   const handleOtherLanguageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setOtherLanguage(v);
+
+    // clear error as user types
+    if (otherLangError) {
+      setOtherLangError("");
+    }
+  };
+
+  const validateOtherLanguage = () => {
+    if (!otherLanguage.trim()) {
+      setOtherLangError("Please enter a language.");
+      return false;
+    }
+    if (!ALPHA_REGEX.test(otherLanguage.trim())) {
+      setOtherLangError("Only letters and spaces are allowed.");
+      return false;
+    }
+    setOtherLangError("");
+    return true;
+  };
+
+  // Hook into your wizard’s “next” step button (if you have one) or 
+  // run this on blur:
+  const handleOtherLanguageBlur = () => {
+    if (selectedLanguages.includes("Other")) {
+      validateOtherLanguage();
+    }
+  };
+
+
 
   return (
     <div className="space-y-6">
@@ -165,8 +204,10 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
               type="text"
               className="mt-1 w-full"
               value={otherLanguage}
-              onChange={(e) => setOtherLanguage(e.target.value)}
+              onChange={handleOtherLanguageChange}
+            onBlur={handleOtherLanguageBlur}
             />
+            
           </div>
         )}
         {formData.service === "Concierge" && (
