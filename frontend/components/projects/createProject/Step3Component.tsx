@@ -12,7 +12,7 @@ import {
 } from "components/ui/select";
 import { CheckIcon } from "lucide-react";
 import { SessionRow } from "@shared/interface/ProjectInterface";
-import { ALPHA_REGEX, availableLanguages, durations } from "constant";
+import { ALPHA_REGEX, availableLanguages, durations, PROJECT_NAME_REGEX } from "constant";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import {
   Command,
@@ -40,7 +40,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   const [otherLanguage, setOtherLanguage] = useState<string>("");
   const [otherLangError,  setOtherLangError]  = useState<string>("");
   const [projectName, setProjectName] = useState<string>(formData.name || "");
-
+const [projectNameError, setProjectNameError] = useState<string>("");
   // ========= Respondent Country =========
   const isInitiallyOther =
     formData.respondentCountry && formData.respondentCountry !== "USA";
@@ -63,6 +63,10 @@ const [otherCountryError, setOtherCountryError] = useState<string>("");
 
   // ========= Update Parent State =========
   useEffect(() => {
+ if (!validateProjectName()) {
+    return;
+  }
+
       if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
       return;
     }
@@ -181,6 +185,27 @@ const handleOtherCountryBlur = () => {
   }
 }
 
+const validateProjectName = () => {
+  const trimmed = projectName.trim();
+
+  if (!trimmed) {
+    setProjectNameError("Project name is required.");
+    return false;
+  }
+  if (!PROJECT_NAME_REGEX.test(trimmed)) {
+    setProjectNameError(
+      "Only letters, numbers, spaces, dashes, and underscores allowed."
+    );
+    return false;
+  }
+  setProjectNameError("");
+  return true;
+};
+
+const handleProjectNameBlur = () => {
+  validateProjectName();
+};
+
 
   return (
     <div className="space-y-6">
@@ -189,11 +214,18 @@ const handleOtherCountryBlur = () => {
         <Label className="text-sm font-medium">Project Name*</Label>
         <Input
           type="text"
-          className="mt-1 w-full"
+          className={`mt-1 w-full ${projectNameError ? "border-red-500" : ""}`}
           value={projectName}
-          onChange={(e) => setProjectName(e.target.value)}
+           onChange={(e) => {
+        setProjectName(e.target.value);
+        if (projectNameError) setProjectNameError("");
+      }}
+      onBlur={handleProjectNameBlur}
           required
         />
+          {projectNameError && (
+     <p className="text-red-500 text-sm mt-1">{projectNameError}</p>
+   )}
       </div>
       {/* Multi-Select for Languages using Popover and Command */}
       <div>
