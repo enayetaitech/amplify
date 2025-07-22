@@ -24,9 +24,6 @@ import { LoginFormValues, loginSchema } from "schemas/loginSchema";
 import { loginDefaults } from "constant";
 import { useLogin } from "hooks/useLogin";
 
-
-
-
 const Login = () => {
   
   const form = useForm<LoginFormValues>({
