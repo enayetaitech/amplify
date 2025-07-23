@@ -11,6 +11,7 @@ export interface UseProjectsParams {
   page: number;
   limit?: number;
   search?: string;
+  tag?: string;
 }
 
 export interface UseProjectsResult {
@@ -32,6 +33,7 @@ export function useProjects({
   page,
   limit = 10,
   search = "",
+  tag=""
 }: UseProjectsParams): UseProjectsResult {
   const {
     data,
@@ -42,14 +44,14 @@ export function useProjects({
     { data: IProject[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["projects", userId, page, search],
+    queryKey: ["projects", userId, page, search, tag],
     queryFn: () =>
       api
         .get<{
           data: IProject[];
           meta: IPaginationMeta;
         }>(`/api/v1/projects/get-project-by-userId/${userId}`, {
-          params: { page, limit, search },
+          params: { page, limit, search, tag },
         })
         .then((res) => res.data),
     // show last page’s data while fetching new page

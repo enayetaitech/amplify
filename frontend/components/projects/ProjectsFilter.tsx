@@ -3,7 +3,7 @@
 
 import React from "react";
 import { Input } from "components/ui/input";
-import { SearchIcon, CalendarIcon } from "lucide-react";
+import { SearchIcon, CalendarIcon, TagIcon } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "components/ui/popover";
 import { Button } from "components/ui/button";
 import { Calendar } from "components/ui/calendar";
@@ -17,6 +17,8 @@ export interface DateRange {
 interface ProjectsFilterProps {
   searchTerm: string;
   onSearchChange: (val: string) => void;
+  tagSearchTerm: string;
+  onTagSearchChange: (val: string) => void;
   dateRange?: DateRange;
   onDateRangeChange: (range: DateRange | undefined) => void;
 }
@@ -24,6 +26,8 @@ interface ProjectsFilterProps {
 const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
   searchTerm,
   onSearchChange,
+    tagSearchTerm,
+ onTagSearchChange,
   dateRange,
   onDateRangeChange,
 }) => {
@@ -39,6 +43,17 @@ const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
         />
         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
       </div>
+      
+    {/* Search tags */}
+     <div className="relative flex-1 max-w-sm">
+       <Input
+         placeholder="Search tags..."
+         className="pl-9 rounded-none"
+         value={tagSearchTerm}
+         onChange={(e) => onTagSearchChange(e.target.value)}
+       />
+       <TagIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+     </div>
 
       {/* Date-range picker */}
       <Popover>

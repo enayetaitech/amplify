@@ -261,8 +261,10 @@ export const getProjectByUserId = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId } = req.params;
-  const { search = "", page = 1, limit = 10 } = req.query;
+  const { search = "", tag= "", page = 1, limit = 10 } = req.query;
 
+  console.log('req.query', req.query)
+ 
   if (!userId) {
     return next(new ErrorHandler("User ID is required", 400));
   }
@@ -273,6 +275,7 @@ export const getProjectByUserId = async (
   const skip = (pageNum - 1) * limitNum;
 
   const searchRegex = new RegExp(search as string, "i");
+  const tagRegex    = new RegExp(tag as string, "i");
 
  const baseMatch: PipelineStage.Match = {
     $match: {
@@ -291,6 +294,13 @@ export const getProjectByUserId = async (
     },
   };
 
+   const tagMatch: PipelineStage.Match = {
+   $match: {
+     ...(tag
+       ? { "tags.name": { $regex: tagRegex } }
+       : {})
+  }
+ };
   const aggregationPipeline: PipelineStage[] = [
     baseMatch,
     {
@@ -319,6 +329,15 @@ export const getProjectByUserId = async (
       as: "tags",
     },
   },
+  // {
+  //   $unwind: {
+  //     path: "$tags",
+  //     preserveNullAndEmptyArrays: true,
+  //   },
+  // },
+    ...(tag
+  ? [{ $match: { "tags.title": { $regex: tagRegex } } }]
+  : []),
     {
       $group: {
         _id: "$_id",
@@ -347,6 +366,15 @@ export const getProjectByUserId = async (
     },
     { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
     searchMatch,
+        {
+      $lookup: {
+        from: "tags",
+        localField: "tags",
+        foreignField: "_id",
+        as: "tags",
+      },
+    },
+    ...(tag ? [tagMatch] : []),
     {
       $group: {
         _id: "$_id",
