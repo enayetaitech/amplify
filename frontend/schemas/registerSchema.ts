@@ -27,7 +27,12 @@ export const registerSchema = z
       .regex(/^[A-Za-z ]+$/, {
         message: "Company Name can only contain letters and spaces",
       }),
-    phoneNumber: z.string().min(10, { message: "Phone number is required" }),
+      phoneNumber: z
+      .string()
+      .min(10, { message: "Phone number must be at least 10 digits" })
+      .max(12, { message: "Phone number cannot exceed 12 digits" })
+      .regex(/^\d+$/, { message: "Phone number must contain only digits" }),
+
     password: z.string().min(9, {
       message: "Password must be at least 9 characters long",
     }),
