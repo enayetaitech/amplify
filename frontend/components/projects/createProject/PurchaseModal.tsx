@@ -117,7 +117,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
                   {/* final total row */}
                   <TableRow className="font-semibold">
-                    <TableCell colSpan={3} className="text-right">
+                    <TableCell colSpan={3} className="text-left">
                       Total Price (USD)
                     </TableCell>
                     <TableCell>{totalPurchasePrice.toFixed(2)}</TableCell>
