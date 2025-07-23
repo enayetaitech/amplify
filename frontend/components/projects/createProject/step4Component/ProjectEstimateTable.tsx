@@ -12,7 +12,7 @@ export function ProjectEstimateTable({ sessions, service }: { sessions: Step4Pro
     const credits = qty * dur * 2.75;
     return { service, qty, dur, hours: hours.toFixed(2), credits: credits.toFixed(2) };
   });
-  const totalHours = rows.reduce((sum, r) => sum + parseFloat(r.hours), 0).toFixed(2);
+  // const totalHours = rows.reduce((sum, r) => sum + parseFloat(r.hours), 0).toFixed(2);
   const totalCredits = rows.reduce((sum, r) => sum + parseFloat(r.credits), 0).toFixed(2);
 
   return (
@@ -41,8 +41,8 @@ export function ProjectEstimateTable({ sessions, service }: { sessions: Step4Pro
                 </TableRow>
               ))}
               <TableRow className="font-semibold">
-                <TableCell colSpan={3} className="pl-6">TOTAL</TableCell>
-                <TableCell className="text-right">{totalHours}</TableCell>
+                <TableCell colSpan={4} className="pl-6">TOTAL</TableCell>
+                {/* <TableCell className="text-right">{totalHours}</TableCell> */}
                 <TableCell className="text-right">{totalCredits}</TableCell>
               </TableRow>
             </TableBody>
