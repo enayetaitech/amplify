@@ -24,8 +24,9 @@ const deviceInfo_1 = require("./middlewares/deviceInfo");
 const http_1 = __importDefault(require("http"));
 const socket_1 = require("./socket");
 const app = (0, express_1.default)();
+console.log("Starting server...", index_1.default.frontend_base_url);
 // ✅ CORS config
-const allowedOrigins = ["http://localhost:3000"];
+const allowedOrigins = [index_1.default.frontend_base_url, "http://localhost:3000",];
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {

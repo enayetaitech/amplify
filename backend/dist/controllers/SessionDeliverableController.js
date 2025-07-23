@@ -16,7 +16,7 @@ exports.deleteDeliverable = exports.downloadMultipleDeliverable = exports.downlo
 const SessionDeliverableModel_1 = require("../model/SessionDeliverableModel");
 const ProjectModel_1 = __importDefault(require("../model/ProjectModel"));
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
-const responseHelpers_1 = require("../utils/responseHelpers");
+const ResponseHelpers_1 = require("../utils/ResponseHelpers");
 const uploadToS3_1 = require("../utils/uploadToS3");
 const SessionModel_1 = require("../model/SessionModel");
 /**
@@ -60,7 +60,7 @@ const createDeliverable = (req, res, next) => __awaiter(void 0, void 0, void 0, 
         uploadedBy,
     });
     /* ── respond ───────────────────────────────────── */
-    (0, responseHelpers_1.sendResponse)(res, Object.assign(Object.assign({}, doc.toObject()), { url: s3Url }), "Deliverable uploaded", 201);
+    (0, ResponseHelpers_1.sendResponse)(res, Object.assign(Object.assign({}, doc.toObject()), { url: s3Url }), "Deliverable uploaded", 201);
 });
 exports.createDeliverable = createDeliverable;
 /**
@@ -101,7 +101,7 @@ const getDeliverablesByProjectId = (req, res, next) => __awaiter(void 0, void 0,
         hasPrev: page > 1,
         hasNext: page < totalPages,
     };
-    (0, responseHelpers_1.sendResponse)(res, rows, "Deliverables fetched", 200, meta);
+    (0, ResponseHelpers_1.sendResponse)(res, rows, "Deliverables fetched", 200, meta);
 });
 exports.getDeliverablesByProjectId = getDeliverablesByProjectId;
 const downloadDeliverable = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -127,7 +127,7 @@ const downloadMultipleDeliverable = (req, res, next) => __awaiter(void 0, void 0
     /* 3️⃣ compute signed URLs */
     const keys = docs.map((d) => d.storageKey);
     const links = (0, uploadToS3_1.getSignedUrls)(keys, 300);
-    (0, responseHelpers_1.sendResponse)(res, links, "Signed URLs", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, links, "Signed URLs", 200);
 });
 exports.downloadMultipleDeliverable = downloadMultipleDeliverable;
 const deleteDeliverable = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -139,6 +139,6 @@ const deleteDeliverable = (req, res, next) => __awaiter(void 0, void 0, void 0, 
     yield (0, uploadToS3_1.deleteFromS3)(doc.storageKey);
     /* ── delete DB row ────────────────────────────────────────── */
     yield doc.deleteOne();
-    (0, responseHelpers_1.sendResponse)(res, doc, "Deliverable deleted", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, doc, "Deliverable deleted", 200);
 });
 exports.deleteDeliverable = deleteDeliverable;

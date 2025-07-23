@@ -13,14 +13,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.toggleRecordingAccess = exports.editProject = exports.getProjectById = exports.getProjectByUserId = exports.emailProjectInfo = exports.createProjectByExternalAdmin = exports.saveProgress = void 0;
-const responseHelpers_1 = require("../utils/responseHelpers");
+const ResponseHelpers_1 = require("../utils/ResponseHelpers");
 const ProjectFormModel_1 = __importDefault(require("../model/ProjectFormModel"));
 const UserModel_1 = __importDefault(require("../model/UserModel"));
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
 const ProjectModel_1 = __importDefault(require("../model/ProjectModel"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const emailTemplates_1 = require("../constants/emailTemplates");
-const sendVerifyAccountEmailProcessor_1 = require("../processors/sendEmail/sendVerifyAccountEmailProcessor");
+const SendVerifyAccountEmailProcessor_1 = require("../processors/sendEmail/SendVerifyAccountEmailProcessor");
 const ModeratorModel_1 = __importDefault(require("../model/ModeratorModel"));
 // ! the fields you really need to keep the payload light
 const PROJECT_POPULATE = [
@@ -32,10 +32,10 @@ const PROJECT_POPULATE = [
 const saveProgress = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { uniqueId, formData, userId } = req.body;
     if (!userId) {
-        (0, responseHelpers_1.sendResponse)(res, null, "User ID is required", 400);
+        (0, ResponseHelpers_1.sendResponse)(res, null, "User ID is required", 400);
     }
     if (!formData || Object.keys(formData).length === 0) {
-        (0, responseHelpers_1.sendResponse)(res, null, "Form data is required", 400);
+        (0, ResponseHelpers_1.sendResponse)(res, null, "Form data is required", 400);
     }
     let savedForm;
     if (uniqueId) {
@@ -45,20 +45,20 @@ const saveProgress = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             // If not found, create a new form entry
             const newForm = new ProjectFormModel_1.default(Object.assign({ user: userId }, formData));
             savedForm = yield newForm.save();
-            (0, responseHelpers_1.sendResponse)(res, { uniqueId: savedForm._id }, "Form not found. New progress saved successfully.", 201);
+            (0, ResponseHelpers_1.sendResponse)(res, { uniqueId: savedForm._id }, "Form not found. New progress saved successfully.", 201);
         }
         else {
             // If found, update the existing document with the provided form data
             existingForm.set(formData);
             savedForm = yield existingForm.save();
-            (0, responseHelpers_1.sendResponse)(res, { uniqueId: savedForm._id }, "Progress updated successfully", 200);
+            (0, ResponseHelpers_1.sendResponse)(res, { uniqueId: savedForm._id }, "Progress updated successfully", 200);
         }
     }
     else {
         // Create a new form entry if no uniqueId is provided
         const newForm = new ProjectFormModel_1.default(Object.assign({ user: userId }, formData));
         savedForm = yield newForm.save();
-        (0, responseHelpers_1.sendResponse)(res, { uniqueId: savedForm._id }, "Progress saved successfully", 201);
+        (0, ResponseHelpers_1.sendResponse)(res, { uniqueId: savedForm._id }, "Progress saved successfully", 201);
     }
 });
 exports.saveProgress = saveProgress;
@@ -129,12 +129,12 @@ const createProjectByExternalAdmin = (req, res, next) => __awaiter(void 0, void 
         const emailContent = (0, emailTemplates_1.projectCreateAndPaymentConfirmationEmailTemplate)(emailParams);
         const emailSubject = "Success! Your Project Has Been Created for Amplify’s Virtual Backroom";
         // Send the email using your email processor function
-        yield (0, sendVerifyAccountEmailProcessor_1.sendEmail)({
+        yield (0, SendVerifyAccountEmailProcessor_1.sendEmail)({
             to: user.email,
             subject: emailSubject,
             html: emailContent,
         });
-        (0, responseHelpers_1.sendResponse)(res, project, "Project created successfully", 201);
+        (0, ResponseHelpers_1.sendResponse)(res, project, "Project created successfully", 201);
     }
     catch (error) {
         yield session.abortTransaction();
@@ -165,7 +165,7 @@ const emailProjectInfo = (req, res, next) => __awaiter(void 0, void 0, void 0, f
         formattedSessions,
     });
     // Send email
-    yield (0, sendVerifyAccountEmailProcessor_1.sendEmail)({
+    yield (0, SendVerifyAccountEmailProcessor_1.sendEmail)({
         to: "enayetflweb@gmail.com",
         subject: "New Project Information Submission",
         html: emailContent,
@@ -181,7 +181,8 @@ exports.emailProjectInfo = emailProjectInfo;
 const getProjectByUserId = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const { userId } = req.params;
-    const { search = "", page = 1, limit = 10 } = req.query;
+    const { search = "", tag = "", page = 1, limit = 10 } = req.query;
+    console.log('req.query', req.query);
     if (!userId) {
         return next(new ErrorHandler_1.default("User ID is required", 400));
     }
@@ -190,6 +191,7 @@ const getProjectByUserId = (req, res, next) => __awaiter(void 0, void 0, void 0,
     const limitNum = Math.max(Number(limit), 1);
     const skip = (pageNum - 1) * limitNum;
     const searchRegex = new RegExp(search, "i");
+    const tagRegex = new RegExp(tag, "i");
     const baseMatch = {
         $match: {
             createdBy: new mongoose_1.default.Types.ObjectId(userId),
@@ -204,6 +206,11 @@ const getProjectByUserId = (req, res, next) => __awaiter(void 0, void 0, void 0,
                 { "moderators.companyName": { $regex: searchRegex } },
             ],
         },
+    };
+    const tagMatch = {
+        $match: Object.assign({}, (tag
+            ? { "tags.name": { $regex: tagRegex } }
+            : {}))
     };
     const aggregationPipeline = [
         baseMatch,
@@ -233,6 +240,15 @@ const getProjectByUserId = (req, res, next) => __awaiter(void 0, void 0, void 0,
                 as: "tags",
             },
         },
+        // {
+        //   $unwind: {
+        //     path: "$tags",
+        //     preserveNullAndEmptyArrays: true,
+        //   },
+        // },
+        ...(tag
+            ? [{ $match: { "tags.title": { $regex: tagRegex } } }]
+            : []),
         {
             $group: {
                 _id: "$_id",
@@ -259,6 +275,15 @@ const getProjectByUserId = (req, res, next) => __awaiter(void 0, void 0, void 0,
         { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
         searchMatch,
         {
+            $lookup: {
+                from: "tags",
+                localField: "tags",
+                foreignField: "_id",
+                as: "tags",
+            },
+        },
+        ...(tag ? [tagMatch] : []),
+        {
             $group: {
                 _id: "$_id",
             },
@@ -279,7 +304,7 @@ const getProjectByUserId = (req, res, next) => __awaiter(void 0, void 0, void 0,
         hasNext: pageNum < totalPages,
     };
     // Send the result back to the frontend using your sendResponse utility
-    (0, responseHelpers_1.sendResponse)(res, projects, "Projects retrieved successfully", 200, meta);
+    (0, ResponseHelpers_1.sendResponse)(res, projects, "Projects retrieved successfully", 200, meta);
 });
 exports.getProjectByUserId = getProjectByUserId;
 const getProjectById = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -294,7 +319,7 @@ const getProjectById = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
     if (!project) {
         return next(new ErrorHandler_1.default("Project not found", 404));
     }
-    (0, responseHelpers_1.sendResponse)(res, project, "Project retrieved successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, project, "Project retrieved successfully", 200);
 });
 exports.getProjectById = getProjectById;
 const editProject = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -322,7 +347,7 @@ const editProject = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
     console.log("req.body", req.body);
     // Save the updated project.
     const updatedProject = yield project.save();
-    (0, responseHelpers_1.sendResponse)(res, updatedProject, "Project updated successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, updatedProject, "Project updated successfully", 200);
 });
 exports.editProject = editProject;
 const toggleRecordingAccess = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -339,6 +364,6 @@ const toggleRecordingAccess = (req, res, next) => __awaiter(void 0, void 0, void
     project.recordingAccess = !project.recordingAccess;
     // Save the updated project
     const updatedProject = yield project.save();
-    (0, responseHelpers_1.sendResponse)(res, updatedProject, "Recording access toggled successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, updatedProject, "Recording access toggled successfully", 200);
 });
 exports.toggleRecordingAccess = toggleRecordingAccess;

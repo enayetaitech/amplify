@@ -37,7 +37,8 @@ export interface IUser {
 export interface EditUser {
     firstName: string;
     lastName: string;
-    email: string;
+    phoneNumber: string;
+    companyName: string;
     role?: string;
     [key: string]: any;
 }

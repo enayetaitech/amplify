@@ -20,7 +20,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18.x"
-          cache: npm
+       
 
       - name: Install backend dependencies
         run: |
@@ -43,7 +43,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18.x"
-          cache: npm
+        
 
       - name: Install frontend dependencies
         run: |
