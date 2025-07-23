@@ -25,7 +25,7 @@ const projectFormSchema = new Schema<IProjectFormDocument>(
     firstDateOfStreaming: { type: Date, required: true },
     respondentsPerSession: { type: Number, default: 0 },
     numberOfSessions: { type: Number, default: 0 },
-    sessionLength: { type: String, default: " " },
+    sessionLength: { type: Number, default: 0},
     recruitmentSpecs: { type: String, default: " "},
     preWorkDetails: { type: String, default: " " },
     selectedLanguage: { type: String, default: " "},
