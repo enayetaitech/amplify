@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/responseHelpers";
+import { sendResponse } from "../utils/ResponseHelpers";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 
 import UserModel from "../model/UserModel";

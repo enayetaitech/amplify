@@ -17,7 +17,7 @@ const projectSchema = new mongoose_1.Schema({
     meetings: { type: [mongoose_1.Schema.Types.ObjectId], ref: "Session", default: [] },
     projectPasscode: {
         type: String,
-        default: () => Math.floor(100000000 + Math.random() * 900000000).toString(),
+        default: () => Math.floor(10000000 + Math.random() * 90000000).toString(),
     },
     cumulativeMinutes: { type: Number, default: 0 },
     service: {

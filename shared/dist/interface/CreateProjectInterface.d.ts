@@ -26,7 +26,7 @@ export interface Step2Props {
 export type Step2FormValues = {
     respondentsPerSession: number;
     numberOfSessions: number;
-    sessionLength: string;
+    sessionLength: number;
     preWorkDetails: string;
     selectedLanguage: string;
     languageSessionBreakdown: string;

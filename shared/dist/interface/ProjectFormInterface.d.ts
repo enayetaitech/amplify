@@ -13,7 +13,7 @@ export interface IProjectForm {
     projectDate: Date;
     respondentsPerSession: number;
     numberOfSessions: number;
-    sessionLength: string;
+    sessionLength: number;
     recruitmentSpecs: string;
     preWorkDetails: string;
     selectedLanguage: string;

@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deletePoll = exports.duplicatePoll = exports.updatePoll = exports.getPollById = exports.getPollsByProjectId = exports.createPoll = void 0;
 const PollModel_1 = require("../model/PollModel");
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
-const responseHelpers_1 = require("../utils/responseHelpers");
+const ResponseHelpers_1 = require("../utils/ResponseHelpers");
 const QuestionValidationProcessor_1 = require("../processors/poll/QuestionValidationProcessor");
 /* ───────────────────────────────────────────────────────────── */
 /*  Controller – Create Poll                                    */
@@ -49,7 +49,7 @@ const createPoll = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         createdByRole,
     });
     console.log('poll', poll);
-    (0, responseHelpers_1.sendResponse)(res, poll, "Poll created", 201);
+    (0, ResponseHelpers_1.sendResponse)(res, poll, "Poll created", 201);
 });
 exports.createPoll = createPoll;
 /**
@@ -81,7 +81,7 @@ const getPollsByProjectId = (req, res, next) => __awaiter(void 0, void 0, void 0
         hasPrev: page > 1,
         hasNext: page < totalPages,
     };
-    (0, responseHelpers_1.sendResponse)(res, polls, "Polls fetched", 200, meta);
+    (0, ResponseHelpers_1.sendResponse)(res, polls, "Polls fetched", 200, meta);
 });
 exports.getPollsByProjectId = getPollsByProjectId;
 /**
@@ -96,7 +96,7 @@ const getPollById = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
         return next(new ErrorHandler_1.default("Poll not found", 404));
     }
     // 2️⃣ Return it
-    (0, responseHelpers_1.sendResponse)(res, poll, "Poll fetched", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, poll, "Poll fetched", 200);
 });
 exports.getPollById = getPollById;
 /**
@@ -135,7 +135,7 @@ const updatePoll = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     if (!updated) {
         return next(new ErrorHandler_1.default("Poll not found", 404));
     }
-    (0, responseHelpers_1.sendResponse)(res, updated, "Poll updated", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, updated, "Poll updated", 200);
 });
 exports.updatePoll = updatePoll;
 /**
@@ -163,7 +163,7 @@ const duplicatePoll = (req, res, next) => __awaiter(void 0, void 0, void 0, func
     };
     // 3️⃣insert new document
     const copy = yield PollModel_1.PollModel.create(copyData);
-    (0, responseHelpers_1.sendResponse)(res, copy, "Poll duplicated", 201);
+    (0, ResponseHelpers_1.sendResponse)(res, copy, "Poll duplicated", 201);
 });
 exports.duplicatePoll = duplicatePoll;
 /**
@@ -177,6 +177,6 @@ const deletePoll = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     if (!deleted) {
         return next(new ErrorHandler_1.default("Poll not found", 404));
     }
-    (0, responseHelpers_1.sendResponse)(res, deleted, "Poll deleted", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, deleted, "Poll deleted", 200);
 });
 exports.deletePoll = deletePoll;

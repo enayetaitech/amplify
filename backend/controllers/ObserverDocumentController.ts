@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { deleteFromS3, getSignedUrl, getSignedUrls, uploadToS3 } from "../utils/uploadToS3";  
 import { ObserverDocumentModel } from "../model/ObserverDocumentModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import { sendResponse } from "../utils/responseHelpers";
+import { sendResponse } from "../utils/ResponseHelpers";
 import mongoose from "mongoose";
 
 export const createObserverDocument = async (

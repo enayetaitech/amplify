@@ -16,13 +16,13 @@ exports.logoutUser = exports.refreshToken = exports.findUserById = exports.delet
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const UserModel_1 = __importDefault(require("../model/UserModel"));
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
-const responseHelpers_1 = require("../utils/responseHelpers");
+const ResponseHelpers_1 = require("../utils/ResponseHelpers");
 const emailTemplates_1 = require("../constants/emailTemplates");
-const sendVerifyAccountEmailProcessor_1 = require("../processors/sendEmail/sendVerifyAccountEmailProcessor");
-const removePasswordFromUserObjectProcessor_1 = require("../processors/user/removePasswordFromUserObjectProcessor");
+const SendVerifyAccountEmailProcessor_1 = require("../processors/sendEmail/SendVerifyAccountEmailProcessor");
+const RemovePasswordFromUserObjectProcessor_1 = require("../processors/user/RemovePasswordFromUserObjectProcessor");
 const index_1 = __importDefault(require("../config/index"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const isStrongPasswordProcessor_1 = require("../processors/user/isStrongPasswordProcessor");
+const IsStrongPasswordProcessor_1 = require("../processors/user/IsStrongPasswordProcessor");
 const ProjectModel_1 = __importDefault(require("../model/ProjectModel"));
 const IsValidEmailProcessor_1 = require("../processors/user/IsValidEmailProcessor");
 const tokenService_1 = require("../utils/tokenService");
@@ -36,7 +36,10 @@ const createAccount = (req, res, next) => __awaiter(void 0, void 0, void 0, func
     if (existingUser) {
         return next(new ErrorHandler_1.default("User already exists", 400));
     }
-    if (!(0, isStrongPasswordProcessor_1.isStrongPassword)(password)) {
+    if (yield UserModel_1.default.findOne({ phoneNumber })) {
+        return next(new ErrorHandler_1.default("phoneNumber already exists", 409));
+    }
+    if (!(0, IsStrongPasswordProcessor_1.isStrongPassword)(password)) {
         return next(new ErrorHandler_1.default("Password must be at least 9 characters long and include uppercase, lowercase, number, and special character.", 400));
     }
     const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
@@ -61,13 +64,13 @@ const createAccount = (req, res, next) => __awaiter(void 0, void 0, void 0, func
     // In createAccount controller, after saving the user
     const token = jsonwebtoken_1.default.sign({ userId: savedUser._id }, index_1.default.jwt_secret, { expiresIn: "1d" });
     // Send verification email with token
-    yield (0, sendVerifyAccountEmailProcessor_1.sendEmail)({
+    yield (0, SendVerifyAccountEmailProcessor_1.sendEmail)({
         to: savedUser.email,
         subject: "Verify Your Account",
         html: (0, emailTemplates_1.verificationEmailTemplate)(savedUser.firstName, token),
     });
-    const userResponse = (0, removePasswordFromUserObjectProcessor_1.sanitizeUser)(savedUser);
-    (0, responseHelpers_1.sendResponse)(res, userResponse, "User registered successfully", 201);
+    const userResponse = (0, RemovePasswordFromUserObjectProcessor_1.sanitizeUser)(savedUser);
+    (0, ResponseHelpers_1.sendResponse)(res, userResponse, "User registered successfully", 201);
 });
 exports.createAccount = createAccount;
 const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -102,8 +105,8 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
     // set the cookies
     res.cookie("accessToken", accessToken, (0, tokenService_1.cookieOptions)(accessMaxAge));
     res.cookie("refreshToken", refreshToken, (0, tokenService_1.cookieOptions)(refreshMaxAge));
-    const userResponse = (0, removePasswordFromUserObjectProcessor_1.sanitizeUser)(user);
-    (0, responseHelpers_1.sendResponse)(res, { user: userResponse }, "Login successful");
+    const userResponse = (0, RemovePasswordFromUserObjectProcessor_1.sanitizeUser)(user);
+    (0, ResponseHelpers_1.sendResponse)(res, { user: userResponse }, "Login successful");
 });
 exports.loginUser = loginUser;
 const getCurrentUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -116,8 +119,8 @@ const getCurrentUser = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
     if (!user || user.isDeleted) {
         return next(new ErrorHandler_1.default("User not found", 404));
     }
-    const userResponse = (0, removePasswordFromUserObjectProcessor_1.sanitizeUser)(user);
-    (0, responseHelpers_1.sendResponse)(res, { user: userResponse }, "Current user retrieved", 200);
+    const userResponse = (0, RemovePasswordFromUserObjectProcessor_1.sanitizeUser)(user);
+    (0, ResponseHelpers_1.sendResponse)(res, { user: userResponse }, "Current user retrieved", 200);
 });
 exports.getCurrentUser = getCurrentUser;
 const forgotPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -143,12 +146,12 @@ const forgotPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
     // Use the provided email template function and modify it for a reset-password email
     const emailHtml = (0, emailTemplates_1.resetPasswordEmailTemplate)(user.firstName, token);
     // Send the reset email
-    yield (0, sendVerifyAccountEmailProcessor_1.sendEmail)({
+    yield (0, SendVerifyAccountEmailProcessor_1.sendEmail)({
         to: user.email,
         subject: "Password Reset Instructions",
         html: emailHtml,
     });
-    (0, responseHelpers_1.sendResponse)(res, null, "Password reset instructions sent to your email", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, null, "Password reset instructions sent to your email", 200);
 });
 exports.forgotPassword = forgotPassword;
 const changePassword = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -171,13 +174,13 @@ const changePassword = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
     if (!isMatch) {
         return next(new ErrorHandler_1.default("Old password is incorrect", 401));
     }
-    if (!(0, isStrongPasswordProcessor_1.isStrongPassword)(newPassword)) {
+    if (!(0, IsStrongPasswordProcessor_1.isStrongPassword)(newPassword)) {
         return next(new ErrorHandler_1.default("Password must be at least 9 characters long and include uppercase, lowercase, number, and special character.", 400));
     }
     const hashedPassword = yield bcryptjs_1.default.hash(newPassword, 10);
     user.password = hashedPassword;
     yield user.save();
-    (0, responseHelpers_1.sendResponse)(res, null, "Password changed successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, null, "Password changed successfully", 200);
 });
 exports.changePassword = changePassword;
 const verifyEmail = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -198,7 +201,7 @@ const verifyEmail = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
     }
     user.isEmailVerified = true;
     yield user.save();
-    (0, responseHelpers_1.sendResponse)(res, null, "Email verified successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, null, "Email verified successfully", 200);
 });
 exports.verifyEmail = verifyEmail;
 const resetPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -217,13 +220,13 @@ const resetPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, func
     if (!user) {
         return next(new ErrorHandler_1.default("User not found", 404));
     }
-    if (!(0, isStrongPasswordProcessor_1.isStrongPassword)(newPassword)) {
+    if (!(0, IsStrongPasswordProcessor_1.isStrongPassword)(newPassword)) {
         return next(new ErrorHandler_1.default("Password must be at least 9 characters long and include uppercase, lowercase, number, and special character.", 400));
     }
     const hashedPassword = yield bcryptjs_1.default.hash(newPassword, 10);
     user.password = hashedPassword;
     yield user.save();
-    (0, responseHelpers_1.sendResponse)(res, null, "Password reset successful", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, null, "Password reset successful", 200);
 });
 exports.resetPassword = resetPassword;
 const editUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -246,8 +249,8 @@ const editUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function*
     // Save the updated user document
     const updatedUser = yield user.save();
     // Sanitize and send the updated user response
-    const userResponse = (0, removePasswordFromUserObjectProcessor_1.sanitizeUser)(updatedUser);
-    (0, responseHelpers_1.sendResponse)(res, userResponse, "User updated successfully");
+    const userResponse = (0, RemovePasswordFromUserObjectProcessor_1.sanitizeUser)(updatedUser);
+    (0, ResponseHelpers_1.sendResponse)(res, userResponse, "User updated successfully");
 });
 exports.editUser = editUser;
 const deleteUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -266,7 +269,7 @@ const deleteUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     user.isDeleted = true;
     yield user.save();
     // Send a success response.
-    (0, responseHelpers_1.sendResponse)(res, null, "User deleted successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, null, "User deleted successfully", 200);
 });
 exports.deleteUser = deleteUser;
 const findUserById = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -278,7 +281,7 @@ const findUserById = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
     if (!user || user.isDeleted) {
         return next(new ErrorHandler_1.default("User not found", 404));
     }
-    (0, responseHelpers_1.sendResponse)(res, user, "User retrieved successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, user, "User retrieved successfully", 200);
 });
 exports.findUserById = findUserById;
 const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -300,12 +303,12 @@ const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
     const accessMaxAge = (0, tokenService_1.parseExpiryToMs)(index_1.default.jwt_access_token_expires_in);
     // set the cookie
     res.cookie("accessToken", newAccessToken, (0, tokenService_1.cookieOptions)(accessMaxAge));
-    (0, responseHelpers_1.sendResponse)(res, null, "Access token refreshed", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, null, "Access token refreshed", 200);
 });
 exports.refreshToken = refreshToken;
 const logoutUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
-    (0, responseHelpers_1.sendResponse)(res, null, "Logged out successfully", 200);
+    (0, ResponseHelpers_1.sendResponse)(res, null, "Logged out successfully", 200);
 });
 exports.logoutUser = logoutUser;
