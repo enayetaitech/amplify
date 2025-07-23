@@ -1,21 +1,23 @@
 // shared/schemas/auth.ts
 import { z } from "zod";
 
+const nameRegex = /^(?=.*[A-Za-z])[A-Za-z ]+$/;
+
 export const registerSchema = z
   .object({
     firstName: z
       .string()
       .min(1, { message: "First Name is required" })
       .max(50, { message: "First Name can be at most 50 characters long" })
-      .regex(/^[A-Za-z ]+$/, {
-        message: "First Name can only contain letters and spaces",
+      .regex(nameRegex, {
+        message: "First Name must contain only letters/spaces and at least one letter",
       }),
     lastName: z
       .string()
       .min(1, { message: "Last Name is required" })
        .max(50, { message: "Last Name can be at most 50 characters long" })
-      .regex(/^[A-Za-z ]+$/, {
-        message: "Last Name can only contain letters and spaces",
+      .regex(nameRegex, {
+        message: "Last Name must contain only letters/spaces and at least one letter",
       }),
     email: z.string().email({ message: "Please enter a valid email address" }),
     companyName: z
