@@ -53,7 +53,7 @@ export function PurchaseCreditsTable({
                 );
               })}
               <TableRow className="font-semibold">
-                <TableCell colSpan={3} className="pl-6 text-right">Total Price (USD)</TableCell>
+                <TableCell colSpan={3} className="pl-6 text-left">Total Price (USD)</TableCell>
                 <TableCell className="text-right">{totalPrice.toFixed(2)}</TableCell>
               </TableRow>
             </TableBody>
