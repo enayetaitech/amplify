@@ -1,5 +1,5 @@
 ---" C:\work\amplify-new\frontend\package.json "---
-
+-new test
 {
   "name": "frontend",
   "version": "0.1.0",
