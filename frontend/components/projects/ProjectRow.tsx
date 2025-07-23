@@ -38,7 +38,7 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
 
       {/* 2) Tags */}
       <TableCell>
-        {project.tags.length > 0
+        {project?.tags?.length > 0
           ? project.tags.map((t) => t.title).join(", ")
           : "—"}
       </TableCell>

@@ -14,7 +14,6 @@ import ProjectsPagination from "components/projects/ProjectsPagination";
 import ProjectsTable from "components/projects/ProjectsTable";
 import ShareProjectModal from "components/projects/ShareProjectModal";
 
-
 interface DateRange {
   from: Date | undefined;
   to?: Date | undefined;
@@ -25,6 +24,7 @@ const Projects: React.FC = () => {
   const router = useRouter();
   const userId = user?._id;
   const [searchTerm, setSearchTerm] = useState("");
+  const [tagTerm, setTagTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -39,8 +39,8 @@ const Projects: React.FC = () => {
     page,
     limit,
     search: searchTerm,
+    tag: tagTerm,
   });
-
 
   const filtered = useProjectFilter(projects, searchTerm, dateRange);
 
@@ -58,47 +58,49 @@ const Projects: React.FC = () => {
       {/* heading and upload button */}
 
       <ProjectsHeader onCreateClick={() => router.push("/create-project")} />
-    
+
       <ProjectsFilter
-  searchTerm={searchTerm}
-  onSearchChange={(v) => {
-    setSearchTerm(v);
-    setPage(1); 
-  }}
-  dateRange={dateRange}
-  onDateRangeChange={(r) => {
-       setDateRange(r);
-    setPage(1);
-  }}
-/>
+        searchTerm={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setPage(1);
+        }}
+        tagSearchTerm={tagTerm}
+        onTagSearchChange={(v) => { setTagTerm(v); setPage(1); }}
+        dateRange={dateRange}
+        onDateRangeChange={(r) => {
+          setDateRange(r);
+          setPage(1);
+        }}
+      />
       <Card className="shadow-all-sides border-0 rounded-md">
-         <div className="shadow-all-sides border-0 rounded-md">
-        {projects.length === 0 && !isLoading ? (
-          <NoSearchResult />
-        ) : (
-          <ProjectsTable
-            filteredProjects={filtered}
-            isLoading={isLoading}
-            // ← here is the “row click” navigation:
-            onRowClick={(projectId: string) => {
-              router.push(`/view-project/${projectId}`);
-            }}
-            onShareClick={(project, type) => {
-              setShareProject(project);
-              setActiveShareType(type);
+        <div className="shadow-all-sides border-0 rounded-md">
+          {projects.length === 0 && !isLoading ? (
+            <NoSearchResult />
+          ) : (
+            <ProjectsTable
+              filteredProjects={filtered}
+              isLoading={isLoading}
+              // ← here is the “row click” navigation:
+              onRowClick={(projectId: string) => {
+                router.push(`/view-project/${projectId}`);
+              }}
+              onShareClick={(project, type) => {
+                setShareProject(project);
+                setActiveShareType(type);
+              }}
+            />
+          )}
+
+          <ProjectsPagination
+            totalPages={meta.totalPages}
+            currentPage={page}
+            onPageChange={(newPage) => {
+              setPage(newPage);
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           />
-        )}
-
-        <ProjectsPagination
-          totalPages={meta.totalPages}
-          currentPage={page}
-          onPageChange={(newPage) => {
-            setPage(newPage);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-        />
-      </div>
+        </div>
       </Card>
       {/* Share Modal */}
       <ShareProjectModal
