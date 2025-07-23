@@ -13,7 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.saveBillingInfo = exports.chargeCustomer = exports.retrievePaymentMethod = exports.createSetupIntent = exports.savePaymentMethod = exports.createPaymentIntent = exports.createCustomer = void 0;
-const responseHelpers_1 = require("../utils/responseHelpers");
+const ResponseHelpers_1 = require("../utils/ResponseHelpers");
 const UserModel_1 = __importDefault(require("../model/UserModel"));
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
 const stripe_1 = __importDefault(require("stripe"));
@@ -49,7 +49,7 @@ const createCustomer = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
             user.billingInfo = billingInfo;
         }
         yield user.save();
-        (0, responseHelpers_1.sendResponse)(res, { stripeCustomerId: user.stripeCustomerId }, "Customer created/updated successfully", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, { stripeCustomerId: user.stripeCustomerId }, "Customer created/updated successfully", 200);
     }
     catch (error) {
         next(error);
@@ -70,7 +70,7 @@ const createPaymentIntent = (req, res, next) => __awaiter(void 0, void 0, void 0
             payment_method_types: ["card"],
             setup_future_usage: "off_session",
         });
-        (0, responseHelpers_1.sendResponse)(res, { clientSecret: paymentIntent.client_secret }, "PaymentIntent created successfully", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, { clientSecret: paymentIntent.client_secret }, "PaymentIntent created successfully", 200);
     }
     catch (error) {
         next(error);
@@ -109,7 +109,7 @@ const savePaymentMethod = (req, res, next) => __awaiter(void 0, void 0, void 0, 
             yield user.save();
         }
         console.log("last 4", paymentMethod.card);
-        (0, responseHelpers_1.sendResponse)(res, { last4: (_a = paymentMethod.card) === null || _a === void 0 ? void 0 : _a.last4, user: user }, "Card saved as default", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, { last4: (_a = paymentMethod.card) === null || _a === void 0 ? void 0 : _a.last4, user: user }, "Card saved as default", 200);
     }
     catch (error) {
         next(error);
@@ -165,7 +165,7 @@ const createSetupIntent = (req, res, next) => __awaiter(void 0, void 0, void 0, 
             payment_method_types: ["card"],
         });
         console.log("user setup intent", setupIntent.client_secret);
-        (0, responseHelpers_1.sendResponse)(res, { clientSecret: setupIntent.client_secret }, "SetupIntent created successfully", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, { clientSecret: setupIntent.client_secret }, "SetupIntent created successfully", 200);
     }
     catch (error) {
         next(error);
@@ -185,7 +185,7 @@ const retrievePaymentMethod = (req, res, next) => __awaiter(void 0, void 0, void
         }
         const user = yield UserModel_1.default.findById(userId);
         console.log("user", user);
-        (0, responseHelpers_1.sendResponse)(res, { paymentMethod, user }, "Payment method retrieved successfully", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, { paymentMethod, user }, "Payment method retrieved successfully", 200);
     }
     catch (error) {
         next(error);
@@ -227,7 +227,7 @@ const chargeCustomer = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
         if (!updatedUser) {
             return next(new ErrorHandler_1.default("User not found", 404));
         }
-        (0, responseHelpers_1.sendResponse)(res, { user: updatedUser }, "Charge successful", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, { user: updatedUser }, "Charge successful", 200);
     }
     catch (error) {
         next(error);
@@ -253,7 +253,7 @@ const saveBillingInfo = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
         user.billingInfo = billingInfo;
         yield user.save();
         console.log("user", user);
-        (0, responseHelpers_1.sendResponse)(res, { billingInfo: user.billingInfo }, "Billing info saved successfully", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, { billingInfo: user.billingInfo }, "Billing info saved successfully", 200);
     }
     catch (error) {
         next(error);

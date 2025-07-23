@@ -13,7 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteTag = exports.editTag = exports.getTagsByUserId = exports.getTagsByProjectId = exports.createTag = void 0;
-const responseHelpers_1 = require("../utils/responseHelpers");
+const ResponseHelpers_1 = require("../utils/ResponseHelpers");
 const ErrorHandler_1 = __importDefault(require("../../shared/utils/ErrorHandler"));
 const UserModel_1 = __importDefault(require("../model/UserModel"));
 const ProjectModel_1 = __importDefault(require("../model/ProjectModel"));
@@ -69,7 +69,7 @@ const createTag = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         // ─── TRANSACTION END ─────────────────────────────────────────────
         // 8️⃣ Convert to your shared ITag shape (if needed)
         const responsePayload = Object.assign(Object.assign({}, tagDoc.toObject()), { _id: tagDoc._id.toString(), createdBy: tagDoc.createdBy.toString(), projectId: tagDoc.projectId.toString(), createdAt: tagDoc.createdAt, updatedAt: tagDoc.updatedAt });
-        (0, responseHelpers_1.sendResponse)(res, responsePayload, "Tag created", 201);
+        (0, ResponseHelpers_1.sendResponse)(res, responsePayload, "Tag created", 201);
     }
     catch (err) {
         next(err);
@@ -83,7 +83,7 @@ const getTagsByProjectId = (req, res, next) => __awaiter(void 0, void 0, void 0,
         if (!projectExists)
             return next(new ErrorHandler_1.default("Project not found", 404));
         const tags = yield TagModel_1.TagModel.find({ projectId }).sort({ title: 1 }).lean();
-        (0, responseHelpers_1.sendResponse)(res, tags, "Tags fetched", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, tags, "Tags fetched", 200);
     }
     catch (err) {
         next(err);
@@ -101,7 +101,7 @@ const getTagsByUserId = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
             title: 1,
         })
             .lean();
-        (0, responseHelpers_1.sendResponse)(res, tags, "Tags fetched", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, tags, "Tags fetched", 200);
     }
     catch (err) {
         next(err);
@@ -132,7 +132,7 @@ const editTag = (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
         if (color)
             tag.color = color;
         const updated = yield tag.save();
-        (0, responseHelpers_1.sendResponse)(res, updated, "Tag updated", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, updated, "Tag updated", 200);
     }
     catch (err) {
         next(err);
@@ -146,7 +146,7 @@ const deleteTag = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         if (!deleted)
             return next(new ErrorHandler_1.default("Tag not found", 404));
         yield ProjectModel_1.default.updateMany({ tags: id }, { $pull: { tags: id } });
-        (0, responseHelpers_1.sendResponse)(res, deleted, "Tag deleted", 200);
+        (0, ResponseHelpers_1.sendResponse)(res, deleted, "Tag deleted", 200);
     }
     catch (err) {
         next(err);

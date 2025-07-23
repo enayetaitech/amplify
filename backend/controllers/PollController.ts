@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { PollModel } from "../model/PollModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import { sendResponse } from "../utils/responseHelpers";
+import { sendResponse } from "../utils/ResponseHelpers";
 import { validateQuestion } from "../processors/poll/QuestionValidationProcessor";
 
 
