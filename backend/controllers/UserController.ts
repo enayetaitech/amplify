@@ -2,19 +2,19 @@ import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import {
   resetPasswordEmailTemplate,
   verificationEmailTemplate,
 } from "../constants/emailTemplates";
-import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
-import { sanitizeUser } from "../processors/user/RemovePasswordFromUserObjectProcessor";
+import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { sanitizeUser } from "../processors/user/removePasswordFromUserObjectProcessor";
 import config from "../config/index";
 
 import jwt from "jsonwebtoken";
-import { isStrongPassword } from "../processors/user/IsStrongPasswordProcessor";
+import { isStrongPassword } from "../processors/user/isStrongPasswordProcessor";
 import ProjectModel from "../model/ProjectModel";
-import { isValidEmail } from "../processors/user/IsValidEmailProcessor";
+
 import {
   cookieOptions,
   parseExpiryToMs,
@@ -24,6 +24,7 @@ import {
 } from "../utils/tokenService";
 import { AuthRequest } from "../middlewares/authenticateJwt";
 import { Types } from "mongoose";
+import { isValidEmail } from "processors/isValidEmail";
 
 export const createAccount = async (
   req: Request,
@@ -114,9 +115,8 @@ export const loginUser = async (
 ): Promise<void> => {
   const { email, password } = req.body;
 
-  const { ip, deviceType, platform, browser, location } = (req as any).deviceInfo;
-
-  
+  const { ip, deviceType, platform, browser, location } = (req as any)
+    .deviceInfo;
 
   if (!email || !password) {
     return next(new ErrorHandler("Email and password are required", 400));
@@ -138,17 +138,18 @@ export const loginUser = async (
   const isMatch = await bcrypt.compare(password, user.password);
 
   if (!isMatch) {
-    console.log('Invalid credentials')
+    console.log("Invalid credentials");
     return next(new ErrorHandler("Invalid credentials", 401));
   }
 
-  const idString =  typeof user._id === 'string'
-    ? user._id
-    : (user._id as Types.ObjectId).toString();
+  const idString =
+    typeof user._id === "string"
+      ? user._id
+      : (user._id as Types.ObjectId).toString();
 
   const accessToken = signAccessToken({ userId: idString, role: user.role });
 
-  const refreshToken = signRefreshToken({ userId: idString, });
+  const refreshToken = signRefreshToken({ userId: idString });
 
   // parse the expiry strings from config
   const accessMaxAge = parseExpiryToMs(config.jwt_access_token_expires_in!);

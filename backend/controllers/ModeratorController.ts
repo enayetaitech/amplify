@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import ProjectModel from "../model/ProjectModel";
 import User from "../model/UserModel";
 
 import config from "../config";
-import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
+import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
 import { moderatorAddedEmailTemplate } from "../constants/emailTemplates";
 import mongoose, { Types } from "mongoose";
 
@@ -26,12 +26,25 @@ export const addModerator = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { firstName, lastName, email, companyName, adminAccess, roles,  projectId } =
-    req.body;
-    console.log('req.body', req.body)
+  const {
+    firstName,
+    lastName,
+    email,
+    companyName,
+    adminAccess,
+    roles,
+    projectId,
+  } = req.body;
+  console.log("req.body", req.body);
   // 1️⃣ Validate required fields
-  if (!firstName || !lastName || !email || !companyName || !projectId ||
-    !Array.isArray(roles)) {
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !companyName ||
+    !projectId ||
+    !Array.isArray(roles)
+  ) {
     return next(
       new ErrorHandler(
         "firstName, lastName, email, companyName, roles[] and projectId are required",
@@ -42,7 +55,7 @@ export const addModerator = async (
 
   // 1a️⃣ Validate roles values
   for (const r of roles) {
-    if (!ALLOWED_ROLES.includes(r as typeof ALLOWED_ROLES[number])) {
+    if (!ALLOWED_ROLES.includes(r as (typeof ALLOWED_ROLES)[number])) {
       return next(
         new ErrorHandler(
           `Invalid role "${r}". Must be one of: ${ALLOWED_ROLES.join(", ")}`,
@@ -78,35 +91,34 @@ export const addModerator = async (
 
   const session = await mongoose.startSession();
   session.startTransaction();
-   let moderator: IModeratorDocument;
-// console.log('let moderator', moderator)
-   try{
-  // 5️⃣ Create and save the new moderator document
-  moderator = new ModeratorModel({
-  firstName,
-  lastName,
-  email,
-  companyName,
-   roles,  
-  adminAccess: !!adminAccess,
-  projectId,
-});
+  let moderator: IModeratorDocument;
+  // console.log('let moderator', moderator)
+  try {
+    // 5️⃣ Create and save the new moderator document
+    moderator = new ModeratorModel({
+      firstName,
+      lastName,
+      email,
+      companyName,
+      roles,
+      adminAccess: !!adminAccess,
+      projectId,
+    });
 
-// 2️⃣ Save it, passing the session as part of save-options
-await moderator.save({ session });
+    // 2️⃣ Save it, passing the session as part of save-options
+    await moderator.save({ session });
 
-
-  // 2️⃣ push into project's moderators array in the same session
+    // 2️⃣ push into project's moderators array in the same session
     project.moderators.push(moderator._id as Types.ObjectId);
     await project.save({ session });
 
-  // 3️⃣ commit the transaction
-  await session.commitTransaction();
-  } catch(err){
-    console.log('error', err)
+    // 3️⃣ commit the transaction
+    await session.commitTransaction();
+  } catch (err) {
+    console.log("error", err);
     await session.abortTransaction();
-    throw(err)
-  } finally{
+    throw err;
+  } finally {
     session.endSession();
   }
 
