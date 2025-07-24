@@ -17,7 +17,7 @@
   "include": [
     "interface/**/*.ts",
     "utils/**/*.ts",
-    "../backend/utils/ErrorHandler.ts"
+    // "../backend/utils/ErrorHandler.ts"
   ],
   "exclude": ["node_modules"]
 }
