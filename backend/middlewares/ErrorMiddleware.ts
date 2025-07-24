@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { ICustomError} from "../../shared/interface/ErrorInterface"
-import  ErrorHandler from "../../shared/utils/ErrorHandler"
-
+import { ICustomError } from "../../shared/interface/ErrorInterface";
+import ErrorHandler from "../utils/ErrorHandler";
 
 const errorMiddleware = (
   err: ICustomError,
@@ -42,7 +41,6 @@ const errorMiddleware = (
     success: false,
     message: err.message,
   });
-  
 };
 
 export default errorMiddleware;

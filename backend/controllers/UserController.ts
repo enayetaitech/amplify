@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import User from "../model/UserModel";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 import { sendResponse } from "../utils/responseHelpers";
 import {
   resetPasswordEmailTemplate,

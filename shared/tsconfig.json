@@ -1,4 +1,5 @@
-{"extends": "../tsconfig.base.json",
+{
+  "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
     "declaration": true,
@@ -13,6 +14,10 @@
     "moduleResolution": "node",
     "skipLibCheck": true
   },
-    "include": ["interface/**/*.ts","utils/**/*.ts"],
+  "include": [
+    "interface/**/*.ts",
+    "utils/**/*.ts",
+    "../backend/utils/ErrorHandler.ts"
+  ],
   "exclude": ["node_modules"]
 }

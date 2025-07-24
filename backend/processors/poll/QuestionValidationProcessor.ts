@@ -1,7 +1,11 @@
 import { NextFunction } from "express";
-import ErrorHandler from "../../../shared/utils/ErrorHandler";
+import ErrorHandler from "../../utils/ErrorHandler";
 
-export const validateQuestion = (q: any, idx: number, next: NextFunction): boolean => {
+export const validateQuestion = (
+  q: any,
+  idx: number,
+  next: NextFunction
+): boolean => {
   const fail = (msg: string) => {
     next(new ErrorHandler(`Question ${idx + 1}: ${msg}`, 400));
     return true;

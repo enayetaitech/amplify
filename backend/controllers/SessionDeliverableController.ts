@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { SessionDeliverableModel } from "../model/SessionDeliverableModel";
 import ProjectModel from "../model/ProjectModel";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 import { sendResponse } from "../utils/responseHelpers";
 import {
   deleteFromS3,

@@ -4,7 +4,7 @@ import ProjectFormModel, {
   IProjectFormDocument,
 } from "../model/ProjectFormModel";
 import User from "../model/UserModel";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
 import mongoose, { PipelineStage, Types } from "mongoose";
 import {
