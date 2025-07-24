@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
 import { sendResponse } from "../utils/responseHelpers";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 import ProjectModel from "../model/ProjectModel";
 import User from "../model/UserModel";
 

@@ -1,7 +1,7 @@
 // src/middlewares/authenticateJwt.ts
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../utils/tokenService";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 
 export interface AuthRequest extends Request {
   user?: { userId: string; role: string };
