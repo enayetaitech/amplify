@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import { ISessionDocument, SessionModel } from "../model/SessionModel";
 import ProjectModel from "../model/ProjectModel";
@@ -37,8 +37,11 @@ export const createSessions = async (
       )
     );
   }
-console.log('req.body', req.body)
-console.log("req.body.sessions =", JSON.stringify(req.body.sessions, null, 2));
+  console.log("req.body", req.body);
+  console.log(
+    "req.body.sessions =",
+    JSON.stringify(req.body.sessions, null, 2)
+  );
 
   // 2. Project existence check
   const project = await ProjectModel.findById(projectId);
@@ -347,7 +350,6 @@ export const duplicateSession = async (
       __v, // (optional) drop version key too
       ...data // data now has only the session fields you care about
     } = original.toObject();
-    
 
     // 3. Modify the title
     data.title = `${original.title} (copy)`;
