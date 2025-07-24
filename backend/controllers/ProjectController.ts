@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import ProjectFormModel, {
   IProjectFormDocument,
 } from "../model/ProjectFormModel";
@@ -11,7 +11,7 @@ import {
   projectCreateAndPaymentConfirmationEmailTemplate,
   projectInfoEmailTemplate,
 } from "../constants/emailTemplates";
-import { sendEmail } from "../processors/sendEmail/SendVerifyAccountEmailProcessor";
+import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
 import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
 import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
 
@@ -122,7 +122,7 @@ export const createProjectByExternalAdmin = async (
     //   { session }
     // );
 
-const project = new ProjectModel({
+    const project = new ProjectModel({
       ...projectData,
       createdBy: userId,
     } as Partial<IProjectDocument>);
@@ -130,23 +130,21 @@ const project = new ProjectModel({
 
     // 3️⃣ Add external admin as moderator
     const moderator = new ModeratorModel({
-      firstName:   user.firstName,
-      lastName:    user.lastName,
-      email:       user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
       companyName: user.companyName,
-      roles:       ["Admin"],     // new roles array
-      adminAccess: true,          // if you still use this legacy flag
-      projectId:   project._id,
-      isVerified:  true,
-      isActive:    true,
+      roles: ["Admin"], // new roles array
+      adminAccess: true, // if you still use this legacy flag
+      projectId: project._id,
+      isVerified: true,
+      isActive: true,
     } as Partial<IModeratorDocument>);
     await moderator.save({ session });
 
     // 4️⃣ Push moderator._id into project.moderators
     project.moderators.push(moderator._id as Types.ObjectId);
     await project.save({ session });
-
-
 
     // Delete draft if uniqueId exists
     if (uniqueId) {
@@ -261,10 +259,10 @@ export const getProjectByUserId = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId } = req.params;
-  const { search = "", tag= "", page = 1, limit = 10 } = req.query;
+  const { search = "", tag = "", page = 1, limit = 10 } = req.query;
 
-  console.log('req.query', req.query)
- 
+  console.log("req.query", req.query);
+
   if (!userId) {
     return next(new ErrorHandler("User ID is required", 400));
   }
@@ -275,9 +273,9 @@ export const getProjectByUserId = async (
   const skip = (pageNum - 1) * limitNum;
 
   const searchRegex = new RegExp(search as string, "i");
-  const tagRegex    = new RegExp(tag as string, "i");
+  const tagRegex = new RegExp(tag as string, "i");
 
- const baseMatch: PipelineStage.Match = {
+  const baseMatch: PipelineStage.Match = {
     $match: {
       createdBy: new mongoose.Types.ObjectId(userId),
     },
@@ -294,13 +292,11 @@ export const getProjectByUserId = async (
     },
   };
 
-   const tagMatch: PipelineStage.Match = {
-   $match: {
-     ...(tag
-       ? { "tags.name": { $regex: tagRegex } }
-       : {})
-  }
- };
+  const tagMatch: PipelineStage.Match = {
+    $match: {
+      ...(tag ? { "tags.name": { $regex: tagRegex } } : {}),
+    },
+  };
   const aggregationPipeline: PipelineStage[] = [
     baseMatch,
     {
@@ -321,23 +317,21 @@ export const getProjectByUserId = async (
         as: "meetingObjects",
       },
     },
-      {
-    $lookup: {
-      from: "tags",
-      localField: "tags",
-      foreignField: "_id",
-      as: "tags",
+    {
+      $lookup: {
+        from: "tags",
+        localField: "tags",
+        foreignField: "_id",
+        as: "tags",
+      },
     },
-  },
-  // {
-  //   $unwind: {
-  //     path: "$tags",
-  //     preserveNullAndEmptyArrays: true,
-  //   },
-  // },
-    ...(tag
-  ? [{ $match: { "tags.title": { $regex: tagRegex } } }]
-  : []),
+    // {
+    //   $unwind: {
+    //     path: "$tags",
+    //     preserveNullAndEmptyArrays: true,
+    //   },
+    // },
+    ...(tag ? [{ $match: { "tags.title": { $regex: tagRegex } } }] : []),
     {
       $group: {
         _id: "$_id",
@@ -352,7 +346,6 @@ export const getProjectByUserId = async (
 
   const projects = await ProjectModel.aggregate(aggregationPipeline);
 
-
   // Separate aggregation for count
   const totalAgg: PipelineStage[] = [
     baseMatch,
@@ -366,7 +359,7 @@ export const getProjectByUserId = async (
     },
     { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
     searchMatch,
-        {
+    {
       $lookup: {
         from: "tags",
         localField: "tags",

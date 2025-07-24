@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import * as sessionService from "../processors/liveSession/sessionService";
-
 
 export const startSession = async (
   req: Request,
