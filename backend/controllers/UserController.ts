@@ -14,7 +14,7 @@ import config from "../config/index";
 import jwt from "jsonwebtoken";
 import { isStrongPassword } from "../processors/user/isStrongPasswordProcessor";
 import ProjectModel from "../model/ProjectModel";
-import { isValidEmail } from "../processors/user/isValidEmailProcessor";
+
 import {
   cookieOptions,
   parseExpiryToMs,
@@ -24,6 +24,7 @@ import {
 } from "../utils/tokenService";
 import { AuthRequest } from "../middlewares/authenticateJwt";
 import { Types } from "mongoose";
+import { isValidEmail } from "processors/user/isValidEmailProcessor";
 
 export const createAccount = async (
   req: Request,
