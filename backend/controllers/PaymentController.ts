@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "../utils/ResponseHelpers";
+import { sendResponse } from "../utils/responseHelpers";
 import User from "../model/UserModel";
 import ErrorHandler from "../../shared/utils/ErrorHandler";
 import Stripe from "stripe";
@@ -278,17 +278,12 @@ export const chargeCustomer = async (
       { new: true }
     );
 
-    console.log('updated user', updatedUser)
+    console.log("updated user", updatedUser);
     if (!updatedUser) {
       return next(new ErrorHandler("User not found", 404));
     }
 
-    sendResponse(
-      res,
-      { user: updatedUser },
-      "Charge successful",
-      200
-    );
+    sendResponse(res, { user: updatedUser }, "Charge successful", 200);
   } catch (error) {
     next(error);
   }
