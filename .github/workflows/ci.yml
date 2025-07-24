@@ -45,10 +45,10 @@ jobs:
           node-version: "18.x"
         
 
-      - name: Install frontend dependencies
+      - name: Install frontend dependencies (ignore peer-dep conflicts)
         run: |
           cd frontend
-          npm ci
+          npm ci --legacy-peer-deps
 
       - name: Build frontend
         run: |
