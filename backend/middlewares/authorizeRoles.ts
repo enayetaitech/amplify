@@ -1,7 +1,7 @@
 // src/middlewares/authorizeRoles.ts
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./authenticateJwt";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 
 export const authorizeRoles =
   (...allowedRoles: string[]) =>
@@ -10,9 +10,7 @@ export const authorizeRoles =
       return next(new ErrorHandler("Not authenticated", 401));
     }
     if (!allowedRoles.includes(req.user.role)) {
-      return next(
-        new ErrorHandler("Forbidden: insufficient permissions", 403)
-      );
+      return next(new ErrorHandler("Forbidden: insufficient permissions", 403));
     }
     next();
   };

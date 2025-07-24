@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { sendResponse } from "../utils/responseHelpers";
 import User from "../model/UserModel";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 

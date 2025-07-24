@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { sendResponse } from "../utils/responseHelpers";
-import ErrorHandler from "../../shared/utils/ErrorHandler";
+import ErrorHandler from "../utils/ErrorHandler";
 
 import UserModel from "../model/UserModel";
 import ProjectModel from "../model/ProjectModel";
