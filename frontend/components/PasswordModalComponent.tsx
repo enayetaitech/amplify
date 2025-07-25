@@ -57,6 +57,8 @@ interface Errors {
           value={value}
           onChange={onChange}
           className={error ? 'border-red-500 pr-10' : 'pr-10'}
+          onCopy={e => e.preventDefault()}
+        onPaste={e => e.preventDefault()}
         />
         <button
           type='button'
