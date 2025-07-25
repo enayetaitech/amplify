@@ -111,8 +111,7 @@ const Page: React.FC = () => {
               render={({ field }) => (
                 <div className="flex-grow">
                   <h2 className="text-3xl font-semibold text-[#1E656D]">
-                    {field.value}{' '}
-                    {/** you could combine first+last, or show them separately **/}
+                    {field.value}
                   </h2>
                   <p className="text-gray-400">{fullUser?.role}</p>
                 </div>
@@ -130,7 +129,7 @@ const Page: React.FC = () => {
               control={control}
               render={({ field }) => (
                 <InputFieldComponent
-                  label="First Name"
+                  label="First Name*"
                   {...field}
                   error={errors.firstName?.message}
                 />
@@ -143,7 +142,7 @@ const Page: React.FC = () => {
               control={control}
               render={({ field }) => (
                 <InputFieldComponent
-                  label="Last Name"
+                  label="Last Name*"
                   {...field}
                   error={errors.lastName?.message}
                 />
@@ -156,7 +155,7 @@ const Page: React.FC = () => {
               control={control}
               render={({ field }) => (
                 <InputFieldComponent
-                  label="Phone Number"
+                  label="Phone Number*"
                   {...field}
                   error={errors.phoneNumber?.message}
                 />
@@ -169,7 +168,7 @@ const Page: React.FC = () => {
               control={control}
               render={({ field }) => (
                 <InputFieldComponent
-                  label="Company Name"
+                  label="Company Name*"
                   {...field}
                   error={errors.companyName?.message}
                 />
