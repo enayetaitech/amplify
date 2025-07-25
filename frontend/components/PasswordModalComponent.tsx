@@ -133,6 +133,9 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
 
       if (response.status === 200) {
         toast.success(response.data.message || 'Password updated successfully.')
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
         onClose()
       }
     } catch (error) {
