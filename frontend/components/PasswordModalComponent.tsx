@@ -96,10 +96,10 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
     formErrors.newPassword = 'New password is required.';
   } else {
     const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d])[A-Za-z\d\S]{8,}$/;
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d])[A-Za-z\d\S]{9,}$/;
     if (!strongPasswordRegex.test(newPassword)) {
       formErrors.newPassword =
-        'Password must contain at least 8 characters, including uppercase, lowercase, numbers, and special characters.';
+        'Password must contain at least 9 characters, including uppercase, lowercase, numbers, and special characters.';
     } else if (newPassword === currentPassword) {
       formErrors.newPassword =
         'New password cannot be the same as the current password.';
