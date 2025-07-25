@@ -28,6 +28,48 @@ interface Errors {
   confirmPassword?: string
 }
 
+ const PasswordInput = ({
+    label,
+    value,
+    onChange,
+    show,
+    toggleShow,
+    error,
+    name,
+  }: {
+    label: string
+    value: string
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+    show: boolean
+    toggleShow: () => void
+    error?: string
+    name: string
+  }) => (
+    <div className='mb-4'>
+      <Label htmlFor={name} className='text-sm font-medium'>
+        {label}
+      </Label>
+      <div className='relative mt-1'>
+        <Input
+          type={show ? 'text' : 'password'}
+          id={name}
+          name={name}
+          value={value}
+          onChange={onChange}
+          className={error ? 'border-red-500 pr-10' : 'pr-10'}
+        />
+        <button
+          type='button'
+          onClick={toggleShow}
+          className='absolute inset-y-0 right-3 flex items-center text-gray-600'
+        >
+          {show ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+      {error && <p className='text-red-500 text-xs mt-1'>{error}</p>}
+    </div>
+  )
+
 const PasswordModalComponent: React.FC<PasswordModalProps> = ({
   open,
   onClose,
@@ -92,47 +134,7 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
     }
   }
 
-  const PasswordInput = ({
-    label,
-    value,
-    onChange,
-    show,
-    toggleShow,
-    error,
-    name,
-  }: {
-    label: string
-    value: string
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-    show: boolean
-    toggleShow: () => void
-    error?: string
-    name: string
-  }) => (
-    <div className='mb-4'>
-      <Label htmlFor={name} className='text-sm font-medium'>
-        {label}
-      </Label>
-      <div className='relative mt-1'>
-        <Input
-          type={show ? 'text' : 'password'}
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          className={error ? 'border-red-500 pr-10' : 'pr-10'}
-        />
-        <button
-          type='button'
-          onClick={toggleShow}
-          className='absolute inset-y-0 right-3 flex items-center text-gray-600'
-        >
-          {show ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-      </div>
-      {error && <p className='text-red-500 text-xs mt-1'>{error}</p>}
-    </div>
-  )
+ 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
