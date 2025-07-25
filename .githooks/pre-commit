@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 set -e
 [ -d frontend/.next ] && rm -rf frontend/.next
-echo "í³¦  Building backendâ€¦"
+echo "ï¿½ï¿½ï¿½  Building backendâ€¦"
 npm --prefix backend run build
-echo "íº§  Building frontendâ€¦"
+echo "ï¿½ï¿½ï¿½  Building frontendâ€¦"
 npm --prefix frontend run build
-echo "í´  Linting frontendâ€¦"
+echo "ï¿½ï¿½ï¿½  Linting frontendâ€¦"
 npm --prefix frontend run lint
 echo "âœ…  All checks passed!"
