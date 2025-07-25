@@ -83,33 +83,37 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const validateForm = (): boolean => {
-    const formErrors: Errors = {}
+ const validateForm = (): boolean => {
+  const formErrors: Errors = {};
 
-    if (!currentPassword) {
-      formErrors.currentPassword = 'Current password is required.'
-    }
+  if (!currentPassword) {
+    formErrors.currentPassword = 'Current password is required.';
+  }
 
+  if (!newPassword) {
+    formErrors.newPassword = 'New password is required.';
+  } else {
     const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d])[A-Za-z\d\S]{8,}$/
-
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d])[A-Za-z\d\S]{8,}$/;
     if (!strongPasswordRegex.test(newPassword)) {
       formErrors.newPassword =
-        'Password must contain at least 8 characters, including uppercase, lowercase, numbers, and special characters.'
+        'Password must contain at least 8 characters, including uppercase, lowercase, numbers, and special characters.';
+    } else if (newPassword === currentPassword) {
+      formErrors.newPassword =
+        'New password cannot be the same as the current password.';
     }
-
-      if (newPassword === currentPassword) {
-    formErrors.newPassword =
-      'New password cannot be the same as the current password.'
   }
 
-    if (newPassword !== confirmPassword) {
-      formErrors.confirmPassword = 'Passwords do not match.'
-    }
-
-    setErrors(formErrors)
-    return Object.keys(formErrors).length === 0
+  if (!confirmPassword) {
+    formErrors.confirmPassword = 'Confirm password is required.';
+  } else if (newPassword !== confirmPassword) {
+    formErrors.confirmPassword = 'Passwords do not match.';
   }
+
+  setErrors(formErrors);
+  return Object.keys(formErrors).length === 0;
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -151,7 +155,7 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
 
         <form onSubmit={handleSubmit}>
           <PasswordInput
-            label='Current Password'
+            label='Current Password*'
             name='currentPassword'
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
@@ -161,7 +165,7 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
           />
 
           <PasswordInput
-            label='New Password'
+            label='New Password*'
             name='newPassword'
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -171,7 +175,7 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
           />
 
           <PasswordInput
-            label='Confirm Password'
+            label='Confirm Password*'
             name='confirmPassword'
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
