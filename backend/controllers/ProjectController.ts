@@ -259,7 +259,7 @@ export const getProjectByUserId = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId } = req.params;
-  const { search = "", tag = "", page = 1, limit = 10 } = req.query;
+  const { search = "", tag = "", status="", page = 1, limit = 10 } = req.query;
 
   console.log("req.query", req.query);
 
@@ -281,6 +281,8 @@ export const getProjectByUserId = async (
     },
   };
 
+  
+
   const searchMatch: PipelineStage.Match = {
     $match: {
       $or: [
@@ -299,6 +301,7 @@ export const getProjectByUserId = async (
   };
   const aggregationPipeline: PipelineStage[] = [
     baseMatch,
+   ...(status ? [{ $match: { status: status } }] : []),
     {
       $lookup: {
         from: "moderators",
@@ -349,6 +352,7 @@ export const getProjectByUserId = async (
   // Separate aggregation for count
   const totalAgg: PipelineStage[] = [
     baseMatch,
+      ...(status ? [{ $match: { status } }] : []),
     {
       $lookup: {
         from: "moderators",
