@@ -24,7 +24,9 @@ import {
 } from "../utils/tokenService";
 import { AuthRequest } from "../middlewares/authenticateJwt";
 import { Types } from "mongoose";
+
 import { isValidEmail } from "../processors/isValidEmail";
+
 
 export const createAccount = async (
   req: Request,

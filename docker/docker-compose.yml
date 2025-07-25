@@ -4,6 +4,7 @@ services:
   backend-server:
     container_name: backend
     build:
+
       context: ..
       dockerfile: docker/dockerfile.backend
     ports:
@@ -14,18 +15,23 @@ services:
     env_file:
       - ../backend/.env
 
+
   frontend-server:
     container_name: frontend
     build:
+
       context: ..
       dockerfile: docker/dockerfile.frontend
+
     ports:
       - "8979:8979"
     depends_on:
       - backend-server
+
     volumes:
       - ../frontend:/app/frontend
       - /app/frontend/node_modules
     env_file:
       - ../frontend/.env
     command: npm run dev -- -p 8979
+
