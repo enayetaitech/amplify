@@ -56,6 +56,11 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
         'Password must contain at least 8 characters, including uppercase, lowercase, numbers, and special characters.'
     }
 
+      if (newPassword === currentPassword) {
+    formErrors.newPassword =
+      'New password cannot be the same as the current password.'
+  }
+
     if (newPassword !== confirmPassword) {
       formErrors.confirmPassword = 'Passwords do not match.'
     }
