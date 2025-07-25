@@ -1,0 +1,1 @@
+{"version":3,"file":"ErrorInterface.d.ts","sourceRoot":"","sources":["ErrorInterface.ts"],"names":[],"mappings":"AACA,MAAM,WAAW,YAAa,SAAQ,KAAK;IACzC,UAAU,CAAC,EAAE,MAAM,CAAC;IACpB,OAAO,EAAE,MAAM,CAAC;IAChB,IAAI,EAAE,MAAM,CAAC;IACb,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,QAAQ,CAAC,EAAE,GAAG,CAAC;IACf,IAAI,CAAC,EAAE,MAAM,CAAC;CACf"}
