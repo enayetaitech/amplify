@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -e
+[ -d frontend/.next ] && rm -rf frontend/.next
+echo "Ì≥¶  Building backend‚Ä¶"
+npm --prefix backend run build
+echo "Ì∫ß  Building frontend‚Ä¶"
+npm --prefix frontend run build
+echo "Ì¥ç  Linting frontend‚Ä¶"
+npm --prefix frontend run lint
+echo "‚úÖ  All checks passed!"
