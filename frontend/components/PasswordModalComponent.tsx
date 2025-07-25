@@ -137,11 +137,21 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
         setNewPassword('')
         setConfirmPassword('')
         onClose()
+      } else {
+        
+        toast.error(response.data.message || 'Failed to update password.')
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unknown error");
-    }
+  if (axios.isAxiosError(error)) {
+    toast.error(
+      error.response?.data?.message ||
+        error.message ||
+        "Unknown error"
+    );
+  } else {
+    toast.error("Unknown error");
   }
+    }}
 
  
 
