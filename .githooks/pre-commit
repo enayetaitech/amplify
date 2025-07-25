@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -e
+
+echo "📦  Building backend…"
+npm --prefix backend run build
+
+echo "🚧  Building frontend…"
+npm --prefix frontend run build
+
+echo "🔍  Linting frontend…"
+npm --prefix frontend run lint
+
+echo "✅  All checks passed!"
