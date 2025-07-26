@@ -119,12 +119,12 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
   (field) => {
     const label =
       field === "firstName"
-        ? "First Name"
+        ? "First Name*"
         : field === "lastName"
-        ? "Last Name"
+        ? "Last Name*"
         : field === "companyName"
-        ? "Company Name"
-        : "Email";
+        ? "Company Name*"
+        : "Email*";
 
     return (
       <div key={field}>
