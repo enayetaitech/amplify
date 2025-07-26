@@ -115,21 +115,33 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          {(["firstName", "lastName", "email", "companyName"] as const).map(
-            (field) => (
-              <div key={field}>
-                <Label className="capitalize">{field}</Label>
-                <Input
-                  name={field}
-                  placeholder={`Enter ${field}`}
-                  value={formData[field]}
-                  onChange={handleChange}
-                  className="mt-3"
-                  required
-                />
-              </div>
-            )
-          )}
+         {(["firstName", "lastName", "email", "companyName"] as const).map(
+  (field) => {
+    const label =
+      field === "firstName"
+        ? "First Name"
+        : field === "lastName"
+        ? "Last Name"
+        : field === "companyName"
+        ? "Company Name"
+        : "Email";
+
+    return (
+      <div key={field}>
+        <Label className="capitalize">{label}</Label>
+        <Input
+          name={field}
+          placeholder={`Enter ${label}`}
+          value={formData[field]}
+          onChange={handleChange}
+          className="mt-3"
+          required
+        />
+      </div>
+    );
+  }
+)}
+
 
           <div className="flex items-center space-x-3 gap-3">
             <Label className="m-0">Admin Access</Label>
