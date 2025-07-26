@@ -136,6 +136,7 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
           onChange={handleChange}
           className="mt-3"
           required
+          disabled={addModeratorMutation.isPending}
         />
       </div>
     );
