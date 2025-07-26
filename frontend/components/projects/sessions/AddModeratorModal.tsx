@@ -178,8 +178,20 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
   }
 };
 
+const handleClose = () => {
+  setFormData({
+    firstName: "",
+    lastName: "",
+    email: "",
+    companyName: "",
+    adminAccess: false,
+  });
+  onClose(); // invoke parent close handler
+};
+
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Moderator</DialogTitle>
