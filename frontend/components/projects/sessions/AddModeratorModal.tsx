@@ -52,6 +52,8 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
     companyName: "",
     adminAccess: false,
   });
+ 
+
 
   const addModeratorMutation = useMutation<
     ApiResponse<IModerator>,
@@ -85,6 +87,49 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
     },
   });
 
+ const validateFields = (): boolean => {
+  const nameRegex = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+  const companyRegex = /^[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/;
+
+  const cleanedData: ModeratorFormData = {
+    firstName: formData.firstName.trim().replace(/\s+/g, " "),
+    lastName: formData.lastName.trim().replace(/\s+/g, " "),
+    email: formData.email.trim(),
+    companyName: formData.companyName.trim().replace(/\s+/g, " "),
+    adminAccess: formData.adminAccess,
+  };
+
+  // Required field check
+  for (const [key, value] of Object.entries(cleanedData)) {
+    if (
+      key !== "adminAccess" &&
+      typeof value === "string" &&
+      value.trim() === ""
+    ) {
+      toast.error(`${formatFieldLabel(key)} is mandatory.`);
+      return false;
+    }
+  }
+
+  if (!nameRegex.test(cleanedData.firstName)) {
+    toast.error("First Name must contain only alphabets and single spaces.");
+    return false;
+  }
+
+  if (!nameRegex.test(cleanedData.lastName)) {
+    toast.error("Last Name must contain only alphabets and single spaces.");
+    return false;
+  }
+
+  if (!companyRegex.test(cleanedData.companyName)) {
+    toast.error("Company Name must contain only alphanumeric characters and single spaces.");
+    return false;
+  }
+
+  return true;
+};
+
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
@@ -93,19 +138,37 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
   };
 
   const handleSubmit = () => {
-    const allFilled = ["firstName", "lastName", "email", "companyName"].every(
-      (key) =>
-        formData[key as keyof Omit<ModeratorFormData, "adminAccess">].trim() !==
-        ""
-    );
-    if (!allFilled) {
-      toast.error("Please fill out all required fields.");
-      return;
-    }
+    if (!validateFields()) return;
     
     const roles = formData.adminAccess ? ["Moderator", "Admin"] : ["Moderator"];
-    addModeratorMutation.mutate({ ...formData, roles, projectId });
+
+    const cleanedPayload = {
+    ...formData,
+    firstName: formData.firstName.trim().replace(/\s+/g, " "),
+    lastName: formData.lastName.trim().replace(/\s+/g, " "),
+    email: formData.email.trim(),
+    companyName: formData.companyName.trim().replace(/\s+/g, " "),
+    roles,
+    projectId,
   };
+
+  addModeratorMutation.mutate(cleanedPayload);
+  };
+
+  const formatFieldLabel = (field: string): string => {
+  switch (field) {
+    case "firstName":
+      return "First Name";
+    case "lastName":
+      return "Last Name";
+    case "email":
+      return "Email";
+    case "companyName":
+      return "Company Name";
+    default:
+      return field;
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
