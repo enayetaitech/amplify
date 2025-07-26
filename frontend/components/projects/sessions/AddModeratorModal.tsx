@@ -90,6 +90,8 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
  const validateFields = (): boolean => {
   const nameRegex = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
   const companyRegex = /^[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 
   const cleanedData: ModeratorFormData = {
     firstName: formData.firstName.trim().replace(/\s+/g, " "),
@@ -125,6 +127,12 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
     toast.error("Company Name must contain only alphanumeric characters and single spaces.");
     return false;
   }
+
+  if (!emailRegex.test(cleanedData.email)) {
+  toast.error("Please enter a valid email address.");
+  return false;
+}
+
 
   return true;
 };
