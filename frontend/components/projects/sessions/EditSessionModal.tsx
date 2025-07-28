@@ -163,7 +163,11 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input type="date"
+                    
+                    {...field}
+                    min={new Date().toISOString().split("T")[0]}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
