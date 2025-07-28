@@ -85,6 +85,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                       <Input
                         type="date"
                         value={sess.date}
+                        min={new Date().toISOString().split("T")[0]}
                         className="w-full"
                         onChange={(e) =>
                           updateSession(idx, { date: e.target.value })
