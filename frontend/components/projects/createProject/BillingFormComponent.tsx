@@ -33,18 +33,27 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
     onSuccess();
   });
 
-  const handleChange = (key: keyof IBillingInfo, value: string) => {
-  let newValue = value;
+ const handleChange = (key: keyof IBillingInfo, value: string) => {
+  // Normalize input: remove leading/trailing spaces
+  const newValue = value.trimStart();
 
-  if (["city", "state", "country"].includes(key)) {
-    const filtered = value.replace(/[^A-Za-z\s]/g, "");
-    if (filtered !== value) {
-      toast.error("Only letters and spaces allowed");
-    }
-    newValue = filtered;
+  // Validation: no special characters, no multiple spaces, no leading/trailing
+  const allowedPattern = /^(?!.* {2,})(?! )[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/;
+
+  if (newValue && !allowedPattern.test(newValue.trim())) {
+    toast.error(
+      "Only letters, numbers, and single spaces are allowed. No special characters or extra spaces."
+    );
+    return;
   }
-    setBillingInfo((prev) => ({ ...prev, [key]: newValue }));
-  };
+
+  setBillingInfo((prev) => ({
+    ...prev,
+    [key]: newValue,
+  }));
+};
+
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
