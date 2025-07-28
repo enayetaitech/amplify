@@ -7,6 +7,14 @@ import CustomButton from "components/shared/CustomButton";
 import { useStep2 } from "hooks/useStep2";
 import { FormInput } from "./step2Component/FormInput";
 import { FormRadioGroup } from "./step2Component/FormRadioGroup";
+import {
+  alphanumericSingleSpace,
+  alphaSingleSpace,
+  noLeadingSpace,
+  noMultipleSpaces,
+  noTrailingSpace,
+  validate,
+} from "schemas/validators";
 
 const Step2: React.FC<Step2Props> = ({
   formData,
@@ -73,11 +81,29 @@ const Step2: React.FC<Step2Props> = ({
               register={register}
               required
               error={errors.recruitmentSpecs}
+              regexRules={[
+                { fn: noLeadingSpace, message: "Cannot start with a space" },
+                { fn: noTrailingSpace, message: "Cannot end with a space" },
+                { fn: noMultipleSpaces, message: "No multiple spaces allowed" },
+                {
+                  fn: alphanumericSingleSpace,
+                  message: "Only letters, numbers & single spaces allowed",
+                },
+              ]}
             />
             <FormInput
               label="Will there be any pre–work or additional assignments?"
               name="preWorkDetails"
               register={register}
+              regexRules={[
+                { fn: noLeadingSpace, message: "Cannot start with a space" },
+                { fn: noTrailingSpace, message: "Cannot end with a space" },
+                { fn: noMultipleSpaces, message: "No multiple spaces allowed" },
+                {
+                  fn: alphanumericSingleSpace,
+                  message: "Only letters, numbers & single spaces allowed",
+                },
+              ]}
               required
               error={errors.preWorkDetails}
             />
@@ -93,8 +119,15 @@ const Step2: React.FC<Step2Props> = ({
               register={register}
               required
               error={errors.selectedLanguage}
-              pattern={/^[a-zA-Z\s,]+$/}
-  patternMessage="Please enter only letters, spaces, and commas"
+              regexRules={[
+                { fn: noLeadingSpace, message: "Cannot start with a space" },
+                { fn: noTrailingSpace, message: "Cannot end with a space" },
+                { fn: noMultipleSpaces, message: "No multiple spaces allowed" },
+                {
+                  fn: alphaSingleSpace,
+                  message: "Only letters & single spaces allowed",
+                },
+              ]}
             />
 
             <div className="space-y-2">
@@ -135,11 +168,22 @@ const Step2: React.FC<Step2Props> = ({
                 non-English, please specify how many of each you will conduct:
               </label>
               <Textarea
-                {...register("languageSessionBreakdown", { required: true })}
+                {...register("languageSessionBreakdown", {
+                  required: "This field is required",
+                  validate: (v: string) =>
+                    validate(v, [
+                      noLeadingSpace,
+
+                      noMultipleSpaces,
+                      alphanumericSingleSpace,
+                    ]) || "Only letters, numbers & single spaces allowed.",
+                })}
                 className="mt-1 w-full"
               />
               {errors.languageSessionBreakdown && (
-                <p className="text-red-500 text-xs mt-2">This field is required</p>
+                <p className="text-red-500 text-xs mt-2">
+                  {errors.languageSessionBreakdown.message}
+                </p>
               )}
             </div>
           </>
@@ -150,7 +194,20 @@ const Step2: React.FC<Step2Props> = ({
           <label className="block text-sm font-medium text-gray-700">
             Anything else we should know about the project?
           </label>
-          <Textarea {...register("additionalInfo")} className="mt-1 w-full" />
+          <Textarea {...register("additionalInfo",{
+             validate: (v: string) =>
+                    validate(v, [
+                      noLeadingSpace,
+
+                      noMultipleSpaces,
+                      alphanumericSingleSpace,
+                    ]) || "Only letters, numbers & single spaces allowed."
+          })} className="mt-1 w-full" />
+          {errors.additionalInfo && (
+                <p className="text-red-500 text-xs mt-2">
+                  {errors.additionalInfo.message}
+                </p>
+              )}
         </div>
 
         <div className="text-center">

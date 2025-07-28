@@ -25,32 +25,27 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "lib/api";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
-
-export interface AddModeratorValues {
-  firstName: string;
-  lastName: string;
-  email: string;
-  companyName: string;
-  roles: string[];
-}
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  addModeratorSchema,
+  AddModeratorValues,
+} from "schemas/addModeratorSchema";
+import { ALL_ROLES, textFields } from "constant";
 
 interface AddModeratorModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-const textFields = [
-  { name: "firstName" as const, label: "First Name", type: "text" },
-  { name: "lastName" as const, label: "Last Name", type: "text" },
-  { name: "email" as const, label: "Email", type: "email" },
-  { name: "companyName" as const, label: "Company Name", type: "text" },
-];
+type Role = z.infer<typeof addModeratorSchema>["roles"][number];
 
 export default function AddModeratorModal({
   open,
   onClose,
 }: AddModeratorModalProps) {
   const form = useForm<AddModeratorValues>({
+    resolver: zodResolver(addModeratorSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -58,7 +53,10 @@ export default function AddModeratorModal({
       companyName: "",
       roles: [],
     },
+    mode: "onChange",
+    reValidateMode: "onChange",
   });
+
   const params = useParams();
   if (!params.projectId || Array.isArray(params.projectId)) {
     throw new Error("projectId is required and must be a string");
@@ -67,8 +65,8 @@ export default function AddModeratorModal({
   const queryClient = useQueryClient();
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [pendingRole, setPendingRole] = useState<string | null>(null);
-  const [prevRoles, setPrevRoles] = useState<string[]>([]);
+  const [pendingRole, setPendingRole] = useState<Role | null>(null);
+  const [prevRoles, setPrevRoles] = useState<Role[]>([]);
 
   const createProjectTeamMember = useMutation({
     mutationFn: (payload: AddModeratorValues & { projectId: string }) =>
@@ -82,7 +80,7 @@ export default function AddModeratorModal({
       onClose();
     },
     onError: (error) => {
-    toast.error(error instanceof Error ? error.message : "Unknown error");
+      toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 
@@ -96,17 +94,24 @@ export default function AddModeratorModal({
     setIsConfirmOpen(false);
   };
 
-  const onSubmit = form.handleSubmit((values) => {
-    createProjectTeamMember.mutate({
-      ...values,
-      projectId,
-    });
-  });
+  const onSubmit = form.handleSubmit(
+    (values) => {
+      createProjectTeamMember.mutate({
+        ...values,
+        projectId,
+      });
+    },
+    (errors) => {
+      // pick first error and toast it
+      const firstError = Object.values(errors)[0]?.message;
+      if (typeof firstError === "string") toast.error(firstError);
+    }
+  );
 
   return (
     <>
       <Dialog open={open} onOpenChange={(val) => val || onClose()}>
-        <DialogContent>
+        <DialogContent className="w-full max-w-2xl overflow-x-auto border-0">
           <DialogHeader>
             <DialogTitle>Add Moderator</DialogTitle>
           </DialogHeader>
@@ -140,7 +145,7 @@ export default function AddModeratorModal({
                     <FormLabel>Role</FormLabel>
                     <FormControl>
                       <div className="space-y-2">
-                        {["Admin", "Moderator", "Observer"].map((role) => (
+                        {ALL_ROLES.map((role) => (
                           <div
                             key={role}
                             className="flex items-center space-x-2"

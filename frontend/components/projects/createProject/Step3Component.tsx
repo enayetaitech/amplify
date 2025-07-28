@@ -12,7 +12,12 @@ import {
 } from "components/ui/select";
 import { CheckIcon } from "lucide-react";
 import { SessionRow } from "@shared/interface/ProjectInterface";
-import { ALPHA_REGEX, availableLanguages, durations, PROJECT_NAME_REGEX } from "constant";
+import {
+  ALPHA_REGEX,
+  availableLanguages,
+  durations,
+  PROJECT_NAME_REGEX,
+} from "constant";
 import { Popover, PopoverContent, PopoverTrigger } from "components/ui/popover";
 import {
   Command,
@@ -25,8 +30,14 @@ import { Tooltip, TooltipTrigger } from "components/ui/tooltip";
 import { TooltipContent } from "@radix-ui/react-tooltip";
 import { BiQuestionMark } from "react-icons/bi";
 import SessionsTable from "./SessionsTable";
-
-
+import {
+  alphanumericSingleSpace,
+  noLeadingSpace,
+  noMultipleSpaces,
+  noTrailingSpace,
+  validate,
+} from "schemas/validators";
+import { makeOnChange } from "utils/validationHelper";
 
 const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   // ========= Respondent Languages =========
@@ -38,9 +49,9 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
       : []
   );
   const [otherLanguage, setOtherLanguage] = useState<string>("");
-  const [otherLangError,  setOtherLangError]  = useState<string>("");
+  const [otherLangError, setOtherLangError] = useState<string>("");
   const [projectName, setProjectName] = useState<string>(formData.name || "");
-const [projectNameError, setProjectNameError] = useState<string>("");
+  const [projectNameError, setProjectNameError] = useState<string>("");
   // ========= Respondent Country =========
   const isInitiallyOther =
     formData.respondentCountry && formData.respondentCountry !== "USA";
@@ -50,7 +61,7 @@ const [projectNameError, setProjectNameError] = useState<string>("");
   const [otherCountry, setOtherCountry] = useState<string>(
     isInitiallyOther ? formData.respondentCountry : ""
   );
-const [otherCountryError, setOtherCountryError] = useState<string>("");
+  const [otherCountryError, setOtherCountryError] = useState<string>("");
   // ========= Sessions =========
   const [sessionRows, setSessionRows] = useState<SessionRow[]>(
     () =>
@@ -63,11 +74,11 @@ const [otherCountryError, setOtherCountryError] = useState<string>("");
 
   // ========= Update Parent State =========
   useEffect(() => {
- if (!validateProjectName()) {
-    return;
-  }
+    if (!validateProjectName()) {
+      return;
+    }
 
-      if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
+    if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
       return;
     }
 
@@ -78,13 +89,13 @@ const [otherCountryError, setOtherCountryError] = useState<string>("");
         ]
       : selectedLanguages;
 
-       if (countrySelection === "Other" && !validateOtherCountry()) {
-    return;
-  }
-  // if “Other Language” is invalid, skip too
-  if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
-    return;
-  }
+    if (countrySelection === "Other" && !validateOtherCountry()) {
+      return;
+    }
+    // if “Other Language” is invalid, skip too
+    if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
+      return;
+    }
     const finalCountry =
       countrySelection === "USA" ? "USA" : otherCountry.trim();
 
@@ -129,12 +140,14 @@ const [otherCountryError, setOtherCountryError] = useState<string>("");
   const handleOtherCountryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setOtherCountry(e.target.value);
 
-     if (otherCountryError) {
-    setOtherCountryError("");
-  }
+    if (otherCountryError) {
+      setOtherCountryError("");
+    }
   };
 
-   const handleOtherLanguageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOtherLanguageChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const v = e.target.value;
     setOtherLanguage(v);
 
@@ -157,7 +170,7 @@ const [otherCountryError, setOtherCountryError] = useState<string>("");
     return true;
   };
 
-  // Hook into your wizard’s “next” step button (if you have one) or 
+  // Hook into your wizard’s “next” step button (if you have one) or
   // run this on blur:
   const handleOtherLanguageBlur = () => {
     if (selectedLanguages.includes("Other")) {
@@ -165,47 +178,52 @@ const [otherCountryError, setOtherCountryError] = useState<string>("");
     }
   };
 
-const validateOtherCountry = () => {
-  const trimmed = otherCountry.trim();
-  if (!trimmed) {
-    setOtherCountryError("Please enter a country.");
-    return false;
-  }
-  if (!ALPHA_REGEX.test(trimmed)) {
-    setOtherCountryError("Only letters and spaces are allowed.");
-    return false;
-  }
-  setOtherCountryError("");
-  return true;
-};
+  const validateOtherCountry = () => {
+    const trimmed = otherCountry.trim();
+    if (!trimmed) {
+      setOtherCountryError("Please enter a country.");
+      return false;
+    }
+    if (!ALPHA_REGEX.test(trimmed)) {
+      setOtherCountryError("Only letters and spaces are allowed.");
+      return false;
+    }
+    setOtherCountryError("");
+    return true;
+  };
 
-const handleOtherCountryBlur = () => {
-  if (countrySelection === "Other") {
-    validateOtherCountry();
-  }
-}
+  const handleOtherCountryBlur = () => {
+    if (countrySelection === "Other") {
+      validateOtherCountry();
+    }
+  };
 
-const validateProjectName = () => {
-  const trimmed = projectName.trim();
+  const validateProjectName = () => {
+    const trimmed = projectName.trim();
 
-  if (!trimmed) {
-    setProjectNameError("Project name is required.");
-    return false;
-  }
-  if (!PROJECT_NAME_REGEX.test(trimmed)) {
-    setProjectNameError(
-      "Only letters, numbers, spaces, dashes, and underscores allowed."
-    );
-    return false;
-  }
-  setProjectNameError("");
-  return true;
-};
+    if (!trimmed) {
+      setProjectNameError("Project Name is required.");
+      return false;
+    }
 
-const handleProjectNameBlur = () => {
-  validateProjectName();
-};
+    // compose all your rules in one call:
+    const ok = validate(trimmed, [
+      noLeadingSpace,
+      noTrailingSpace,
+      noMultipleSpaces,
+      (v) => PROJECT_NAME_REGEX.test(v),
+    ]);
 
+    if (!ok) {
+      setProjectNameError(
+        "Project Name must be letters, numbers, dashes/underscores, single spaces, no edge spaces."
+      );
+      return false;
+    }
+
+    setProjectNameError("");
+    return true;
+  };
 
   return (
     <div className="space-y-6">
@@ -215,17 +233,37 @@ const handleProjectNameBlur = () => {
         <Input
           type="text"
           className={`mt-1 w-full ${projectNameError ? "border-red-500" : ""}`}
+          autoFocus
           value={projectName}
-           onChange={(e) => {
-        setProjectName(e.target.value);
-        if (projectNameError) setProjectNameError("");
-      }}
-      onBlur={handleProjectNameBlur}
+                 onChange={makeOnChange<"projectName">(
+            "projectName",
+            [
+              noLeadingSpace,
+              noMultipleSpaces,
+              alphanumericSingleSpace
+            ],
+            "Project Name must only contain letters/numbers and single spaces (no edge/multiple spaces).",
+            (upd) => {
+              setProjectName(upd.projectName);
+              if (projectNameError) setProjectNameError("");
+            }
+          )}
+          onBlur={() => {
+            if (!projectName.trim()) {
+              setProjectNameError("Project name is required.");
+           } else if (
+              !/^[A-Za-z0-9 _-]+$/.test(projectName.trim())
+            ) {
+             setProjectNameError(
+                "Only letters, numbers, spaces, dashes, and underscores allowed."
+              );
+            }
+          }}
           required
         />
-          {projectNameError && (
-     <p className="text-red-500 text-sm mt-1">{projectNameError}</p>
-   )}
+        {projectNameError && (
+          <p className="text-red-500 text-sm mt-1">{projectNameError}</p>
+        )}
       </div>
       {/* Multi-Select for Languages using Popover and Command */}
       <div>
@@ -258,7 +296,7 @@ const handleProjectNameBlur = () => {
             </Command>
           </PopoverContent>
         </Popover>
-        
+
         {selectedLanguages.includes("Other") && (
           <div className="mt-2">
             <Label className="text-sm font-medium">Other Language(s)*</Label>
@@ -267,14 +305,14 @@ const handleProjectNameBlur = () => {
               className="mt-1 w-full"
               value={otherLanguage}
               onChange={handleOtherLanguageChange}
-            onBlur={handleOtherLanguageBlur}
+              onBlur={handleOtherLanguageBlur}
             />
-            
           </div>
         )}
         {formData.service === "Concierge" && (
           <p className="text-sm text-custom-orange-1 mt-2">
-            Please note that all Amplify hosting will be in English. If you need in-language hosting, please select in-Language Services on the
+            Please note that all Amplify hosting will be in English. If you need
+            in-language hosting, please select in-Language Services on the
             previous screen.
           </p>
         )}
@@ -300,14 +338,16 @@ const handleProjectNameBlur = () => {
             <Label className="text-sm font-medium">Specify Country Name</Label>
             <Input
               type="text"
-               className={`mt-1 w-full ${otherCountryError ? "border-red-500" : ""}`}
-           value={otherCountry}
-           onChange={handleOtherCountryChange}
-           onBlur={handleOtherCountryBlur}
+              className={`mt-1 w-full ${
+                otherCountryError ? "border-red-500" : ""
+              }`}
+              value={otherCountry}
+              onChange={handleOtherCountryChange}
+              onBlur={handleOtherCountryBlur}
             />
             {otherCountryError && (
-         <p className="text-red-500 text-sm">{otherCountryError}</p>
-        )}
+              <p className="text-red-500 text-sm">{otherCountryError}</p>
+            )}
           </div>
         )}
       </div>
@@ -351,7 +391,7 @@ const handleProjectNameBlur = () => {
             </TooltipContent>
           </Tooltip>
         </h2>
-    
+
         <SessionsTable
           initialSessions={sessionRows}
           onChange={(newRows) => setSessionRows(newRows)}

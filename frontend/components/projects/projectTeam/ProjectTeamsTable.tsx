@@ -11,7 +11,7 @@ import {
   TableHead,
   TableCell,
 } from "components/ui/table";
-import { ChevronsUpDown, Pencil } from "lucide-react";
+import {  Pencil } from "lucide-react";
 import React, { useState } from "react";
 import EditModeratorModal from "./EditModeratorModal";
 
@@ -53,7 +53,7 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                 >
                   <div className="inline-flex items-center space-x-1">
                     <span>{col}</span>
-                    <ChevronsUpDown className="h-4 w-4 text-gray-400" />
+                    {/* <ChevronsUpDown className="h-4 w-4 text-gray-400" /> */}
                   </div>
                 </TableHead>
               ))}
@@ -67,7 +67,7 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {m.firstName} {m.lastName}
                 </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
                   {m.roles?.length ? (
                     m.roles.join(", ")
                   ) : (

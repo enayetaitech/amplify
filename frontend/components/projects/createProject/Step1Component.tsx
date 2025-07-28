@@ -86,6 +86,7 @@ const Step1: React.FC<Step1Props> = ({ formData, updateFormData }) => {
             <Input
               type="date"
               disabled={formData.service !== "Signature"}
+               min={new Date().toISOString().split("T")[0]}
               value={formData.service === "Signature"
                   ? formData.firstDateOfStreaming
                   : ""}
@@ -110,6 +111,7 @@ const Step1: React.FC<Step1Props> = ({ formData, updateFormData }) => {
           type="radio"
           name="service"
           value="Concierge"
+          min={new Date().toISOString().split("T")[0]}
           checked={formData.service === "Concierge"}
           onChange={() => handleServiceSelect("Concierge")}
           className="absolute top-4 left-4 h-4 w-4 cursor-pointer accent-custom-teal"
@@ -169,6 +171,7 @@ const Step1: React.FC<Step1Props> = ({ formData, updateFormData }) => {
             </label>
             <Input
               type="date"
+              min={new Date().toISOString().split("T")[0]}
               value={formData.service === "Concierge" ? formData.firstDateOfStreaming : "" }
               disabled={formData.service !== "Concierge"}
               onChange={formData.service === "Concierge" ? handleDateChange : undefined}
