@@ -142,12 +142,12 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Label className="font-medium text-sm">
-            Do you need breakout room functionality?
+            Do you need breakout room functionality? <span className="text-custom-orange-1">*</span>
           </Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                      <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
+                      <BiQuestionMark className="ml-2 h-5 w-5 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] px-0.5 mb-1.5" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs bg-white text-black shadow-sm">
                 Breakout rooms allow you to split participants into separate

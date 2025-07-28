@@ -65,7 +65,6 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
             </TableHeader>
             <TableBody>
               {sessions.map((sess, idx) => {
-                // if sameModerator, always show the step-1 picks
                 const rowMods = formData.sameModerator
                   ? formData.selectedModerators
                   : sess.moderators;
@@ -86,6 +85,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                       <Input
                         type="date"
                         value={sess.date}
+                        min={new Date().toISOString().split("T")[0]}
                         className="w-full"
                         onChange={(e) =>
                           updateSession(idx, { date: e.target.value })
@@ -125,6 +125,32 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                       </Select>
                     </TableCell>
                     <TableCell>
+                      {formData.sameModerator ? (
+                        <div className="flex flex-wrap gap-2">
+                          {availableMods.map((mod) => (
+                            <span
+                              key={mod._id}
+                              className="text-xs bg-muted px-2 py-1 rounded-full border"
+                            >
+                              {mod.firstName} {mod.lastName}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <MultiSelectDropdown
+                          moderators={availableMods}
+                          selected={rowMods}
+                          onChange={(ids) => {
+                            if (!formData.sameModerator) {
+                              updateSession(idx, { moderators: ids });
+                            }
+                          }}
+                          disabled={formData.sameModerator}
+                        />
+                      )}
+                    </TableCell>
+
+                    {/* <TableCell>
                       <MultiSelectDropdown
                         moderators={availableMods}
                         selected={rowMods}
@@ -135,7 +161,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                         }}
                         disabled={formData.sameModerator}
                       />
-                    </TableCell>
+                    </TableCell> */}
                   </TableRow>
                 );
               })}

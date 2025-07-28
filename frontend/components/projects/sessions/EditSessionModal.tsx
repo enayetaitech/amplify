@@ -47,7 +47,14 @@ import { businessDaysBetween } from "utils/countDaysBetween";
 
 // 1️⃣ Define a Zod schema matching your ISession fields including timeZone
 const editSessionSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+   title: z
+    .string()
+    .min(1, "Title is required")
+    .trim()
+    .regex(
+      /^(?!.* {2,})[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/,
+      "Title must not contain special characters, multiple spaces, or leading/trailing spaces"
+    ),
   date: z.string(),
   startTime: z.string(),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
@@ -163,7 +170,11 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input type="date"
+                    
+                    {...field}
+                    min={new Date().toISOString().split("T")[0]}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
