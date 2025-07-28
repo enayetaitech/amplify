@@ -8,7 +8,7 @@ import User from "../model/UserModel";
 import config from "../config";
 import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
 import { moderatorAddedEmailTemplate } from "../constants/emailTemplates";
-import mongoose, { Types } from "mongoose";
+import mongoose, { PipelineStage, Types } from "mongoose";
 
 const ALLOWED_ROLES = ["Admin", "Moderator", "Observer"] as const;
 /**
@@ -241,22 +241,126 @@ export const getModeratorsByProjectId = async (
 ): Promise<void> => {
   const { projectId } = req.params;
 
-  /* ── pagination params ────────────────────────────── */
-  const page = Math.max(Number(req.query.page) || 1, 1);
+  // pagination
+  const page  = Math.max(Number(req.query.page)  || 1, 1);
   const limit = Math.max(Number(req.query.limit) || 10, 1);
-  const skip = (page - 1) * limit;
+  const skip  = (page - 1) * limit;
 
-  /* ── parallel queries: data + count ───────────────── */
-  const [moderators, total] = await Promise.all([
-    ModeratorModel.find({ projectId })
-      .sort({ name: 1 })
-      .skip(skip)
-      .limit(limit)
-      .lean(),
-    ModeratorModel.countDocuments({ projectId }),
+  // 1) count total active/inactive moderators for meta
+  const total = await ModeratorModel.countDocuments({ projectId });
+
+  // 2) aggregation: compute roleRank, then sort & paginate
+  const moderators = await ModeratorModel.aggregate<IModeratorDocument>([
+    // only this project
+    { $match: { projectId: new Types.ObjectId(projectId) } },
+
+    // add a numeric rank based on roles & isActive
+    { $addFields: {
+        roleRank: {
+          $switch: {
+            branches: [
+              // 1. Admin only
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 1 ] },
+                    { $in: [ "Admin",    "$roles" ] },
+                    { $eq: [ "$isActive", true       ] }
+                  ]
+                },
+                then: 1
+              },
+              // 2. Admin + Moderator
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 2 ] },
+                    { $in: [ "Admin",     "$roles" ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $eq: [ "$isActive", true        ] }
+                  ]
+                },
+                then: 2
+              },
+              // 3. Admin + Moderator + Observer
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 3 ] },
+                    { $in: [ "Admin",     "$roles" ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $in: [ "Observer",  "$roles" ] },
+                    { $eq: [ "$isActive", true         ] }
+                  ]
+                },
+                then: 3
+              },
+              // 4. Moderator only
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 1 ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $eq: [ "$isActive", true         ] }
+                  ]
+                },
+                then: 4
+              },
+              // 5. Moderator + Observer
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 2 ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $in: [ "Observer",  "$roles" ] },
+                    { $eq: [ "$isActive", true         ] }
+                  ]
+                },
+                then: 5
+              },
+              // 6. Observer only
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 1 ] },
+                    { $in: [ "Observer", "$roles" ] },
+                    { $eq: [ "$isActive", true       ] }
+                  ]
+                },
+                then: 6
+              },
+              // 7. De‑activated (any roles but isActive=false)
+              {
+                case: { $eq: [ "$isActive", false ] },
+                then: 7
+              },
+              // 8. Active but no roles assigned
+              {
+                case: {
+                  $and: [
+                    { $eq: [ "$isActive", true         ] },
+                    { $eq: [ { $size: "$roles" }, 0 ] }
+                  ]
+                },
+                then: 8
+              }
+            ],
+            // any unexpected combination
+            default: 9
+          }
+        }
+      }
+    },
+
+    // finally sort by our custom rank, then alphabetically by lastName
+    { $sort: { roleRank: 1, lastName: 1 } },
+
+    // pagination
+    { $skip:  skip },
+    { $limit: limit }
   ]);
 
-  /* ── meta payload ─────────────────────────────────── */
+  // build meta
   const totalPages = Math.ceil(total / limit);
   const meta = {
     page,
@@ -264,7 +368,7 @@ export const getModeratorsByProjectId = async (
     totalItems: total,
     totalPages,
     hasPrev: page > 1,
-    hasNext: page < totalPages,
+    hasNext:  page < totalPages
   };
 
   sendResponse(res, moderators, "Moderators for project retrieved", 200, meta);
