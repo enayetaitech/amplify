@@ -44,17 +44,22 @@ import {
   TooltipTrigger,
 } from "components/ui/tooltip";
 import { businessDaysBetween } from "utils/countDaysBetween";
+import { alphanumericSingleSpace, noLeadingSpace, noMultipleSpaces,  validate } from "schemas/validators";
 
 // 1️⃣ Define a Zod schema matching your ISession fields including timeZone
 const editSessionSchema = z.object({
    title: z
     .string()
     .min(1, "Title is required")
-    .trim()
-    .regex(
-      /^(?!.* {2,})[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/,
-      "Title must not contain special characters, multiple spaces, or leading/trailing spaces"
-    ),
+       .refine(noLeadingSpace, {
+      message: "Cannot start with a space",
+    })
+    .refine(noMultipleSpaces, {
+      message: "Cannot have multiple spaces in a row",
+    })
+    .refine(alphanumericSingleSpace, {
+      message: "Only letters/numbers and single spaces allowed",
+    }),
   date: z.string(),
   startTime: z.string(),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
@@ -156,7 +161,24 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="Session title" {...field} />
+                    <Input placeholder="Session title" {...field}
+                     onChange={(e) => {
+                        const v = e.target.value;
+                        if (
+                          !validate(v, [
+                            noLeadingSpace,
+                           noMultipleSpaces,
+                            alphanumericSingleSpace,
+                          ])
+                        ) {
+                          toast.error(
+                            "Only letters/numbers + single spaces; no edge/multiple spaces allowed."
+                          );
+                          return;
+                        }
+                        field.onChange(e);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

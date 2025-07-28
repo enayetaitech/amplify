@@ -19,6 +19,17 @@ import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IModerator } from "@shared/interface/ModeratorInterface";
 import { useParams } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
+import {
+  alphanumericSingleSpace,
+  alphaSingleSpace,
+  emailChars,
+  lettersAndSpaces,
+  noLeadingSpace,
+  noMultipleSpaces,
+  noTrailingSpace,
+  validate,
+} from "schemas/validators";
+import { makeOnChange } from "utils/validationHelper";
 
 interface AddModeratorModalProps {
   open: boolean;
@@ -52,13 +63,11 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
     companyName: "",
     adminAccess: false,
   });
- 
-
 
   const addModeratorMutation = useMutation<
     ApiResponse<IModerator>,
     Error,
-    ModeratorFormData & { projectId: string; roles: string[]}
+    ModeratorFormData & { projectId: string; roles: string[] }
   >({
     mutationFn: (payload) =>
       api
@@ -82,150 +91,140 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
     },
 
     onError: (error) => {
-      console.log('error',error)
+      console.log("error", error);
       toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });
 
- const validateFields = (): boolean => {
-  const nameRegex = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
-  const companyRegex = /^[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-
-  const cleanedData: ModeratorFormData = {
-    firstName: formData.firstName.trim().replace(/\s+/g, " "),
-    lastName: formData.lastName.trim().replace(/\s+/g, " "),
-    email: formData.email.trim(),
-    companyName: formData.companyName.trim().replace(/\s+/g, " "),
-    adminAccess: formData.adminAccess,
-  };
-
-  // Required field check
-  for (const [key, value] of Object.entries(cleanedData)) {
-    if (
-      key !== "adminAccess" &&
-      typeof value === "string" &&
-      value.trim() === ""
-    ) {
-      toast.error(`${formatFieldLabel(key)} is mandatory.`);
-      return false;
-    }
-  }
-
-  if (!nameRegex.test(cleanedData.firstName)) {
-    toast.error("First Name must contain only alphabets and single spaces.");
-    return false;
-  }
-
-  if (!nameRegex.test(cleanedData.lastName)) {
-    toast.error("Last Name must contain only alphabets and single spaces.");
-    return false;
-  }
-
-  if (!companyRegex.test(cleanedData.companyName)) {
-    toast.error("Company Name must contain only alphanumeric characters and single spaces.");
-    return false;
-  }
-
-  if (!emailRegex.test(cleanedData.email)) {
-  toast.error("Please enter a valid email address.");
-  return false;
-}
-
-
-  return true;
-};
-
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
   const handleSubmit = () => {
-    if (!validateFields()) return;
-    
     const roles = formData.adminAccess ? ["Moderator", "Admin"] : ["Moderator"];
 
-    const cleanedPayload = {
-    ...formData,
-    firstName: formData.firstName.trim().replace(/\s+/g, " "),
-    lastName: formData.lastName.trim().replace(/\s+/g, " "),
-    email: formData.email.trim(),
-    companyName: formData.companyName.trim().replace(/\s+/g, " "),
-    roles,
-    projectId,
+    const clean = (s: string) => s.trim().replace(/\s+/g, " ");
+    const data = {
+      ...formData,
+      firstName: clean(formData.firstName),
+      lastName: clean(formData.lastName),
+      companyName: clean(formData.companyName),
+      email: formData.email.trim(),
+    };
+    if (
+      !validate(data.firstName, [
+        noLeadingSpace,
+        noTrailingSpace,
+        alphaSingleSpace,
+      ]) ||
+      !validate(data.lastName, [
+        noLeadingSpace,
+        noTrailingSpace,
+        alphaSingleSpace,
+      ]) ||
+      !validate(data.companyName, [
+        noLeadingSpace,
+        noTrailingSpace,
+        noMultipleSpaces,
+        alphanumericSingleSpace,
+      ]) ||
+      !emailChars(data.email)
+    ) {
+      toast.error("Please fix the highlighted fields before saving.");
+      return;
+    }
+
+    addModeratorMutation.mutate({ ...data, roles, projectId });
   };
 
-  addModeratorMutation.mutate(cleanedPayload);
+  const handleClose = () => {
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      companyName: "",
+      adminAccess: false,
+    });
+    onClose(); // invoke parent close handler
   };
-
-  const formatFieldLabel = (field: string): string => {
-  switch (field) {
-    case "firstName":
-      return "First Name";
-    case "lastName":
-      return "Last Name";
-    case "email":
-      return "Email";
-    case "companyName":
-      return "Company Name";
-    default:
-      return field;
-  }
-};
-
-const handleClose = () => {
-  setFormData({
-    firstName: "",
-    lastName: "",
-    email: "",
-    companyName: "",
-    adminAccess: false,
-  });
-  onClose(); // invoke parent close handler
-};
-
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-full max-w-2xl overflow-x-auto border-0">
         <DialogHeader>
           <DialogTitle>Add Moderator</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-         {(["firstName", "lastName", "email", "companyName"] as const).map(
-  (field) => {
-    const label =
-      field === "firstName"
-        ? "First Name*"
-        : field === "lastName"
-        ? "Last Name*"
-        : field === "companyName"
-        ? "Company Name*"
-        : "Email*";
+          {(["firstName", "lastName", "email", "companyName"] as const).map(
+            (field) => {
+              const label =
+                field === "firstName"
+                  ? "First Name"
+                  : field === "lastName"
+                  ? "Last Name"
+                  : field === "companyName"
+                  ? "Company Name"
+                  : "Email";
 
-    return (
-      <div key={field}>
-        <Label className="capitalize">{label}</Label>
-        <Input
-          name={field}
-          placeholder={`Enter ${label}`}
-          value={formData[field]}
-          onChange={handleChange}
-          className="mt-3"
-          required
-          disabled={addModeratorMutation.isPending}
-        />
-      </div>
-    );
-  }
-)}
-
+              return (
+                <div key={field}>
+                  <Label className="capitalize">{label}*</Label>
+                  <Input
+                    name={field}
+                    placeholder={`Enter ${label}`}
+                    value={formData[field]}
+                    // onChange only checks everything *except* trailing‐space
+                    onChange={makeOnChange(
+                      field,
+                      field === "firstName" || field === "lastName"
+                        ? [noLeadingSpace, noMultipleSpaces, lettersAndSpaces]
+                        : field === "companyName"
+                        ? [
+                            noLeadingSpace,
+                            noMultipleSpaces,
+                            alphanumericSingleSpace,
+                          ]
+                        : /* email */ [noLeadingSpace, emailChars],
+                      field === "companyName"
+                        ? "Company Name must contain only letters/numbers & single spaces."
+                        : field === "email"
+                        ? "Please enter a valid email address."
+                        : `${label} must be letters, single spaces, no edge spaces.`,
+                      (upd) => setFormData((prev) => ({ ...prev, ...upd }))
+                    )}
+                    // onBlur now does the edge‐space trim + final trailing‐space check
+                    onBlur={() => {
+                      const cleaned = formData[field]
+                        .trim()
+                        .replace(/\s+/g, " ");
+                      setFormData(
+                        (prev) =>
+                          ({
+                            ...prev,
+                            [field]: cleaned,
+                          } as ModeratorFormData)
+                      );
+                      if (
+                        field === "email"
+                          ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)
+                          : !validate(cleaned, [
+                              noLeadingSpace,
+                              noTrailingSpace,
+                              alphaSingleSpace,
+                            ])
+                      ) {
+                        toast.error(
+                          field === "email"
+                            ? "Please enter a valid email address."
+                            : `${label} must be letters only, single spaces, no edge spaces.`
+                        );
+                      }
+                    }}
+                    className="mt-3"
+                    required
+                    disabled={addModeratorMutation.isPending}
+                  />
+                </div>
+              );
+            }
+          )}
 
           <div className="flex items-center space-x-3 gap-3">
             <Label className="m-0">Admin Access</Label>
@@ -240,9 +239,13 @@ const handleClose = () => {
             </span>
           </div>
 
-<div>
-  <p className="text-sm"><strong>Note:</strong> All Admins can add, start, or delete meetings and materials, and can incur charges to your account for this project.</p>
-</div>
+          <div>
+            <p className="text-sm">
+              <strong>Note:</strong> All Admins can add, start, or delete
+              meetings and materials, and can incur charges to your account for
+              this project.
+            </p>
+          </div>
           <div className="flex justify-end pt-2">
             <CustomButton
               onClick={handleSubmit}

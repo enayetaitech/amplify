@@ -1,6 +1,14 @@
 import { Step2FormValues } from "@shared/interface/CreateProjectInterface";
 import { Input } from "components/ui/input";
 import { FieldErrors, RegisterOptions, UseFormRegister } from "react-hook-form";
+import { Validator } from "schemas/validators";
+
+export type RegexRule = {
+  /** must match this RegExp */
+  fn: Validator;
+  /** error to show if it doesn’t */
+  message: string;
+};
 
 export const FormInput = ({
   label,
@@ -11,6 +19,7 @@ export const FormInput = ({
   error,
   pattern,
   patternMessage,
+  regexRules,
 }: {
   label: string;
   type?: string;
@@ -20,6 +29,7 @@ export const FormInput = ({
   error?: FieldErrors<Step2FormValues>[keyof Step2FormValues];
   pattern?: RegExp;
   patternMessage?: string;
+    regexRules?: RegexRule[];
 }) => {
   
   const validation = {
@@ -39,6 +49,17 @@ export const FormInput = ({
           pattern: {
             value: pattern,
             message: patternMessage || "Invalid format",
+          },
+        }
+      : {}),
+       ...(regexRules
+      ? {
+          validate: (val) => {
+            const str = String(val ?? "");
+            for (const { fn, message } of regexRules) {
+              if (!fn(str)) return message;
+            }
+            return true;
           },
         }
       : {}),

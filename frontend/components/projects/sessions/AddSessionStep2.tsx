@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "components/ui/select";
 import { durations } from "constant";
+import { makeOnChange } from "utils/validationHelper";
+import { alphanumericSingleSpace, noLeadingSpace, noMultipleSpaces } from "schemas/validators";
 
 interface AddSessionStep2Props {
   formData: ISessionFormData;
@@ -76,9 +78,17 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                         value={sess.title}
                         placeholder="Title"
                         className="w-full"
-                        onChange={(e) =>
-                          updateSession(idx, { title: e.target.value })
-                        }
+                         onChange={makeOnChange<"title">(
+                          "title",
+                          [
+                            noLeadingSpace,
+                           
+                            noMultipleSpaces,
+                            alphanumericSingleSpace,
+                          ],
+                          "Title must be letters/numbers only, single spaces, no edge spaces.",
+                          (upd) => updateSession(idx, { title: upd.title })
+                        )}
                       />
                     </TableCell>
                     <TableCell>
@@ -150,18 +160,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                       )}
                     </TableCell>
 
-                    {/* <TableCell>
-                      <MultiSelectDropdown
-                        moderators={availableMods}
-                        selected={rowMods}
-                        onChange={(ids) => {
-                          if (!formData.sameModerator) {
-                            updateSession(idx, { moderators: ids });
-                          }
-                        }}
-                        disabled={formData.sameModerator}
-                      />
-                    </TableCell> */}
+                   
                   </TableRow>
                 );
               })}

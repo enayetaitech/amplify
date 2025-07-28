@@ -26,6 +26,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import api from "lib/api";
 import CustomButton from "components/shared/CustomButton";
+import { textFields } from "constant";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { editModeratorSchema } from "schemas/editModeratorSchema";
 
 export interface EditModeratorForm {
   firstName: string;
@@ -46,7 +49,8 @@ export default function EditModeratorModal({
   moderator,
   onClose,
 }: EditModeratorModalProps) {
-  const form = useForm<EditModeratorForm>({
+   const form = useForm<EditModeratorForm>({
+    resolver: zodResolver(editModeratorSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -54,7 +58,11 @@ export default function EditModeratorModal({
       companyName: "",
       adminAccess: false,
     },
+    mode: "onChange",
+    reValidateMode: "onChange",
   });
+
+
   const { projectId } = useParams() as { projectId: string };
   const qc = useQueryClient();
 
@@ -91,23 +99,24 @@ export default function EditModeratorModal({
   });
 
   // handle form submit
-  const onSubmit = form.handleSubmit((values) => {
-    if (!moderator?._id) return;
-    editModerator.mutate({ id: moderator._id, values });
-  });
+    const onSubmit = form.handleSubmit(
+    (values) => {
+      if (!moderator?._id) return;
+      editModerator.mutate({ id: moderator._id, values });
+    },
+    (errors) => {
+      const firstError = Object.values(errors)[0]?.message;
+      if (typeof firstError === "string") toast.error(firstError);
+    }
+  );
 
-  const textFields = [
-    { name: "firstName" as const, label: "First Name", type: "text" },
-    { name: "lastName" as const, label: "Last Name", type: "text" },
-    { name: "email" as const, label: "Email", type: "email" },
-    { name: "companyName" as const, label: "Company Name", type: "text" },
-  ];
+ 
 
   const isVerified = moderator?.isVerified;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-full max-w-2xl overflow-x-auto border-0">
         <DialogHeader>
           <DialogTitle>Edit Moderator</DialogTitle>
         </DialogHeader>

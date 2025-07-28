@@ -1,3 +1,4 @@
+import { Role } from "@shared/interface/ModeratorInterface";
 import { LoginFormValues } from "schemas/loginSchema";
 import { RegisterFormValues } from "schemas/registerSchema";
 
@@ -106,3 +107,12 @@ export const loginDefaults: LoginFormValues={
 export const ALPHA_REGEX = /^[A-Za-z\s]+$/;
 
 export const PROJECT_NAME_REGEX = /^[A-Za-z0-9 _-]+$/;
+
+export const textFields = [
+  { name: "firstName" as const, label: "First Name", type: "text" },
+  { name: "lastName" as const, label: "Last Name", type: "text" },
+  { name: "email" as const, label: "Email", type: "email" },
+  { name: "companyName" as const, label: "Company Name", type: "text" },
+];
+
+export const ALL_ROLES: Role[] = ["Admin", "Moderator", "Observer"];
