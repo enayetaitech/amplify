@@ -21,7 +21,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   Plus,
-  Upload,
   MoreHorizontal,
   Edit2,
   Circle,
@@ -32,11 +31,11 @@ import {
   AlignJustify,
   Smile,
   Minus,
+  Upload,
 } from "lucide-react";
 import {
   DraftQuestion,
   QuestionType,
-  CreatePollPayload,
   IPoll,
   PollQuestion,
 } from "@shared/interface/PollInterface";
@@ -56,6 +55,13 @@ import {
   validateTitle,
   WithImage,
 } from "./AddPollDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "components/ui/dropdown-menu";
+import { AxiosError } from "axios";
 
 // copy your questionTypeOptions from AddPollDialog...
 const questionTypeOptions: {
@@ -133,21 +139,25 @@ interface EditPollDialogProps {
   onClose: () => void;
 }
 
+type DraftWithImage = DraftQuestion & WithImage;
+
 export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(poll.title);
-  const [questions, setQuestions] = useState<DraftQuestion[]>([]);
+  const [questions, setQuestions] = useState<DraftWithImage[]>([]);
 
   // keep in sync when poll changes
   useEffect(() => {
     setTitle(poll.title);
-    const initialQs: DraftQuestion[] = poll.questions.map((q: PollQuestion) =>
+    const initialQs: DraftWithImage[] = poll.questions.map((q: PollQuestion) =>
       defaultQuestion({
         id: q._id,
         prompt: q.prompt,
         type: q.type,
         required: q.required,
+        imageFile: undefined,
+        tempImageName: undefined,
         ...(q.type === "SINGLE_CHOICE" && {
           answers: q.answers,
           correctAnswer: q.correctAnswer,
@@ -192,13 +202,19 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   // PATCH-mutation
   const updateMutation = useMutation<
     IPoll,
-    unknown,
-    CreatePollPayload & { id: string }
+      AxiosError,
+      { id: string; formData: FormData }
   >({
-    mutationFn: ({ id, ...body }) =>
+    mutationFn: ({ id, formData }) =>
       api
-        .patch<{ data: IPoll }>(`/api/v1/polls/${id}`, body)
+        .patch<{ data: IPoll }>(`/api/v1/polls/${id}`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        })
         .then((r) => r.data.data),
+
+
     onSuccess: () => {
       toast.success("Poll updated");
       queryClient.invalidateQueries({ queryKey: ["polls", poll.projectId] });
@@ -211,16 +227,20 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   });
 
   // handlers copied from AddPollDialog (add/remove/duplicate/update question, etc.)
-  const updateQuestion = (id: string, patch: Partial<DraftQuestion>) =>
+  const updateQuestion = (id: string, patch: Partial<DraftWithImage>) =>
     setQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...patch } : q)));
   const addQuestion = () => setQuestions((qs) => [...qs, defaultQuestion()]);
   const removeQuestion = (id: string) =>
     setQuestions((qs) => qs.filter((q) => q.id !== id));
 
-  const duplicateQuestion = (id: string) => {
-    const orig = questions.find((q) => q.id === id)!;
-    setQuestions((qs) => [...qs, defaultQuestion({ ...orig })]);
-  };
+  function duplicateQuestion(id: string) {
+    setQuestions((qs) => {
+      const orig = qs.find((q) => q.id === id)!;
+      const copy = structuredClone(orig);
+      copy.id = crypto.randomUUID();
+      return [...qs, copy];
+    });
+  }
 
   const updateType = (id: string, type: QuestionType) => {
     if (type === "SINGLE_CHOICE") {
@@ -380,14 +400,32 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
       return;
     }
 
-    updateMutation.mutate({
-      id: poll._id,
-      projectId: poll.projectId!,
-      title: title.trim(),
-      questions: questions as unknown as DraftQuestion[],
-      createdBy: poll.createdBy,
-      createdByRole: poll.createdByRole,
-    });
+    const formData = new FormData();
+  formData.append("title", title.trim());
+  formData.append("projectId", poll.projectId!);
+  formData.append("createdBy", poll.createdBy);
+  formData.append("createdByRole", poll.createdByRole);
+
+ const questionsPayload = questions.map(q => ({
+  // copy everything else
+  ...q,
+  // drop the File object
+  imageFile: undefined,
+  // but keep tempImageName if there is one
+  ...(q.imageFile ? { tempImageName: q.tempImageName } : {})
+}));
+
+formData.append("questions", JSON.stringify(questionsPayload));
+
+// now append the raw files under the same fieldname "images"
+questions.forEach(q => {
+  if (q.imageFile && q.tempImageName) {
+    formData.append("images", q.imageFile, q.tempImageName);
+  }
+});
+
+  // finally call the mutation
+  updateMutation.mutate({ id: poll._id, formData });
   };
 
   const isUpdating = updateMutation.isPending;
@@ -628,23 +666,42 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                   />
                   <span>Required</span>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    disabled={isUpdating}
-                    onClick={() => duplicateQuestion(q.id)}
-                  >
-                    <Upload />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    disabled={isUpdating}
-                    onClick={() => removeQuestion(q.id)}
-                  >
-                    <MoreHorizontal />
-                  </Button>
+                <div className="flex items-center gap-2">
+                  {/* ← this label/file-input combo */}
+                  <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">
+                    <Upload className="h-5 w-5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        updateQuestion(q.id, {
+                          imageFile: file,
+                          tempImageName: file.name,
+                        });
+                      }}
+                    />
+                    {q.imageFile ? q.imageFile.name : "Attach image"}
+                  </label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" disabled={isUpdating}>
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => removeQuestion(q.id)}>
+                        Delete
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => duplicateQuestion(q.id)}
+                      >
+                        Duplicate
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardFooter>
             </Card>
@@ -652,9 +709,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
         </div>
 
         <div className="mt-6 text-center">
-          <Button onClick={addQuestion}
-          disabled={isUpdating}
-          >
+          <Button onClick={addQuestion} disabled={isUpdating}>
             <Plus className="mr-2 h-4 w-4" /> Add Question
           </Button>
         </div>

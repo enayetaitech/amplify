@@ -16,7 +16,7 @@ router.get("/project/:projectId", catchError(getPollsByProjectId));
 router.get("/:id", catchError(getPollById));  
 
 /* PATCH /api/v1/polls/:id  – Update a poll */
-router.patch("/:id",   catchError(updatePoll));
+router.patch("/:id", uploadImage.array("images", 20),  catchError(updatePoll));
 
 /* POST /api/v1/polls/:id/duplicate  – Duplicate a  poll */
 router.post("/:id/duplicate", catchError(duplicatePoll));

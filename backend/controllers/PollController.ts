@@ -167,41 +167,69 @@ export const updatePoll = async (
 ): Promise<void> => {
   const { id } = req.params;
 
-  // 2️⃣ Build updates from allowed fields
-  const allowed: Array<keyof typeof req.body> = ["title", "questions", "isRun"];
-  const updates: Partial<Record<(typeof allowed)[number], any>> = {};
+  // Build updatable fields
+  const updates: any = { lastModified: new Date() };
+  // parse + validate title / isRun as before…
+  if (req.body.title) updates.title = req.body.title.trim();
+  if (req.body.isRun !== undefined) updates.isRun = req.body.isRun;
 
-  for (const field of allowed) {
-    if (req.body[field] !== undefined) {
-      updates[field] = req.body[field];
+  // 1) parse questions JSON
+  if (req.body.questions) {
+    let questionsPayload: any[] = req.body.questions;
+    if (typeof questionsPayload === "string") {
+      try {
+        questionsPayload = JSON.parse(questionsPayload);
+      } catch {
+        return next(new ErrorHandler("Invalid questions JSON", 400));
+      }
     }
+
+    if (!Array.isArray(questionsPayload) || !questionsPayload.length) {
+      return next(new ErrorHandler("questions must be a non-empty array", 400));
+    }
+
+    // 2) upload any new files and stitch
+    const files = (req.files as Express.Multer.File[]) || [];
+    for (const file of files) {
+      let uploadResult;
+      try {
+        uploadResult = await uploadToS3(
+          file.buffer,
+          file.mimetype,
+          file.originalname
+        );
+      } catch {
+        return next(
+          new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
+        );
+      }
+
+      // now that your JSON has tempImageName, this will work:
+      const q = questionsPayload.find(
+        qq => qq.tempImageName === file.originalname
+      );
+      if (q) {
+        q.image = uploadResult.url;
+        delete q.tempImageName;
+      }
+    }
+
+    // 3) validate each question…
+    for (let i = 0; i < questionsPayload.length; i++) {
+      if (validateQuestion(questionsPayload[i], i, next)) return;
+    }
+
+    updates.questions = questionsPayload;
   }
 
-  if (Object.keys(updates).length === 0) {
+  // if nothing to update
+  if (Object.keys(updates).length === 1 /* only lastModified */) {
     return next(new ErrorHandler("No valid fields provided for update", 400));
   }
 
-  // 3️⃣ If questions are being updated, validate them
-  if (updates.questions) {
-    if (!Array.isArray(updates.questions) || updates.questions.length === 0) {
-      return next(new ErrorHandler("questions must be a non-empty array", 400));
-    }
-    for (let i = 0; i < updates.questions.length; i++) {
-      if (validateQuestion(updates.questions[i], i, next)) return;
-    }
-  }
-
-  // 4️⃣ Update lastModified timestamp
-  updates.lastModified = new Date();
-
-  // 5️⃣ Perform the update
-
-  const updated = await PollModel.findByIdAndUpdate(id, updates, {
-    new: true,
-  });
-  if (!updated) {
-    return next(new ErrorHandler("Poll not found", 404));
-  }
+  // 4) perform the mongo update
+  const updated = await PollModel.findByIdAndUpdate(id, updates, { new: true });
+  if (!updated) return next(new ErrorHandler("Poll not found", 404));
   sendResponse(res, updated, "Poll updated", 200);
 };
 
