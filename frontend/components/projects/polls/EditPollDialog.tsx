@@ -19,7 +19,7 @@ import MatchingQuestion from "./MatchingQuestion";
 import RankOrderQuestion from "./RankOrderQuestion";
 import RatingScaleQuestion from "./RatingScaleQuestion";
 import FillInBlankQuestion from "./FillInBlankQuestion";
-import { allQuestionsValid, validateQuestion, validateTitle } from "./AddPollDialog";
+import { allQuestionsValid, validateQuestion, validateTitle, WithImage } from "./AddPollDialog";
 
 // copy your questionTypeOptions from AddPollDialog...
 const questionTypeOptions: { value: QuestionType; label: string; icon: React.ReactNode }[] = [
@@ -65,12 +65,12 @@ const questionTypeOptions: { value: QuestionType; label: string; icon: React.Rea
   },
 ];
 
-const defaultQuestion = (overrides: Partial<DraftQuestion> = {}): DraftQuestion => ({
+const defaultQuestion = (overrides: Partial<DraftQuestion & WithImage> = {}): DraftQuestion & WithImage => ({
   id: crypto.randomUUID(),
   prompt: "",
   type: "SINGLE_CHOICE",
   options: ["", ""],
-  answers: ["", ""],
+answers: overrides.type === "FILL_IN_BLANK" ? [] : ["", ""],
   rows: [], columns: [],
   required: false,
   correctAnswer: 0,
@@ -222,6 +222,9 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
           minChars: 1,
           maxChars: 2000,
         });
+        else if (type === "FILL_IN_BLANK") {
+          updateQuestion(id, { type, prompt: "", answers: [] });
+        }
       else updateQuestion(id, { type, options: [], answers: ["", ""] });
     };
 
@@ -514,7 +517,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                       onAddBlank={() => addBlank(q.id)}
                       onAnswerChange={(i, v) => updateAnswer(q.id, i, v)}
                       onRemoveAnswer={i => removeAnswer(q.id, i)}
-                      onAddAnswer={() => addAnswer(q.id)}
+                   
                     />
                   )
                 )}

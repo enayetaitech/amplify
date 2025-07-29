@@ -110,7 +110,7 @@ const questionTypeOptions: {
   },
 ];
 
-type WithImage = {
+export type WithImage = {
   imageFile?: File;
   tempImageName?: string;
 };
@@ -124,7 +124,7 @@ const defaultQuestion = (
   prompt: "",
   type: "SINGLE_CHOICE",
   options: ["", ""],
-  answers: ["", ""],
+  answers: overrides.type === "FILL_IN_BLANK" ? [] : ["", ""],
   rows: [],
   columns: [],
   required: false,
@@ -449,6 +449,9 @@ const AddPollDialog = ({
         minChars: 1,
         maxChars: 2000,
       });
+      else if (type === "FILL_IN_BLANK") {
+        updateQuestion(id, { type, prompt: "", answers: [] });
+      }
     else updateQuestion(id, { type, options: [], answers: ["", ""] });
   };
 
@@ -767,7 +770,7 @@ const AddPollDialog = ({
                         updateAnswer(q.id, idx, val)
                       }
                       onRemoveAnswer={(idx) => removeAnswer(q.id, idx)}
-                      onAddAnswer={() => addAnswer(q.id)}
+                      // onAddAnswer={() => addAnswer(q.id)}
                     />
                   )
                 )}
