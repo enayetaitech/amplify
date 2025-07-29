@@ -169,6 +169,9 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
     setStep(2);
   };
 
+  const isSaving = createSessions.isPending;
+
+
   return (
     <Dialog open={open} onOpenChange={onClose} >
       <DialogContent className="w-full max-w-5xl overflow-x-auto border-0">
@@ -201,6 +204,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
               updateFormData={(fields) =>
                 setFormData((f) => ({ ...f, ...fields }))
               }
+              isSaving={isSaving}
             />
             <div className="flex justify-between">
               <CustomButton
@@ -211,10 +215,10 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
               </CustomButton>
               <CustomButton
                 onClick={handleSave}
-                disabled={createSessions.isPending}
+                disabled={isSaving}
                 className="bg-custom-orange-2 hover:bg-custom-orange-1"
               >
-                {createSessions.isPending ? "Saving…" : "Save Sessions"}
+                {isSaving ? "Saving…" : "Save Sessions"}
               </CustomButton>
             </div>
           </>
