@@ -1,5 +1,10 @@
 import { Switch } from "@/components/ui/switch";
-import { CreatePollPayload, DraftQuestion, IPoll, QuestionType } from "@shared/interface/PollInterface";
+import {
+  CreatePollPayload,
+  DraftQuestion,
+  IPoll,
+  QuestionType,
+} from "@shared/interface/PollInterface";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import CustomButton from "components/shared/CustomButton";
@@ -50,7 +55,13 @@ import MatchingQuestion from "./MatchingQuestion";
 import RankOrderQuestion from "./RankOrderQuestion";
 import FillInBlankQuestion from "./FillInBlankQuestion";
 import RatingScaleQuestion from "./RatingScaleQuestion";
-import { lettersAndSpaces, noLeadingSpace, noMultipleSpaces, noSpecialChars, validate } from "schemas/validators";
+import {
+  lettersAndSpaces,
+  noLeadingSpace,
+  noMultipleSpaces,
+  noSpecialChars,
+  validate,
+} from "schemas/validators";
 
 const questionTypeOptions: {
   value: QuestionType;
@@ -106,7 +117,9 @@ type WithImage = {
 
 type DraftWithImage = DraftQuestion & WithImage;
 
-const defaultQuestion = (overrides: Partial<DraftQuestion & WithImage> = {}): DraftQuestion & WithImage => ({
+const defaultQuestion = (
+  overrides: Partial<DraftQuestion & WithImage> = {}
+): DraftQuestion & WithImage => ({
   id: crypto.randomUUID(),
   prompt: "",
   type: "SINGLE_CHOICE",
@@ -131,7 +144,6 @@ interface CreatePollResponse {
   data: IPoll;
 }
 
-
 // Returns an error message or null if that question is valid
 const validateQuestion = (q: DraftWithImage): string | null => {
   const prompt = q.prompt.trimEnd();
@@ -151,21 +163,22 @@ const validateQuestion = (q: DraftWithImage): string | null => {
 
   switch (q.type) {
     case "SINGLE_CHOICE":
-      if (q.answers.length < 2)       return "Need at least two choices";
-      if (q.answers.some(a => !a.trim())) return "All choices must be filled";
-      if (q.correctAnswer == null)     return "Select a correct answer";
+      if (q.answers.length < 2) return "Need at least two choices";
+      if (q.answers.some((a) => !a.trim())) return "All choices must be filled";
+      if (q.correctAnswer == null) return "Select a correct answer";
       return null;
 
     case "MULTIPLE_CHOICE":
-      if (q.answers.length < 2)           return "Need at least two choices";
-      if (q.answers.some(a => !a.trim())) return "All choices must be filled";
-      if (!q.correctAnswers?.length)      return "Select at least one correct answer";
+      if (q.answers.length < 2) return "Need at least two choices";
+      if (q.answers.some((a) => !a.trim())) return "All choices must be filled";
+      if (!q.correctAnswers?.length)
+        return "Select at least one correct answer";
       return null;
 
     case "MATCHING":
       if (q.options.length < 1 || q.answers.length < 1)
         return "Need at least one pair";
-      if (q.options.some(o => !o.trim()) || q.answers.some(a => !a.trim()))
+      if (q.options.some((o) => !o.trim()) || q.answers.some((a) => !a.trim()))
         return "All matching pairs must be filled";
       return null;
 
@@ -176,10 +189,10 @@ const validateQuestion = (q: DraftWithImage): string | null => {
 
     case "FILL_IN_BLANK":
       const blanks = Array.from(q.prompt.matchAll(/<blank \d+>/g)).length;
-      if (blanks === 0)       return "Insert at least one blank (`<blank N>`) tag";
+      if (blanks === 0) return "Insert at least one blank (`<blank N>`) tag";
       if (q.answers.length !== blanks)
         return "Number of answers must match number of blanks";
-      if (q.answers.some(a => !a.trim()))
+      if (q.answers.some((a) => !a.trim()))
         return "All blank answers must be filled";
       return null;
 
@@ -201,10 +214,7 @@ const validateQuestion = (q: DraftWithImage): string | null => {
   }
 };
 
-
 // Runs validateQuestion on every question; returns true if all pass
-
-
 
 const AddPollDialog = ({
   projectId,
@@ -220,8 +230,8 @@ const AddPollDialog = ({
   const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
   const [questions, setQuestions] = useState<DraftWithImage[]>(() => [
-  defaultQuestion(),
-]);
+    defaultQuestion(),
+  ]);
 
   const resetForm = () => {
     setTitle("");
@@ -229,49 +239,48 @@ const AddPollDialog = ({
   };
 
   const titleValidators = [
-  noLeadingSpace,
-  noMultipleSpaces,
-  noSpecialChars,
-  lettersAndSpaces,
-];
+    noLeadingSpace,
+    noMultipleSpaces,
+    noSpecialChars,
+    lettersAndSpaces,
+  ];
 
-const validateTitle = (t: string): string | null => {
-  if (!t.trim()) return "Title is required";
-  if (!validate(t, titleValidators))
-    return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
-  return null;
-};
+  const validateTitle = (t: string): string | null => {
+    if (!t.trim()) return "Title is required";
+    if (!validate(t, titleValidators))
+      return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
+    return null;
+  };
   const createPollMutation = useMutation<
     IPoll,
     AxiosError<CreatePollResponse> | Error,
     CreatePollPayload
   >({
-    mutationFn: () =>  {
-    const formData = new FormData();
+    mutationFn: () => {
+      const formData = new FormData();
 
-  
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const questionsPayload = questions.map(({ imageFile, ...rest }) => rest);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const questionsPayload = questions.map(({ imageFile, ...rest }) => rest);
 
-    formData.append("questions", JSON.stringify(questionsPayload));
-    formData.append("projectId", projectId);
-    formData.append("title", title.trim());
-    formData.append("createdBy", user._id);
-    formData.append("createdByRole", user.role);
+      formData.append("questions", JSON.stringify(questionsPayload));
+      formData.append("projectId", projectId);
+      formData.append("title", title.trim());
+      formData.append("createdBy", user._id);
+      formData.append("createdByRole", user.role);
 
-    // attach actual files under "images"
-   questions.forEach((q) => {
-      if (q.imageFile && q.tempImageName) {
-        formData.append("images", q.imageFile, q.tempImageName);
-      }
-    });
+      // attach actual files under "images"
+      questions.forEach((q) => {
+        if (q.imageFile && q.tempImageName) {
+          formData.append("images", q.imageFile, q.tempImageName);
+        }
+      });
 
-    return api
-      .post<CreatePollResponse>("/api/v1/polls", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      .then(r => r.data.data);
-  },
+      return api
+        .post<CreatePollResponse>("/api/v1/polls", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+        .then((r) => r.data.data);
+    },
 
     // 2) callbacks
     onSuccess: () => {
@@ -289,29 +298,31 @@ const validateTitle = (t: string): string | null => {
   });
 
   const allQuestionsValid = () =>
-  questions.every(q => validateQuestion(q) === null);
+    questions.every((q) => validateQuestion(q) === null);
   // 2️⃣ hook up Save
   const onSave = () => {
     if (!projectId || !user) return;
 
-     const titleError = validateTitle(title);
-  if (titleError) {
-    toast.error(titleError);
-    return;
-  }
+    const titleError = validateTitle(title);
+    if (titleError) {
+      toast.error(titleError);
+      return;
+    }
 
     if (!allQuestionsValid()) {
-    // Find the first invalid question and report its error
-    const firstError = questions
-      .map(q => ({ id: q.id, err: validateQuestion(q) }))
-      .find(x => x.err !== null);
-    toast.error(
-      firstError
-        ? `Question ${questions.findIndex(q => q.id === firstError.id) + 1}: ${firstError.err}`
-        : "Please fix the errors in your questions"
-    );
-    return;
-  }
+      // Find the first invalid question and report its error
+      const firstError = questions
+        .map((q) => ({ id: q.id, err: validateQuestion(q) }))
+        .find((x) => x.err !== null);
+      toast.error(
+        firstError
+          ? `Question ${
+              questions.findIndex((q) => q.id === firstError.id) + 1
+            }: ${firstError.err}`
+          : "Please fix the errors in your questions"
+      );
+      return;
+    }
 
     const payloadQs = questions.map((q) => {
       if (q.type === "RANK_ORDER") {
@@ -337,8 +348,8 @@ const validateTitle = (t: string): string | null => {
   };
 
   const addQuestion = () => {
-  setQuestions((qs) => [...qs, defaultQuestion()]);
-};
+    setQuestions((qs) => [...qs, defaultQuestion()]);
+  };
 
   const updateQuestion = (id: string, patch: Partial<DraftWithImage>) =>
     setQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...patch } : q)));
@@ -347,11 +358,11 @@ const validateTitle = (t: string): string | null => {
     setQuestions((qs) => qs.filter((q) => q.id !== id));
 
   const duplicateQuestion = (id: string) => {
-     const orig = questions.find((q) => q.id === id)!;
-  setQuestions((qs) => [
-    ...qs,
-    defaultQuestion({ ...orig, id: crypto.randomUUID() })
-  ]);
+    const orig = questions.find((q) => q.id === id)!;
+    setQuestions((qs) => [
+      ...qs,
+      defaultQuestion({ ...orig, id: crypto.randomUUID() }),
+    ]);
   };
 
   const updateType = (id: string, type: QuestionType) => {
@@ -506,7 +517,15 @@ const validateTitle = (t: string): string | null => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} 
+    onOpenChange={(nextOpen) => {
+      // if we’re closing the dialog (e.g. user clicked the ×)…
+      if (!nextOpen) {
+        resetForm();
+      }
+      setOpen(nextOpen);
+    }}
+  >
       <DialogTrigger asChild>
         <CustomButton
           className="bg-custom-orange-1 hover:bg-custom-orange-2 rounded-lg"
@@ -524,7 +543,7 @@ const validateTitle = (t: string): string | null => {
               className="bg-custom-teal hover:bg-custom-dark-blue-3 rounded-lg"
               onClick={onSave}
               text={createPollMutation.isPending ? "Saving…" : "Save Poll"}
-              disabled={createPollMutation.isPending }
+              disabled={createPollMutation.isPending}
               variant="default"
             />
           </div>
@@ -560,12 +579,12 @@ const validateTitle = (t: string): string | null => {
                       onChange={(e) =>
                         updateQuestion(q.id, { prompt: e.target.value })
                       }
-                        onBlur={() => {
-    const cleaned = q.prompt.trimEnd();
-    if (cleaned !== q.prompt) {
-      updateQuestion(q.id, { prompt: cleaned });
-    }
-  }}
+                      onBlur={() => {
+                        const cleaned = q.prompt.trimEnd();
+                        if (cleaned !== q.prompt) {
+                          updateQuestion(q.id, { prompt: cleaned });
+                        }
+                      }}
                       className="mt-1"
                     />
                   </div>
@@ -730,23 +749,23 @@ const validateTitle = (t: string): string | null => {
                   <span>Required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">
-      <Upload className="h-5 w-5" />
-      <input
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        onChange={e => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          updateQuestion(q.id, {
-            imageFile: file,
-            tempImageName: file.name,
-          });
-        }}
-      />
-      {q.imageFile ? q.imageFile.name : "Attach image"}
-    </label>
+                  <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">
+                    <Upload className="h-5 w-5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        updateQuestion(q.id, {
+                          imageFile: file,
+                          tempImageName: file.name,
+                        });
+                      }}
+                    />
+                    {q.imageFile ? q.imageFile.name : "Attach image"}
+                  </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <CustomButton
