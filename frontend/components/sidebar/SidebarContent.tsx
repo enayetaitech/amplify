@@ -53,7 +53,6 @@ export default function SidebarContent({
     enabled: Boolean(userId),
   });
 
-  console.log('projects', projects)
   const [projectsOpen, setProjectsOpen] = useState(
     pathname.startsWith("/projects")
   );
@@ -74,6 +73,27 @@ export default function SidebarContent({
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  // inside SidebarContent.tsx, above your component or at top of it:
+function formatDisplayName(firstName: string, lastName: string) {
+  const initial = lastName.charAt(0).toUpperCase();
+  const maxLen = 16;
+  const spacePlusInit = ` ${initial}`;            // 2 chars
+
+  // If it already fits, just return "FirstName I"
+  if (`${firstName}${spacePlusInit}`.length <= maxLen) {
+    return `${firstName}${spacePlusInit}`;
+  }
+
+  // Otherwise, truncate firstName so that:
+  //  truncatedFirst.length + 2 (for "..") + 2 (for " I") === maxLen
+  const truncatedFirstLen = maxLen - 4;            // maxLen - (".." + spacePlusInit).length
+  const truncatedFirst = firstName.slice(0, truncatedFirstLen);
+
+  return `${truncatedFirst}..${spacePlusInit}`;
+}
+
+
 
   return (
     <>
@@ -280,7 +300,9 @@ export default function SidebarContent({
             </Avatar>
             <div className="text-sm truncate">
               <p className="font-semibold">
-                {user?.firstName} {user?.lastName}
+               {user
+   ? formatDisplayName(user.firstName, user.lastName)
+    : ""}
               </p>
               <p className="text-xs text-gray-600 truncate">{user?.email}</p>
             </div>
