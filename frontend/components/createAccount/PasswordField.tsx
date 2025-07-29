@@ -56,6 +56,9 @@ export default function PasswordField<TFieldValues extends FieldValues>({
                 placeholder={placeholder}
                 {...field}
                 disabled={disabled}
+                 onCopy={(e) => e.preventDefault()}
+               onPaste={(e) => e.preventDefault()}
+               onCut={(e) => e.preventDefault()}
               />
               <Button
                 type="button"
