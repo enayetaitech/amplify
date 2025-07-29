@@ -48,7 +48,7 @@ const ProjectTeam = () => {
         <HeadingBlue25px>Project Team View</HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
-          text="Add Moderator"
+          text="Add Project Team"
           variant="default"
           className=" bg-custom-orange-2 text-white hover:bg-custom-orange-1 font-semibold px-2"
           onClick={() => {

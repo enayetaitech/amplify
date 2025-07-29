@@ -187,7 +187,9 @@ export default function AddModeratorModal({
                 >
                   Cancel
                 </Button>
-                <Button type="submit">Save</Button>
+                <Button 
+                disabled={createProjectTeamMember.isPending}
+                type="submit">  {createProjectTeamMember.isPending ? "Saving..." : "Save"}</Button>
               </DialogFooter>
             </form>
           </Form>
