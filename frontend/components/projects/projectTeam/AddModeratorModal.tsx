@@ -112,7 +112,15 @@ export default function AddModeratorModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(val) => val || onClose()}>
+           <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+         // if the dialog is closing…
+          if (!nextOpen) {
+            form.reset();
+            onClose();
+          }
+        }}      >
         <DialogContent className="w-full max-w-2xl overflow-x-auto border-0">
           <DialogHeader>
             <DialogTitle>Add Moderator</DialogTitle>
