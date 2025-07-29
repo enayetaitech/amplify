@@ -86,7 +86,7 @@ export default function RegisterForm() {
               render={({ field }) => (
                 <FormItem className="w-full">
                   <FormLabel>Phone Number</FormLabel>
-                  <div className="flex">
+                  <div className="flex gap-0.5">
                     <CountrySelector
                       countries={countries}
                       isLoading={countriesLoading}
@@ -101,7 +101,7 @@ export default function RegisterForm() {
                           const value = e.target.value.replace(/[^0-9]/g, "");
                           field.onChange(value);
                         }}
-                        className="rounded-l-none flex-1"
+                        className=" flex-1"
                            disabled={isSaving}
                       />
                     </FormControl>

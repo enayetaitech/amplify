@@ -39,7 +39,7 @@ export default function CountrySelector({
           role="combobox"
           aria-expanded={open}
           disabled={isLoading}
-          className="w-32 justify-between border-r-0 rounded-r-none"
+          className="w-32 justify-between border-none"
         >
           {selectedCountry ? (
             <div className="flex items-center">
@@ -53,7 +53,7 @@ export default function CountrySelector({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-64 p-0">
+      <PopoverContent className="w-64 p-0 border-0">
         <Command>
           <CommandInput placeholder="Search country or code…" />
           <CommandEmpty>No country found.</CommandEmpty>
