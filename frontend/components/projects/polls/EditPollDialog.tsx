@@ -19,6 +19,7 @@ import MatchingQuestion from "./MatchingQuestion";
 import RankOrderQuestion from "./RankOrderQuestion";
 import RatingScaleQuestion from "./RatingScaleQuestion";
 import FillInBlankQuestion from "./FillInBlankQuestion";
+import { allQuestionsValid, validateQuestion, validateTitle } from "./AddPollDialog";
 
 // copy your questionTypeOptions from AddPollDialog...
 const questionTypeOptions: { value: QuestionType; label: string; icon: React.ReactNode }[] = [
@@ -91,7 +92,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(poll.title);
   const [questions, setQuestions] = useState<DraftQuestion[]>([]);
-console.log('Edit poll', poll)
+
   // keep in sync when poll changes
   useEffect(() => {
     setTitle(poll.title);
@@ -166,6 +167,7 @@ console.log('Edit poll', poll)
     setQuestions(qs => qs.map(q => (q.id === id ? { ...q, ...patch } : q)));
   const addQuestion = () => setQuestions(qs => [...qs, defaultQuestion()]);
   const removeQuestion = (id: string) => setQuestions(qs => qs.filter(q => q.id !== id));
+
   const duplicateQuestion = (id: string) => {
     const orig = questions.find(q => q.id === id)!;
     setQuestions(qs => [...qs, defaultQuestion({ ...orig })]);
@@ -308,9 +310,26 @@ console.log('Edit poll', poll)
   const changeHighLabel = (id: string, v: string) =>
     updateQuestion(id, { highLabel: v });
 
+
   // Save
+
   const handleSave = () => {
-    
+     const titleError = validateTitle(title);
+  if (titleError) {
+    toast.error(titleError);
+    return;
+  }
+
+  // 2️⃣ questions
+  if (!allQuestionsValid(questions)) {
+    // find first invalid
+    const { idx, err } = questions
+      .map((q, i) => ({ idx: i + 1, err: validateQuestion(q) }))
+      .find(x => x.err !== null)!;
+    toast.error(`Question ${idx}: ${err}`);
+    return;
+  }
+
     updateMutation.mutate({
       id: poll._id,
       projectId: poll.projectId!,

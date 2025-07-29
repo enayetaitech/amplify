@@ -145,7 +145,7 @@ interface CreatePollResponse {
 }
 
 // Returns an error message or null if that question is valid
-const validateQuestion = (q: DraftWithImage): string | null => {
+export const validateQuestion = (q: DraftWithImage): string | null => {
   const prompt = q.prompt.trimEnd();
 
   // 0) Prompt must not be blank
@@ -191,22 +191,28 @@ const validateQuestion = (q: DraftWithImage): string | null => {
       return null;
 
     case "RANK_ORDER":
-      if (q.options.length < 2) {
-        return "Need at least two items to rank";
-      }
-      if (q.options.some(r => !r.trim())) {
-        return "All rank items must be filled";
-      }
-      if (q.answers.length < 2) {
-        return "Need at least two columns";
-      }
-      if (q.answers.some(c => !c.trim())) {
-        return "All rank columns must be filled";
-      }
-      if (q.options.length !== q.answers.length) {
-        return "Rows and columns count must match";
-      }
-      return null;
+  // 1) at least two rows
+  if (q.rows.length < 2) {
+    return "Need at least two items to rank";
+  }
+  // 2) no empty row labels
+  if (q.rows.some(r => !r.trim())) {
+    return "All rank items must be filled";
+  }
+  // 3) at least two columns
+  if (q.columns.length < 2) {
+    return "Need at least two columns";
+  }
+  // 4) no empty column labels
+  if (q.columns.some(c => !c.trim())) {
+    return "All rank columns must be filled";
+  }
+  // 5) rows & columns same count
+  if (q.rows.length !== q.columns.length) {
+    return "Rows and columns count must match";
+  }
+  return null;
+
 
     case "FILL_IN_BLANK":
       const blanks = Array.from(q.prompt.matchAll(/<blank \d+>/g)).length;
@@ -240,6 +246,23 @@ const validateQuestion = (q: DraftWithImage): string | null => {
 };
 
 // Runs validateQuestion on every question; returns true if all pass
+ const titleValidators = [
+    noLeadingSpace,
+    noMultipleSpaces,
+    noSpecialChars,
+    lettersAndSpaces,
+  ];
+
+  export const validateTitle = (t: string): string | null => {
+    if (!t.trim()) return "Title is required";
+    if (!validate(t, titleValidators))
+      return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
+    return null;
+  };
+
+export function allQuestionsValid(qs: DraftQuestion[]) {
+  return qs.every((q) => validateQuestion(q) === null);
+}
 
 const AddPollDialog = ({
   projectId,
@@ -263,19 +286,7 @@ const AddPollDialog = ({
     setQuestions([defaultQuestion()]);
   };
 
-  const titleValidators = [
-    noLeadingSpace,
-    noMultipleSpaces,
-    noSpecialChars,
-    lettersAndSpaces,
-  ];
-
-  const validateTitle = (t: string): string | null => {
-    if (!t.trim()) return "Title is required";
-    if (!validate(t, titleValidators))
-      return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
-    return null;
-  };
+ 
   const createPollMutation = useMutation<
     IPoll,
     AxiosError<CreatePollResponse> | Error,
@@ -322,8 +333,7 @@ const AddPollDialog = ({
     },
   });
 
-  const allQuestionsValid = () =>
-    questions.every((q) => validateQuestion(q) === null);
+ 
   // 2️⃣ hook up Save
   const onSave = () => {
     if (!projectId || !user) return;
@@ -334,7 +344,7 @@ const AddPollDialog = ({
       return;
     }
 
-    if (!allQuestionsValid()) {
+    if (!allQuestionsValid(questions)) {
       // Find the first invalid question and report its error
       const firstError = questions
         .map((q) => ({ id: q.id, err: validateQuestion(q) }))
