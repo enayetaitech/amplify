@@ -98,7 +98,14 @@ const questionTypeOptions: {
   },
 ];
 
-const defaultQuestion = (overrides: Partial<DraftQuestion> = {}): DraftQuestion => ({
+type WithImage = {
+  imageFile?: File;
+  tempImageName?: string;
+};
+
+type DraftWithImage = DraftQuestion & WithImage;
+
+const defaultQuestion = (overrides: Partial<DraftQuestion & WithImage> = {}): DraftQuestion & WithImage => ({
   id: crypto.randomUUID(),
   prompt: "",
   type: "SINGLE_CHOICE",
@@ -136,7 +143,7 @@ const AddPollDialog = ({
 
   const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
-  const [questions, setQuestions] = useState<DraftQuestion[]>(() => [
+  const [questions, setQuestions] = useState<DraftWithImage[]>(() => [
   defaultQuestion(),
 ]);
 
@@ -150,10 +157,32 @@ const AddPollDialog = ({
     AxiosError<CreatePollResponse> | Error,
     CreatePollPayload
   >({
-    mutationFn: (payload: CreatePollPayload) =>
-      api
-        .post<CreatePollResponse>("/api/v1/polls", payload)
-        .then((r) => r.data.data),
+    mutationFn: () =>  {
+    const formData = new FormData();
+
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const questionsPayload = questions.map(({ imageFile, ...rest }) => rest);
+
+    formData.append("questions", JSON.stringify(questionsPayload));
+    formData.append("projectId", projectId);
+    formData.append("title", title.trim());
+    formData.append("createdBy", user._id);
+    formData.append("createdByRole", user.role);
+
+    // attach actual files under "images"
+   questions.forEach((q) => {
+      if (q.imageFile && q.tempImageName) {
+        formData.append("images", q.imageFile, q.tempImageName);
+      }
+    });
+
+    return api
+      .post<CreatePollResponse>("/api/v1/polls", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then(r => r.data.data);
+  },
 
     // 2) callbacks
     onSuccess: () => {
@@ -201,7 +230,7 @@ const AddPollDialog = ({
   setQuestions((qs) => [...qs, defaultQuestion()]);
 };
 
-  const updateQuestion = (id: string, patch: Partial<DraftQuestion>) =>
+  const updateQuestion = (id: string, patch: Partial<DraftWithImage>) =>
     setQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...patch } : q)));
   const removeQuestion = (id: string) =>
     setQuestions((qs) => qs.filter((q) => q.id !== id));
@@ -582,7 +611,23 @@ const AddPollDialog = ({
                   <span>Required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CustomButton icon={<Upload />} variant="ghost" size="icon" />
+                <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">
+      <Upload className="h-5 w-5" />
+      <input
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          updateQuestion(q.id, {
+            imageFile: file,
+            tempImageName: file.name,
+          });
+        }}
+      />
+      {q.imageFile ? q.imageFile.name : "Attach image"}
+    </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <CustomButton

@@ -4,6 +4,7 @@ import { PollModel } from "../model/PollModel";
 import ErrorHandler from "../utils/ErrorHandler";
 import { sendResponse } from "../utils/responseHelpers";
 import { validateQuestion } from "../processors/poll/QuestionValidationProcessor";
+import { uploadToS3 } from "../utils/uploadToS3";
 
 /* ───────────────────────────────────────────────────────────── */
 /*  Controller – Create Poll                                    */
@@ -33,22 +34,59 @@ export const createPoll = async (
       new ErrorHandler("Only Admin or Moderator can create polls", 403)
     );
   }
-  if (!Array.isArray(questions) || questions.length === 0) {
-    return next(new ErrorHandler("questions array is required", 400));
-  }
+// ── 2) Parse questions JSON ───────────────────────────────────────
+    let questionsPayload: any[] = req.body.questions;
+    if (typeof questionsPayload === "string") {
+      try {
+        questionsPayload = JSON.parse(questionsPayload);
+      } catch {
+        return next(new ErrorHandler("Invalid questions JSON", 400));
+      }
+    }
 
-  /* 2. Per-question validation ------------------------------------- */
-  for (let i = 0; i < questions.length; i++) {
-    if (validateQuestion(questions[i], i, next)) return; // stop on first error
-  }
-  console.log("done");
+    if (!Array.isArray(questionsPayload) || questionsPayload.length === 0) {
+      return next(new ErrorHandler("questions array is required", 400));
+    }
+
+    // ── 3) Upload images to S3 & stitch into questions ───────────────
+    //    Expect front-end to send each File under field "images" and
+    //    each question to have a tempImageName === file.originalname
+    const files = (req.files as Express.Multer.File[]) || [];
+    for (const file of files) {
+      let result;
+      try {
+        result = await uploadToS3(file.buffer, file.mimetype, file.originalname);
+      } catch (err) {
+        return next(
+          new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
+        );
+      }
+console.log('files', files)
+      // find the matching question by your tempImageName
+      const q = questionsPayload.find((q) => q.tempImageName === file.originalname);
+console.log('question',q)
+      if (q) {
+        q.image = result.url;
+        // optionally store the S3 key if you need it:
+        // q.imageKey = result.key;
+        delete q.tempImageName;
+      }
+    }
+
+    
+    // ── 4) Per-question validation ────────────────────────────────────
+    for (let i = 0; i < questionsPayload.length; i++) {
+      if (validateQuestion(questionsPayload[i], i, next)) {
+        return; // stops on first error
+      }
+    }
   /* 3. Create poll -------------------------------------------------- */
 
   const poll = await PollModel.create({
     projectId,
     // sessionId,
     title: title.trim(),
-    questions,
+    questions: questionsPayload,
     createdBy,
     createdByRole,
   });

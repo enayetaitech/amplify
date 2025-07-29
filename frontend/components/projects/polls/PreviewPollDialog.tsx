@@ -31,6 +31,7 @@ import {
 } from "components/ui/select";
 import { Textarea } from "components/ui/textarea";
 import { Input } from "components/ui/input";
+import Image from "next/image";
 
 interface PreviewPollDialogProps {
   poll: IPoll;
@@ -85,6 +86,17 @@ const PreviewPollDialog: React.FC<PreviewPollDialogProps> = ({
                   <span className="text-sm text-gray-500">{typeLabel}</span>
                 </h4>
 
+ {/* ← New: show uploaded image if present */}
+      {q.image && (
+        <Image
+        width={200}
+        height={200}
+        unoptimized
+          src={q.image}
+          alt={`Question ${idx + 1} Illustration`}
+          className="my-4 max-h-60 w-auto object-contain rounded border"
+        />
+      )}
                 {/* SINGLE_CHOICE */}
                 {q.type === "SINGLE_CHOICE" &&
                   (() => {

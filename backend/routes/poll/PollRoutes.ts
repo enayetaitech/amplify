@@ -1,12 +1,13 @@
 import express from "express";
 import { catchError } from "../../middlewares/CatchErrorMiddleware";
 import { createPoll, deletePoll, duplicatePoll, getPollById, getPollsByProjectId, updatePoll } from "../../controllers/PollController";
+import { uploadImage } from "../../utils/multer";
 
 
 const router = express.Router();
 
 /* POST /api/v1/polls  – Create a new poll */
-router.post("/", catchError(createPoll));
+router.post("/", uploadImage.array("images", 20), catchError(createPoll));
 
 // GET /api/v1/polls/project/:projectId?page=&limit=
 router.get("/project/:projectId", catchError(getPollsByProjectId));
