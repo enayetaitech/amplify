@@ -50,6 +50,7 @@ import MatchingQuestion from "./MatchingQuestion";
 import RankOrderQuestion from "./RankOrderQuestion";
 import FillInBlankQuestion from "./FillInBlankQuestion";
 import RatingScaleQuestion from "./RatingScaleQuestion";
+import { lettersAndSpaces, noLeadingSpace, noMultipleSpaces, noSpecialChars, validate } from "schemas/validators";
 
 const questionTypeOptions: {
   value: QuestionType;
@@ -130,6 +131,71 @@ interface CreatePollResponse {
   data: IPoll;
 }
 
+
+// Returns an error message or null if that question is valid
+const validateQuestion = (q: DraftWithImage): string | null => {
+  // 0) Prompt must not be blank
+  if (!q.prompt.trim()) {
+    return "Question text is required";
+  }
+
+  switch (q.type) {
+    case "SINGLE_CHOICE":
+      if (q.answers.length < 2)       return "Need at least two choices";
+      if (q.answers.some(a => !a.trim())) return "All choices must be filled";
+      if (q.correctAnswer == null)     return "Select a correct answer";
+      return null;
+
+    case "MULTIPLE_CHOICE":
+      if (q.answers.length < 2)           return "Need at least two choices";
+      if (q.answers.some(a => !a.trim())) return "All choices must be filled";
+      if (!q.correctAnswers?.length)      return "Select at least one correct answer";
+      return null;
+
+    case "MATCHING":
+      if (q.options.length < 1 || q.answers.length < 1)
+        return "Need at least one pair";
+      if (q.options.some(o => !o.trim()) || q.answers.some(a => !a.trim()))
+        return "All matching pairs must be filled";
+      return null;
+
+    case "RANK_ORDER":
+      if (q.options.length < 2) return "Need at least two items to rank";
+      if (q.answers.length < 2) return "Need at least two columns";
+      return null;
+
+    case "FILL_IN_BLANK":
+      const blanks = Array.from(q.prompt.matchAll(/<blank \d+>/g)).length;
+      if (blanks === 0)       return "Insert at least one blank (`<blank N>`) tag";
+      if (q.answers.length !== blanks)
+        return "Number of answers must match number of blanks";
+      if (q.answers.some(a => !a.trim()))
+        return "All blank answers must be filled";
+      return null;
+
+    case "SHORT_ANSWER":
+    case "LONG_ANSWER":
+      if (q.minChars! > q.maxChars!)
+        return "Min characters cannot exceed max characters";
+      return null;
+
+    case "RATING_SCALE":
+      if (q.scoreFrom == null || q.scoreTo == null)
+        return "Specify both score From and To";
+      if (q.scoreFrom! >= q.scoreTo!)
+        return "`scoreFrom` must be less than `scoreTo`";
+      return null;
+
+    default:
+      return null;
+  }
+};
+
+
+// Runs validateQuestion on every question; returns true if all pass
+
+
+
 const AddPollDialog = ({
   projectId,
   user,
@@ -152,6 +218,19 @@ const AddPollDialog = ({
     setQuestions([defaultQuestion()]);
   };
 
+  const titleValidators = [
+  noLeadingSpace,
+  noMultipleSpaces,
+  noSpecialChars,
+  lettersAndSpaces,
+];
+
+const validateTitle = (t: string): string | null => {
+  if (!t.trim()) return "Title is required";
+  if (!validate(t, titleValidators))
+    return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
+  return null;
+};
   const createPollMutation = useMutation<
     IPoll,
     AxiosError<CreatePollResponse> | Error,
@@ -199,9 +278,30 @@ const AddPollDialog = ({
     },
   });
 
+  const allQuestionsValid = () =>
+  questions.every(q => validateQuestion(q) === null);
   // 2️⃣ hook up Save
   const onSave = () => {
     if (!projectId || !user) return;
+
+     const titleError = validateTitle(title);
+  if (titleError) {
+    toast.error(titleError);
+    return;
+  }
+  
+    if (!allQuestionsValid()) {
+    // Find the first invalid question and report its error
+    const firstError = questions
+      .map(q => ({ id: q.id, err: validateQuestion(q) }))
+      .find(x => x.err !== null);
+    toast.error(
+      firstError
+        ? `Question ${questions.findIndex(q => q.id === firstError.id) + 1}: ${firstError.err}`
+        : "Please fix the errors in your questions"
+    );
+    return;
+  }
 
     const payloadQs = questions.map((q) => {
       if (q.type === "RANK_ORDER") {
@@ -232,8 +332,10 @@ const AddPollDialog = ({
 
   const updateQuestion = (id: string, patch: Partial<DraftWithImage>) =>
     setQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+
   const removeQuestion = (id: string) =>
     setQuestions((qs) => qs.filter((q) => q.id !== id));
+
   const duplicateQuestion = (id: string) => {
      const orig = questions.find((q) => q.id === id)!;
   setQuestions((qs) => [
@@ -412,7 +514,7 @@ const AddPollDialog = ({
               className="bg-custom-teal hover:bg-custom-dark-blue-3 rounded-lg"
               onClick={onSave}
               text={createPollMutation.isPending ? "Saving…" : "Save Poll"}
-              disabled={createPollMutation.isPending}
+              disabled={createPollMutation.isPending }
               variant="default"
             />
           </div>
@@ -424,6 +526,7 @@ const AddPollDialog = ({
             id="poll-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            required
             placeholder="Enter poll title"
             className="mt-1 py-2"
           />
