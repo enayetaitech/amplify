@@ -175,25 +175,50 @@ const validateQuestion = (q: DraftWithImage): string | null => {
         return "Select at least one correct answer";
       return null;
 
-    case "MATCHING":
-      if (q.options.length < 1 || q.answers.length < 1)
-        return "Need at least one pair";
-      if (q.options.some((o) => !o.trim()) || q.answers.some((a) => !a.trim()))
+     case "MATCHING":
+      if (q.options.length < 1 || q.answers.length < 1) {
+        return "Need at least one matching pair";
+      }
+      if (q.options.length !== q.answers.length) {
+        return "Options and answers count must match";
+      }
+      if (
+        q.options.some(o => !o.trim()) ||
+        q.answers.some(a => !a.trim())
+      ) {
         return "All matching pairs must be filled";
+      }
       return null;
 
     case "RANK_ORDER":
-      if (q.options.length < 2) return "Need at least two items to rank";
-      if (q.answers.length < 2) return "Need at least two columns";
+      if (q.options.length < 2) {
+        return "Need at least two items to rank";
+      }
+      if (q.options.some(r => !r.trim())) {
+        return "All rank items must be filled";
+      }
+      if (q.answers.length < 2) {
+        return "Need at least two columns";
+      }
+      if (q.answers.some(c => !c.trim())) {
+        return "All rank columns must be filled";
+      }
+      if (q.options.length !== q.answers.length) {
+        return "Rows and columns count must match";
+      }
       return null;
 
     case "FILL_IN_BLANK":
       const blanks = Array.from(q.prompt.matchAll(/<blank \d+>/g)).length;
-      if (blanks === 0) return "Insert at least one blank (`<blank N>`) tag";
-      if (q.answers.length !== blanks)
+      if (blanks === 0) {
+        return "Insert at least one blank (`<blank N>`) tag";
+      }
+      if (q.answers.length !== blanks) {
         return "Number of answers must match number of blanks";
-      if (q.answers.some((a) => !a.trim()))
+      }
+      if (q.answers.some(a => !a.trim())) {
         return "All blank answers must be filled";
+      }
       return null;
 
     case "SHORT_ANSWER":
