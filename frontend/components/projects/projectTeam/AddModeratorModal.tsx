@@ -108,6 +108,8 @@ export default function AddModeratorModal({
     }
   );
 
+  const isSaving = createProjectTeamMember.isPending
+
   return (
     <>
       <Dialog open={open} onOpenChange={(val) => val || onClose()}>
@@ -128,7 +130,9 @@ export default function AddModeratorModal({
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
                       <FormControl>
-                        <Input type={type} placeholder={label} {...field} />
+                        <Input type={type} placeholder={label} {...field} 
+                        disabled={isSaving}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -152,6 +156,7 @@ export default function AddModeratorModal({
                           >
                             <Checkbox
                               checked={field.value.includes(role)}
+                              disabled={isSaving}
                               onCheckedChange={(checked) => {
                                 // same confirm logic for Admin
                                 if (role === "Admin" && checked) {
@@ -188,8 +193,8 @@ export default function AddModeratorModal({
                   Cancel
                 </Button>
                 <Button 
-                disabled={createProjectTeamMember.isPending}
-                type="submit">  {createProjectTeamMember.isPending ? "Saving..." : "Save"}</Button>
+                disabled={isSaving}
+                type="submit">  {isSaving ? "Saving..." : "Save"}</Button>
               </DialogFooter>
             </form>
           </Form>
