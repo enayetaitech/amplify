@@ -173,7 +173,19 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
 
 
   return (
-    <Dialog open={open} onOpenChange={onClose} >
+    <Dialog
+  open={open}
+  onOpenChange={(nextOpen) => {
+    // when it’s closing…
+    if (!nextOpen) {
+      // reset everything
+      setFormData(initialFormData);
+      setStep(1);
+      // notify parent
+      onClose();
+    }
+  }}
+>
       <DialogContent className="w-full max-w-5xl overflow-x-auto border-0">
         <DialogHeader>
           <DialogTitle>Add New Session</DialogTitle>
