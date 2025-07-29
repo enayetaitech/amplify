@@ -74,14 +74,7 @@ export default function ProjectSummary({
                 <TooltipContent
                   side="top"
                   align="start"
-                  className="
-        bg-white 
-        border border-gray-200 
-        rounded-lg 
-        p-3 
-        max-w-xs 
-        shadow-lg
-      "
+                  className="bg-white border border-gray-200 rounded-lg p-3 max-w-xs shadow-lg"
                 >
                   <div className="text-sm text-gray-700">
                     What will participants call your project?
@@ -140,6 +133,7 @@ export default function ProjectSummary({
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 rows={3}
+                disabled={isEditingDesc}
               />
               <div className="flex gap-2">
                 <Button
@@ -199,9 +193,7 @@ export default function ProjectSummary({
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">
             Service Type: {project.service}
-           
           </span>
-          
         </div>
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600 flex">
@@ -224,17 +216,16 @@ export default function ProjectSummary({
             </Tooltip>
           </span>
           <div className="flex items-center space-x-2">
-
-          <Switch
-            checked={project.recordingAccess}
-            onCheckedChange={() => toggleRecording()}
-            disabled={isTogglingRecording}
-            className="cursor-pointer"
+            <Switch
+              checked={project.recordingAccess}
+              onCheckedChange={() => toggleRecording()}
+              disabled={isTogglingRecording}
+              className="cursor-pointer"
             />
-             <span className="text-sm font-medium">
-          {project.recordingAccess ? "Yes" : "No"}
-        </span>
-            </div>
+            <span className="text-sm font-medium">
+              {project.recordingAccess ? "Yes" : "No"}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>
