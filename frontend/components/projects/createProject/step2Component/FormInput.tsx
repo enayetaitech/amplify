@@ -20,6 +20,7 @@ export const FormInput = ({
   pattern,
   patternMessage,
   regexRules,
+  disabled
 }: {
   label: string;
   type?: string;
@@ -30,6 +31,7 @@ export const FormInput = ({
   pattern?: RegExp;
   patternMessage?: string;
     regexRules?: RegexRule[];
+    disabled?: boolean;
 }) => {
   
   const validation = {
@@ -72,6 +74,7 @@ export const FormInput = ({
       {...(type === "number" ? { min: 0 } : {})}
            {...register(name, validation)}
       className="mt-1 w-full"
+      disabled={disabled}
     />
     {error && <p className="text-red-500 text-xs">{error?.message}</p>}
   </div>

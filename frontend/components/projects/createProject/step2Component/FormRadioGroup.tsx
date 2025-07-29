@@ -7,12 +7,14 @@ export const FormRadioGroup = ({
   options,
   register,
   error,
+  disabled
 }: {
   label: string;
   name: keyof Step2FormValues;
   options: string[];
   register: UseFormRegister<Step2FormValues>;
   error?: FieldErrors<Step2FormValues>[keyof Step2FormValues];
+  disabled?: boolean;
 }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700">{label}</label>
@@ -24,6 +26,7 @@ export const FormRadioGroup = ({
             value={val}
             {...register(name, { required: true })}
             className="accent-custom-orange-1"
+            disabled={disabled}
           />
           <span className="text-sm capitalize">{val}</span>
         </label>
