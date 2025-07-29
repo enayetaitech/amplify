@@ -14,6 +14,8 @@ import { useEditProjectDescription } from "hooks/useEditProjectDescription";
 import { useToggleRecordingAccess } from "hooks/useToggleRecordingAccess";
 import { Tooltip, TooltipContent, TooltipTrigger } from "components/ui/tooltip";
 import { BiQuestionMark } from "react-icons/bi";
+import { toast } from "sonner";
+import { alphanumericSingleSpace, noLeadingSpace, noMultipleSpaces } from "schemas/validators";
 
 interface ProjectSummaryProps {
   project: IProject;
@@ -74,14 +76,7 @@ export default function ProjectSummary({
                 <TooltipContent
                   side="top"
                   align="start"
-                  className="
-        bg-white 
-        border border-gray-200 
-        rounded-lg 
-        p-3 
-        max-w-xs 
-        shadow-lg
-      "
+                  className="bg-white border border-gray-200 rounded-lg p-3 max-w-xs shadow-lg"
                 >
                   <div className="text-sm text-gray-700">
                     What will participants call your project?
@@ -99,17 +94,26 @@ export default function ProjectSummary({
               />
               <Button
                 size="icon"
-                onClick={() =>
-                  editName(
-                    { projectId, internalProjectName: newInternalName },
-                    {
-                      onSuccess: () => {
-                        setEditingName(false);
-                      },
-                    }
-                  )
-                }
-                disabled={isEditingName}
+                   onClick={() => {
+     // 1) run our three validators
+     if (
+       !noLeadingSpace(newInternalName) ||
+       !noMultipleSpaces(newInternalName) ||
+       !alphanumericSingleSpace(newInternalName)
+     ) {
+       toast.error(
+         "Internal name must be alphanumeric, no leading/consecutive/trailing spaces."
+       );
+       return;
+     }
+     // 2) if valid, submit
+     editName(
+       { projectId, internalProjectName: newInternalName },
+       {         onSuccess: () => setEditingName(false),
+       }
+     );
+   }}
+   disabled={isEditingName}
               >
                 <CheckIcon className="h-4 w-4" />
               </Button>
@@ -140,20 +144,29 @@ export default function ProjectSummary({
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 rows={3}
+                disabled={isEditingDesc}
               />
               <div className="flex gap-2">
                 <Button
                   size="icon"
-                  onClick={() =>
-                    editDesc(
-                      { projectId, description: newDescription },
-                      {
-                        onSuccess: () => {
-                          setEditingDesc(false);
-                        },
-                      }
-                    )
-                  }
+                  onClick={() => {
+     if (
+      !noLeadingSpace(newDescription) ||
+       !noMultipleSpaces(newDescription) ||
+       !alphanumericSingleSpace(newDescription)
+     ) {
+      toast.error(
+         "Description must be alphanumeric, no leading/consecutive/trailing spaces."
+       );
+       return;
+     }
+    editDesc(
+       { projectId, description: newDescription },
+       {
+         onSuccess: () => setEditingDesc(false),
+       }
+     );
+   }}
                   disabled={isEditingDesc}
                 >
                   <CheckIcon className="h-4 w-4" />
@@ -199,9 +212,7 @@ export default function ProjectSummary({
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">
             Service Type: {project.service}
-           
           </span>
-          
         </div>
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600 flex">
@@ -224,17 +235,16 @@ export default function ProjectSummary({
             </Tooltip>
           </span>
           <div className="flex items-center space-x-2">
-
-          <Switch
-            checked={project.recordingAccess}
-            onCheckedChange={() => toggleRecording()}
-            disabled={isTogglingRecording}
-            className="cursor-pointer"
+            <Switch
+              checked={project.recordingAccess}
+              onCheckedChange={() => toggleRecording()}
+              disabled={isTogglingRecording}
+              className="cursor-pointer"
             />
-             <span className="text-sm font-medium">
-          {project.recordingAccess ? "Yes" : "No"}
-        </span>
-            </div>
+            <span className="text-sm font-medium">
+              {project.recordingAccess ? "Yes" : "No"}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>

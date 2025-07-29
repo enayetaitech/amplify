@@ -1,5 +1,10 @@
 import { Switch } from "@/components/ui/switch";
-import { CreatePollPayload, DraftQuestion, IPoll, QuestionType } from "@shared/interface/PollInterface";
+import {
+  CreatePollPayload,
+  DraftQuestion,
+  IPoll,
+  QuestionType,
+} from "@shared/interface/PollInterface";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import CustomButton from "components/shared/CustomButton";
@@ -50,6 +55,13 @@ import MatchingQuestion from "./MatchingQuestion";
 import RankOrderQuestion from "./RankOrderQuestion";
 import FillInBlankQuestion from "./FillInBlankQuestion";
 import RatingScaleQuestion from "./RatingScaleQuestion";
+import {
+  lettersAndSpaces,
+  noLeadingSpace,
+  noMultipleSpaces,
+  noSpecialChars,
+  validate,
+} from "schemas/validators";
 
 const questionTypeOptions: {
   value: QuestionType;
@@ -98,12 +110,21 @@ const questionTypeOptions: {
   },
 ];
 
-const defaultQuestion = (overrides: Partial<DraftQuestion> = {}): DraftQuestion => ({
+export type WithImage = {
+  imageFile?: File;
+  tempImageName?: string;
+};
+
+type DraftWithImage = DraftQuestion & WithImage;
+
+const defaultQuestion = (
+  overrides: Partial<DraftQuestion & WithImage> = {}
+): DraftQuestion & WithImage => ({
   id: crypto.randomUUID(),
   prompt: "",
   type: "SINGLE_CHOICE",
   options: ["", ""],
-  answers: ["", ""],
+  answers: overrides.type === "FILL_IN_BLANK" ? [] : ["", ""],
   rows: [],
   columns: [],
   required: false,
@@ -123,6 +144,126 @@ interface CreatePollResponse {
   data: IPoll;
 }
 
+// Returns an error message or null if that question is valid
+export const validateQuestion = (q: DraftWithImage): string | null => {
+  const prompt = q.prompt.trimEnd();
+
+  // 0) Prompt must not be blank
+  if (!prompt) {
+    return "Question text is required";
+  }
+  // 1) No leading space
+  if (!noLeadingSpace(prompt)) {
+    return "Question must not start with a space";
+  }
+  // 2) No multiple spaces
+  if (!noMultipleSpaces(prompt)) {
+    return "Question must not contain consecutive spaces";
+  }
+
+  switch (q.type) {
+    case "SINGLE_CHOICE":
+      if (q.answers.length < 2) return "Need at least two choices";
+      if (q.answers.some((a) => !a.trim())) return "All choices must be filled";
+      if (q.correctAnswer == null) return "Select a correct answer";
+      return null;
+
+    case "MULTIPLE_CHOICE":
+      if (q.answers.length < 2) return "Need at least two choices";
+      if (q.answers.some((a) => !a.trim())) return "All choices must be filled";
+      if (!q.correctAnswers?.length)
+        return "Select at least one correct answer";
+      return null;
+
+     case "MATCHING":
+      if (q.options.length < 1 || q.answers.length < 1) {
+        return "Need at least one matching pair";
+      }
+      if (q.options.length !== q.answers.length) {
+        return "Options and answers count must match";
+      }
+      if (
+        q.options.some(o => !o.trim()) ||
+        q.answers.some(a => !a.trim())
+      ) {
+        return "All matching pairs must be filled";
+      }
+      return null;
+
+    case "RANK_ORDER":
+  // 1) at least two rows
+  if (q.rows.length < 2) {
+    return "Need at least two items to rank";
+  }
+  // 2) no empty row labels
+  if (q.rows.some(r => !r.trim())) {
+    return "All rank items must be filled";
+  }
+  // 3) at least two columns
+  if (q.columns.length < 2) {
+    return "Need at least two columns";
+  }
+  // 4) no empty column labels
+  if (q.columns.some(c => !c.trim())) {
+    return "All rank columns must be filled";
+  }
+  // 5) rows & columns same count
+  if (q.rows.length !== q.columns.length) {
+    return "Rows and columns count must match";
+  }
+  return null;
+
+
+    case "FILL_IN_BLANK":
+      const blanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g)).length;
+      if (blanks === 0) {
+        return "Insert at least one blank (`[blank N]`) tag";
+      }
+      if (q.answers.length !== blanks) {
+        return "Number of answers must match number of blanks";
+      }
+      if (q.answers.some(a => !a.trim())) {
+        return "All blank answers must be filled";
+      }
+      return null;
+
+    case "SHORT_ANSWER":
+    case "LONG_ANSWER":
+      if (q.minChars! > q.maxChars!)
+        return "Min characters cannot exceed max characters";
+      return null;
+
+    case "RATING_SCALE":
+      if (q.scoreFrom == null || q.scoreTo == null)
+        return "Specify both score From and To";
+      if (q.scoreFrom! >= q.scoreTo!)
+        return "`scoreFrom` must be less than `scoreTo`";
+      return null;
+
+    default:
+      return null;
+  }
+};
+
+// Runs validateQuestion on every question; returns true if all pass
+ const titleValidators = [
+    noLeadingSpace,
+    noMultipleSpaces,
+    noSpecialChars,
+    lettersAndSpaces,
+  ];
+
+  export const validateTitle = (t: string): string | null => {
+    if (!t.trim()) return "Title is required";
+    if (!validate(t, titleValidators))
+      return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
+    return null;
+  };
+
+export function allQuestionsValid(qs: DraftQuestion[]) {
+  return qs.every((q) => validateQuestion(q) === null);
+}
+
 const AddPollDialog = ({
   projectId,
   user,
@@ -136,24 +277,46 @@ const AddPollDialog = ({
 
   const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
-  const [questions, setQuestions] = useState<DraftQuestion[]>(() => [
-  defaultQuestion(),
-]);
+  const [questions, setQuestions] = useState<DraftWithImage[]>(() => [
+    defaultQuestion(),
+  ]);
 
   const resetForm = () => {
     setTitle("");
     setQuestions([defaultQuestion()]);
   };
 
+ 
   const createPollMutation = useMutation<
     IPoll,
     AxiosError<CreatePollResponse> | Error,
     CreatePollPayload
   >({
-    mutationFn: (payload: CreatePollPayload) =>
-      api
-        .post<CreatePollResponse>("/api/v1/polls", payload)
-        .then((r) => r.data.data),
+    mutationFn: () => {
+      const formData = new FormData();
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const questionsPayload = questions.map(({ imageFile, ...rest }) => rest);
+
+      formData.append("questions", JSON.stringify(questionsPayload));
+      formData.append("projectId", projectId);
+      formData.append("title", title.trim());
+      formData.append("createdBy", user._id);
+      formData.append("createdByRole", user.role);
+
+      // attach actual files under "images"
+      questions.forEach((q) => {
+        if (q.imageFile && q.tempImageName) {
+          formData.append("images", q.imageFile, q.tempImageName);
+        }
+      });
+
+      return api
+        .post<CreatePollResponse>("/api/v1/polls", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+        .then((r) => r.data.data);
+    },
 
     // 2) callbacks
     onSuccess: () => {
@@ -170,9 +333,31 @@ const AddPollDialog = ({
     },
   });
 
+ 
   // 2️⃣ hook up Save
   const onSave = () => {
     if (!projectId || !user) return;
+
+    const titleError = validateTitle(title);
+    if (titleError) {
+      toast.error(titleError);
+      return;
+    }
+
+    if (!allQuestionsValid(questions)) {
+      // Find the first invalid question and report its error
+      const firstError = questions
+        .map((q) => ({ id: q.id, err: validateQuestion(q) }))
+        .find((x) => x.err !== null);
+      toast.error(
+        firstError
+          ? `Question ${
+              questions.findIndex((q) => q.id === firstError.id) + 1
+            }: ${firstError.err}`
+          : "Please fix the errors in your questions"
+      );
+      return;
+    }
 
     const payloadQs = questions.map((q) => {
       if (q.type === "RANK_ORDER") {
@@ -198,19 +383,21 @@ const AddPollDialog = ({
   };
 
   const addQuestion = () => {
-  setQuestions((qs) => [...qs, defaultQuestion()]);
-};
+    setQuestions((qs) => [...qs, defaultQuestion()]);
+  };
 
-  const updateQuestion = (id: string, patch: Partial<DraftQuestion>) =>
+  const updateQuestion = (id: string, patch: Partial<DraftWithImage>) =>
     setQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+
   const removeQuestion = (id: string) =>
     setQuestions((qs) => qs.filter((q) => q.id !== id));
+
   const duplicateQuestion = (id: string) => {
-     const orig = questions.find((q) => q.id === id)!;
-  setQuestions((qs) => [
-    ...qs,
-    defaultQuestion({ ...orig, id: crypto.randomUUID() })
-  ]);
+    const orig = questions.find((q) => q.id === id)!;
+    setQuestions((qs) => [
+      ...qs,
+      defaultQuestion({ ...orig, id: crypto.randomUUID() }),
+    ]);
   };
 
   const updateType = (id: string, type: QuestionType) => {
@@ -262,6 +449,9 @@ const AddPollDialog = ({
         minChars: 1,
         maxChars: 2000,
       });
+      else if (type === "FILL_IN_BLANK") {
+        updateQuestion(id, { type, prompt: "", answers: [] });
+      }
     else updateQuestion(id, { type, options: [], answers: ["", ""] });
   };
 
@@ -317,7 +507,7 @@ const AddPollDialog = ({
   function addBlank(id: string) {
     const q = questions.find((x) => x.id === id)!;
     const n = (q.answers || []).length + 1;
-    const tag = `<blank ${n}>`;
+    const tag = `[blank ${n}]`;
 
     const input = inputRefs.current[id];
     if (input) {
@@ -365,7 +555,15 @@ const AddPollDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} 
+    onOpenChange={(nextOpen) => {
+      // if we’re closing the dialog (e.g. user clicked the ×)…
+      if (!nextOpen) {
+        resetForm();
+      }
+      setOpen(nextOpen);
+    }}
+  >
       <DialogTrigger asChild>
         <CustomButton
           className="bg-custom-orange-1 hover:bg-custom-orange-2 rounded-lg"
@@ -395,6 +593,7 @@ const AddPollDialog = ({
             id="poll-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            required
             placeholder="Enter poll title"
             className="mt-1 py-2"
           />
@@ -412,12 +611,18 @@ const AddPollDialog = ({
                       value={q.prompt}
                       placeholder={
                         q.type === "FILL_IN_BLANK"
-                          ? "Enter text with <blank> tags"
+                          ? "Enter text with [blank N] tags"
                           : "Enter question text"
                       }
                       onChange={(e) =>
                         updateQuestion(q.id, { prompt: e.target.value })
                       }
+                      onBlur={() => {
+                        const cleaned = q.prompt.trimEnd();
+                        if (cleaned !== q.prompt) {
+                          updateQuestion(q.id, { prompt: cleaned });
+                        }
+                      }}
                       className="mt-1"
                     />
                   </div>
@@ -565,7 +770,7 @@ const AddPollDialog = ({
                         updateAnswer(q.id, idx, val)
                       }
                       onRemoveAnswer={(idx) => removeAnswer(q.id, idx)}
-                      onAddAnswer={() => addAnswer(q.id)}
+                      // onAddAnswer={() => addAnswer(q.id)}
                     />
                   )
                 )}
@@ -582,7 +787,23 @@ const AddPollDialog = ({
                   <span>Required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CustomButton icon={<Upload />} variant="ghost" size="icon" />
+                  <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">
+                    <Upload className="h-5 w-5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        updateQuestion(q.id, {
+                          imageFile: file,
+                          tempImageName: file.name,
+                        });
+                      }}
+                    />
+                    {q.imageFile ? q.imageFile.name : "Attach image"}
+                  </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <CustomButton

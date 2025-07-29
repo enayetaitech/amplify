@@ -74,6 +74,7 @@ interface EditSessionModalProps {
   session: ISession | null;
   onClose: () => void;
   onSave: (values: EditSessionValues) => void;
+  isSaving: boolean;
 }
 
 export default function EditSessionModal({
@@ -81,6 +82,7 @@ export default function EditSessionModal({
   session,
   onClose,
   onSave,
+  isSaving
 }: EditSessionModalProps) {
   const params = useParams();
   if (!params.projectId || Array.isArray(params.projectId)) {
@@ -162,6 +164,7 @@ export default function EditSessionModal({
                   <FormLabel>Title</FormLabel>
                   <FormControl>
                     <Input placeholder="Session title" {...field}
+                    disabled={isSaving}
                      onChange={(e) => {
                         const v = e.target.value;
                         if (
@@ -193,7 +196,7 @@ export default function EditSessionModal({
                   <FormLabel>Date</FormLabel>
                   <FormControl>
                     <Input type="date"
-                    
+                    disabled={isSaving}
                     {...field}
                     min={new Date().toISOString().split("T")[0]}
                     />
@@ -210,7 +213,9 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Start Time</FormLabel>
                   <FormControl>
-                    <Input type="time" {...field} />
+                    <Input type="time" {...field}
+                    disabled={isSaving}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -227,6 +232,7 @@ export default function EditSessionModal({
                     <Select
                       value={String(field.value)}
                       onValueChange={(val) => field.onChange(Number(val))}
+                      disabled={isSaving}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select duration" />
@@ -252,7 +258,10 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Time Zone</FormLabel>
                   <FormControl>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value} onValueChange={field.onChange}
+                    disabled={isSaving}
+                    
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select time zone" />
                       </SelectTrigger>
@@ -302,6 +311,7 @@ export default function EditSessionModal({
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
+                      disabled={isSaving}
                     />
                   </FormControl>
                   <FormMessage />
@@ -315,8 +325,10 @@ export default function EditSessionModal({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-session-form">
-            Save
+          <Button type="submit" form="edit-session-form"
+          disabled={isSaving}
+          >
+           {isSaving ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

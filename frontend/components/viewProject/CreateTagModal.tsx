@@ -82,6 +82,8 @@ export default function CreateTagModal({
     });
   };
 
+  const isSaving = create.isPending
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -96,6 +98,7 @@ export default function CreateTagModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Tag name"
+              disabled={isSaving}
             />
           </div>
 
@@ -130,10 +133,10 @@ export default function CreateTagModal({
         <DialogFooter className="flex justify-end gap-2 mt-4">
           <CustomButton
             onClick={handleSave}
-            disabled={!title.trim() || create.isPending}
+            disabled={!title.trim() || isSaving}
             className="bg-custom-teal hover:bg-custom-dark-blue-2"
           >
-            Save
+            {isSaving ? "Saving…" : "Save"}
           </CustomButton>
          
         </DialogFooter>

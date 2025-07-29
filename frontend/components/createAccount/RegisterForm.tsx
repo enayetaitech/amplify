@@ -44,6 +44,9 @@ export default function RegisterForm() {
   };
   const handleRegister = form.handleSubmit(onSubmit, handleErrors);
 
+  const isSaving = registerMutation.isPending;
+
+
   return (
     <Form {...form}>
       <form onSubmit={handleRegister} className="lg:px-24 px-4 space-y-4">
@@ -54,6 +57,7 @@ export default function RegisterForm() {
             label="First Name"
             placeholder="Enter your first name"
             className="flex-1"
+            disabled={isSaving}
           />
           <TextInputField
             control={form.control}
@@ -61,6 +65,7 @@ export default function RegisterForm() {
             label="Last Name"
             placeholder="Enter your last name"
             className="flex-1"
+               disabled={isSaving}
           />
         </div>
 
@@ -70,6 +75,7 @@ export default function RegisterForm() {
           label="Email"
           placeholder="Enter your email"
           type="email"
+             disabled={isSaving}
         />
 
         <div className="lg:flex lg:gap-4 space-y-4 lg:space-y-0">
@@ -80,7 +86,7 @@ export default function RegisterForm() {
               render={({ field }) => (
                 <FormItem className="w-full">
                   <FormLabel>Phone Number</FormLabel>
-                  <div className="flex">
+                  <div className="flex gap-0.5">
                     <CountrySelector
                       countries={countries}
                       isLoading={countriesLoading}
@@ -95,7 +101,8 @@ export default function RegisterForm() {
                           const value = e.target.value.replace(/[^0-9]/g, "");
                           field.onChange(value);
                         }}
-                        className="rounded-l-none flex-1"
+                        className=" flex-1"
+                           disabled={isSaving}
                       />
                     </FormControl>
                   </div>
@@ -111,6 +118,7 @@ export default function RegisterForm() {
             label="Company Name"
             placeholder="Enter your company name"
             className="flex-1"
+               disabled={isSaving}
           />
         </div>
 
@@ -119,6 +127,7 @@ export default function RegisterForm() {
           name="password"
           label="Password"
           placeholder="Enter your password"
+             disabled={isSaving}
         />
 
         <PasswordField
@@ -126,6 +135,7 @@ export default function RegisterForm() {
           name="confirmPassword"
           label="Confirm Password"
           placeholder="Confirm your password"
+             disabled={isSaving}
         />
 
         <FormField
@@ -135,7 +145,7 @@ export default function RegisterForm() {
             <FormItem className="flex flex-row items-start">
               <FormControl>
                 <div className="flex h-5 items-center mt-1">
-                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange}    disabled={isSaving}/>
                 </div>
               </FormControl>
               <div className="space-y-1 leading-none">
@@ -160,9 +170,9 @@ export default function RegisterForm() {
         <Button
           type="submit"
           className="w-full bg-orange-500 hover:bg-orange-600 mt-4"
-          disabled={registerMutation.isPending}
+          disabled={isSaving}
         >
-          {registerMutation.isPending ? "Registering..." : "Create Account"}
+          {isSaving ? "Registering..." : "Create Account"}
         </Button>
       </form>
     </Form>

@@ -49,7 +49,7 @@ export default function EditModeratorModal({
   moderator,
   onClose,
 }: EditModeratorModalProps) {
-   const form = useForm<EditModeratorForm>({
+  const form = useForm<EditModeratorForm>({
     resolver: zodResolver(editModeratorSchema),
     defaultValues: {
       firstName: "",
@@ -61,7 +61,6 @@ export default function EditModeratorModal({
     mode: "onChange",
     reValidateMode: "onChange",
   });
-
 
   const { projectId } = useParams() as { projectId: string };
   const qc = useQueryClient();
@@ -99,7 +98,7 @@ export default function EditModeratorModal({
   });
 
   // handle form submit
-    const onSubmit = form.handleSubmit(
+  const onSubmit = form.handleSubmit(
     (values) => {
       if (!moderator?._id) return;
       editModerator.mutate({ id: moderator._id, values });
@@ -110,9 +109,8 @@ export default function EditModeratorModal({
     }
   );
 
- 
-
   const isVerified = moderator?.isVerified;
+  const isSaving = editModerator.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -138,7 +136,9 @@ export default function EditModeratorModal({
                       <FormItem>
                         <FormLabel>{label}</FormLabel>
                         <FormControl>
-                          <Input type={type} {...field} />
+                          <Input 
+                          disabled={isSaving}
+                          type={type} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -157,6 +157,7 @@ export default function EditModeratorModal({
                   <FormLabel className="m-0">Admin Access</FormLabel>
                   <FormControl>
                     <Switch
+                    disabled={isSaving}
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
@@ -178,9 +179,9 @@ export default function EditModeratorModal({
               <CustomButton
                 type="submit"
                 className="bg-custom-teal hover:bg-custom-dark-blue-3"
-                disabled={editModerator.isPending}
+                disabled={isSaving}
               >
-                {editModerator.isPending ? "Saving…" : "Save"}
+                {isSaving ? "Saving…" : "Save"}
               </CustomButton>
             </DialogFooter>
           </form>

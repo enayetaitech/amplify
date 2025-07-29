@@ -10,7 +10,13 @@ import { Input } from "components/ui/input";
 import { Card, CardContent } from "components/ui/card";
 import { useSaveBilling } from "hooks/useSaveBilling";
 import { makeOnChange } from "utils/validationHelper";
-import { alphanumericSingleSpace,  lettersAndSpaces, noLeadingSpace, noMultipleSpaces,   onlyDigits } from "schemas/validators";
+import {
+  alphanumericSingleSpace,
+  lettersAndSpaces,
+  noLeadingSpace,
+  noMultipleSpaces,
+  onlyDigits,
+} from "schemas/validators";
 
 const fieldLabels: Record<keyof IBillingInfo, string> = {
   address: "Street Address",
@@ -34,28 +40,6 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
     onSuccess();
   });
 
-//  const handleChange = (key: keyof IBillingInfo, value: string) => {
-//   // Normalize input: remove leading/trailing spaces
-//   const newValue = value.trimStart();
-
-//   // Validation: no special characters, no multiple spaces, no leading/trailing
-//   const allowedPattern = /^(?!.* {2,})(?! )[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/;
-
-//   if (newValue && !allowedPattern.test(newValue.trim())) {
-//     toast.error(
-//       "Only letters, numbers, and single spaces are allowed. No special characters or extra spaces."
-//     );
-//     return;
-//   }
-
-//   setBillingInfo((prev) => ({
-//     ...prev,
-//     [key]: newValue,
-//   }));
-// };
-
-
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -64,6 +48,9 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
 
     saveBilling.mutate({ userId, billingInfo });
   };
+
+  const isSaving = saveBilling.isPending;
+
 
   return (
     <Card className="border-0 shadow-sm py-0">
@@ -79,18 +66,16 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
               id="address"
               placeholder="Enter Street Address"
               value={billingInfo.address}
+              disabled={isSaving}
               onChange={makeOnChange(
                 "address",
-                [
-                  noLeadingSpace, noMultipleSpaces, alphanumericSingleSpace
-                ], 
+                [noLeadingSpace, noMultipleSpaces, alphanumericSingleSpace],
                 "Only letters, numbers, and single spaces are allowed.",
-                (upd) => 
+                (upd) =>
                   setBillingInfo((prev) => ({
                     ...prev,
                     ...upd,
                   }))
-                
               )}
               required
             />
@@ -98,35 +83,53 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
 
           {/* Three-column Zip / City / State */}
           <div className="grid grid-cols-3 gap-4">
-            {([
-    { field: "postalCode" as const, label: fieldLabels.postalCode, validators: [noLeadingSpace,  noMultipleSpaces, onlyDigits], err: "Only digits allowed (no spaces or special chars)." },
-    { field: "city"       as const, label: fieldLabels.city,     validators: [noLeadingSpace,  noMultipleSpaces, lettersAndSpaces], err: "Only letters & single spaces allowed." },
-    { field: "state"      as const, label: fieldLabels.state,    validators: [noLeadingSpace,  noMultipleSpaces, lettersAndSpaces], err: "Only letters & single spaces allowed." },
-  ]).map
-              (({ field, label, validators, err }) => (
-                <div key={field} className="flex flex-col">
-                  <Label htmlFor={field} className="mb-1">
-                    {label} *
-                  </Label>
-                  <Input
-                    id={field}
-                     placeholder={`Enter ${label}`}
-        value={billingInfo[field]}
-                       onChange={makeOnChange(
-          field,
-          validators,
-          err,
-          (upd) =>
-            setBillingInfo((prev) => ({
-              ...prev,
-              ...upd,
-            }))
-        )}
-                    required
-                  />
-                </div>
-              )
-            )}
+            {[
+              {
+                field: "postalCode" as const,
+                label: fieldLabels.postalCode,
+                validators: [noLeadingSpace, noMultipleSpaces, onlyDigits],
+                err: "Only digits allowed (no spaces or special chars).",
+              },
+              {
+                field: "city" as const,
+                label: fieldLabels.city,
+                validators: [
+                  noLeadingSpace,
+                  noMultipleSpaces,
+                  lettersAndSpaces,
+                ],
+                err: "Only letters & single spaces allowed.",
+              },
+              {
+                field: "state" as const,
+                label: fieldLabels.state,
+                validators: [
+                  noLeadingSpace,
+                  noMultipleSpaces,
+                  lettersAndSpaces,
+                ],
+                err: "Only letters & single spaces allowed.",
+              },
+            ].map(({ field, label, validators, err }) => (
+              <div key={field} className="flex flex-col">
+                <Label htmlFor={field} className="mb-1">
+                  {label} *
+                </Label>
+                <Input
+                  id={field}
+                  placeholder={`Enter ${label}`}
+                  value={billingInfo[field]}
+                  disabled={isSaving}
+                  onChange={makeOnChange(field, validators, err, (upd) =>
+                    setBillingInfo((prev) => ({
+                      ...prev,
+                      ...upd,
+                    }))
+                  )}
+                  required
+                />
+              </div>
+            ))}
           </div>
           <div className="flex flex-col">
             <Label htmlFor="country" className="mb-1">
@@ -136,16 +139,17 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
               id="country"
               placeholder="Enter Country"
               value={billingInfo.country}
-                onChange={makeOnChange(
-      "country",
-      [noLeadingSpace,  noMultipleSpaces, lettersAndSpaces],
-      "Only letters & single spaces allowed.",
-      (upd) =>
-        setBillingInfo((prev) => ({
-          ...prev,
-          ...upd,
-        }))
-    )}
+              disabled={isSaving}
+              onChange={makeOnChange(
+                "country",
+                [noLeadingSpace, noMultipleSpaces, lettersAndSpaces],
+                "Only letters & single spaces allowed.",
+                (upd) =>
+                  setBillingInfo((prev) => ({
+                    ...prev,
+                    ...upd,
+                  }))
+              )}
               required
             />
           </div>
@@ -154,9 +158,9 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
             <Button
               type="submit"
               className="bg-custom-teal hover:bg-custom-dark-blue-3"
-              disabled={saveBilling.isPending}
+              disabled={isSaving}
             >
-              {saveBilling.isPending ? "Saving..." : "Save Billing Info"}
+              {isSaving ? "Saving..." : "Save Billing Info"}
             </Button>
           </div>
         </form>

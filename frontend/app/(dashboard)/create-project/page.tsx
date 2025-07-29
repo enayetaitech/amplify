@@ -53,6 +53,7 @@ const CreateProjectPage: React.FC = () => {
           formData={formData}
           updateFormData={updateFormData}
           uniqueId={uniqueId}
+        
         />
 
         <div className="flex justify-between mt-6  items-center">

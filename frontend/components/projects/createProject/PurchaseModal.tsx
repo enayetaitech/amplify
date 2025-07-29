@@ -40,14 +40,13 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   purchaseQuantities,
   totalPurchasePrice,
   totalCreditsNeeded,
-
   projectData,
 }) => {
   const { user, setUser } = useGlobalContext();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
- const createCustomerMutation = useCreateCustomer();
+  const createCustomerMutation = useCreateCustomer();
 
   // 2️⃣ When createCustomerMutation succeeds, move to step 2
   useEffect(() => {
@@ -67,18 +66,18 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-         <Button
-       className="bg-custom-teal hover:bg-custom-dark-blue-3"
-       onClick={() => {
-         if (totalCreditsNeeded === 0) {
-           toast.error("You have to select a credit package");
-         } else {
-           setOpen(true);
-         }
-       }}
-     >
-       Pay Now
-     </Button>
+      <Button
+        className="bg-custom-teal hover:bg-custom-dark-blue-3"
+        onClick={() => {
+          if (totalCreditsNeeded === 0) {
+            toast.error("You have to select a credit package");
+          } else {
+            setOpen(true);
+          }
+        }}
+      >
+        Pay Now
+      </Button>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>

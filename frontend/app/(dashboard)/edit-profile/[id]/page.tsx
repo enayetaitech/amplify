@@ -17,7 +17,7 @@ const Page: React.FC = () => {
     handleSubmit,
     control,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
@@ -58,6 +58,7 @@ const Page: React.FC = () => {
     );
   }
 
+  const isSaving = updateMutation.isPending
 
 
   return (
@@ -74,18 +75,18 @@ const Page: React.FC = () => {
             <Button
               type="submit"
               variant="teal"
-              disabled={isSubmitting}
+              disabled={isSaving}
               className="rounded-xl w-[100px] py-6 shadow-[0px_3px_6px_#2976a54d]"
             >
               <FaSave className="mr-2" />
-              {isSubmitting ? 'Saving…' : 'Save'}
+              {isSaving ? 'Saving' : 'Save'}
             </Button>
           </div>
           <div className="md:hidden fixed right-5">
             <Button
               type="submit"
               variant="teal"
-              disabled={isSubmitting}
+              disabled={isSaving}
               className="rounded-xl w-full py-6 shadow-[0px_3px_6px_#FF66004D]"
             >
               <FaSave />
@@ -132,6 +133,7 @@ const Page: React.FC = () => {
                   label="First Name*"
                   {...field}
                   error={errors.firstName?.message}
+                  disabled={isSaving}
                 />
               )}
             />
@@ -145,6 +147,7 @@ const Page: React.FC = () => {
                   label="Last Name*"
                   {...field}
                   error={errors.lastName?.message}
+                     disabled={isSaving}
                 />
               )}
             />
@@ -158,6 +161,7 @@ const Page: React.FC = () => {
                   label="Phone Number*"
                   {...field}
                   error={errors.phoneNumber?.message}
+                     disabled={isSaving}
                 />
               )}
             />
@@ -171,6 +175,7 @@ const Page: React.FC = () => {
                   label="Company Name*"
                   {...field}
                   error={errors.companyName?.message}
+                     disabled={isSaving}
                 />
               )}
             />

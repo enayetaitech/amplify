@@ -29,6 +29,7 @@ interface TextInputFieldProps<TFieldValues extends FieldValues> {
   type?: React.HTMLInputTypeAttribute;
   /** Extra className on the FormItem (e.g. for flex layout) */
   className?: string;
+  disabled?: boolean;
 }
 
 export default function TextInputField<
@@ -40,6 +41,7 @@ export default function TextInputField<
   placeholder = "",
   type = "text",
   className = "",
+  disabled = false,
 }: TextInputFieldProps<TFieldValues>) {
   return (
     <FormField
@@ -49,7 +51,9 @@ export default function TextInputField<
         <FormItem className={className}>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input type={type} placeholder={placeholder} {...field} />
+            <Input type={type} placeholder={placeholder} {...field} 
+            disabled={disabled}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>

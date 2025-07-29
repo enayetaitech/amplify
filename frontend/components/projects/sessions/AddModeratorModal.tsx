@@ -141,8 +141,10 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
       companyName: "",
       adminAccess: false,
     });
-    onClose(); // invoke parent close handler
+    onClose(); 
   };
+
+  const isSaving = addModeratorMutation.isPending
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -170,6 +172,7 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
                     name={field}
                     placeholder={`Enter ${label}`}
                     value={formData[field]}
+                    
                     // onChange only checks everything *except* trailing‐space
                     onChange={makeOnChange(
                       field,
@@ -219,7 +222,7 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
                     }}
                     className="mt-3"
                     required
-                    disabled={addModeratorMutation.isPending}
+                    disabled={isSaving}
                   />
                 </div>
               );
@@ -233,6 +236,7 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
               onCheckedChange={(checked) =>
                 setFormData((prev) => ({ ...prev, adminAccess: checked }))
               }
+              disabled={isSaving}
             />
             <span className="text-sm font-medium">
               {formData.adminAccess ? "Yes" : "No"}
@@ -249,10 +253,10 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
           <div className="flex justify-end pt-2">
             <CustomButton
               onClick={handleSubmit}
-              disabled={addModeratorMutation.isPending}
+              disabled={isSaving}
               className="bg-custom-orange-2 hover:bg-custom-orange-1 text-white"
             >
-              {addModeratorMutation.isPending ? "Saving..." : "Save"}
+              {isSaving ? "Saving..." : "Save"}
             </CustomButton>
           </div>
         </div>

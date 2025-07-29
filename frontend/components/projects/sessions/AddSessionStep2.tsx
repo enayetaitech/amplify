@@ -23,16 +23,22 @@ import {
 } from "components/ui/select";
 import { durations } from "constant";
 import { makeOnChange } from "utils/validationHelper";
-import { alphanumericSingleSpace, noLeadingSpace, noMultipleSpaces } from "schemas/validators";
+import {
+  alphanumericSingleSpace,
+  noLeadingSpace,
+  noMultipleSpaces,
+} from "schemas/validators";
 
 interface AddSessionStep2Props {
   formData: ISessionFormData;
   updateFormData: (fields: Partial<ISessionFormData>) => void;
+  isSaving: boolean;
 }
 
 const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
   formData,
   updateFormData,
+  isSaving,
 }) => {
   const { allModerators = [], selectedModerators, sessions } = formData;
 
@@ -78,11 +84,12 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                         value={sess.title}
                         placeholder="Title"
                         className="w-full"
-                         onChange={makeOnChange<"title">(
+                        disabled={isSaving}
+                        onChange={makeOnChange<"title">(
                           "title",
                           [
                             noLeadingSpace,
-                           
+
                             noMultipleSpaces,
                             alphanumericSingleSpace,
                           ],
@@ -95,6 +102,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                       <Input
                         type="date"
                         value={sess.date}
+                        disabled={isSaving}
                         min={new Date().toISOString().split("T")[0]}
                         className="w-full"
                         onChange={(e) =>
@@ -107,6 +115,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                         type="time"
                         value={sess.startTime}
                         className="w-full"
+                        disabled={isSaving}
                         onChange={(e) =>
                           updateSession(idx, { startTime: e.target.value })
                         }
@@ -115,6 +124,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                     <TableCell>
                       <Select
                         value={sess.duration}
+                        disabled={isSaving}
                         onValueChange={(val) =>
                           updateSession(idx, { duration: val })
                         }
@@ -155,12 +165,10 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                               updateSession(idx, { moderators: ids });
                             }
                           }}
-                          disabled={formData.sameModerator}
+                          disabled={formData.sameModerator || isSaving}
                         />
                       )}
                     </TableCell>
-
-                   
                   </TableRow>
                 );
               })}

@@ -112,6 +112,8 @@ const Sessions = () => {
   },
 });
 
+const isEditSessionSaving = editSession.isPending;
+
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
@@ -174,6 +176,7 @@ const Sessions = () => {
             editSession.mutate({ id: sessionToEdit._id, values });
           }
         }}
+        isSaving={isEditSessionSaving}
       />
 
         <ConfirmationModalComponent

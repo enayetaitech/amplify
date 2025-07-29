@@ -53,6 +53,7 @@ const Step2: React.FC<Step2Props> = ({
           type="number"
           register={register}
           required
+          disabled={isLoading}
           error={errors.respondentsPerSession}
         />
         <FormInput
@@ -61,6 +62,7 @@ const Step2: React.FC<Step2Props> = ({
           type="number"
           register={register}
           required
+          disabled={isLoading}
           error={errors.numberOfSessions}
         />
 
@@ -70,6 +72,7 @@ const Step2: React.FC<Step2Props> = ({
           type="number"
           register={register}
           required
+          disabled={isLoading}
           error={errors.sessionLength}
         />
 
@@ -80,6 +83,7 @@ const Step2: React.FC<Step2Props> = ({
               name="recruitmentSpecs"
               register={register}
               required
+              disabled={isLoading}
               error={errors.recruitmentSpecs}
               regexRules={[
                 { fn: noLeadingSpace, message: "Cannot start with a space" },
@@ -95,6 +99,7 @@ const Step2: React.FC<Step2Props> = ({
               label="Will there be any pre–work or additional assignments?"
               name="preWorkDetails"
               register={register}
+              disabled={isLoading}
               regexRules={[
                 { fn: noLeadingSpace, message: "Cannot start with a space" },
                 { fn: noTrailingSpace, message: "Cannot end with a space" },
@@ -118,6 +123,7 @@ const Step2: React.FC<Step2Props> = ({
               name="selectedLanguage"
               register={register}
               required
+              disabled={isLoading}
               error={errors.selectedLanguage}
               regexRules={[
                 { fn: noLeadingSpace, message: "Cannot start with a space" },
@@ -140,6 +146,7 @@ const Step2: React.FC<Step2Props> = ({
                 name="inLanguageHosting"
                 options={["yes", "no"]}
                 register={register}
+                disabled={isLoading}
                 error={errors.inLanguageHosting}
               />
             </div>
@@ -157,6 +164,7 @@ const Step2: React.FC<Step2Props> = ({
                   name="provideInterpreter"
                   options={["yes", "no"]}
                   register={register}
+                  disabled={isLoading}
                   error={errors.provideInterpreter}
                 />
               </div>
@@ -179,6 +187,7 @@ const Step2: React.FC<Step2Props> = ({
                     ]) || "Only letters, numbers & single spaces allowed.",
                 })}
                 className="mt-1 w-full"
+                disabled={isLoading}
               />
               {errors.languageSessionBreakdown && (
                 <p className="text-red-500 text-xs mt-2">
@@ -194,20 +203,24 @@ const Step2: React.FC<Step2Props> = ({
           <label className="block text-sm font-medium text-gray-700">
             Anything else we should know about the project?
           </label>
-          <Textarea {...register("additionalInfo",{
-             validate: (v: string) =>
-                    validate(v, [
-                      noLeadingSpace,
+          <Textarea
+            {...register("additionalInfo", {
+              validate: (v: string) =>
+                validate(v, [
+                  noLeadingSpace,
 
-                      noMultipleSpaces,
-                      alphanumericSingleSpace,
-                    ]) || "Only letters, numbers & single spaces allowed."
-          })} className="mt-1 w-full" />
+                  noMultipleSpaces,
+                  alphanumericSingleSpace,
+                ]) || "Only letters, numbers & single spaces allowed.",
+            })}
+            className="mt-1 w-full"
+            disabled={isLoading}
+          />
           {errors.additionalInfo && (
-                <p className="text-red-500 text-xs mt-2">
-                  {errors.additionalInfo.message}
-                </p>
-              )}
+            <p className="text-red-500 text-xs mt-2">
+              {errors.additionalInfo.message}
+            </p>
+          )}
         </div>
 
         <div className="text-center">

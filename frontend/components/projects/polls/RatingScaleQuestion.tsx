@@ -4,8 +4,8 @@ import React from "react";
 
 import { Minus, Plus } from "lucide-react";
 import { Label } from "components/ui/label";
-import CustomButton from "components/shared/CustomButton";
 import { Input } from "components/ui/input";
+import { Button } from "components/ui/button";
 
 export interface RatingScaleQuestionProps {
   // id: string;
@@ -33,37 +33,51 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
   <div className="space-y-4">
     {/* 1) Score from / to */}
     <div className="grid grid-cols-2 gap-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <Label>Score from</Label>
-        <CustomButton
-          icon={<Minus />}
-          variant="ghost"
-          size="icon"
-          onClick={() => onScoreFromChange(Math.max(0, scoreFrom - 1))}
-        />
-        <span className="w-6 text-center">{scoreFrom}</span>
-        <CustomButton
-          icon={<Plus />}
-          variant="ghost"
-          size="icon"
-          onClick={() => onScoreFromChange(scoreFrom + 1)}
-        />
+        <div className="flex justify-center items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onScoreFromChange(Math.max(0, scoreFrom - 1))}
+          >
+            <Minus />
+          </Button>
+
+          <span className="inline-flex items-center justify-center w-8 h-8 text-sm">
+            {scoreFrom}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onScoreFromChange(scoreFrom + 1)}
+          >
+            <Plus />{" "}
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <Label>to</Label>
-        <CustomButton
-          icon={<Minus />}
-          variant="ghost"
-          size="icon"
-          onClick={() => onScoreToChange(Math.max(scoreFrom, scoreTo - 1))}
-        />
-        <span className="w-6 text-center">{scoreTo}</span>
-        <CustomButton
-          icon={<Plus />}
-          variant="ghost"
-          size="icon"
-          onClick={() => onScoreToChange(scoreTo + 1)}
-        />
+        <div className="flex justify-center items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onScoreToChange(Math.max(scoreFrom, scoreTo - 1))}
+          >
+            <Minus />
+          </Button>
+          <span className="inline-flex items-center justify-center w-8 h-8 text-sm">
+            {scoreTo}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onScoreToChange(scoreTo + 1)}
+            className=""
+          >
+            <Plus />
+          </Button>
+        </div>
       </div>
     </div>
 

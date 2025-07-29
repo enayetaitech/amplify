@@ -25,17 +25,16 @@ import { loginDefaults } from "constant";
 import { useLogin } from "hooks/useLogin";
 
 const Login = () => {
-  
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: loginDefaults
+    defaultValues: loginDefaults,
   });
 
   const loginMutation = useLogin();
 
   const handleErrors = (errors: FieldErrors<LoginFormValues>) => {
     Object.values(errors).forEach((fieldError) => {
-      console.log('errors', errors)
+      console.log("errors", errors);
       if (fieldError?.message) {
         toast.error(fieldError.message);
       }
@@ -46,6 +45,7 @@ const Login = () => {
     loginMutation.mutate(vals);
   }, handleErrors);
 
+  const isSaving = loginMutation.isPending
 
   return (
     <div>
@@ -68,18 +68,15 @@ const Login = () => {
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form
-                  onSubmit={onSubmit}
-                  className="lg:px-24 px-4 space-y-4"
-                >
-                  
-                       {/* Email Field */}
+                <form onSubmit={onSubmit} className="lg:px-24 px-4 space-y-4">
+                  {/* Email Field */}
                   <TextInputField
                     control={form.control}
                     name="email"
                     label="Email Address"
                     placeholder="Enter your email"
                     type="email"
+                    disabled={isSaving}
                   />
 
                   {/* Password Field */}
@@ -88,6 +85,7 @@ const Login = () => {
                     name="password"
                     label="Password"
                     placeholder="Enter your password"
+                    disabled={isSaving}
                   />
                   <div className="flex items-center justify-between">
                     <FormField
@@ -99,6 +97,7 @@ const Login = () => {
                             <Checkbox
                               checked={field.value}
                               onCheckedChange={field.onChange}
+                              disabled={isSaving}
                             />
                           </FormControl>
                           <FormLabel className="text-sm font-normal">
@@ -117,9 +116,9 @@ const Login = () => {
                   <Button
                     type="submit"
                     className="w-full bg-orange-500 hover:bg-orange-600"
-                    disabled={loginMutation.isPending}
+                  disabled={isSaving}
                   >
-                   {loginMutation.isPending ? "Loading..." : "Login"}
+                    {isSaving ? "Loading..." : "Login"}
                   </Button>
                 </form>
               </Form>

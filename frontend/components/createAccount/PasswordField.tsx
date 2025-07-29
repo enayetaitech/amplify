@@ -29,6 +29,7 @@ interface PasswordFieldProps<TFieldValues extends FieldValues> {
   placeholder?: string;
   /** extra className on the FormItem (e.g. for flex‐layout) */
   className?: string;
+  disabled?: boolean;
 }
 
 export default function PasswordField<TFieldValues extends FieldValues>({
@@ -37,6 +38,7 @@ export default function PasswordField<TFieldValues extends FieldValues>({
   label,
   placeholder = "",
   className = "",
+  disabled = false,
 }: PasswordFieldProps<TFieldValues>) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -53,6 +55,10 @@ export default function PasswordField<TFieldValues extends FieldValues>({
                 type={showPassword ? "text" : "password"}
                 placeholder={placeholder}
                 {...field}
+                disabled={disabled}
+                 onCopy={(e) => e.preventDefault()}
+               onPaste={(e) => e.preventDefault()}
+               onCut={(e) => e.preventDefault()}
               />
               <Button
                 type="button"
