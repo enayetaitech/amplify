@@ -134,9 +134,19 @@ interface CreatePollResponse {
 
 // Returns an error message or null if that question is valid
 const validateQuestion = (q: DraftWithImage): string | null => {
+  const prompt = q.prompt.trimEnd();
+
   // 0) Prompt must not be blank
-  if (!q.prompt.trim()) {
+  if (!prompt) {
     return "Question text is required";
+  }
+  // 1) No leading space
+  if (!noLeadingSpace(prompt)) {
+    return "Question must not start with a space";
+  }
+  // 2) No multiple spaces
+  if (!noMultipleSpaces(prompt)) {
+    return "Question must not contain consecutive spaces";
   }
 
   switch (q.type) {
@@ -289,7 +299,7 @@ const validateTitle = (t: string): string | null => {
     toast.error(titleError);
     return;
   }
-  
+
     if (!allQuestionsValid()) {
     // Find the first invalid question and report its error
     const firstError = questions
@@ -550,6 +560,12 @@ const validateTitle = (t: string): string | null => {
                       onChange={(e) =>
                         updateQuestion(q.id, { prompt: e.target.value })
                       }
+                        onBlur={() => {
+    const cleaned = q.prompt.trimEnd();
+    if (cleaned !== q.prompt) {
+      updateQuestion(q.id, { prompt: cleaned });
+    }
+  }}
                       className="mt-1"
                     />
                   </div>
