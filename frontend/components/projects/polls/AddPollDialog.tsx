@@ -215,9 +215,9 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
 
 
     case "FILL_IN_BLANK":
-      const blanks = Array.from(q.prompt.matchAll(/<blank \d+>/g)).length;
+      const blanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g)).length;
       if (blanks === 0) {
-        return "Insert at least one blank (`<blank N>`) tag";
+        return "Insert at least one blank (`[blank N]`) tag";
       }
       if (q.answers.length !== blanks) {
         return "Number of answers must match number of blanks";
@@ -507,7 +507,7 @@ const AddPollDialog = ({
   function addBlank(id: string) {
     const q = questions.find((x) => x.id === id)!;
     const n = (q.answers || []).length + 1;
-    const tag = `<blank ${n}>`;
+    const tag = `[blank ${n}]`;
 
     const input = inputRefs.current[id];
     if (input) {
@@ -611,7 +611,7 @@ const AddPollDialog = ({
                       value={q.prompt}
                       placeholder={
                         q.type === "FILL_IN_BLANK"
-                          ? "Enter text with <blank> tags"
+                          ? "Enter text with [blank N] tags"
                           : "Enter question text"
                       }
                       onChange={(e) =>

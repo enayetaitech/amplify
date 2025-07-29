@@ -353,7 +353,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   const addBlank = (id: string) => {
     const q = questions.find((q) => q.id === id)!;
     const n = q.answers.length + 1;
-    const tag = `<blank ${n}>`;
+    const tag = `[blank ${n}]`;
     updateQuestion(id, {
       prompt: q.prompt + tag,
       answers: [...q.answers, ""],
@@ -481,7 +481,7 @@ questions.forEach(q => {
                       className="mt-1"
                       placeholder={
                         q.type === "FILL_IN_BLANK"
-                          ? "Enter text with <blank> tags"
+                          ? "Enter text with [blank] tags"
                           : "Enter question text"
                       }
                     />
