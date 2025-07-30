@@ -10,7 +10,6 @@ import {
 import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
 import { sanitizeUser } from "../processors/user/removePasswordFromUserObjectProcessor";
 import config from "../config/index";
-
 import jwt from "jsonwebtoken";
 import { isStrongPassword } from "../processors/user/isStrongPasswordProcessor";
 import ProjectModel from "../model/ProjectModel";
@@ -98,11 +97,13 @@ export const createAccount = async (
     { expiresIn: "1d" }
   );
 
+  const verificationLink = `${config.frontend_base_url}/verify-email?token=${token}`;
+
   // Send verification email with token
   await sendEmail({
     to: savedUser.email,
     subject: "Verify Your Account",
-    html: verificationEmailTemplate(savedUser.firstName, token),
+    html: verificationEmailTemplate(savedUser.firstName, verificationLink),
   });
 
   const userResponse = sanitizeUser(savedUser);
