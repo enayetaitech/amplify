@@ -1,4 +1,5 @@
 import { Role } from "@shared/interface/ModeratorInterface";
+import { EditUserFormValues } from "schemas/editUserSchema";
 import { LoginFormValues } from "schemas/loginSchema";
 import { RegisterFormValues } from "schemas/registerSchema";
 
@@ -116,3 +117,13 @@ export const textFields = [
 ];
 
 export const ALL_ROLES: Role[] = ["Admin", "Moderator", "Observer"];
+
+export const personalFields: Array<{
+  name: keyof EditUserFormValues;
+  label: string;
+}> = [
+  { name: "firstName",    label: "First Name*"    },
+  { name: "lastName",     label: "Last Name*"     },
+  { name: "phoneNumber",  label: "Phone Number*"  },
+  { name: "companyName",  label: "Company Name*"  },
+];
