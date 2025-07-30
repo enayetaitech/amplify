@@ -13,7 +13,7 @@ import { ProfileDetailsCard } from "components/profile/ProfileDetailsCard";
 const Page: React.FC = () => {
   const { user } = useGlobalContext();
   const { id } = useParams<{ id: string }>();
-  const router = useRouter()
+  const router = useRouter();
   const deleteUserMutation = useDeleteUser();
   const {
     showPasswordModal,
@@ -23,14 +23,14 @@ const Page: React.FC = () => {
   } = useProfileModals();
 
   // Derive displayable strings once, so JSX stays clean:
-  const firstName      = user?.firstName?.toUpperCase() ?? "Loading...";
-  const lastName       = user?.lastName?.toUpperCase()  ?? "Loading...";
-  const role           = user?.role?.toUpperCase()      ?? "Loading...";
-  const email          = user?.email                    ?? "Loading...";
-  const credits        = user?.credits?.toString()      ?? "0";
-  const phoneNumber    = user?.phoneNumber               ?? "Loading...";
-  const companyName    = user?.companyName               ?? "Loading...";
-   const billingInfo = user?.billingInfo
+  const firstName = user?.firstName?.toUpperCase() ?? "Loading...";
+  const lastName = user?.lastName?.toUpperCase() ?? "Loading...";
+  const role = user?.role?.toUpperCase() ?? "Loading...";
+  const email = user?.email ?? "Loading...";
+  const credits = user?.credits?.toString() ?? "0";
+  const phoneNumber = user?.phoneNumber ?? "Loading...";
+  const companyName = user?.companyName ?? "Loading...";
+  const billingInfo = user?.billingInfo
     ? {
         address: user.billingInfo.address ?? "",
         city: user.billingInfo.city ?? "",
@@ -46,38 +46,38 @@ const Page: React.FC = () => {
         <div className="bg-white h-16 w-full px-10 flex justify-between items-center pt-2">
           <p className="text-2xl font-bold text-custom-teal">My Profile</p>
         </div>
-  
-  {/* Profile Details Card */}
-  <ProfileDetailsCard
-    firstName={firstName}
-    lastName={lastName}
-    role={role}
-    email={email}
-    credits={credits}
-    phoneNumber={phoneNumber}
-    companyName={companyName}
-    billingInfo={billingInfo}
-    onEdit={() => router.push(`/edit-profile/${id}`)}
-    onChangePassword={() => setShowPasswordModal(true)}
-    onDelete={() => setShowDeleteModal(true)}
-    isDeleting={deleteUserMutation.isPending}
-  />
 
-  {/* Modals */}
-  <PasswordModalComponent
-    open={showPasswordModal}
-    onClose={() => setShowPasswordModal(false)}
-    id={id}
-  />
-  <ConfirmationModalComponent
-    open={showDeleteModal}
-    onCancel={() => setShowDeleteModal(false)}
-    onYes={() => deleteUserMutation.mutate(id!)}
-    heading="Delete Account"
-    text="Are you sure you want to delete your account? All your data will be permanently deleted. This action cannot be undone."
-  />
-  </div>
-</>
+        {/* Profile Details Card */}
+        <ProfileDetailsCard
+          firstName={firstName}
+          lastName={lastName}
+          role={role}
+          email={email}
+          credits={credits}
+          phoneNumber={phoneNumber}
+          companyName={companyName}
+          billingInfo={billingInfo}
+          onEdit={() => router.push(`/edit-profile/${id}`)}
+          onChangePassword={() => setShowPasswordModal(true)}
+          onDelete={() => setShowDeleteModal(true)}
+          isDeleting={deleteUserMutation.isPending}
+        />
+
+        {/* Modals */}
+        <PasswordModalComponent
+          open={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+          id={id}
+        />
+        <ConfirmationModalComponent
+          open={showDeleteModal}
+          onCancel={() => setShowDeleteModal(false)}
+          onYes={() => deleteUserMutation.mutate(id!)}
+          heading="Delete Account"
+          text="Are you sure you want to delete your account? All your data will be permanently deleted. This action cannot be undone."
+        />
+      </div>
+    </>
   );
 };
 
