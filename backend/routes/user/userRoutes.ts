@@ -29,25 +29,25 @@ router.post('/logout', catchError(logoutUser))
 // POST /api/v1/users/refreshToken - 
 router.post('/refreshToken', catchError(refreshToken))
 
-// POST /api/v1/auth/forgot-password
+// POST /api/v1/users/forgot-password
 router.post('/forgot-password', catchError(forgotPassword))
 
-// POST /api/v1/auth/reset-password
+// POST /api/v1/users/reset-password
 router.post('/reset-password', catchError(resetPassword))
 
-// GET /api/v1/auth/verify-email
+// GET /api/v1/users/verify-email
 router.get('/verify-email', catchError(verifyEmail))
 
-// GET /api/v1/auth/find-by-id
+// GET /api/v1/users/find-by-id
 router.get('/find-by-id', catchError(findUserById))
 
-// POST /api/v1/auth/change-password
+// POST /api/v1/users/change-password
 router.post('/change-password', catchError(changePassword))
 
-// PUT /api/v1/auth/edit/:id
+// PUT /api/v1/users/edit/:id
 router.put('/edit/:id', catchError(editUser))
 
-// DELETE /api/v1/auth/:id
+// DELETE /api/v1/users/:id
 router.delete('/:id', catchError(deleteUser))
 
 router.get(
