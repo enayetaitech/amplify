@@ -92,10 +92,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     if (countrySelection === "Other" && !validateOtherCountry()) {
       return;
     }
-    // if “Other Language” is invalid, skip too
-    if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
-      return;
-    }
+   
     const finalCountry =
       countrySelection === "USA" ? "USA" : otherCountry.trim();
 
@@ -109,7 +106,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
       })),
     });
 
-    // Excluding updateFormData from dependencies to avoid potential infinite loops.
+   
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     projectName,
@@ -170,13 +167,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     return true;
   };
 
-  // Hook into your wizard’s “next” step button (if you have one) or
-  // run this on blur:
-  const handleOtherLanguageBlur = () => {
-    if (selectedLanguages.includes("Other")) {
-      validateOtherLanguage();
-    }
-  };
+ 
 
   const validateOtherCountry = () => {
     const trimmed = otherCountry.trim();
@@ -192,11 +183,6 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     return true;
   };
 
-  const handleOtherCountryBlur = () => {
-    if (countrySelection === "Other") {
-      validateOtherCountry();
-    }
-  };
 
   const validateProjectName = () => {
     const trimmed = projectName.trim();
@@ -248,17 +234,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
               if (projectNameError) setProjectNameError("");
             }
           )}
-          onBlur={() => {
-            if (!projectName.trim()) {
-              setProjectNameError("Project name is required.");
-           } else if (
-              !/^[A-Za-z0-9 _-]+$/.test(projectName.trim())
-            ) {
-             setProjectNameError(
-                "Only letters, numbers, spaces, dashes, and underscores allowed."
-              );
-            }
-          }}
+         onBlur={validateProjectName}
           required
         />
         {projectNameError && (
@@ -305,7 +281,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
               className="mt-1 w-full"
               value={otherLanguage}
               onChange={handleOtherLanguageChange}
-              onBlur={handleOtherLanguageBlur}
+              onBlur={validateOtherLanguage}
             />
           </div>
         )}
@@ -343,7 +319,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
               }`}
               value={otherCountry}
               onChange={handleOtherCountryChange}
-              onBlur={handleOtherCountryBlur}
+              onBlur={validateOtherCountry}
             />
             {otherCountryError && (
               <p className="text-red-500 text-sm">{otherCountryError}</p>
