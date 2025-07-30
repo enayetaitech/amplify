@@ -31,7 +31,7 @@ export const resetPasswordEmailTemplate = (name: string, token: string): string 
   <p>Hi ${name},</p>
   <p>Please copy the link below to reset your password:</p>
   <p>
-    <a href="${process.env.FRONTEND_BASE_URL}/resetPassword?token=${token}">
+    <a href="${process.env.FRONTEND_BASE_URL}/reset-password?token=${token}">
       Reset Your Password
     </a>
   </p>

@@ -28,7 +28,7 @@ interface Errors {
   confirmPassword?: string;
 }
 
-const PasswordInput = ({
+export const PasswordInput = ({
   label,
   value,
   onChange,
