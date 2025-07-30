@@ -127,3 +127,4 @@ export const personalFields: Array<{
   { name: "phoneNumber",  label: "Phone Number*"  },
   { name: "companyName",  label: "Company Name*"  },
 ];
+
