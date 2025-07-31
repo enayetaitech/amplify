@@ -91,7 +91,7 @@ export default function EditModeratorModal({
         .put<{ data: IModerator }>(`/api/v1/moderators/${id}`, values)
         .then((res) => res.data.data),
     onSuccess: () => {
-      toast.success("Moderator updated");
+      toast.success("Project team member updated successfully");
       qc.invalidateQueries({ queryKey: ["projectTeam", projectId] });
       onClose();
     },
