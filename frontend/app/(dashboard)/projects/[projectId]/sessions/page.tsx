@@ -119,7 +119,7 @@ const isEditSessionSaving = editSession.isPending;
 
   return (
     <ComponentContainer>
-      <div className="flex justify-between items-center bg-none pb-5 lg:ml-10">
+      <div className="flex justify-between items-center bg-none pb-5 ">
         <HeadingBlue25px>Session</HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
