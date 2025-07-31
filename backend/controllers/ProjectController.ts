@@ -259,7 +259,7 @@ export const getProjectByUserId = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId } = req.params;
-  const { search = "", tag = "", status="", page = 1, limit = 10 } = req.query;
+  const { search = "", tag = "", status="", page = 1, limit = 10, from, to } = req.query;
 
   console.log("req.query", req.query);
 
@@ -271,6 +271,10 @@ export const getProjectByUserId = async (
   const pageNum = Math.max(Number(page), 1);
   const limitNum = Math.max(Number(limit), 1);
   const skip = (pageNum - 1) * limitNum;
+   let fromDate: Date | undefined;
+  let toDate: Date | undefined;
+  if (typeof from === "string") fromDate = new Date(from);
+  if (typeof to   === "string") toDate   = new Date(to);
 
   const searchRegex = new RegExp(search as string, "i");
   const tagRegex = new RegExp(tag as string, "i");
@@ -320,6 +324,16 @@ export const getProjectByUserId = async (
         as: "meetingObjects",
       },
     },
+       ...(fromDate || toDate
+  ? [{
+      $match: {
+      startDate: {
+          ...(fromDate ? { $gte: fromDate } : {}),
+          ...(toDate   ? { $lte: toDate   } : {}),
+        }
+      }
+    }]
+  : []),
     {
       $lookup: {
         from: "tags",
@@ -328,13 +342,7 @@ export const getProjectByUserId = async (
         as: "tags",
       },
     },
-    // {
-    //   $unwind: {
-    //     path: "$tags",
-    //     preserveNullAndEmptyArrays: true,
-    //   },
-    // },
-    ...(tag ? [{ $match: { "tags.title": { $regex: tagRegex } } }] : []),
+     ...(tag ? [{ $match: { "tags.title": { $regex: tagRegex } } }] : []),
     {
       $group: {
         _id: "$_id",
@@ -363,6 +371,24 @@ export const getProjectByUserId = async (
     },
     { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
     searchMatch,
+        {
+      $lookup: {
+        from: "sessions",
+        localField: "meetings",
+        foreignField: "_id",
+        as: "meetingObjects",
+      },
+    },
+           ...(fromDate || toDate
+  ? [{
+      $match: {
+      startDate: {
+          ...(fromDate ? { $gte: fromDate } : {}),
+          ...(toDate   ? { $lte: toDate   } : {}),
+        }
+      }
+    }]
+  : []),
     {
       $lookup: {
         from: "tags",

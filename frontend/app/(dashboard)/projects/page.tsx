@@ -6,7 +6,6 @@ import NoSearchResult from "components/NoSearchResult";
 import { useRouter } from "next/navigation";
 import { Card } from "components/ui/card";
 import { toast } from "sonner";
-import { useProjectFilter } from "hooks/useProjectFilter";
 import { useProjects } from "hooks/useProjects";
 import ProjectsHeader from "components/projects/ProjectsHeader";
 import ProjectsFilter from "components/projects/ProjectsFilter";
@@ -34,19 +33,27 @@ const Projects: React.FC = () => {
   >(null);
   const [shareProject, setShareProject] = useState<IProject | null>(null);
   // ---- useProjects hook ----
+
+ const fromISO = dateRange?.from?.toISOString();
+  const toISO = dateRange?.to?.toISOString();
+
   const { projects, meta, isLoading, error } = useProjects({
     userId,
     page,
     limit,
     search: searchTerm,
     tag: tagTerm,
+    from: fromISO,
+    to: toISO,
   });
 
-  const filtered = useProjectFilter(projects, searchTerm, dateRange);
+
 
   if (!userId) {
     return <p>User not found or not authenticated.</p>;
   }
+
+  console.log('Projects', projects)
 
   if (error) {
     toast.error(error instanceof Error ? error.message : "Unknown error");
@@ -78,8 +85,9 @@ const Projects: React.FC = () => {
           {projects.length === 0 && !isLoading ? (
             <NoSearchResult />
           ) : (
+            <>
             <ProjectsTable
-              filteredProjects={filtered}
+              filteredProjects={projects}
               isLoading={isLoading}
               // ← here is the “row click” navigation:
               onRowClick={(projectId: string) => {
@@ -90,16 +98,18 @@ const Projects: React.FC = () => {
                 setActiveShareType(type);
               }}
             />
+            
+            <ProjectsPagination
+              totalPages={meta.totalPages}
+              currentPage={page}
+              onPageChange={(newPage) => {
+                setPage(newPage);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+            </>
           )}
 
-          <ProjectsPagination
-            totalPages={meta.totalPages}
-            currentPage={page}
-            onPageChange={(newPage) => {
-              setPage(newPage);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
         </div>
       </Card>
       {/* Share Modal */}
