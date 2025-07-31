@@ -85,7 +85,7 @@ const Step1: React.FC<Step1Props> = ({ formData, updateFormData }) => {
   };
 
    return (
-    <div className="flex flex-col md:flex-row md:gap-6 gap-4 items-stretch">
+    <div className="flex flex-col md:flex-row md:gap-6 gap-4 ">
       {tiers.map((tier) => (
         <ServiceTierCard
           key={tier.key}

@@ -40,7 +40,7 @@ const CreateProjectPage: React.FC = () => {
 
   return (
     <ComponentContainer>
-      <div className="min-h-screen p-6 ml-8">
+      <div className="min-h-screen p-6 mx-5">
         <h1 className="text-3xl font-bold mb-4 text-center">{heading}</h1>
         <div className="mb-4 text-center">
           <p>
@@ -61,10 +61,10 @@ const CreateProjectPage: React.FC = () => {
             className={clsx(
               "bg-custom-teal hover:bg-custom-dark-blue-3",
               {
-                "ml-36": currentStep === 2,
+                "": currentStep === 2,
               },
               {
-                "ml-6": currentStep === 1,
+                "": currentStep === 1,
               }
             )}
             onClick={handleBack}

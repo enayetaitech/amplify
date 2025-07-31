@@ -5,7 +5,6 @@ import {
   Step2FormValues,
   Step2Props,
 } from "@shared/interface/CreateProjectInterface";
-import ComponentContainer from "../../shared/ComponentContainer";
 import CustomButton from "../../shared/CustomButton";
 import { useStep2 } from "hooks/useStep2";
 import { FormInput } from "./step2Component/FormInput";
@@ -65,7 +64,7 @@ const Step2: React.FC<Step2Props> = ({
   const watchInLanguageHosting = watch("inLanguageHosting");
 
   return (
-    <ComponentContainer>
+  
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="bg-gray-100 p-4 rounded-md">
           <h2 className="text-xl font-bold mb-2 text-center">
@@ -208,7 +207,7 @@ const Step2: React.FC<Step2Props> = ({
           </CustomButton>
         </div>
       </form>
-    </ComponentContainer>
+
   );
 };
 
