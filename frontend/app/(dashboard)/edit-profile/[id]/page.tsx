@@ -1,5 +1,5 @@
 "use client";
-import React, {  useEffect } from "react";
+import React, { useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { FaSave } from "react-icons/fa";
@@ -10,10 +10,11 @@ import { useUpdateUser } from "hooks/useUpdateUser";
 import { Controller, useForm } from "react-hook-form";
 import { EditUserFormValues, editUserSchema } from "schemas/editUserSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { personalFields } from "constant";
 
 const Page: React.FC = () => {
   const { id } = useParams() as { id: string };
-    const {
+  const {
     handleSubmit,
     control,
     reset,
@@ -21,13 +22,12 @@ const Page: React.FC = () => {
   } = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      companyName: '',
-      phoneNumber: '',
+      firstName: "",
+      lastName: "",
+      companyName: "",
+      phoneNumber: "",
     },
-  })
-
+  });
 
   const { data: fullUser, isLoading, isError, error } = useUserById(id);
   const updateMutation = useUpdateUser(id);
@@ -37,15 +37,13 @@ const Page: React.FC = () => {
       reset({
         firstName: fullUser.firstName,
         lastName: fullUser.lastName,
-        companyName: fullUser.companyName || '',
-        phoneNumber: fullUser.phoneNumber || '',
-      })
+        companyName: fullUser.companyName || "",
+        phoneNumber: fullUser.phoneNumber || "",
+      });
     }
-  }, [fullUser, reset])
+  }, [fullUser, reset]);
 
-
-
- const onSubmit = (data: EditUserFormValues) => updateMutation.mutate(data);
+  const onSubmit = (data: EditUserFormValues) => updateMutation.mutate(data);
 
   if (isLoading) return <p className="px-6 py-4">Loading profile…</p>;
 
@@ -58,8 +56,7 @@ const Page: React.FC = () => {
     );
   }
 
-  const isSaving = updateMutation.isPending
-
+  const isSaving = updateMutation.isPending;
 
   return (
     <form
@@ -71,25 +68,18 @@ const Page: React.FC = () => {
         <div className="px-10 flex justify-between items-center pt-3">
           <h1 className="text-2xl font-bold text-[#1E656D]">Edit Profile</h1>
 
-          <div className="hidden md:flex gap-4">
+          <div className="fixed right-5 md:static md:flex gap-4">
             <Button
               type="submit"
               variant="teal"
               disabled={isSaving}
-              className="rounded-xl w-[100px] py-6 shadow-[0px_3px_6px_#2976a54d]"
+              className="rounded-xl py-6 w-full md:w-[100px] shadow-[0px_3px_6px_#FF66004D] md:shadow-[0px_3px_6px_#2976a54d]   
+    "
             >
-              <FaSave className="mr-2" />
-              {isSaving ? 'Saving' : 'Save'}
-            </Button>
-          </div>
-          <div className="md:hidden fixed right-5">
-            <Button
-              type="submit"
-              variant="teal"
-              disabled={isSaving}
-              className="rounded-xl w-full py-6 shadow-[0px_3px_6px_#FF66004D]"
-            >
-              <FaSave />
+              <FaSave className="md:mr-1" />
+              <span className="hidden md:inline">
+                {isSaving ? "Saving" : "Save"}
+              </span>
             </Button>
           </div>
         </div>
@@ -124,61 +114,21 @@ const Page: React.FC = () => {
             Personal Details
           </h2>
           <div className="space-y-7 mt-5">
-            {/** First Name **/}
-            <Controller
-              name="firstName"
-              control={control}
-              render={({ field }) => (
-                <InputFieldComponent
-                  label="First Name*"
-                  {...field}
-                  error={errors.firstName?.message}
-                  disabled={isSaving}
-                />
-              )}
-            />
-
-            {/** Last Name **/}
-            <Controller
-              name="lastName"
-              control={control}
-              render={({ field }) => (
-                <InputFieldComponent
-                  label="Last Name*"
-                  {...field}
-                  error={errors.lastName?.message}
-                     disabled={isSaving}
-                />
-              )}
-            />
-
-            {/** Phone Number **/}
-            <Controller
-              name="phoneNumber"
-              control={control}
-              render={({ field }) => (
-                <InputFieldComponent
-                  label="Phone Number*"
-                  {...field}
-                  error={errors.phoneNumber?.message}
-                     disabled={isSaving}
-                />
-              )}
-            />
-
-            {/** Company Name **/}
-            <Controller
-              name="companyName"
-              control={control}
-              render={({ field }) => (
-                <InputFieldComponent
-                  label="Company Name*"
-                  {...field}
-                  error={errors.companyName?.message}
-                     disabled={isSaving}
-                />
-              )}
-            />
+            {personalFields.map(({ name, label }) => (
+              <Controller
+                key={name}
+                name={name}
+                control={control}
+                render={({ field }) => (
+                  <InputFieldComponent
+                    label={label}
+                    {...field}
+                    error={errors[name]?.message}
+                    disabled={isSaving}
+                  />
+                )}
+              />
+            ))}
           </div>
         </div>
       </div>

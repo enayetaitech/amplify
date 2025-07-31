@@ -28,7 +28,7 @@ export const editUserSchema = z.object({
     .string()
     .min(10, { message: "Phone Number must be at least 10 digits long" })
     .max(15, { message: "Phone Number can be at most 15 digits long" })
-    .regex(/^[0-9]+$/, { message: "Phone Number can only contain digits" }),
+    .regex(/^\+?[0-9]{10,15}$/, { message: "Phone Number must be 10–15 digits long, and may start with a ‘+’" }),
 });
 
 export type EditUserFormValues = z.infer<typeof editUserSchema>;

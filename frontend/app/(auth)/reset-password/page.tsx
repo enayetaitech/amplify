@@ -1,9 +1,11 @@
-import React from 'react'
+// app/reset-password/page.tsx
+import React, { Suspense } from "react";
+import ResetPasswordForm from "../../../components/reset-password/ResetPasswordForm";
 
-const ResetPassword = () => {
+export default function ResetPasswordPage() {
   return (
-    <div>ResetPassword</div>
-  )
+    <Suspense fallback={<div className="py-20 text-center">Loading…</div>}>
+      <ResetPasswordForm />
+    </Suspense>
+  );
 }
-
-export default ResetPassword

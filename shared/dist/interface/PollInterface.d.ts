@@ -55,7 +55,11 @@ export interface IPoll {
     sessionId?: string;
     title: string;
     questions: PollQuestion[];
-    createdBy: string;
+    createdBy: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+    };
     createdByRole: "Admin" | "Moderator";
     lastModified: Date;
     responsesCount: number;

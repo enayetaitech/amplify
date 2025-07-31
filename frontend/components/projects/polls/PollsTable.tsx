@@ -66,7 +66,7 @@ const PollsTable: React.FC<PollsTableProps> = ({
                   {poll.questions.length}
                 </TableCell>
                 <TableCell className="text-center">
-                  {poll.createdByRole}
+                  {poll.createdBy.firstName} {poll.createdBy.lastName}
                 </TableCell>
                 <TableCell className="text-center">
                   {new Date(poll.lastModified).toLocaleDateString()}

@@ -3,5 +3,6 @@ export interface ModeratorAddedEmailParams {
     addedByName: string;
     projectName: string;
     loginUrl: string;
+    roles: string[];
 }
 //# sourceMappingURL=ModeratorAddedEmailInterface.d.ts.map

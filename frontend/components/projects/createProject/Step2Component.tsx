@@ -1,21 +1,55 @@
 "use client";
 import React from "react";
-import { Textarea } from "components/ui/textarea";
-import { Step2Props } from "@shared/interface/CreateProjectInterface";
-import ComponentContainer from "components/shared/ComponentContainer";
-import CustomButton from "components/shared/CustomButton";
+import { Textarea } from "../../ui/textarea";
+import {
+  Step2FormValues,
+  Step2Props,
+} from "@shared/interface/CreateProjectInterface";
+import ComponentContainer from "../../shared/ComponentContainer";
+import CustomButton from "../../shared/CustomButton";
 import { useStep2 } from "hooks/useStep2";
 import { FormInput } from "./step2Component/FormInput";
 import { FormRadioGroup } from "./step2Component/FormRadioGroup";
+import { validate } from "../../../schemas/validators";
 import {
-  alphanumericSingleSpace,
-  alphaSingleSpace,
-  noLeadingSpace,
-  noMultipleSpaces,
-  noTrailingSpace,
-  validate,
-} from "schemas/validators";
+  alphanumericRules,
+  alphaRules,
+} from "../../../schemas/validationConfigs";
+import { RegisterOptions, UseFormRegister } from "react-hook-form";
+import { numberFields, recruitingFields } from "../../../constant/index";
 
+export type FieldConfig = { name: keyof Step2FormValues; label: string };
+
+
+
+// Simple textarea wrapper
+function FormTextarea({
+  name,
+  label,
+  register,
+  rules,
+  disabled,
+  error,
+}: {
+  name: keyof Step2FormValues;
+  label: string;
+  register: UseFormRegister<Step2FormValues>;
+  rules?: RegisterOptions<Step2FormValues>;
+  disabled: boolean;
+  error?: { message?: string };
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <Textarea
+        {...register(name, rules)}
+        className="mt-1 w-full"
+        disabled={disabled}
+      />
+      {error && <p className="text-red-500 text-xs mt-2">{error.message}</p>}
+    </div>
+  );
+}
 const Step2: React.FC<Step2Props> = ({
   formData,
   updateFormData,
@@ -47,73 +81,33 @@ const Step2: React.FC<Step2Props> = ({
         </div>
 
         {/* Basic Project Info Fields */}
-        <FormInput
-          label="Number of Respondents per Session"
-          name="respondentsPerSession"
-          type="number"
-          register={register}
-          required
-          disabled={isLoading}
-          error={errors.respondentsPerSession}
-        />
-        <FormInput
-          label="Number of Sessions"
-          name="numberOfSessions"
-          type="number"
-          register={register}
-          required
-          disabled={isLoading}
-          error={errors.numberOfSessions}
-        />
+        {/* Numeric inputs */}
+        {numberFields.map(({ name, label }) => (
+          <FormInput
+            key={name}
+            label={label}
+            name={name}
+            type="number"
+            register={register}
+            required
+            disabled={isLoading}
+            error={errors[name]}
+          />
+        ))}
 
-        <FormInput
-          label="Length(s) of Sessions (minutes)"
-          name="sessionLength"
-          type="number"
-          register={register}
-          required
-          disabled={isLoading}
-          error={errors.sessionLength}
-        />
-
-        {formData.addOns?.includes("Top-Notch Recruiting") && (
-          <>
+        {formData.addOns?.includes("Top-Notch Recruiting") &&
+          recruitingFields.map(({ name, label }) => (
             <FormInput
-              label="What are the target recruitment specs? Please include as much information as possible."
-              name="recruitmentSpecs"
+              key={name}
+              label={label}
+              name={name}
               register={register}
-              required
+              required={name === "recruitmentSpecs"}
               disabled={isLoading}
-              error={errors.recruitmentSpecs}
-              regexRules={[
-                { fn: noLeadingSpace, message: "Cannot start with a space" },
-                { fn: noTrailingSpace, message: "Cannot end with a space" },
-                { fn: noMultipleSpaces, message: "No multiple spaces allowed" },
-                {
-                  fn: alphanumericSingleSpace,
-                  message: "Only letters, numbers & single spaces allowed",
-                },
-              ]}
+              error={errors[name]}
+              regexRules={alphanumericRules}
             />
-            <FormInput
-              label="Will there be any pre–work or additional assignments?"
-              name="preWorkDetails"
-              register={register}
-              disabled={isLoading}
-              regexRules={[
-                { fn: noLeadingSpace, message: "Cannot start with a space" },
-                { fn: noTrailingSpace, message: "Cannot end with a space" },
-                { fn: noMultipleSpaces, message: "No multiple spaces allowed" },
-                {
-                  fn: alphanumericSingleSpace,
-                  message: "Only letters, numbers & single spaces allowed",
-                },
-              ]}
-              required
-              error={errors.preWorkDetails}
-            />
-          </>
-        )}
+          ))}
 
         {/* Conditional: Multi-Language Services */}
         {formData.addOns.includes("Multi-Language Services") && (
@@ -125,15 +119,7 @@ const Step2: React.FC<Step2Props> = ({
               required
               disabled={isLoading}
               error={errors.selectedLanguage}
-              regexRules={[
-                { fn: noLeadingSpace, message: "Cannot start with a space" },
-                { fn: noTrailingSpace, message: "Cannot end with a space" },
-                { fn: noMultipleSpaces, message: "No multiple spaces allowed" },
-                {
-                  fn: alphaSingleSpace,
-                  message: "Only letters & single spaces allowed",
-                },
-              ]}
+              regexRules={alphaRules}
             />
 
             <div className="space-y-2">
@@ -170,58 +156,47 @@ const Step2: React.FC<Step2Props> = ({
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                If some sessions will be in English and some will be
-                non-English, please specify how many of each you will conduct:
-              </label>
-              <Textarea
-                {...register("languageSessionBreakdown", {
-                  required: "This field is required",
-                  validate: (v: string) =>
-                    validate(v, [
-                      noLeadingSpace,
-
-                      noMultipleSpaces,
-                      alphanumericSingleSpace,
-                    ]) || "Only letters, numbers & single spaces allowed.",
-                })}
-                className="mt-1 w-full"
-                disabled={isLoading}
-              />
-              {errors.languageSessionBreakdown && (
-                <p className="text-red-500 text-xs mt-2">
-                  {errors.languageSessionBreakdown.message}
-                </p>
-              )}
-            </div>
+            <FormTextarea
+              name="languageSessionBreakdown"
+              label="If some sessions will be in English and some will be non-English, please specify how many of each you will conduct:"
+              register={register}
+              rules={{
+                required: "This field is required", // now v is inferred as string|number|undefined:
+                validate: (v) => {
+                  if (typeof v !== "string") return true;
+                  return (
+                    validate(
+                      v,
+                      alphanumericRules.map((r) => r.fn)
+                    ) || "Only letters, numbers & single spaces allowed."
+                  );
+                },
+              }}
+              disabled={isLoading}
+              error={errors.languageSessionBreakdown}
+            />
           </>
         )}
 
         {/* Anything else */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Anything else we should know about the project?
-          </label>
-          <Textarea
-            {...register("additionalInfo", {
-              validate: (v: string) =>
-                validate(v, [
-                  noLeadingSpace,
-
-                  noMultipleSpaces,
-                  alphanumericSingleSpace,
-                ]) || "Only letters, numbers & single spaces allowed.",
-            })}
-            className="mt-1 w-full"
-            disabled={isLoading}
-          />
-          {errors.additionalInfo && (
-            <p className="text-red-500 text-xs mt-2">
-              {errors.additionalInfo.message}
-            </p>
-          )}
-        </div>
+        <FormTextarea
+          name="additionalInfo"
+          label="Anything else we should know about the project?"
+          register={register}
+          rules={{
+            validate: (v) => {
+              if (typeof v !== "string") return true;
+              return (
+                validate(
+                  v,
+                  alphanumericRules.map((r) => r.fn)
+                ) || "Only letters, numbers & single spaces allowed."
+              );
+            },
+          }}
+          disabled={isLoading}
+          error={errors.additionalInfo}
+        />
 
         <div className="text-center">
           <CustomButton

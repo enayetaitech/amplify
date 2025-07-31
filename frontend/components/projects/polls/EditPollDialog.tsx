@@ -62,8 +62,15 @@ import {
   DropdownMenuTrigger,
 } from "components/ui/dropdown-menu";
 import { AxiosError } from "axios";
+import Image from "next/image";
 
-// copy your questionTypeOptions from AddPollDialog...
+// wherever you define WithImage
+// export interface WithImage {
+//   imageFile?: File;
+//   tempImageName?: string;
+//   imageUrl?: string;
+// }
+
 const questionTypeOptions: {
   value: QuestionType;
   label: string;
@@ -156,7 +163,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
         prompt: q.prompt,
         type: q.type,
         required: q.required,
-        imageFile: undefined,
+        imageUrl:  q.image, 
         tempImageName: undefined,
         ...(q.type === "SINGLE_CHOICE" && {
           answers: q.answers,
@@ -403,7 +410,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
     const formData = new FormData();
   formData.append("title", title.trim());
   formData.append("projectId", poll.projectId!);
-  formData.append("createdBy", poll.createdBy);
+  formData.append("createdBy", poll.createdBy._id);
   formData.append("createdByRole", poll.createdByRole);
 
  const questionsPayload = questions.map(q => ({
@@ -667,6 +674,18 @@ questions.forEach(q => {
                   <span>Required</span>
                 </div>
                 <div className="flex items-center gap-2">
+
+                   {q.imageUrl && !q.imageFile && (
+      <Image
+        src={q.imageUrl}
+        alt="Question image"
+        height={64}
+        width={64}
+        className="max-h-16 rounded-md mr-2"
+      />
+    )}
+
+
                   {/* ← this label/file-input combo */}
                   <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">
                     <Upload className="h-5 w-5" />
@@ -683,7 +702,13 @@ questions.forEach(q => {
                         });
                       }}
                     />
-                    {q.imageFile ? q.imageFile.name : "Attach image"}
+                      {q.imageFile
+        ? q.imageFile.name
+        : q.tempImageName
+        ? q.tempImageName
+        : q.imageUrl
+        ? "Replace image"
+        : "Attach image"}
                   </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

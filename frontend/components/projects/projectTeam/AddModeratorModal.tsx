@@ -72,7 +72,7 @@ export default function AddModeratorModal({
     mutationFn: (payload: AddModeratorValues & { projectId: string }) =>
       api.post("/api/v1/moderators/add-moderator", payload),
     onSuccess: () => {
-      toast.success("Moderator added!");
+      toast.success("Team member added successfully!");
       queryClient.invalidateQueries({
         queryKey: ["projectTeam", projectId],
       });
@@ -123,7 +123,7 @@ export default function AddModeratorModal({
         }}      >
         <DialogContent className="w-full max-w-2xl overflow-x-auto border-0">
           <DialogHeader>
-            <DialogTitle>Add Moderator</DialogTitle>
+            <DialogTitle>Add Project Team</DialogTitle>
           </DialogHeader>
 
           <Form {...form}>

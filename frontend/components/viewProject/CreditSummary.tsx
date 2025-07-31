@@ -4,7 +4,6 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "components/ui/card";
 import { IProject } from "@shared/interface/ProjectInterface";
 import { calculateOriginalEstimatedProjectCredits } from "utils/calculateOriginalEstimatedProjectCredits";
-
 import { useRouter } from "next/navigation";
 import CustomButton from "components/shared/CustomButton";
 import { calculateRemainingScheduleCredits } from "utils/calculateCreditsNeededForRemainingSchedules";
@@ -14,7 +13,6 @@ interface CreditSummaryProps {
 }
 
 export default function CreditSummary({ project }: CreditSummaryProps) {
-
   const router = useRouter();
 
   const originalEstimateCreditSummary =
@@ -24,40 +22,35 @@ export default function CreditSummary({ project }: CreditSummaryProps) {
     project.meetings
   );
 
+  const usedToDate = project.cumulativeMinutes;
+
+  const newTotal = usedToDate + creditNeededForRemainingSessions;
+
+  const rows: Array<{ label: string; value: number | string }> = [
+    {
+      label: "Original Estimated Project Credits",
+      value: originalEstimateCreditSummary,
+    },
+    { label: "Project Credits Used to Date", value: usedToDate },
+    {
+      label: "Project Credits Needed for Remaining Schedule",
+      value: creditNeededForRemainingSessions,
+    },
+    { label: "New Total Project Credit Estimate", value: newTotal },
+  ];
   return (
     <Card className="border-0 shadow-all-sides">
       <CardHeader>
         <CardTitle className="text-custom-teal">Credit Summary</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex justify-between">
-          <span className="text-sm text-gray-600">
-            Original Estimated Project Credits:
-          </span>
-          <span className="font-medium">{originalEstimateCreditSummary}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-sm text-gray-600">
-            Project Credits Used to Date:
-          </span>
-          <span className="font-medium">{project.cumulativeMinutes}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-sm text-gray-600">
-            Project Credits Needed for Remaining Schedule:
-          </span>
-          <span className="font-medium">
-            {creditNeededForRemainingSessions}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-sm text-gray-600">
-            New Total Project Credit Estimate:
-          </span>
-          <span className="font-medium">
-            {project.cumulativeMinutes + creditNeededForRemainingSessions}
-          </span>
-        </div>
+        
+        {rows.map(({ label, value }) => (
+          <div key={label} className="flex justify-between">
+            <span className="text-sm text-gray-600">{label}:</span>
+            <span className="font-medium">{value}</span>
+          </div>
+        ))}
 
         <div className="pt-4">
           <p className="text-sm text-gray-500 mb-2">

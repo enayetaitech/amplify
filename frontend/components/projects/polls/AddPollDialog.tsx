@@ -113,6 +113,7 @@ const questionTypeOptions: {
 export type WithImage = {
   imageFile?: File;
   tempImageName?: string;
+  imageUrl?: string;
 };
 
 type DraftWithImage = DraftQuestion & WithImage;

@@ -4,4 +4,5 @@ export interface ModeratorAddedEmailParams {
   addedByName: string;
   projectName: string;
   loginUrl: string;
+  roles: string[]
 }

@@ -62,12 +62,16 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
           </TableHeader>
 
           <TableBody className="bg-white divide-y divide-gray-100 text-left">
-            {moderators.map((m) => (
-              <TableRow key={m._id} className="cursor-pointer hover:bg-gray-50">
+            {moderators.map((m) => {
+              const rowClass = m.isActive
+      ? "cursor-pointer hover:bg-gray-50"
+      : "bg-gray-100 text-gray-400";
+            return (
+              <TableRow key={m._id} className={`${rowClass}`}>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {m.firstName} {m.lastName}
                 </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
+                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 ">
                   {m.roles?.length ? (
                     m.roles.join(", ")
                   ) : (
@@ -85,7 +89,9 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                   />
                 </TableCell>
               </TableRow>
-            ))}
+            )
+            }
+            )}
           </TableBody>
           <TableFooter>
             <TableRow>

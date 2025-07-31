@@ -34,6 +34,7 @@ export const editModeratorSchema = z.object({
       message: "Company Name can only contain letters/numbers & single spaces",
     }),
   adminAccess: z.boolean(),
+  isActive:    z.boolean(),
 });
 
 export type EditModeratorForm = z.infer<typeof editModeratorSchema>;

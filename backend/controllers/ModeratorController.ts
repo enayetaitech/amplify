@@ -35,7 +35,7 @@ export const addModerator = async (
     roles,
     projectId,
   } = req.body;
-  console.log("req.body", req.body);
+ 
   // 1️⃣ Validate required fields
   if (
     !firstName ||
@@ -130,6 +130,7 @@ export const addModerator = async (
     addedByName,
     projectName: project.name,
     loginUrl: `${config.frontend_base_url}/login`,
+    roles,
   });
 
   await sendEmail({
@@ -153,7 +154,7 @@ export const editModerator = async (
   next: NextFunction
 ): Promise<void> => {
   const { moderatorId } = req.params;
-  const { firstName, lastName, email, companyName, adminAccess } = req.body;
+  const { firstName, lastName, email, companyName, adminAccess, isActive } = req.body;
 
   // 1️⃣ Find the moderator
   const moderator = await ModeratorModel.findById(moderatorId);
@@ -169,11 +170,23 @@ export const editModerator = async (
     } else {
       return next(
         new ErrorHandler(
-          "Moderator is verified: only adminAccess may be updated",
+          "Member is verified: only admin access and active status may be updated",
           400
         )
       );
     }
+
+    if (typeof isActive === "boolean") {
+      moderator.isActive = isActive;
+    } else {
+      return next(
+        new ErrorHandler(
+          "Member is verified: only admin access and active status may be updated",
+          400
+        )
+      );
+    }
+
   } else {
     // Not yet verified: allow personal fields + adminAccess
     if (firstName !== undefined) moderator.firstName = firstName;
@@ -181,6 +194,7 @@ export const editModerator = async (
     if (email !== undefined) moderator.email = email;
     if (companyName !== undefined) moderator.companyName = companyName;
     if (typeof adminAccess === "boolean") moderator.adminAccess = adminAccess;
+    if (typeof isActive === "boolean") moderator.isActive = isActive;
   }
 
   // 3️⃣ Save and respond

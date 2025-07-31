@@ -8,49 +8,24 @@ import { Button } from "components/ui/button";
 import { Label } from "components/ui/label";
 import Logo from "components/LogoComponent";
 import { Alert, AlertDescription } from "components/ui/alert";
-import { toast } from "sonner";
-
-import api from "lib/api";
-import {
-  ApiResponse,
-  ErrorResponse,
-} from "@shared/interface/ApiResponseInterface";
-import { useMutation } from "@tanstack/react-query";
 import FooterComponent from "components/FooterComponent";
-
+import useForgotPassword from "hooks/useForgotPassword";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState<string>("");
 
-  const mutation = useMutation<
-    ApiResponse<null>,
-    // TError:
-    { response?: { data: ErrorResponse } } & Error,
-    // TVariables:
-    string
-  >({
-    // 1️⃣ The mutationFn, typed to accept a string and return ApiResponse<null>
-    mutationFn: (email: string) =>
-      api
-        .post<ApiResponse<null>>("/api/v1/users/forgot-password", { email })
-        .then((res) => res.data),
-
-    // 2️⃣ onSuccess sees ApiResponse<null> and the original email string
-    onSuccess: (response: ApiResponse<null>) => {
-      toast.success(response.message);
-    },
-
-    // 3️⃣ onError sees our Error type with potential response.data.message
-    onError: (error) => {
-      const serverMsg =
-        error.response?.data.message || error.message || "Something went wrong";
-      toast.error(serverMsg);
-    },
-  });
+   const {
+   mutate: sendResetLink,
+   isPending: isLoading,
+   isError,
+   isSuccess,
+   data,
+   error,
+ } = useForgotPassword();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate(email);
+    sendResetLink({ email });
   };
 
   return (
@@ -87,7 +62,7 @@ const ForgotPassword = () => {
                 name="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={mutation.isPending}
+                disabled={isLoading}
                 className="w-full"
               />
             </div>
@@ -95,28 +70,28 @@ const ForgotPassword = () => {
               variant="default"
               className="w-full bg-orange-500 hover:bg-orange-600"
               type="submit"
-              disabled={mutation.isPending}
+              disabled={isLoading}
             >
-              {mutation.isPending ? "Sending..." : "Send Reset Link"}
+              {isLoading  ? "Sending..." : "Send Reset Link"}
             </Button>
           </form>
 
-          {mutation.isSuccess && (
+          {isSuccess && (
             <Alert
               variant="default"
               className="mt-4 bg-green-50 border-green-500"
             >
               <AlertDescription className="text-green-500 text-center">
-                {mutation.data.message}
+                {data.message}
               </AlertDescription>
             </Alert>
           )}
 
-          {mutation.isError && (
+          {isError && (
             <Alert variant="destructive" className="mt-4">
               <AlertDescription className="text-center">
-                {mutation.error.response?.data.message ||
-                  mutation.error.message ||
+                {error.response?.data.message ||
+                  error.message ||
                   "Error sending reset link"}
               </AlertDescription>
             </Alert>

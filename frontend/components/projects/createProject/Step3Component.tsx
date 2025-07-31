@@ -32,6 +32,7 @@ import { BiQuestionMark } from "react-icons/bi";
 import SessionsTable from "./SessionsTable";
 import {
   alphanumericSingleSpace,
+  lettersAndSpaces,
   noLeadingSpace,
   noMultipleSpaces,
   noTrailingSpace,
@@ -74,13 +75,10 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
 
   // ========= Update Parent State =========
   useEffect(() => {
-    if (!validateProjectName()) {
-      return;
-    }
+    if (!validateProjectName()) return;
 
-    if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
-      return;
-    }
+  if (selectedLanguages.includes("Other") && !validateOtherLanguage())
+    return;
 
     const computedLanguages = selectedLanguages.includes("Other")
       ? [
@@ -89,13 +87,8 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         ]
       : selectedLanguages;
 
-    if (countrySelection === "Other" && !validateOtherCountry()) {
-      return;
-    }
-    // if “Other Language” is invalid, skip too
-    if (selectedLanguages.includes("Other") && !validateOtherLanguage()) {
-      return;
-    }
+  if (countrySelection === "Other" && !validateOtherCountry()) return;
+   
     const finalCountry =
       countrySelection === "USA" ? "USA" : otherCountry.trim();
 
@@ -109,7 +102,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
       })),
     });
 
-    // Excluding updateFormData from dependencies to avoid potential infinite loops.
+   
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     projectName,
@@ -137,25 +130,9 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     }
   };
 
-  const handleOtherCountryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setOtherCountry(e.target.value);
 
-    if (otherCountryError) {
-      setOtherCountryError("");
-    }
-  };
 
-  const handleOtherLanguageChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const v = e.target.value;
-    setOtherLanguage(v);
-
-    // clear error as user types
-    if (otherLangError) {
-      setOtherLangError("");
-    }
-  };
+ 
 
   const validateOtherLanguage = () => {
     if (!otherLanguage.trim()) {
@@ -170,13 +147,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     return true;
   };
 
-  // Hook into your wizard’s “next” step button (if you have one) or
-  // run this on blur:
-  const handleOtherLanguageBlur = () => {
-    if (selectedLanguages.includes("Other")) {
-      validateOtherLanguage();
-    }
-  };
+ 
 
   const validateOtherCountry = () => {
     const trimmed = otherCountry.trim();
@@ -192,11 +163,6 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     return true;
   };
 
-  const handleOtherCountryBlur = () => {
-    if (countrySelection === "Other") {
-      validateOtherCountry();
-    }
-  };
 
   const validateProjectName = () => {
     const trimmed = projectName.trim();
@@ -226,7 +192,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Project Name Input */}
       <div>
         <Label className="text-sm font-medium">Project Name*</Label>
@@ -248,17 +214,7 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
               if (projectNameError) setProjectNameError("");
             }
           )}
-          onBlur={() => {
-            if (!projectName.trim()) {
-              setProjectNameError("Project name is required.");
-           } else if (
-              !/^[A-Za-z0-9 _-]+$/.test(projectName.trim())
-            ) {
-             setProjectNameError(
-                "Only letters, numbers, spaces, dashes, and underscores allowed."
-              );
-            }
-          }}
+         onBlur={validateProjectName}
           required
         />
         {projectNameError && (
@@ -301,12 +257,29 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
           <div className="mt-2">
             <Label className="text-sm font-medium">Other Language(s)*</Label>
             <Input
-              type="text"
-              className="mt-1 w-full"
-              value={otherLanguage}
-              onChange={handleOtherLanguageChange}
-              onBlur={handleOtherLanguageBlur}
-            />
+      name="otherLanguage"
+      placeholder="Enter language"
+      value={otherLanguage}
+      onChange={makeOnChange<"otherLanguage">(
+        "otherLanguage",
+        [noLeadingSpace,noMultipleSpaces, lettersAndSpaces],
+        "Language must contain only letters & spaces, no edge spaces.",
+        ({ otherLanguage }) => {
+          setOtherLanguage(otherLanguage);
+          if (otherLangError) setOtherLangError("");
+        }
+      )}
+      onBlur={() => {
+        // final trim + collapse spaces
+        const clean = otherLanguage.trim().replace(/\s+/g, " ");
+        setOtherLanguage(clean);
+        validateOtherLanguage();
+      }}
+      className={`mt-1 w-full ${otherLangError ? "border-red-500" : ""}`}
+    />
+    {otherLangError && (
+      <p className="text-red-500 text-sm mt-1">{otherLangError}</p>
+    )}
           </div>
         )}
         {formData.service === "Concierge" && (
@@ -337,17 +310,28 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
           <div className="mt-2">
             <Label className="text-sm font-medium">Specify Country Name</Label>
             <Input
-              type="text"
-              className={`mt-1 w-full ${
-                otherCountryError ? "border-red-500" : ""
-              }`}
-              value={otherCountry}
-              onChange={handleOtherCountryChange}
-              onBlur={handleOtherCountryBlur}
-            />
-            {otherCountryError && (
-              <p className="text-red-500 text-sm">{otherCountryError}</p>
-            )}
+      name="otherCountry"
+      placeholder="Enter country"
+      value={otherCountry}
+      onChange={makeOnChange<"otherCountry">(
+        "otherCountry",
+        [noLeadingSpace,noMultipleSpaces,  lettersAndSpaces],
+        "Country must contain only letters & spaces, no edge spaces.",
+        ({ otherCountry }) => {
+          setOtherCountry(otherCountry);
+          if (otherCountryError) setOtherCountryError("");
+        }
+      )}
+      onBlur={() => {
+        const clean = otherCountry.trim().replace(/\s+/g, " ");
+        setOtherCountry(clean);
+        validateOtherCountry();
+      }}
+      className={`mt-1 w-full ${otherCountryError ? "border-red-500" : ""}`}
+    />
+    {otherCountryError && (
+      <p className="text-red-500 text-sm mt-1">{otherCountryError}</p>
+    )}
           </div>
         )}
       </div>

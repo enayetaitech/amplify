@@ -1,6 +1,8 @@
 import { Role } from "@shared/interface/ModeratorInterface";
-import { LoginFormValues } from "schemas/loginSchema";
-import { RegisterFormValues } from "schemas/registerSchema";
+import { FieldConfig } from "../components/projects/createProject/Step2Component";
+import { EditUserFormValues } from "../schemas/editUserSchema";
+import { LoginFormValues } from "../schemas/loginSchema";
+import { RegisterFormValues } from "../schemas/registerSchema";
 
 export const durations = [
   { label: "30 minutes", minutes: 30 },
@@ -116,3 +118,31 @@ export const textFields = [
 ];
 
 export const ALL_ROLES: Role[] = ["Admin", "Moderator", "Observer"];
+
+export const personalFields: Array<{
+  name: keyof EditUserFormValues;
+  label: string;
+}> = [
+  { name: "firstName",    label: "First Name*"    },
+  { name: "lastName",     label: "Last Name*"     },
+  { name: "phoneNumber",  label: "Phone Number*"  },
+  { name: "companyName",  label: "Company Name*"  },
+];
+
+export const numberFields: FieldConfig[] = [
+  { name: "respondentsPerSession", label: "Number of Respondents per Session" },
+  { name: "numberOfSessions", label: "Number of Sessions" },
+  { name: "sessionLength", label: "Length(s) of Sessions (minutes)" },
+];
+
+export const recruitingFields: FieldConfig[] = [
+  {
+    name: "recruitmentSpecs",
+    label:
+      "What are the target recruitment specs? Please include as much information as possible.",
+  },
+  {
+    name: "preWorkDetails",
+    label: "Will there be any pre–work or additional assignments?",
+  },
+];

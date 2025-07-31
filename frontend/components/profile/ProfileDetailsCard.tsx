@@ -6,6 +6,7 @@ import { Card, CardContent } from "components/ui/card";
 import { Mail, Phone, Building2, Home, Landmark, MapPin, Globe2, DollarSign, UserCircle2 } from "lucide-react";
 import Image from "next/image";
 import React from "react";
+import { DetailItem } from "./ProfileDetailItem";
 
 type BillingInfo = {
   address: string;
@@ -42,6 +43,40 @@ export function ProfileDetailsCard({
   onDelete: () => void;
   isDeleting: boolean;
 }) {
+
+  const personalRows = [
+    { icon: <UserCircle2 size={20} />, label: "First Name", value: firstName },
+    { icon: <UserCircle2 size={20} />, label: "Last Name",  value: lastName  },
+    { icon: <Phone       size={20} />, label: "Phone",      value: phoneNumber },
+    { icon: <Building2   size={20} />, label: "Company",    value: companyName },
+  ];
+
+  const addressRows = billingInfo
+    ? [
+        { icon: <Home     size={20} />, label: "Address", value: billingInfo.address    },
+        { icon: <Landmark size={20} />, label: "City",    value: billingInfo.city       },
+        { icon: <MapPin   size={20} />, label: "State",   value: billingInfo.state      },
+        { icon: <Mail     size={20} />, label: "Postal",  value: billingInfo.postalCode },
+        { icon: <Globe2   size={20} />, label: "Country", value: billingInfo.country    },
+      ]
+    : [];
+
+    const actionButtons: Array<{
+  label: string;
+  variant: "teal" | "dark-blue" | "orange";
+  onClick: () => void;
+  disabled?: boolean;
+}> = [
+  { label: "Edit Profile",       variant: "teal",      onClick: onEdit      },
+  { label: "Change Password",    variant: "dark-blue", onClick: onChangePassword },
+  {
+    label: isDeleting ? "Deleting…" : "Delete Account",
+    variant: "orange",
+    onClick: onDelete,
+    disabled: isDeleting,
+  },
+];
+
   return (
     <Card className="max-w-4xl mx-auto mt-10 p-0 shadow-xl rounded-2xl border-custom-gray-7">
       <CardContent className="p-8">
@@ -86,105 +121,42 @@ export function ProfileDetailsCard({
           Personal Details
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <DetailItem
-            icon={<UserCircle2 size={20} className="text-custom-gray-3" />}
-            label="First Name"
-            value={firstName}
-          />
-          <DetailItem
-            icon={<UserCircle2 size={20} className="text-custom-gray-3" />}
-            label="Last Name"
-            value={lastName}
-          />
-          <DetailItem
-            icon={<Phone size={20} className="text-custom-gray-3" />}
-            label="Phone"
-            value={phoneNumber}
-          />
-          <DetailItem
-            icon={<Building2 size={20} className="text-custom-gray-3" />}
-            label="Company"
-            value={companyName}
-          />
+          {personalRows.map(({ icon, label, value }) => (
+            <DetailItem key={label} icon={icon} label={label} value={value} />
+          ))}
         </div>
 
         {/* Address Details */}
-        {billingInfo && (
+         {addressRows.length > 0 && (
           <>
-            <h2 className="text-lg font-semibold text-custom-light-blue-1 mb-3 tracking-wide">
-              Address
-            </h2>
+            <h2>Address</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailItem
-                icon={<Home size={20} className="text-custom-gray-3" />}
-                label="Address"
-                value={billingInfo.address}
-              />
-              <DetailItem
-                icon={<Landmark size={20} className="text-custom-gray-3" />}
-                label="City"
-                value={billingInfo.city}
-              />
-              <DetailItem
-                icon={<MapPin size={20} className="text-custom-gray-3" />}
-                label="State"
-                value={billingInfo.state}
-              />
-              <DetailItem
-                icon={<Mail size={20} className="text-custom-gray-3" />}
-                label="Postal"
-                value={billingInfo.postalCode}
-              />
-              <DetailItem
-                icon={<Globe2 size={20} className="text-custom-gray-3" />}
-                label="Country"
-                value={billingInfo.country}
-              />
+              {addressRows.map(({ icon, label, value }) => (
+                <DetailItem key={label} icon={icon} label={label} value={value} />
+              ))}
             </div>
           </>
         )}
 
         {/* Action Buttons */}
         <div className="flex flex-col md:flex-row gap-4 justify-center mt-10">
-          <Button variant="teal" className="w-full md:w-44" onClick={onEdit}>
-            Edit Profile
-          </Button>
-          <Button
-            variant="dark-blue"
-            className="w-full md:w-44"
-            onClick={onChangePassword}
-          >
-            Change Password
-          </Button>
-          <Button
-            variant="orange"
-            className="w-full md:w-44"
-            onClick={onDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? "Deleting…" : "Delete Account"}
-          </Button>
-        </div>
+  {actionButtons.map(({ label, variant, onClick, disabled }, i) => (
+    <Button
+      key={i}
+      variant={variant}
+      className="w-full md:w-44"
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {label}
+    </Button>
+  ))}
+</div>
+
       </CardContent>
     </Card>
   );
 }
 
 // Helper for label/value pair
-function DetailItem({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-2 bg-custom-gray-2 rounded-xl px-3 py-2">
-      {icon}
-      <span className="text-custom-gray-5 font-medium w-28">{label}:</span>
-      <span className="truncate">{value}</span>
-    </div>
-  );
-}
+

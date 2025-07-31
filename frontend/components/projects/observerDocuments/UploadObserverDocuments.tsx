@@ -3,24 +3,21 @@
 import React, { useState } from "react";
 import {
   keepPreviousData,
-  useMutation,
   useQuery,
-  useQueryClient,
 } from "@tanstack/react-query";
-import api from "lib/api";
-import CustomButton from "components/shared/CustomButton";
+import api from "../../../lib/api";
+import CustomButton from "../../shared/CustomButton";
 import { Upload } from "lucide-react";
 import { ISession } from "@shared/interface/SessionInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
-import { useGlobalContext } from "context/GlobalContext";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "components/ui/select";
-import { toast } from "sonner";
+} from "../../ui/select";
+import useUploadObserverDocument from "../../../hooks/useUploadObserverDocument";
 
 interface UploadProps {
   projectId: string;
@@ -30,8 +27,6 @@ interface UploadProps {
 const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) => {
   const [file, setFile] = useState<File | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
-  const queryClient = useQueryClient();
-  const { user } = useGlobalContext();
 
   // 1️⃣ Fetch all sessions for this project
   const {
@@ -51,40 +46,14 @@ const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) =
     placeholderData: keepPreviousData,
   });
 
-  const addedBy = user?._id;
-  const addedByRole = user?.role;
 
   // 2️⃣ Mutation to upload the file + projectId + sessionId + user info
-  const uploadMutation = useMutation({
-    mutationFn: () => {
-      if (!user) {
-        return Promise.reject(new Error("You must be logged in"));
-      }
-      if (!file) return Promise.reject(new Error("Please select a file"));
-      if (!sessionId)
-        return Promise.reject(new Error("Please select a session"));
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("projectId", projectId);
-      formData.append("sessionId", sessionId);
-      formData.append("addedBy", addedBy ?? "");
-      formData.append("addedByRole", addedByRole ?? "");
-
-      return api.post("/api/v1/observerDocuments", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-    },
-    onSuccess: () => {
-      setFile(null);
-      setSessionId("");
-        queryClient.invalidateQueries({
-        queryKey: ["observerDocs", projectId],
-      });
-      onClose()
-      toast.success("Document uploaded successfully.")
-    },
-  });
+  const {
+   mutate: upload,
+   isPending: isUploading,
+   isError: uploadError,
+   error: uploadErrorObj,
+ } = useUploadObserverDocument(projectId, onClose);
 
   if (sessionsError) {
     return (
@@ -123,16 +92,16 @@ const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) =
       <div className="flex justify-center pt-5">
         <CustomButton
           icon={<Upload />}
-          text={uploadMutation.isPending ? "Uploading..." : "Upload"}
-          onClick={() => uploadMutation.mutate()}
-          disabled={!file || !sessionId || uploadMutation.isPending}
+          text={isUploading ? "Uploading..." : "Upload"}
+          onClick={() => file && sessionId && upload({ file, sessionId })}
+          disabled={!file || !sessionId || isUploading}
           variant="default"
           className="bg-custom-orange-2 text-white hover:bg-custom-orange-1"
         />
       </div>
-      {uploadMutation.isError && (
+      {uploadError  && (
         <p className="text-red-500">
-          Error: {(uploadMutation.error as Error).message}
+          Error: {(uploadErrorObj as Error).message}
         </p>
       )}
     </div>

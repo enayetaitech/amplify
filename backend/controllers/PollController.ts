@@ -117,6 +117,7 @@ export const getPollsByProjectId = async (
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .populate('createdBy', 'firstName lastName') 
       .lean(),
     PollModel.countDocuments({ projectId }),
   ]);

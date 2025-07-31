@@ -44,7 +44,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           {/* footer */}
         </div>
       </div>
-      <div className="mt-auto">
+      <div className="mt-auto md:ml-64 ">
         <FooterComponent />
       </div>
       {/* logout modal */}
