@@ -71,7 +71,7 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {m.firstName} {m.lastName}
                 </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
+                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 ">
                   {m.roles?.length ? (
                     m.roles.join(", ")
                   ) : (

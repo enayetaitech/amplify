@@ -123,7 +123,7 @@ export default function AddModeratorModal({
         }}      >
         <DialogContent className="w-full max-w-2xl overflow-x-auto border-0">
           <DialogHeader>
-            <DialogTitle>Add Moderator</DialogTitle>
+            <DialogTitle>Add Project Team</DialogTitle>
           </DialogHeader>
 
           <Form {...form}>
