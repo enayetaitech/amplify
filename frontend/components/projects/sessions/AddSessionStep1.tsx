@@ -142,7 +142,7 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Label className="font-medium text-sm">
-            Do you need breakout room functionality? <span className="text-custom-orange-1">*</span>
+            Do you need breakout room functionality? 
           </Label>
           <TooltipProvider>
             <Tooltip>
