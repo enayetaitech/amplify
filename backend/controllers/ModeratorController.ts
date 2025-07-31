@@ -35,7 +35,7 @@ export const addModerator = async (
     roles,
     projectId,
   } = req.body;
-  console.log("req.body", req.body);
+ 
   // 1️⃣ Validate required fields
   if (
     !firstName ||
@@ -130,6 +130,7 @@ export const addModerator = async (
     addedByName,
     projectName: project.name,
     loginUrl: `${config.frontend_base_url}/login`,
+    roles,
   });
 
   await sendEmail({
@@ -169,7 +170,7 @@ export const editModerator = async (
     } else {
       return next(
         new ErrorHandler(
-          "Moderator is verified: only admin access and active status may be updated",
+          "Member is verified: only admin access and active status may be updated",
           400
         )
       );
@@ -180,7 +181,7 @@ export const editModerator = async (
     } else {
       return next(
         new ErrorHandler(
-          "Moderator is verified: only admin access and active status may be updated",
+          "Member is verified: only admin access and active status may be updated",
           400
         )
       );

@@ -98,17 +98,27 @@ export const moderatorAddedEmailTemplate = ({
   addedByName,
   projectName,
   loginUrl,
-}: ModeratorAddedEmailParams): string => `
+  roles
+}: ModeratorAddedEmailParams): string => {
+  const list = roles.length > 1
+    ? roles.slice(0, -1).join(", ") + " and " + roles.slice(-1)
+    : roles[0];
+  const roleWord = roles.length > 1 ? "roles" : "role";
+  return `
   <p>Hi ${moderatorName},</p>
 
-  <p>${addedByName} has just added you as a moderator on the project <strong>"${projectName}"</strong> in the Amplify platform.</p>
+  <p>${addedByName} has just assigned you the following ${roleWord} on the project <strong>"${projectName}"</strong> in the Amplify platform.</p>
 
-  <p>You can log in to your account here to view and manage your moderator permissions:</p>
+   <ul>
+      ${roles.map(r => `<li>${r}</li>`).join("\n")}
+    </ul>
+
+  <p>You can log in to your account here to view and manage your permissions:</p>
   <p><a href="${loginUrl}">Go to Amplify Dashboard</a></p>
 
   <p>If you have any questions, feel free to reach out to support@amplifyresearch.com.</p>
 
   <p>Cheers,<br/>The Amplify Team</p>
 `;
-
+}
 
