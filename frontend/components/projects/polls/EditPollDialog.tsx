@@ -410,7 +410,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
     const formData = new FormData();
   formData.append("title", title.trim());
   formData.append("projectId", poll.projectId!);
-  formData.append("createdBy", poll.createdBy);
+  formData.append("createdBy", poll.createdBy._id);
   formData.append("createdByRole", poll.createdByRole);
 
  const questionsPayload = questions.map(q => ({
