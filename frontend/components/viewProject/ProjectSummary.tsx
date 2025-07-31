@@ -16,6 +16,7 @@ import {
   noMultipleSpaces,
 } from "schemas/validators";
 import InlineEditable from "./InlineEditable";
+import { PencilIcon } from "lucide-react";
 
 const sharedValidators = [
   { fn: noLeadingSpace, message: "No leading spaces allowed" },
@@ -65,22 +66,7 @@ export default function ProjectSummary({
     /** control on right side */
     rightControl?: React.ReactNode;
   }> = [
-    {
-      label: "Tags",
-      value:
-        project.tags.length > 0
-          ? project.tags.map((t) => t.title).join(", ")
-          : "—",
-      leftIcon: (
-        <span
-          className="cursor-pointer text-custom-teal"
-          onClick={onTagEditClick}
-        >
-          Edit
-        </span>
-      ),
-    },
-    {
+        {
       label: "Fieldwork Start Date",
       value: firstSessionDate ? firstSessionDate.toLocaleDateString() : "—",
     },
@@ -93,7 +79,7 @@ export default function ProjectSummary({
       leftIcon: (
         <Tooltip>
           <TooltipTrigger asChild>
-            <BiQuestionMark className="h-4 w-4 text-gray-400 cursor-help" />
+             <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
           </TooltipTrigger>
           <TooltipContent side="top" align="start">
             Allow observers to see all recordings?
@@ -155,6 +141,22 @@ export default function ProjectSummary({
           }
           editControlType="textarea"
         />
+
+         <div className="flex justify-between items-center text-sm text-gray-600">
+          <span>
+            Tags:{" "}
+            {project.tags.length > 0
+              ? project.tags.map((t) => t.title).join(", ")
+              : "—"}
+          </span>
+          <div
+            className="flex items-center gap-1 cursor-pointer text-sm text-black"
+            onClick={onTagEditClick}
+          >
+            <PencilIcon className="h-4 w-4" />
+            {project.tags.length > 0 ? "Edit" : "Add"}
+          </div>
+        </div>
 
         {/* Static rows */}
         {infoRows.map(
