@@ -36,6 +36,7 @@ export interface EditModeratorForm {
   email: string;
   companyName: string;
   adminAccess: boolean;
+  isActive: boolean;
 }
 
 interface EditModeratorModalProps {
@@ -57,6 +58,7 @@ export default function EditModeratorModal({
       email: "",
       companyName: "",
       adminAccess: false,
+      isActive: true,
     },
     mode: "onChange",
     reValidateMode: "onChange",
@@ -73,6 +75,7 @@ export default function EditModeratorModal({
         email: moderator.email,
         companyName: moderator.companyName,
         adminAccess: moderator.adminAccess,
+        isActive: moderator.isActive,
       });
     }
   }, [moderator, form]);
@@ -158,6 +161,25 @@ export default function EditModeratorModal({
                   <FormControl>
                     <Switch
                     disabled={isSaving}
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between">
+                  <FormLabel className="m-0">
+                    {field.value ? "Active" : "Inactive"}
+                  </FormLabel>
+                  <FormControl>
+                    <Switch
+                      disabled={isSaving}
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
