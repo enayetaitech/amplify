@@ -72,7 +72,7 @@ export default function AddModeratorModal({
     mutationFn: (payload: AddModeratorValues & { projectId: string }) =>
       api.post("/api/v1/moderators/add-moderator", payload),
     onSuccess: () => {
-      toast.success("Moderator added!");
+      toast.success("Team member added successfully!");
       queryClient.invalidateQueries({
         queryKey: ["projectTeam", projectId],
       });
