@@ -32,6 +32,12 @@ const Login = () => {
 
   const loginMutation = useLogin();
 
+  const {
+    mutate: login,
+    isPending,
+
+  } = loginMutation;
+
   const handleErrors = (errors: FieldErrors<LoginFormValues>) => {
     Object.values(errors).forEach((fieldError) => {
       console.log("errors", errors);
@@ -42,10 +48,10 @@ const Login = () => {
   };
 
   const onSubmit = form.handleSubmit((vals) => {
-    loginMutation.mutate(vals);
+    login(vals);
   }, handleErrors);
 
-  const isSaving = loginMutation.isPending
+  
 
   return (
     <div>
@@ -76,7 +82,7 @@ const Login = () => {
                     label="Email Address"
                     placeholder="Enter your email"
                     type="email"
-                    disabled={isSaving}
+                    disabled={isPending}
                   />
 
                   {/* Password Field */}
@@ -85,7 +91,7 @@ const Login = () => {
                     name="password"
                     label="Password"
                     placeholder="Enter your password"
-                    disabled={isSaving}
+                    disabled={isPending}
                   />
                   <div className="flex items-center justify-between">
                     <FormField
@@ -97,7 +103,7 @@ const Login = () => {
                             <Checkbox
                               checked={field.value}
                               onCheckedChange={field.onChange}
-                              disabled={isSaving}
+                              disabled={isPending}
                             />
                           </FormControl>
                           <FormLabel className="text-sm font-normal">
@@ -116,9 +122,9 @@ const Login = () => {
                   <Button
                     type="submit"
                     className="w-full bg-orange-500 hover:bg-orange-600"
-                  disabled={isSaving}
+                  disabled={isPending}
                   >
-                    {isSaving ? "Loading..." : "Login"}
+                    {isPending ? "Loading..." : "Login"}
                   </Button>
                 </form>
               </Form>
