@@ -65,13 +65,17 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open}   onOpenChange={(isOpen) => {
+    setOpen(isOpen);
+    if (isOpen) setStep(1);
+  }}>
       <Button
         className="bg-custom-teal hover:bg-custom-dark-blue-3"
         onClick={() => {
           if (totalCreditsNeeded === 0) {
             toast.error("You have to select a credit package");
           } else {
+            setStep(1)      
             setOpen(true);
           }
         }}
