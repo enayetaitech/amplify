@@ -32,11 +32,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] min-h-screen">
       {/* Sidebar */}
-      <aside className="hidden md:block sticky top-0 h-screen z-50">
+      <div className="relative z-50">
         <DashboardSidebarComponent
           handleLogoutModalOpen={handleLogoutModalOpen}
         />
-      </aside>
+     </div>
 
       {/* Main Content */}
       <div className="flex flex-col">
