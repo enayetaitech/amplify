@@ -30,62 +30,57 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
   onScoreToChange,
   onLowLabelChange,
   onHighLabelChange,
-  disabled
+  disabled,
 }) => (
   <div className="space-y-4">
     {/* 1) Score from / to */}
     <div className="grid grid-cols-2 gap-6">
-      <div className="flex items-center gap-1">
-        <Label>Score from</Label>
-        <div className="flex justify-center items-center">
+      <div className="flex items-center space-x-2">
+        <Label className="whitespace-nowrap">Score from</Label>
+        <div className="flex items-center space-x-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onScoreFromChange(Math.max(0, scoreFrom - 1))}
-              disabled={disabled}
+            disabled={disabled}
           >
             <Minus />
           </Button>
 
-          <span className="inline-flex items-center justify-center w-8 h-8 text-sm">
-            {scoreFrom}
-          </span>
+          <span className="w-8 text-center">{scoreFrom}</span>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onScoreFromChange(scoreFrom + 1)}
-              disabled={disabled}
+            disabled={disabled}
           >
             <Plus />{" "}
           </Button>
         </div>
       </div>
-      <div className="flex items-center gap-1">
-        <Label>to</Label>
-        <div className="flex justify-center items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onScoreToChange(Math.max(scoreFrom, scoreTo - 1))}
+      <div className="flex items-center space-x-2">
+          <Label className="whitespace-nowrap">To</Label>
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onScoreToChange(Math.max(scoreFrom, scoreTo - 1))}
               disabled={disabled}
-          >
-            <Minus />
-          </Button>
-          <span className="inline-flex items-center justify-center w-8 h-8 text-sm">
-            {scoreTo}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onScoreToChange(scoreTo + 1)}
-            className=""
+            >
+              <Minus />
+            </Button>
+            <span className="w-8 text-center">{scoreTo}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onScoreToChange(scoreTo + 1)}
               disabled={disabled}
-          >
-            <Plus />
-          </Button>
+            >
+              <Plus />
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
 
     {/* 2) Low / High labels */}
     <div className="grid grid-cols-2 gap-6">
@@ -96,7 +91,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
           onChange={(e) => onLowLabelChange(e.target.value)}
           placeholder="e.g. Not likely"
           className="mt-1"
-            disabled={disabled}
+          disabled={disabled}
         />
       </div>
       <div>
@@ -106,7 +101,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
           onChange={(e) => onHighLabelChange(e.target.value)}
           placeholder="e.g. Extremely likely"
           className="mt-1"
-            disabled={disabled}
+          disabled={disabled}
         />
       </div>
     </div>
