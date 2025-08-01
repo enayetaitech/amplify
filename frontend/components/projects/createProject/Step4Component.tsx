@@ -5,7 +5,7 @@ import {
   IProjectFormState,
   Step4Props,
 } from "@shared/interface/CreateProjectInterface";
-import ComponentContainer from "components/shared/ComponentContainer";
+
 import PurchaseModal from "./PurchaseModal";
 import { ProjectDetails } from "./step4Component/ProjectDetails";
 import { TermsAndConditions } from "./step4Component/TermsAndConditions";
@@ -43,8 +43,8 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
   }, 0);
 
   return (
-    <ComponentContainer>
-      <div className="space-y-6 ml-28">
+   
+      <div className="space-y-6 ">
         {/* Project Details */}
         <ProjectDetails data={formData} />
 
@@ -83,7 +83,7 @@ const Step4: React.FC<Step4Props> = ({ formData, uniqueId }) => {
           )}
         </div>
       </div>
-    </ComponentContainer>
+   
   );
 };
 

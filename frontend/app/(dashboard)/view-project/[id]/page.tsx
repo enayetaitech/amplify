@@ -28,7 +28,7 @@ const ViewProject = () => {
 
   return (
     <ComponentContainer>
-      <div className=" py-5 ">
+      <div className=" py-5 mx-5">
         <HeadingBlue25px>Project Details: {project!.name}</HeadingBlue25px>
        
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -100,7 +100,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   }, [openMenuId]);
   
   return (
-    <div className=" rounded-lg shadow-lg overflow-x-auto lg:ml-10">
+    <div className=" rounded-lg shadow-lg overflow-x-auto">
       <div className="bg-white rounded-lg shadow-lg">
         <Table className="min-w-full divide-y divide-gray-200 ">
           <TableHeader>

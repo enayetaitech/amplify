@@ -74,13 +74,25 @@ export default function CreateTagModal({
   });
 
   const handleSave = () => {
+      
+const trimmed = title.trim();
+
     create.mutate({
-      title,
+      title: trimmed,
       color,
       createdBy: user!._id,
       projectId,
     });
   };
+
+    const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    if (newVal.length <= 80) {
+      setTitle(newVal);
+    } else {
+      toast.error("Tag name cannot exceed 80 characters");
+    }
+ };
 
   const isSaving = create.isPending
 
@@ -96,10 +108,14 @@ export default function CreateTagModal({
             <label className="block text-sm font-medium mb-2">Name</label>
             <Input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              // maxLength={80}
+              onChange={handleTitleChange}
               placeholder="Tag name"
               disabled={isSaving}
             />
+                       <p className="mt-1 text-xs text-gray-500">
+             {title.length}/80 characters
+            </p>
           </div>
 
           <div>

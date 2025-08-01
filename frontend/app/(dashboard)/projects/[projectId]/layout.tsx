@@ -11,11 +11,11 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
 
 
   return (
-    <div className="px-6 py-4 ">
+    <div className=" py-4 px-5">
       {isLoading ? (
         <h1 className="text-xl font-semibold pl-16">Loading Project Name…</h1>
       ) : (
-        <h1 className="text-2xl font-bold pl-8">{project?.name}</h1>
+        <h1 className="text-2xl font-bold">{project?.name}</h1>
       )}
 
       {/* this is where Sessions / Polls / Reports pages will render */}
