@@ -130,10 +130,6 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
     }
   };
 
-
-
- 
-
   const validateOtherLanguage = () => {
     if (!otherLanguage.trim()) {
       setOtherLangError("Please enter a language.");

@@ -106,7 +106,7 @@ export default function ProjectSummary({
       <CardContent className="space-y-3">
         <div className="flex items-center gap-1">
           <span className="text-sm text-gray-600">Project Name:</span>
-          <span className="font-medium">{project.name}</span>
+          <span className="text-sm text-gray-600">{project.name}</span>
         </div>
 
         <InlineEditable

@@ -53,7 +53,7 @@ const InlineEditable: React.FC<InlineEditableProps> = ({
   return (
     <div className="flex justify-between items-start">
       <div className="flex-1 text-sm text-gray-600">
-        <span className="font-semibold">{label}:</span>{" "}
+        <span className="">{label}:</span>{" "}
         {editing ? (
           <Control
             value={draft}
