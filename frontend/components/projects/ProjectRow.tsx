@@ -37,10 +37,23 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
       </TableCell>
 
       {/* 2) Tags */}
-      <TableCell>
-        {project?.tags?.length > 0
-          ? project.tags.map((t) => t.title).join(", ")
-          : "—"}
+      <TableCell className="flex flex-wrap gap-1">
+           {project.tags && project.tags.length > 0 ? (
+          project.tags.map((tag) => (
+            <Badge
+              key={tag._id}
+              style={{
+                backgroundColor: tag.color,
+                color: "#fff",  
+              }}
+              className="px-2 py-0.5 rounded"
+            >
+              {tag.title}
+            </Badge>
+          ))
+        ) : (
+          "—"
+        )}
       </TableCell>
 
       {/* 3) Status */}
