@@ -17,6 +17,7 @@ import {
 } from "schemas/validators";
 import InlineEditable from "./InlineEditable";
 import { PencilIcon } from "lucide-react";
+import { Badge } from "components/ui/badge";
 
 const sharedValidators = [
   { fn: noLeadingSpace, message: "No leading spaces allowed" },
@@ -143,12 +144,22 @@ export default function ProjectSummary({
         />
 
          <div className="flex justify-between items-center text-sm text-gray-600">
-          <span>
-            Tags:{" "}
-            {project.tags.length > 0
-              ? project.tags.map((t) => t.title).join(", ")
-              : "—"}
-          </span>
+          <div className="flex-1 flex flex-wrap items-center gap-1">
+    <span className="font-medium">Tags:</span>
+    {project.tags.length > 0 ? (
+      project.tags.map((tag) => (
+        <Badge
+          key={tag._id}
+          style={{ backgroundColor: tag.color, color: "#fff" }}
+          className="px-2 py-0.5 rounded"
+        >
+          {tag.title}
+        </Badge>
+      ))
+    ) : (
+      <span className="ml-1">—</span>
+    )}
+  </div>
           <div
             className="flex items-center gap-1 cursor-pointer text-sm text-black"
             onClick={onTagEditClick}

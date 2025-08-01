@@ -163,7 +163,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
         prompt: q.prompt,
         type: q.type,
         required: q.required,
-        imageUrl:  q.image, 
+        imageUrl: q.image,
         tempImageName: undefined,
         ...(q.type === "SINGLE_CHOICE" && {
           answers: q.answers,
@@ -209,8 +209,8 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   // PATCH-mutation
   const updateMutation = useMutation<
     IPoll,
-      AxiosError,
-      { id: string; formData: FormData }
+    AxiosError,
+    { id: string; formData: FormData }
   >({
     mutationFn: ({ id, formData }) =>
       api
@@ -220,7 +220,6 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
           },
         })
         .then((r) => r.data.data),
-
 
     onSuccess: () => {
       toast.success("Poll updated");
@@ -408,31 +407,31 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
     }
 
     const formData = new FormData();
-  formData.append("title", title.trim());
-  formData.append("projectId", poll.projectId!);
-  formData.append("createdBy", poll.createdBy._id);
-  formData.append("createdByRole", poll.createdByRole);
+    formData.append("title", title.trim());
+    formData.append("projectId", poll.projectId!);
+    formData.append("createdBy", poll.createdBy._id);
+    formData.append("createdByRole", poll.createdByRole);
 
- const questionsPayload = questions.map(q => ({
-  // copy everything else
-  ...q,
-  // drop the File object
-  imageFile: undefined,
-  // but keep tempImageName if there is one
-  ...(q.imageFile ? { tempImageName: q.tempImageName } : {})
-}));
+    const questionsPayload = questions.map((q) => ({
+      // copy everything else
+      ...q,
+      // drop the File object
+      imageFile: undefined,
+      // but keep tempImageName if there is one
+      ...(q.imageFile ? { tempImageName: q.tempImageName } : {}),
+    }));
 
-formData.append("questions", JSON.stringify(questionsPayload));
+    formData.append("questions", JSON.stringify(questionsPayload));
 
-// now append the raw files under the same fieldname "images"
-questions.forEach(q => {
-  if (q.imageFile && q.tempImageName) {
-    formData.append("images", q.imageFile, q.tempImageName);
-  }
-});
+    // now append the raw files under the same fieldname "images"
+    questions.forEach((q) => {
+      if (q.imageFile && q.tempImageName) {
+        formData.append("images", q.imageFile, q.tempImageName);
+      }
+    });
 
-  // finally call the mutation
-  updateMutation.mutate({ id: poll._id, formData });
+    // finally call the mutation
+    updateMutation.mutate({ id: poll._id, formData });
   };
 
   const isUpdating = updateMutation.isPending;
@@ -528,6 +527,7 @@ questions.forEach(q => {
                         size="icon"
                         variant="ghost"
                         onClick={() => changeMin(q.id, -1)}
+                        disabled={isUpdating}
                       >
                         <Minus />
                       </Button>
@@ -577,6 +577,7 @@ questions.forEach(q => {
                     onCorrectAnswerChange={(i) =>
                       updateQuestion(q.id, { correctAnswer: i })
                     }
+                    disabled={isUpdating}
                   />
                 ) : q.type === "MULTIPLE_CHOICE" ? (
                   <MultipleChoiceQuestion
@@ -592,6 +593,7 @@ questions.forEach(q => {
                         : (q.correctAnswers || []).filter((x) => x !== i);
                       updateQuestion(q.id, { correctAnswers: next });
                     }}
+                    disabled={isUpdating}
                   />
                 ) : q.type === "MATCHING" ? (
                   <MatchingQuestion
@@ -604,6 +606,7 @@ questions.forEach(q => {
                     onAnswerChange={(i, v) => updateAnswer(q.id, i, v)}
                     onAddAnswer={() => addAnswer(q.id)}
                     onRemoveAnswer={(i) => removeAnswer(q.id, i)}
+                    disabled={isUpdating}
                   />
                 ) : q.type === "RANK_ORDER" ? (
                   <RankOrderQuestion
@@ -636,6 +639,7 @@ questions.forEach(q => {
                         columns: q.columns.filter((_, j) => j !== i),
                       })
                     }
+                    disabled={isUpdating}
                   />
                 ) : q.type === "RATING_SCALE" ? (
                   <RatingScaleQuestion
@@ -648,6 +652,7 @@ questions.forEach(q => {
                     onScoreToChange={(v) => changeScoreTo(q.id, v)}
                     onLowLabelChange={(v) => changeLowLabel(q.id, v)}
                     onHighLabelChange={(v) => changeHighLabel(q.id, v)}
+                    disabled={isUpdating}
                   />
                 ) : (
                   q.type === "FILL_IN_BLANK" && (
@@ -657,6 +662,7 @@ questions.forEach(q => {
                       onAddBlank={() => addBlank(q.id)}
                       onAnswerChange={(i, v) => updateAnswer(q.id, i, v)}
                       onRemoveAnswer={(i) => removeAnswer(q.id, i)}
+                      disabled={isUpdating}
                     />
                   )
                 )}
@@ -674,17 +680,15 @@ questions.forEach(q => {
                   <span>Required</span>
                 </div>
                 <div className="flex items-center gap-2">
-
-                   {q.imageUrl && !q.imageFile && (
-      <Image
-        src={q.imageUrl}
-        alt="Question image"
-        height={64}
-        width={64}
-        className="max-h-16 rounded-md mr-2"
-      />
-    )}
-
+                  {q.imageUrl && !q.imageFile && (
+                    <Image
+                      src={q.imageUrl}
+                      alt="Question image"
+                      height={64}
+                      width={64}
+                      className="max-h-16 rounded-md mr-2"
+                    />
+                  )}
 
                   {/* ← this label/file-input combo */}
                   <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">
@@ -701,14 +705,15 @@ questions.forEach(q => {
                           tempImageName: file.name,
                         });
                       }}
+                      disabled={isUpdating}
                     />
-                      {q.imageFile
-        ? q.imageFile.name
-        : q.tempImageName
-        ? q.tempImageName
-        : q.imageUrl
-        ? "Replace image"
-        : "Attach image"}
+                    {q.imageFile
+                      ? q.imageFile.name
+                      : q.tempImageName
+                      ? q.tempImageName
+                      : q.imageUrl
+                      ? "Replace image"
+                      : "Attach image"}
                   </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

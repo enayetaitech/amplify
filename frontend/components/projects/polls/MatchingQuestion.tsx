@@ -16,6 +16,7 @@ export interface MatchingQuestionProps {
   onAnswerChange: (index: number, value: string) => void;
   onAddAnswer: () => void;
   onRemoveAnswer: (index: number) => void;
+  disabled?: boolean;
 }
 
 const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
@@ -28,6 +29,7 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
   onAnswerChange,
   onAddAnswer,
   onRemoveAnswer,
+  disabled
 }) => (
   <div className="grid grid-cols-2 gap-6">
     {/* Left column: Options */}
@@ -43,6 +45,7 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
             value={opt}
             placeholder={`Option ${i + 1}`}
             onChange={(e) => onOptionChange(i, e.target.value)}
+              disabled={disabled}
           />
           <CustomButton
             icon={<Trash2 />}
@@ -51,6 +54,7 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
             onClick={() => onRemoveOption(i)}
             className="absolute right-2 top-1/2 -translate-y-1/2
                        opacity-0 group-focus-within:opacity-100 transition-opacity"
+                         disabled={disabled}
           />
         </div>
       ))}
@@ -59,6 +63,7 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
         variant="outline"
         size="sm"
         onClick={onAddOption}
+          disabled={disabled}
       />
     </div>
 
@@ -75,6 +80,7 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
             value={ans}
             placeholder={`Answer ${i + 1}`}
             onChange={(e) => onAnswerChange(i, e.target.value)}
+              disabled={disabled}
           />
           <CustomButton
             icon={<Trash2 />}
@@ -83,6 +89,7 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
             onClick={() => onRemoveAnswer(i)}
             className="absolute right-2 top-1/2 -translate-y-1/2
                        opacity-0 group-focus-within:opacity-100 transition-opacity"
+                         disabled={disabled}
           />
         </div>
       ))}
@@ -91,6 +98,7 @@ const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
         variant="outline"
         size="sm"
         onClick={onAddAnswer}
+          disabled={disabled}
       />
     </div>
   </div>

@@ -555,6 +555,8 @@ const AddPollDialog = ({
     updateQuestion(id, { maxChars: Math.min(cap, (q.maxChars || cap) + d) });
   };
 
+  const isSaving = createPollMutation.isPending
+
   return (
     <Dialog open={open} 
     onOpenChange={(nextOpen) => {
@@ -581,8 +583,8 @@ const AddPollDialog = ({
             <CustomButton
               className="bg-custom-teal hover:bg-custom-dark-blue-3 rounded-lg"
               onClick={onSave}
-              text={createPollMutation.isPending ? "Saving…" : "Save Poll"}
-              disabled={createPollMutation.isPending}
+              text={isSaving ? "Saving…" : "Save Poll"}
+              disabled={isSaving}
               variant="default"
             />
           </div>
@@ -597,6 +599,7 @@ const AddPollDialog = ({
             required
             placeholder="Enter poll title"
             className="mt-1 py-2"
+            disabled={isSaving}
           />
         </div>
 
@@ -625,6 +628,7 @@ const AddPollDialog = ({
                         }
                       }}
                       className="mt-1"
+                      disabled={isSaving}
                     />
                   </div>
                   <div className="w-48">
@@ -634,6 +638,7 @@ const AddPollDialog = ({
                       onValueChange={(val) =>
                         updateType(q.id, val as QuestionType)
                       }
+                      disabled={isSaving}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -660,6 +665,7 @@ const AddPollDialog = ({
                         variant="ghost"
                         size="icon"
                         onClick={() => changeMin(q.id, -1)}
+                        disabled={isSaving}
                       />
                       <span className="w-8 text-center">{q.minChars}</span>
                       <CustomButton
@@ -667,6 +673,7 @@ const AddPollDialog = ({
                         variant="ghost"
                         size="icon"
                         onClick={() => changeMin(q.id, +1)}
+                        disabled={isSaving}
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -676,6 +683,7 @@ const AddPollDialog = ({
                         variant="ghost"
                         size="icon"
                         onClick={() => changeMax(q.id, -1)}
+                        disabled={isSaving}
                       />
                       <span className="w-12 text-center">{q.maxChars}</span>
                       <CustomButton
@@ -683,6 +691,7 @@ const AddPollDialog = ({
                         variant="ghost"
                         size="icon"
                         onClick={() => changeMax(q.id, +1)}
+                        disabled={isSaving}
                       />
                     </div>
                   </div>
@@ -701,6 +710,7 @@ const AddPollDialog = ({
                     onCorrectAnswerChange={(idx) =>
                       updateQuestion(q.id, { correctAnswer: idx })
                     }
+                    disabled={isSaving}
                   />
                 ) : q.type === "MULTIPLE_CHOICE" ? (
                   <MultipleChoiceQuestion
@@ -716,6 +726,7 @@ const AddPollDialog = ({
                         : (q.correctAnswers || []).filter((x) => x !== idx);
                       updateQuestion(q.id, { correctAnswers: next });
                     }}
+                    disabled={isSaving}
                   />
                 ) : q.type === "MATCHING" ? (
                   <MatchingQuestion
@@ -728,6 +739,7 @@ const AddPollDialog = ({
                     onAnswerChange={(i, val) => updateAnswer(q.id, i, val)}
                     onAddAnswer={() => addAnswer(q.id)}
                     onRemoveAnswer={(i) => removeAnswer(q.id, i)}
+                    disabled={isSaving}
                   />
                 ) : q.type === "RANK_ORDER" ? (
                   <RankOrderQuestion
@@ -740,6 +752,7 @@ const AddPollDialog = ({
                     onColumnChange={(i, val) => updateAnswer(q.id, i, val)}
                     onAddColumn={() => addAnswer(q.id)}
                     onRemoveColumn={(i) => removeAnswer(q.id, i)}
+                    disabled={isSaving}
                   />
                 ) : q.type === "RATING_SCALE" ? (
                   <RatingScaleQuestion
@@ -760,6 +773,7 @@ const AddPollDialog = ({
                     onHighLabelChange={(val) =>
                       updateQuestion(q.id, { highLabel: val })
                     }
+                    disabled={isSaving}
                   />
                 ) : (
                   q.type === "FILL_IN_BLANK" && (
@@ -771,7 +785,8 @@ const AddPollDialog = ({
                         updateAnswer(q.id, idx, val)
                       }
                       onRemoveAnswer={(idx) => removeAnswer(q.id, idx)}
-                      // onAddAnswer={() => addAnswer(q.id)}
+                      disabled={isSaving}
+
                     />
                   )
                 )}
@@ -784,6 +799,7 @@ const AddPollDialog = ({
                     onCheckedChange={(v) =>
                       updateQuestion(q.id, { required: v })
                     }
+                    disabled={isSaving}
                   />
                   <span>Required</span>
                 </div>
@@ -802,6 +818,8 @@ const AddPollDialog = ({
                           tempImageName: file.name,
                         });
                       }}
+                      disabled={isSaving}
+                     
                     />
                     {q.imageFile ? q.imageFile.name : "Attach image"}
                   </label>
@@ -811,6 +829,7 @@ const AddPollDialog = ({
                         icon={<MoreHorizontal />}
                         variant="ghost"
                         size="icon"
+                        disabled={isSaving}
                       />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -832,7 +851,9 @@ const AddPollDialog = ({
 
         {/* Add Question */}
         <div className="mt-6 text-center">
-          <Button onClick={addQuestion}>
+          <Button onClick={addQuestion}
+          disabled={isSaving}
+          >
             <Plus className="mr-2 h-4 w-4" /> Add Question
           </Button>
         </div>
