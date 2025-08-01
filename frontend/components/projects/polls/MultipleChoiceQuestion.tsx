@@ -13,6 +13,7 @@ export interface MultipleChoiceQuestionProps {
   onAddChoice: () => void;
   onRemoveChoice: (index: number) => void;
   onToggleCorrectAnswer: (index: number, checked: boolean) => void;
+  disabled?: boolean;
 }
 
 const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
@@ -23,6 +24,7 @@ const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   onAddChoice,
   onRemoveChoice,
   onToggleCorrectAnswer,
+  disabled
 }) => {
   return (
     <div className="space-y-4">
@@ -34,6 +36,7 @@ const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
             checked={correctAnswers.includes(i)}
             onChange={(e) => onToggleCorrectAnswer(i, e.target.checked)}
             className="cursor-pointer"
+            disabled={disabled}
           />
 
           <Input
@@ -41,6 +44,7 @@ const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
             onChange={(e) => onAnswerChange(i, e.target.value)}
             placeholder={`Enter choice ${i + 1}`}
             className="pr-10 flex-1"
+              disabled={disabled}
           />
 
           <CustomButton
@@ -49,6 +53,7 @@ const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
             size="icon"
             onClick={() => onRemoveChoice(i)}
             className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity"
+              disabled={disabled}
           />
         </div>
       ))}
@@ -58,6 +63,7 @@ const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
         variant="outline"
         size="sm"
         onClick={onAddChoice}
+          disabled={disabled}
       />
     </div>
   );

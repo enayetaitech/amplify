@@ -18,6 +18,7 @@ export interface SingleChoiceQuestionProps {
   onRemoveChoice: (index: number) => void;
   onToggleShowDropdown: (show: boolean) => void;
   onCorrectAnswerChange: (index: number) => void;
+  disabled?: boolean;
 }
 
 const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
@@ -30,6 +31,7 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
   onRemoveChoice,
   onToggleShowDropdown,
   onCorrectAnswerChange,
+  disabled
 }) => (
   <div className="space-y-4">
     {answers.map((ans, i) => (
@@ -43,6 +45,7 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
           checked={correctAnswer === i}
           onChange={() => onCorrectAnswerChange(i)}
           className="cursor-pointer"
+          disabled={disabled}
         />
 
         <Input
@@ -50,6 +53,7 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
           onChange={(e) => onAnswerChange(i, e.target.value)}
           placeholder={`Enter choice ${i + 1}`}
           className="pr-10 flex-1"
+          disabled={disabled}
         />
 
         <CustomButton
@@ -60,6 +64,7 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
           className="absolute right-2 top-1/2 -translate-y-1/2
                      opacity-0 group-focus-within:opacity-100
                      transition-opacity"
+                     disabled={disabled}
         />
       </div>
     ))}
@@ -68,6 +73,7 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
       <Switch
         checked={showDropdown}
         onCheckedChange={(v) => onToggleShowDropdown(v)}
+        disabled={disabled}
       />
       <span>Show dropdown</span>
     </div>
@@ -77,6 +83,7 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
       variant="outline"
       size="sm"
       onClick={onAddChoice}
+      disabled={disabled}
     />
   </div>
 );

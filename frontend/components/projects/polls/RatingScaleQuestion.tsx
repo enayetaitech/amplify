@@ -17,6 +17,7 @@ export interface RatingScaleQuestionProps {
   onScoreToChange: (newTo: number) => void;
   onLowLabelChange: (value: string) => void;
   onHighLabelChange: (value: string) => void;
+  disabled?: boolean;
 }
 
 const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
@@ -29,6 +30,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
   onScoreToChange,
   onLowLabelChange,
   onHighLabelChange,
+  disabled
 }) => (
   <div className="space-y-4">
     {/* 1) Score from / to */}
@@ -40,6 +42,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => onScoreFromChange(Math.max(0, scoreFrom - 1))}
+              disabled={disabled}
           >
             <Minus />
           </Button>
@@ -51,6 +54,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => onScoreFromChange(scoreFrom + 1)}
+              disabled={disabled}
           >
             <Plus />{" "}
           </Button>
@@ -63,6 +67,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => onScoreToChange(Math.max(scoreFrom, scoreTo - 1))}
+              disabled={disabled}
           >
             <Minus />
           </Button>
@@ -74,6 +79,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
             size="icon"
             onClick={() => onScoreToChange(scoreTo + 1)}
             className=""
+              disabled={disabled}
           >
             <Plus />
           </Button>
@@ -90,6 +96,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
           onChange={(e) => onLowLabelChange(e.target.value)}
           placeholder="e.g. Not likely"
           className="mt-1"
+            disabled={disabled}
         />
       </div>
       <div>
@@ -99,6 +106,7 @@ const RatingScaleQuestion: React.FC<RatingScaleQuestionProps> = ({
           onChange={(e) => onHighLabelChange(e.target.value)}
           placeholder="e.g. Extremely likely"
           className="mt-1"
+            disabled={disabled}
         />
       </div>
     </div>

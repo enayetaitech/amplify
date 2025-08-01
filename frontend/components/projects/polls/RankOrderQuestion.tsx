@@ -16,6 +16,7 @@ export interface RankOrderQuestionProps {
   onColumnChange: (index: number, value: string) => void;
   onAddColumn: () => void;
   onRemoveColumn: (index: number) => void;
+  disabled?: boolean;
 }
 
 const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
@@ -28,6 +29,7 @@ const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
   onColumnChange,
   onAddColumn,
   onRemoveColumn,
+  disabled
 }) => (
   <div className="grid grid-cols-2 gap-6">
     <div className="space-y-4">
@@ -42,6 +44,7 @@ const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
             value={row}
             placeholder={`Row ${i + 1}`}
             onChange={(e) => onRowChange(i, e.target.value)}
+              disabled={disabled}
           />
           <CustomButton
             icon={<Trash2 />}
@@ -49,6 +52,7 @@ const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
             size="icon"
             onClick={() => onRemoveRow(i)}
             className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity"
+              disabled={disabled}
           />
         </div>
       ))}
@@ -57,6 +61,7 @@ const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
         variant="outline"
         size="sm"
         onClick={onAddRow}
+          disabled={disabled}
       />
     </div>
 
@@ -72,6 +77,7 @@ const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
             value={col}
             placeholder={`Column ${i + 1}`}
             onChange={(e) => onColumnChange(i, e.target.value)}
+              disabled={disabled}
           />
           <CustomButton
             icon={<Trash2 />}
@@ -79,6 +85,7 @@ const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
             size="icon"
             onClick={() => onRemoveColumn(i)}
             className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity"
+              disabled={disabled}
           />
         </div>
       ))}
@@ -87,6 +94,7 @@ const RankOrderQuestion: React.FC<RankOrderQuestionProps> = ({
         variant="outline"
         size="sm"
         onClick={onAddColumn}
+          disabled={disabled}
       />
     </div>
   </div>

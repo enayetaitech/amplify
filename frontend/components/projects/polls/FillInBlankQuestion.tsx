@@ -12,7 +12,7 @@ export interface FillInBlankQuestionProps {
   onAddBlank: () => void;
   onAnswerChange: (index: number, value: string) => void;
   onRemoveAnswer: (index: number) => void;
-
+  disabled?: boolean;
 }
 
 const FillInBlankQuestion: React.FC<FillInBlankQuestionProps> = ({
@@ -21,7 +21,7 @@ const FillInBlankQuestion: React.FC<FillInBlankQuestionProps> = ({
   onAddBlank,
   onAnswerChange,
   onRemoveAnswer,
-
+  disabled
 }) => (
   <div className="space-y-4">
     {/* 1) + Add Blank button */}
@@ -31,6 +31,7 @@ const FillInBlankQuestion: React.FC<FillInBlankQuestionProps> = ({
         variant="outline"
         size="sm"
         onClick={onAddBlank}
+          disabled={disabled}
       />
     </div>
 
@@ -48,6 +49,7 @@ const FillInBlankQuestion: React.FC<FillInBlankQuestionProps> = ({
             onChange={(e) => onAnswerChange(idx, e.target.value)}
             placeholder={`Answer ${idx + 1}`}
             className="pr-10 flex-1"
+              disabled={disabled}
           />
 
           {/* delete blank-answer button */}
@@ -58,6 +60,7 @@ const FillInBlankQuestion: React.FC<FillInBlankQuestionProps> = ({
             onClick={() => onRemoveAnswer(idx)}
             className="absolute right-2 top-1/2 -translate-y-1/2
                        opacity-0 group-focus-within:opacity-100 transition-opacity"
+                         disabled={disabled}
           />
         </div>
       ))}
