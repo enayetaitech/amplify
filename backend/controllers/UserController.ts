@@ -277,6 +277,13 @@ export const changePassword = async (
     );
   }
 
+   const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+  if (isSameAsOld) {
+    return next(
+      new ErrorHandler("New password must be different from the old password", 400)
+    );
+  }
+
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   user.password = hashedPassword;
   await user.save();
@@ -340,6 +347,13 @@ export const resetPassword = async (
         "Password must be at least 9 characters long and include uppercase, lowercase, number, and special character.",
         400
       )
+    );
+  }
+
+   const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+  if (isSameAsOld) {
+    return next(
+      new ErrorHandler("New password must be different from the old password", 400)
     );
   }
 
