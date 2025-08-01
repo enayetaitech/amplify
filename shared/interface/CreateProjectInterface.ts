@@ -71,7 +71,7 @@ export interface Step4Props {
 export interface PaymentIntegrationProps {
   totalPurchasePrice: number;
   totalCreditsNeeded: number;
-  projectData: Partial<IProjectFormState>;
+  projectData: IProjectFormState;
   uniqueId: string | null;
 }
 

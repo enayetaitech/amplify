@@ -7,25 +7,25 @@ import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import CardSetupForm from "./CardSetupFormComponent";
 import BillingForm from "./BillingFormComponent";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { IProject } from "@shared/interface/ProjectInterface";
 import {
-  IProjectFormState,
   PaymentIntegrationProps,
 } from "@shared/interface/CreateProjectInterface";
-import { useGlobalContext } from "context/GlobalContext";
+import { useGlobalContext } from "../../../context/GlobalContext";
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IUser } from "@shared/interface/UserInterface";
-import { Card } from "components/ui/card";
-import CustomButton from "components/shared/CustomButton";
+import { Card } from "../../ui/card";
+import CustomButton from "../../shared/CustomButton";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "components/ui/dialog";
+} from "../../ui/dialog";
+import { useChargePayment } from "hooks/useChargePayment";
+import { useCreateExternalProject } from "hooks/useCreateProjectByExternalAdmin";
+import { formatProjectData } from "utils/formatProjectData";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
@@ -39,10 +39,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 }) => {
   const { user, setUser } = useGlobalContext();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const [isChangingCard, setIsChangingCard] = useState(false);
-  const [chargeLoading, setChargeLoading] = useState(false);
 
   const [showCreatedModal, setShowCreatedModal] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
@@ -55,101 +53,33 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 
     const fresh = resp.data.data.user;
     setUser(fresh);
-    // ADD THIS:
+
     if (typeof window !== "undefined") {
       localStorage.setItem("user", JSON.stringify(fresh));
     }
   };
 
-  // 1️⃣ Mutation to charge saved card
-  const chargeMutation = useMutation<
-    // TData
-    { data: { user: typeof user } },
-    unknown,
-    { amount: number; credits: number; userId: string; customerId: string }
-  >({
-    mutationFn: ({ amount, credits, customerId, userId }) =>
-      api
-        .post<ApiResponse<{ user: IUser }>>("/api/v1/payment/charge", {
-          customerId,
-          amount,
-          currency: "usd",
-          userId,
-          purchasedCredit: credits,
-        })
-        .then((res) => res.data),
-    onSuccess: (apiResp) => {
-      const updatedUser = apiResp.data.user;
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      setUser(updatedUser);
-
-      toast.success("Payment successful");
-      createProjectMutation.mutate();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unknown error");
-    },
+  
+  const { mutate: chargePayment, isPending: isCharging } = useChargePayment(() => {
+    createProject({ uniqueId: uniqueId!, formState: projectData, totalPurchasePrice, totalCreditsNeeded });
   });
-  // Mutation to hit create-project-by-external-admin endpoint
-  const createProjectMutation = useMutation<
-    ApiResponse<{ data: { _id: string } }>,
-    unknown,
-    void
-  >({
-    mutationFn: () =>
-      api.post("/api/v1/projects/create-project-by-external-admin", {
-        userId: user?._id,
-        uniqueId,
-        projectData: formatProjectData(projectData as IProjectFormState),
-        totalPurchasePrice,
-        totalCreditsNeeded,
-      }),
-    onSuccess: (response) => {
-      console.log("create project response", response);
-      const newId = response.data.data._id;
-      setCreatedProjectId(newId);
-      setShowCreatedModal(true);
-      queryClient.invalidateQueries({
-        queryKey: ["projectsByUser", user?._id],
-      });
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unknown error");
-    },
+ 
+
+  const { mutate: createProject } = useCreateExternalProject(formatProjectData, (newId) => {
+    setCreatedProjectId(newId);
+    setShowCreatedModal(true);
   });
 
   if (!user) return <div className="text-red-500">User not found</div>;
 
-  // Function to format raw form data into the payload format expected by the backend
-  const formatProjectData = (rawData: IProjectFormState): Partial<IProject> => {
-    return {
-      name: rawData.name,
-      description: "",
-      startDate: new Date(rawData.firstDateOfStreaming),
-      service: rawData.service as "Concierge" | "Signature",
-      respondentCountry: rawData.respondentCountry,
-      respondentLanguage: Array.isArray(rawData.respondentLanguage)
-        ? rawData.respondentLanguage.join(", ")
-        : rawData.respondentLanguage,
-      sessions: rawData.sessions.map((session) => ({
-        number: session.number,
-        duration: session.duration,
-      })),
-      cumulativeMinutes: 0,
-      status: "Draft",
-      tags: [],
-    };
-  };
 
   const handleUseSavedCard = async () => {
-    setChargeLoading(true);
-
-    const amountCents = Math.round(totalPurchasePrice * 100);
     if (!user.stripeCustomerId) {
       return toast.error("No Stripe customer ID available");
     }
-
-    chargeMutation.mutate({
+    const amountCents = Math.round(totalPurchasePrice * 100);
+    
+   chargePayment({
       amount: amountCents,
       credits: totalCreditsNeeded,
       customerId: user.stripeCustomerId,
@@ -157,12 +87,12 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
     });
   };
 
+
   const hasBilling = Boolean(user.billingInfo);
   const hasCard = Boolean(user.creditCardInfo?.last4);
 
   return (
     <div className="space-y-6">
-      {/* <h2 className="text-2xl font-bold">Payment Integration</h2> */}
       {/* Billing Form */}
       {!hasBilling && (
         <div>
@@ -179,7 +109,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
               return toast.error("No Stripe customer ID available");
             }
 
-            chargeMutation.mutate({
+            chargePayment({
               amount: amountCents,
               credits: totalCreditsNeeded,
               customerId: user.stripeCustomerId,
@@ -200,14 +130,14 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
             <CustomButton
               className="bg-custom-teal hover:bg-custom-dark-blue-3"
               onClick={handleUseSavedCard}
-              disabled={chargeLoading}
+              disabled={isCharging}
             >
-              {chargeLoading ? "Processing..." : "Use this Card"}
+              {isCharging ? "Processing..." : "Use this Card"}
             </CustomButton>
             <CustomButton
               className="bg-custom-teal hover:bg-custom-dark-blue-3"
               onClick={() => setIsChangingCard(true)}
-              disabled={chargeLoading}
+              disabled={isCharging}
             >
               Change Card
             </CustomButton>
@@ -219,7 +149,6 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
         open={showCreatedModal}
         onOpenChange={(open) => {
           if (!open) {
-            // if they click outside, treat like “No”
             router.push("/projects");
           }
           setShowCreatedModal(open);
