@@ -87,10 +87,10 @@ const trimmed = title.trim();
 
     const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVal = e.target.value;
-    if (newVal.length <= 80) {
+    if (newVal.length <= 30) {
       setTitle(newVal);
     } else {
-      toast.error("Tag name cannot exceed 80 characters");
+      toast.error("Tag name cannot exceed 30 characters");
     }
  };
 
@@ -98,7 +98,7 @@ const trimmed = title.trim();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Create Tag</DialogTitle>
         </DialogHeader>
@@ -108,13 +108,13 @@ const trimmed = title.trim();
             <label className="block text-sm font-medium mb-2">Name</label>
             <Input
               value={title}
-              // maxLength={80}
+              // maxLength={30}
               onChange={handleTitleChange}
               placeholder="Tag name"
               disabled={isSaving}
             />
                        <p className="mt-1 text-xs text-gray-500">
-             {title.length}/80 characters
+             {title.length}/30 characters
             </p>
           </div>
 
