@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "components/ui/switch";
 import { IProject } from "@shared/interface/ProjectInterface";
 import { getFirstSessionDate } from "utils/getFirstSessionDate";
 import { useEditProjectName } from "hooks/useEditProjectName";
@@ -67,7 +67,7 @@ export default function ProjectSummary({
     /** control on right side */
     rightControl?: React.ReactNode;
   }> = [
-        {
+    {
       label: "Fieldwork Start Date",
       value: firstSessionDate ? firstSessionDate.toLocaleDateString() : "—",
     },
@@ -80,7 +80,7 @@ export default function ProjectSummary({
       leftIcon: (
         <Tooltip>
           <TooltipTrigger asChild>
-             <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
+            <BiQuestionMark className="ml-2 h-4 w-4 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] p-0.5" />
           </TooltipTrigger>
           <TooltipContent side="top" align="start">
             Allow observers to see all recordings?
@@ -106,7 +106,7 @@ export default function ProjectSummary({
       <CardContent className="space-y-3">
         <div className="flex items-center gap-1">
           <span className="text-sm text-gray-600">Project Name:</span>
-          <span className="font-medium">{project.name}</span>
+          <span className="text-sm text-gray-600">{project.name}</span>
         </div>
 
         <InlineEditable
@@ -143,23 +143,23 @@ export default function ProjectSummary({
           editControlType="textarea"
         />
 
-         <div className="flex justify-between items-center text-sm text-gray-600">
+        <div className="flex justify-between items-center text-sm text-gray-600">
           <div className="flex-1 flex flex-wrap items-center gap-1">
-    <span className="font-medium">Tags:</span>
-    {project.tags.length > 0 ? (
-      project.tags.map((tag) => (
-        <Badge
-          key={tag._id}
-          style={{ backgroundColor: tag.color, color: "#fff" }}
-          className="px-2 py-0.5 rounded"
-        >
-          {tag.title}
-        </Badge>
-      ))
-    ) : (
-      <span className="ml-1">—</span>
-    )}
-  </div>
+            <span className="font-medium">Tags:</span>
+            {project.tags.length > 0 ? (
+              project.tags.map((tag) => (
+                <Badge
+                  key={tag._id}
+                  style={{ backgroundColor: tag.color, color: "#fff" }}
+                  className="px-2 py-0.5 rounded"
+                >
+                  {tag.title}
+                </Badge>
+              ))
+            ) : (
+              <span className="ml-1">—</span>
+            )}
+          </div>
           <div
             className="flex items-center gap-1 cursor-pointer text-sm text-black"
             onClick={onTagEditClick}

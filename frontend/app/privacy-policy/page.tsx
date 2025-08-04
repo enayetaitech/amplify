@@ -2,9 +2,9 @@
 
 import React from "react";
 import { Card, CardContent } from "components/ui/card";
-import Logo from "components/LogoComponent";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
-import FooterComponent from "components/FooterComponent";
+import Logo from "components/shared/LogoComponent";
+import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
+import FooterComponent from "components/shared/FooterComponent";
 
 const PrivacyPolicyPage: React.FC = () => {
   return (

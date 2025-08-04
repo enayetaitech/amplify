@@ -20,7 +20,7 @@ import {
   FormControl,
   FormMessage,
 } from "components/ui/form";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "components/ui/switch";
 import { useParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -139,9 +139,7 @@ export default function EditModeratorModal({
                       <FormItem>
                         <FormLabel>{label}</FormLabel>
                         <FormControl>
-                          <Input 
-                          disabled={isSaving}
-                          type={type} {...field} />
+                          <Input disabled={isSaving} type={type} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -160,7 +158,7 @@ export default function EditModeratorModal({
                   <FormLabel className="m-0">Admin Access</FormLabel>
                   <FormControl>
                     <Switch
-                    disabled={isSaving}
+                      disabled={isSaving}
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />

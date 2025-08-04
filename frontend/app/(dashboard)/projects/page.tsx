@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useGlobalContext } from "context/GlobalContext";
 import { IProject } from "@shared/interface/ProjectInterface";
-import NoSearchResult from "components/NoSearchResult";
+import NoSearchResult from "components/projects/NoSearchResult";
 import { useRouter } from "next/navigation";
 import { Card } from "components/ui/card";
 import { toast } from "sonner";
@@ -34,7 +34,7 @@ const Projects: React.FC = () => {
   const [shareProject, setShareProject] = useState<IProject | null>(null);
   // ---- useProjects hook ----
 
- const fromISO = dateRange?.from?.toISOString();
+  const fromISO = dateRange?.from?.toISOString();
   const toISO = dateRange?.to?.toISOString();
 
   const { projects, meta, isLoading, error } = useProjects({
@@ -47,13 +47,11 @@ const Projects: React.FC = () => {
     to: toISO,
   });
 
-
-
   if (!userId) {
     return <p>User not found or not authenticated.</p>;
   }
 
-  console.log('Projects', projects)
+  console.log("Projects", projects);
 
   if (error) {
     toast.error(error instanceof Error ? error.message : "Unknown error");
@@ -73,7 +71,10 @@ const Projects: React.FC = () => {
           setPage(1);
         }}
         tagSearchTerm={tagTerm}
-        onTagSearchChange={(v) => { setTagTerm(v); setPage(1); }}
+        onTagSearchChange={(v) => {
+          setTagTerm(v);
+          setPage(1);
+        }}
         dateRange={dateRange}
         onDateRangeChange={(r) => {
           setDateRange(r);
@@ -86,30 +87,29 @@ const Projects: React.FC = () => {
             <NoSearchResult />
           ) : (
             <>
-            <ProjectsTable
-              filteredProjects={projects}
-              isLoading={isLoading}
-              // ← here is the “row click” navigation:
-              onRowClick={(projectId: string) => {
-                router.push(`/view-project/${projectId}`);
-              }}
-              onShareClick={(project, type) => {
-                setShareProject(project);
-                setActiveShareType(type);
-              }}
-            />
-            
-            <ProjectsPagination
-              totalPages={meta.totalPages}
-              currentPage={page}
-              onPageChange={(newPage) => {
-                setPage(newPage);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            />
+              <ProjectsTable
+                filteredProjects={projects}
+                isLoading={isLoading}
+                // ← here is the “row click” navigation:
+                onRowClick={(projectId: string) => {
+                  router.push(`/view-project/${projectId}`);
+                }}
+                onShareClick={(project, type) => {
+                  setShareProject(project);
+                  setActiveShareType(type);
+                }}
+              />
+
+              <ProjectsPagination
+                totalPages={meta.totalPages}
+                currentPage={page}
+                onPageChange={(newPage) => {
+                  setPage(newPage);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              />
             </>
           )}
-
         </div>
       </Card>
       {/* Share Modal */}

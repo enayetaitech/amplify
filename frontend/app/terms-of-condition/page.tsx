@@ -1,6 +1,6 @@
-import FooterComponent from "components/FooterComponent";
-import Heading20pxBlueUC from "components/Heading20pxBlueUCComponent";
-import Logo from "components/LogoComponent";
+import FooterComponent from "components/shared/FooterComponent";
+import Heading20pxBlueUC from "components/shared/Heading20pxBlueUCComponent";
+import Logo from "components/shared/LogoComponent";
 import React from "react";
 
 const TermsPage: React.FC = () => {

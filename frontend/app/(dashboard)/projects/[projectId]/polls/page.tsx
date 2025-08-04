@@ -10,7 +10,7 @@ import { useParams } from "next/navigation";
 import React, { useState } from "react";
 import { IPoll } from "@shared/interface/PollInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import { useGlobalContext } from "context/GlobalContext";
 import AddPollDialog from "components/projects/polls/AddPollDialog";
 import PollsTable from "components/projects/polls/PollsTable";
@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import EditPollDialog from "components/projects/polls/EditPollDialog";
 import PreviewPollDialog from "components/projects/polls/PreviewPollDialog";
-import ConfirmationModalComponent from "components/ConfirmationModalComponent";
+import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 
 const Polls = () => {
   const { projectId } = useParams() as { projectId?: string };
@@ -29,9 +29,9 @@ const Polls = () => {
   const [page, setPage] = useState(1);
   const [editingPoll, setEditingPoll] = useState<IPoll | null>(null);
   const [previewing, setPreviewing] = useState<IPoll | null>(null);
-  const [pendingDeletePoll, setPendingDeletePoll] = useState<string | null>(null)
-
-
+  const [pendingDeletePoll, setPendingDeletePoll] = useState<string | null>(
+    null
+  );
 
   const { data, isLoading, error } = useQuery<
     { data: IPoll[]; meta: IPaginationMeta },
@@ -84,7 +84,7 @@ const Polls = () => {
             meta={data!.meta}
             onPageChange={setPage}
             onDelete={(pollId) => setPendingDeletePoll(pollId)}
-            onEdit={poll => setEditingPoll(poll)}
+            onEdit={(poll) => setEditingPoll(poll)}
             onPreview={(p) => setPreviewing(p)}
           />
         </div>
@@ -110,8 +110,8 @@ const Polls = () => {
           text="This action cannot be undone. Are you sure you want to delete this poll?"
           onCancel={() => setPendingDeletePoll(null)}
           onYes={() => {
-            deleteMutation.mutate(pendingDeletePoll)
-            setPendingDeletePoll(null)
+            deleteMutation.mutate(pendingDeletePoll);
+            setPendingDeletePoll(null);
           }}
         />
       )}

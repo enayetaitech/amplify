@@ -36,9 +36,11 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
     postalCode: "",
   });
 
-  const saveBilling = useSaveBilling(() => {
+ const billingMutation = useSaveBilling(() => {
     onSuccess();
   });
+  const { mutate: saveBilling, isPending } = billingMutation;
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,11 +48,10 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
     const userId = user?._id;
     if (!userId) return;
 
-    saveBilling.mutate({ userId, billingInfo });
+    saveBilling({ userId, billingInfo });
   };
 
-  const isSaving = saveBilling.isPending;
-
+ 
 
   return (
     <Card className="border-0 shadow-sm py-0">
@@ -66,7 +67,7 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
               id="address"
               placeholder="Enter Street Address"
               value={billingInfo.address}
-              disabled={isSaving}
+              disabled={isPending}
               onChange={makeOnChange(
                 "address",
                 [noLeadingSpace, noMultipleSpaces, alphanumericSingleSpace],
@@ -119,7 +120,7 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
                   id={field}
                   placeholder={`Enter ${label}`}
                   value={billingInfo[field]}
-                  disabled={isSaving}
+                  disabled={isPending}
                   onChange={makeOnChange(field, validators, err, (upd) =>
                     setBillingInfo((prev) => ({
                       ...prev,
@@ -139,7 +140,7 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
               id="country"
               placeholder="Enter Country"
               value={billingInfo.country}
-              disabled={isSaving}
+              disabled={isPending}
               onChange={makeOnChange(
                 "country",
                 [noLeadingSpace, noMultipleSpaces, lettersAndSpaces],
@@ -158,9 +159,9 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
             <Button
               type="submit"
               className="bg-custom-teal hover:bg-custom-dark-blue-3"
-              disabled={isSaving}
+              disabled={isPending}
             >
-              {isSaving ? "Saving..." : "Save Billing Info"}
+              {isPending ? "Saving..." : "Save Billing Info"}
             </Button>
           </div>
         </form>

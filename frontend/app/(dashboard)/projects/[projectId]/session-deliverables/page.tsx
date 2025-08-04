@@ -3,10 +3,10 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
-import React, {  useState } from "react";
+import React, { useState } from "react";
 import { ISessionDeliverable } from "@shared/interface/SessionDeliverableInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import { Tabs, TabsList, TabsTrigger } from "components/ui/tabs";
 import CustomPagination from "components/shared/Pagination";
@@ -78,15 +78,12 @@ const SessionDeliverables = () => {
         }>("/api/v1/sessionDeliverables/download-bulk", { ids })
         .then((res) => res.data.data.map((d) => d.url)),
     onSuccess: (urls) => {
-      
       urls.forEach((url) => window.open(url, "_blank"));
     },
     onError: (err) => {
       console.error("Bulk download failed", err);
     },
   });
-
-
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 

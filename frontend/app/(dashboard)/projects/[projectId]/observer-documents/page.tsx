@@ -11,7 +11,7 @@ import { useParams } from "next/navigation";
 import React, { useState } from "react";
 import { IObserverDocument } from "@shared/interface/ObserverDocumentInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
 import { Download, Trash2, Upload } from "lucide-react";
 import CustomPagination from "components/shared/Pagination";
@@ -74,7 +74,7 @@ const ObserverDocuments = () => {
     placeholderData: keepPreviousData,
   });
 
-     // 2️⃣ Mutation for single-download
+  // 2️⃣ Mutation for single-download
   const downloadOneMutation = useMutation<string, unknown, string>({
     // Using onMutate so we can fire off the download immediately
     mutationFn: (id) => Promise.resolve(id),
@@ -86,8 +86,8 @@ const ObserverDocuments = () => {
     },
   });
 
-    // bulk-download
-   const downloadAllMutation = useMutation<string[], unknown, string[]>({
+  // bulk-download
+  const downloadAllMutation = useMutation<string[], unknown, string[]>({
     mutationFn: (ids) =>
       api
         .post<{
@@ -97,7 +97,6 @@ const ObserverDocuments = () => {
         }>("/api/v1/observerDocuments/download-bulk", { ids })
         .then((res) => res.data.data.map((d) => d.url)),
     onSuccess: (urls) => {
-      
       urls.forEach((url) => window.open(url, "_blank"));
     },
     onError: (err) => {
@@ -105,13 +104,12 @@ const ObserverDocuments = () => {
     },
   });
 
-   // DELETE mutation
+  // DELETE mutation
   const deleteMutation = useMutation<string, unknown, string>({
-    mutationFn: (id) =>
-      api.delete(`/api/v1/observerDocuments/${id}`),
+    mutationFn: (id) => api.delete(`/api/v1/observerDocuments/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["observerDocs", projectId, page]
+        queryKey: ["observerDocs", projectId, page],
       });
     },
     onError: (err) => {
@@ -158,8 +156,6 @@ const ObserverDocuments = () => {
     );
   };
 
-
-
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
@@ -179,7 +175,9 @@ const ObserverDocuments = () => {
             </DialogHeader>
             <UploadObserverDocument
               projectId={projectId}
-              onClose = {() => {setUploadOpen(false)}}
+              onClose={() => {
+                setUploadOpen(false);
+              }}
             />
             <DialogFooter />
           </DialogContent>
@@ -240,29 +238,27 @@ const ObserverDocuments = () => {
                     <TableCell>{del.displayName}</TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell>
-                       {((del.addedBy as unknown) as PopulatedUser).firstName}
+                      {(del.addedBy as unknown as PopulatedUser).firstName}
                     </TableCell>
-                     <TableCell className="text-center flex justify-center gap-2">
+                    <TableCell className="text-center flex justify-center gap-2">
                       <CustomButton
                         className="bg-custom-teal hover:bg-custom-dark-blue-3 rounded-lg"
-                        onClick={() =>
-                          downloadOneMutation.mutate(del._id)
-                        }
+                        onClick={() => downloadOneMutation.mutate(del._id)}
                         disabled={downloadOneMutation.isPending}
                       >
                         {downloadOneMutation.isPending
                           ? "Downloading..."
                           : "Download"}
                       </CustomButton>
-                        {/* Delete */}
-                  <CustomButton
-                    size="sm"
-                    className="bg-custom-orange-1 hover:bg-custom-orange-2"
-                    onClick={() => deleteMutation.mutate(del._id)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 size={16} />
-                  </CustomButton>
+                      {/* Delete */}
+                      <CustomButton
+                        size="sm"
+                        className="bg-custom-orange-1 hover:bg-custom-orange-2"
+                        onClick={() => deleteMutation.mutate(del._id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 size={16} />
+                      </CustomButton>
                     </TableCell>
                   </TableRow>
                 ))

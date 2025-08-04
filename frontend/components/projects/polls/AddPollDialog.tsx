@@ -1,4 +1,4 @@
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "components/ui/switch";
 import {
   CreatePollPayload,
   DraftQuestion,
@@ -176,7 +176,7 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
         return "Select at least one correct answer";
       return null;
 
-     case "MATCHING":
+    case "MATCHING":
       if (q.options.length < 1 || q.answers.length < 1) {
         return "Need at least one matching pair";
       }
@@ -184,37 +184,34 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
         return "Options and answers count must match";
       }
       if (
-        q.options.some(o => !o.trim()) ||
-        q.answers.some(a => !a.trim())
+        q.options.some((o) => !o.trim()) ||
+        q.answers.some((a) => !a.trim())
       ) {
         return "All matching pairs must be filled";
       }
       return null;
 
-    case "RANK_ORDER":
-  // 1) at least two rows
-  if (q.rows.length < 2) {
+    case "RANK_ORDER": {
+  const rows    = q.rows?.length    ? q.rows    : q.options;
+    const columns = q.columns?.length ? q.columns : q.answers;
+
+  if (rows.length < 2) {
     return "Need at least two items to rank";
   }
-  // 2) no empty row labels
-  if (q.rows.some(r => !r.trim())) {
+  if (rows.some((r) => !r.trim())) {
     return "All rank items must be filled";
   }
-  // 3) at least two columns
-  if (q.columns.length < 2) {
+  if (columns.length < 2) {
     return "Need at least two columns";
   }
-  // 4) no empty column labels
-  if (q.columns.some(c => !c.trim())) {
+  if (columns.some((c) => !c.trim())) {
     return "All rank columns must be filled";
   }
-  // 5) rows & columns same count
-  if (q.rows.length !== q.columns.length) {
+  if (rows.length !== columns.length) {
     return "Rows and columns count must match";
   }
   return null;
-
-
+}
     case "FILL_IN_BLANK":
       const blanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g)).length;
       if (blanks === 0) {
@@ -223,7 +220,7 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
       if (q.answers.length !== blanks) {
         return "Number of answers must match number of blanks";
       }
-      if (q.answers.some(a => !a.trim())) {
+      if (q.answers.some((a) => !a.trim())) {
         return "All blank answers must be filled";
       }
       return null;
@@ -247,19 +244,19 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
 };
 
 // Runs validateQuestion on every question; returns true if all pass
- const titleValidators = [
-    noLeadingSpace,
-    noMultipleSpaces,
-    noSpecialChars,
-    lettersAndSpaces,
-  ];
+const titleValidators = [
+  noLeadingSpace,
+  noMultipleSpaces,
+  noSpecialChars,
+  lettersAndSpaces,
+];
 
-  export const validateTitle = (t: string): string | null => {
-    if (!t.trim()) return "Title is required";
-    if (!validate(t, titleValidators))
-      return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
-    return null;
-  };
+export const validateTitle = (t: string): string | null => {
+  if (!t.trim()) return "Title is required";
+  if (!validate(t, titleValidators))
+    return "Title must only contain letters and single spaces, with no leading/multiple spaces or special characters";
+  return null;
+};
 
 export function allQuestionsValid(qs: DraftQuestion[]) {
   return qs.every((q) => validateQuestion(q) === null);
@@ -287,7 +284,6 @@ const AddPollDialog = ({
     setQuestions([defaultQuestion()]);
   };
 
- 
   const createPollMutation = useMutation<
     IPoll,
     AxiosError<CreatePollResponse> | Error,
@@ -334,7 +330,6 @@ const AddPollDialog = ({
     },
   });
 
- 
   // 2️⃣ hook up Save
   const onSave = () => {
     if (!projectId || !user) return;
@@ -450,10 +445,9 @@ const AddPollDialog = ({
         minChars: 1,
         maxChars: 2000,
       });
-      else if (type === "FILL_IN_BLANK") {
-        updateQuestion(id, { type, prompt: "", answers: [] });
-      }
-    else updateQuestion(id, { type, options: [], answers: ["", ""] });
+    else if (type === "FILL_IN_BLANK") {
+      updateQuestion(id, { type, prompt: "", answers: [] });
+    } else updateQuestion(id, { type, options: [], answers: ["", ""] });
   };
 
   // Single/multi choice handlers
@@ -555,18 +549,19 @@ const AddPollDialog = ({
     updateQuestion(id, { maxChars: Math.min(cap, (q.maxChars || cap) + d) });
   };
 
-  const isSaving = createPollMutation.isPending
+  const isSaving = createPollMutation.isPending;
 
   return (
-    <Dialog open={open} 
-    onOpenChange={(nextOpen) => {
-      // if we’re closing the dialog (e.g. user clicked the ×)…
-      if (!nextOpen) {
-        resetForm();
-      }
-      setOpen(nextOpen);
-    }}
-  >
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        // if we’re closing the dialog (e.g. user clicked the ×)…
+        if (!nextOpen) {
+          resetForm();
+        }
+        setOpen(nextOpen);
+      }}
+    >
       <DialogTrigger asChild>
         <CustomButton
           className="bg-custom-orange-1 hover:bg-custom-orange-2 rounded-lg"
@@ -786,7 +781,6 @@ const AddPollDialog = ({
                       }
                       onRemoveAnswer={(idx) => removeAnswer(q.id, idx)}
                       disabled={isSaving}
-
                     />
                   )
                 )}
@@ -819,7 +813,6 @@ const AddPollDialog = ({
                         });
                       }}
                       disabled={isSaving}
-                     
                     />
                     {q.imageFile ? q.imageFile.name : "Attach image"}
                   </label>
@@ -851,9 +844,7 @@ const AddPollDialog = ({
 
         {/* Add Question */}
         <div className="mt-6 text-center">
-          <Button onClick={addQuestion}
-          disabled={isSaving}
-          >
+          <Button onClick={addQuestion} disabled={isSaving}>
             <Plus className="mr-2 h-4 w-4" /> Add Question
           </Button>
         </div>

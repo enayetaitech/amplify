@@ -48,17 +48,20 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
   const createCustomerMutation = useCreateCustomer();
 
+  const { isSuccess, mutate: createCustomer, isPending } = createCustomerMutation;
+
+
   // 2️⃣ When createCustomerMutation succeeds, move to step 2
   useEffect(() => {
-    if (createCustomerMutation.isSuccess) {
+    if (isSuccess) {
       setStep(2);
     }
-  }, [createCustomerMutation.isSuccess]);
+  }, [isSuccess]);
 
   // Helpers
   const handleNext = () => {
     if (!user?.billingInfo) {
-      createCustomerMutation.mutate();
+      createCustomer();
     } else {
       setStep(2);
     }
@@ -160,7 +163,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
             <CustomButton
               onClick={handleNext}
               disabled={
-                createCustomerMutation.isPending ||
+                isPending ||
                 (!!user?.billingInfo && false)
               }
               className="bg-custom-teal hover:bg-custom-dark-blue-3"

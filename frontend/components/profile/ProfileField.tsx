@@ -1,5 +1,5 @@
 // components/ProfileField.tsx
-import HeadingParagraphComponent from "components/HeadingParagraphComponent";
+import HeadingParagraphComponent from "components/shared/HeadingParagraphComponent";
 import React from "react";
 
 interface ProfileFieldProps {

@@ -8,22 +8,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "./ui/dialog";
-import { Button } from "./ui/button";
-import {  useForm } from "react-hook-form";
-import { ChangePasswordInputs, changePasswordSchema } from "../schemas/changePasswordSchema";
+} from "../ui/dialog";
+import { Button } from "../ui/button";
+import { useForm } from "react-hook-form";
+import {
+  ChangePasswordInputs,
+  changePasswordSchema,
+} from "../../schemas/changePasswordSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import useChangePassword from "../hooks/useChangePassword";
-import { Form } from "./ui/form";
-import PasswordField from "../components/createAccount/PasswordField";
+import useChangePassword from "../../hooks/useChangePassword";
+import { Form } from "../ui/form";
+import PasswordField from "../createAccount/PasswordField";
 
 interface PasswordModalProps {
   open: boolean;
   onClose: () => void;
   id: string;
 }
-
-
 
 const PasswordModalComponent: React.FC<PasswordModalProps> = ({
   open,
@@ -32,13 +33,19 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
 }) => {
   const form = useForm<ChangePasswordInputs>({
     resolver: zodResolver(changePasswordSchema),
-    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
   });
 
-  const { control, handleSubmit, formState: {  } } = form;
+  const {
+    control,
+    handleSubmit,
+    formState: {},
+  } = form;
   const { mutate: changePassword, isPending } = useChangePassword();
-
-
 
   const onSubmit = (values: ChangePasswordInputs) => {
     changePassword(
@@ -56,10 +63,10 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
     );
   };
 
-  const handleClose =() =>{
+  const handleClose = () => {
     form.reset();
     onClose();
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -72,7 +79,7 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
             Your new password must be different from previously used passwords.
           </DialogDescription>
         </DialogHeader>
-   <Form {...form}>
+        <Form {...form}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
             <PasswordField
               control={control}
@@ -98,29 +105,28 @@ const PasswordModalComponent: React.FC<PasswordModalProps> = ({
               disabled={isPending}
             />
 
-
-          <DialogFooter className="mt-4 flex justify-end gap-4">
-            <Button
-              type="button"
-              variant="cancel"
-               onClick={() => {
+            <DialogFooter className="mt-4 flex justify-end gap-4">
+              <Button
+                type="button"
+                variant="cancel"
+                onClick={() => {
                   form.reset();
                   onClose();
                 }}
-              className="rounded-xl shadow-[0px_3px_6px_#031F3A59]"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="teal"
-              className="rounded-xl shadow-[0px_3px_6px_#031F3A59] text-base"
-              disabled={isPending}
+                className="rounded-xl shadow-[0px_3px_6px_#031F3A59]"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="teal"
+                className="rounded-xl shadow-[0px_3px_6px_#031F3A59] text-base"
+                disabled={isPending}
               >
                 {isPending ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
-        </form>
+              </Button>
+            </DialogFooter>
+          </form>
         </Form>
       </DialogContent>
     </Dialog>

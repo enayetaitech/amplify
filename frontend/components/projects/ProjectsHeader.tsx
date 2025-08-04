@@ -3,9 +3,8 @@
 
 import React from "react";
 import { Plus } from "lucide-react";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
-
 
 interface ProjectsHeaderProps {
   onCreateClick: () => void;

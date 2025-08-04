@@ -18,7 +18,7 @@ import CustomButton from "components/shared/CustomButton";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import { IModerator } from "@shared/interface/ModeratorInterface";
 import { useParams } from "next/navigation";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "components/ui/switch";
 import {
   alphanumericSingleSpace,
   alphaSingleSpace,
@@ -141,10 +141,10 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
       companyName: "",
       adminAccess: false,
     });
-    onClose(); 
+    onClose();
   };
 
-  const isSaving = addModeratorMutation.isPending
+  const isSaving = addModeratorMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -172,7 +172,6 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
                     name={field}
                     placeholder={`Enter ${label}`}
                     value={formData[field]}
-                    
                     // onChange only checks everything *except* trailing‐space
                     onChange={makeOnChange(
                       field,

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react'
 
 // Define the shape for dashboard stats (customize as needed)
 type Stats = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any
 }
 

@@ -4,13 +4,11 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "components/ui/card";
-import Logo from "components/LogoComponent";
-import FooterComponent from "components/FooterComponent";
+import Logo from "components/shared/LogoComponent";
+import FooterComponent from "components/shared/FooterComponent";
 import RegisterForm from "components/createAccount/RegisterForm";
 
 const Register = () => {
-
-
   return (
     <div>
       <div className="hidden lg:justify-center lg:items-start lg:flex bg-white h-10">
@@ -33,7 +31,7 @@ const Register = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-             <RegisterForm/>
+              <RegisterForm />
               <p className="mt-6 text-center">
                 Already have an account?{" "}
                 <Link href="/login" className="text-blue-500 ml-1">

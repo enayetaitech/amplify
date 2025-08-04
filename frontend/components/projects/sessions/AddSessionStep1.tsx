@@ -1,6 +1,6 @@
 "use client";
 
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "components/ui/switch";
 import { IModerator } from "@shared/interface/ModeratorInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -80,18 +80,13 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
           }
       ),
     });
-
   }, [formData.numberOfSessions, formData.sessions, updateFormData]);
 
   useEffect(() => {
-    
     if (data?.data && formData.allModerators?.length === 0) {
       updateFormData({ allModerators: data.data });
     }
-  
   }, [data?.data]);
-
-
 
   if (error) {
     console.error("Error fetching moderators:", error.message);
@@ -142,12 +137,12 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Label className="font-medium text-sm">
-            Do you need breakout room functionality? 
+            Do you need breakout room functionality?
           </Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                      <BiQuestionMark className="ml-2 h-5 w-5 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] px-0.5 mb-1.5" />
+                <BiQuestionMark className="ml-2 h-5 w-5 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] px-0.5 mb-1.5" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs bg-white text-black shadow-sm">
                 Breakout rooms allow you to split participants into separate

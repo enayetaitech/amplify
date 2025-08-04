@@ -45,7 +45,7 @@ const AssignTagModal: React.FC<AssignTagModalProps> = ({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tagsToRemove, setTagsToRemove] = useState<string[]>([]);
 
-console.log(page)
+  console.log(page);
 
   useEffect(() => {
     const fetchTags = async () => {

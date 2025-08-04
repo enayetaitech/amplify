@@ -5,6 +5,8 @@ import { durationMapping } from 'constant';
 import { Step4Props } from '@shared/interface/CreateProjectInterface';
 
 export function ProjectEstimateTable({ sessions, service }: { sessions: Step4Props['formData']['sessions'], service: string }) {
+  
+  
   const rows = sessions.map(s => {
     const qty = s.number;
     const dur = Number(durationMapping[s.duration] || s.duration);
