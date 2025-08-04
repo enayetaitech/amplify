@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import { FaSave } from "react-icons/fa";
 import { Button } from "components/ui/button";
-import InputFieldComponent from "components/InputFieldComponent";
+import InputFieldComponent from "components/shared/InputFieldComponent";
 import { useUserById } from "hooks/useUserById";
 import { useUpdateUser } from "hooks/useUpdateUser";
 import { Controller, useForm } from "react-hook-form";

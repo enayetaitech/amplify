@@ -4,11 +4,11 @@ import React, { useState } from "react";
 import { FaBars } from "react-icons/fa";
 import { Sheet, SheetContent, SheetTrigger } from "components/ui/sheet";
 import { Button } from "components/ui/button";
-import Logo from "./LogoComponent";
-import SidebarContent from "./sidebar/SidebarContent";
+import Logo from "../shared/LogoComponent";
+import SidebarContent from "./SidebarContent";
 
 export default function DashboardSidebar({
-  handleLogoutModalOpen
+  handleLogoutModalOpen,
 }: {
   handleLogoutModalOpen: () => void;
 }) {
@@ -17,9 +17,7 @@ export default function DashboardSidebar({
   return (
     <>
       {/* Mobile drawer */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}
-      
-      >
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <div className="md:hidden fixed top-4 left-4 z-40 bg-[#D5D6D8]">
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon">

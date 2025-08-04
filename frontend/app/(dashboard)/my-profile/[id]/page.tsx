@@ -3,8 +3,8 @@
 
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import PasswordModalComponent from "components/PasswordModalComponent";
-import ConfirmationModalComponent from "components/ConfirmationModalComponent";
+import PasswordModalComponent from "components/profile/PasswordModalComponent";
+import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { useGlobalContext } from "context/GlobalContext";
 import { useDeleteUser } from "hooks/useDeleteUser";
 import { useProfileModals } from "hooks/useProfileModals";

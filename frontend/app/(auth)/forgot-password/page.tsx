@@ -6,22 +6,22 @@ import { FaEnvelopeOpenText } from "react-icons/fa";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Label } from "components/ui/label";
-import Logo from "components/LogoComponent";
+import Logo from "components/shared/LogoComponent";
 import { Alert, AlertDescription } from "components/ui/alert";
-import FooterComponent from "components/FooterComponent";
+import FooterComponent from "components/shared/FooterComponent";
 import useForgotPassword from "hooks/useForgotPassword";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState<string>("");
 
-   const {
-   mutate: sendResetLink,
-   isPending: isLoading,
-   isError,
-   isSuccess,
-   data,
-   error,
- } = useForgotPassword();
+  const {
+    mutate: sendResetLink,
+    isPending: isLoading,
+    isError,
+    isSuccess,
+    data,
+    error,
+  } = useForgotPassword();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +72,7 @@ const ForgotPassword = () => {
               type="submit"
               disabled={isLoading}
             >
-              {isLoading  ? "Sending..." : "Send Reset Link"}
+              {isLoading ? "Sending..." : "Send Reset Link"}
             </Button>
           </form>
 

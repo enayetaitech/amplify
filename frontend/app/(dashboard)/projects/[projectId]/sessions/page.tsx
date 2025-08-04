@@ -11,7 +11,7 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
 import { Plus } from "lucide-react";
 import { SessionsTable } from "components/projects/sessions/SessionsTable";
@@ -19,9 +19,10 @@ import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import AddSessionModal from "components/projects/sessions/AddSessionModal";
 import { toast } from "sonner";
 import axios from "axios";
-import EditSessionModal, { EditSessionValues } from "components/projects/sessions/EditSessionModal";
-import ConfirmationModalComponent from "components/ConfirmationModalComponent";
-
+import EditSessionModal, {
+  EditSessionValues,
+} from "components/projects/sessions/EditSessionModal";
+import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 
 interface EditSessionInput {
   id: string;
@@ -37,11 +38,10 @@ const Sessions = () => {
   const [openAddSessionModal, setOpenAddSessionModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  
+
   const [page, setPage] = useState(1);
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
-
 
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
@@ -58,7 +58,6 @@ const Sessions = () => {
         .then((res) => res.data),
     placeholderData: keepPreviousData,
   });
-
 
   // Mutation to delete session
   const deleteSession = useMutation({
@@ -92,28 +91,27 @@ const Sessions = () => {
   });
 
   // ❗️ Mutation to save edits
- const editSession = useMutation<ISession, Error, EditSessionInput>({
-  // 1. mutationFn instead of positional args
-  mutationFn: ({ id, values }) =>
-    api
-      .patch<{ data: ISession }>(`/api/v1/sessions/${id}`, values)
-      .then(res => res.data.data),
+  const editSession = useMutation<ISession, Error, EditSessionInput>({
+    // 1. mutationFn instead of positional args
+    mutationFn: ({ id, values }) =>
+      api
+        .patch<{ data: ISession }>(`/api/v1/sessions/${id}`, values)
+        .then((res) => res.data.data),
 
-  // 2. onSuccess now receives (data, variables, context)
-   onSuccess() {
-    toast.success("Session updated");
-    queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
-    setOpenEditModal(false);
-  },
+    // 2. onSuccess now receives (data, variables, context)
+    onSuccess() {
+      toast.success("Session updated");
+      queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+      setOpenEditModal(false);
+    },
 
-  // 4. onError only takes the Error it needs
-  onError(error) {
-    toast.error(error.message || "Could not update session");
-  },
-});
+    // 4. onError only takes the Error it needs
+    onError(error) {
+      toast.error(error.message || "Could not update session");
+    },
+  });
 
-const isEditSessionSaving = editSession.isPending;
-
+  const isEditSessionSaving = editSession.isPending;
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
@@ -151,7 +149,7 @@ const isEditSessionSaving = editSession.isPending;
                   setOpenEditModal(true);
                   break;
                 case "delete":
-                   setToDeleteId(session._id);
+                  setToDeleteId(session._id);
                   setConfirmOpen(true);
                   break;
                 case "duplicate":
@@ -167,7 +165,7 @@ const isEditSessionSaving = editSession.isPending;
         onClose={() => setOpenAddSessionModal(false)}
       />
 
-       <EditSessionModal
+      <EditSessionModal
         open={openEditModal}
         session={sessionToEdit}
         onClose={() => setOpenEditModal(false)}
@@ -179,7 +177,7 @@ const isEditSessionSaving = editSession.isPending;
         isSaving={isEditSessionSaving}
       />
 
-        <ConfirmationModalComponent
+      <ConfirmationModalComponent
         open={confirmOpen}
         onCancel={() => {
           setConfirmOpen(false);

@@ -20,7 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "components/ui/form";
-import ConfirmationModalComponent from "components/ConfirmationModalComponent";
+import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "lib/api";
 import { toast } from "sonner";
@@ -108,19 +108,20 @@ export default function AddModeratorModal({
     }
   );
 
-  const isSaving = createProjectTeamMember.isPending
+  const isSaving = createProjectTeamMember.isPending;
 
   return (
     <>
-           <Dialog
+      <Dialog
         open={open}
         onOpenChange={(nextOpen) => {
-         // if the dialog is closing…
+          // if the dialog is closing…
           if (!nextOpen) {
             form.reset();
             onClose();
           }
-        }}      >
+        }}
+      >
         <DialogContent className="w-full max-w-2xl overflow-x-auto border-0">
           <DialogHeader>
             <DialogTitle>Add Project Team</DialogTitle>
@@ -138,8 +139,11 @@ export default function AddModeratorModal({
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
                       <FormControl>
-                        <Input type={type} placeholder={label} {...field} 
-                        disabled={isSaving}
+                        <Input
+                          type={type}
+                          placeholder={label}
+                          {...field}
+                          disabled={isSaving}
                         />
                       </FormControl>
                       <FormMessage />
@@ -200,9 +204,10 @@ export default function AddModeratorModal({
                 >
                   Cancel
                 </Button>
-                <Button 
-                disabled={isSaving}
-                type="submit">  {isSaving ? "Saving..." : "Save"}</Button>
+                <Button disabled={isSaving} type="submit">
+                  {" "}
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
               </DialogFooter>
             </form>
           </Form>

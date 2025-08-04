@@ -3,9 +3,9 @@ import React from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Skeleton } from "components/ui/skeleton";
-import AccountActivationUI from "components/AccountActivationUI";
-import Logo from "components/LogoComponent";
-import FooterComponent from "components/FooterComponent";
+import AccountActivationUI from "components/accountActivation/AccountActivationUI";
+import Logo from "components/shared/LogoComponent";
+import FooterComponent from "components/shared/FooterComponent";
 
 const AccountActivationContent: React.FC = () => {
   const searchParams = useSearchParams();

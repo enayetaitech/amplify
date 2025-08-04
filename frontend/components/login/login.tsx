@@ -16,8 +16,8 @@ import { Checkbox } from "components/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldErrors, useForm } from "react-hook-form";
 import { Button } from "components/ui/button";
-import Logo from "components/LogoComponent";
-import FooterComponent from "components/FooterComponent";
+import Logo from "components/shared/LogoComponent";
+import FooterComponent from "components/shared/FooterComponent";
 import TextInputField from "components/createAccount/TextInputField";
 import PasswordField from "components/createAccount/PasswordField";
 import { LoginFormValues, loginSchema } from "schemas/loginSchema";
@@ -32,11 +32,7 @@ const Login = () => {
 
   const loginMutation = useLogin();
 
-  const {
-    mutate: login,
-    isPending,
-
-  } = loginMutation;
+  const { mutate: login, isPending } = loginMutation;
 
   const handleErrors = (errors: FieldErrors<LoginFormValues>) => {
     Object.values(errors).forEach((fieldError) => {
@@ -50,8 +46,6 @@ const Login = () => {
   const onSubmit = form.handleSubmit((vals) => {
     login(vals);
   }, handleErrors);
-
-  
 
   return (
     <div>
@@ -122,7 +116,7 @@ const Login = () => {
                   <Button
                     type="submit"
                     className="w-full bg-orange-500 hover:bg-orange-600"
-                  disabled={isPending}
+                    disabled={isPending}
                   >
                     {isPending ? "Loading..." : "Login"}
                   </Button>

@@ -1,15 +1,12 @@
 "use client";
 
-import {
-  keepPreviousData,
-  useQuery
-} from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
 import { IModerator } from "@shared/interface/ModeratorInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
-import HeadingBlue25px from "components/HeadingBlue25pxComponent";
+import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import { Plus } from "lucide-react";
 import CustomButton from "components/shared/CustomButton";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
@@ -38,7 +35,7 @@ const ProjectTeam = () => {
     placeholderData: keepPreviousData,
   });
 
-    if (isLoading) return <p>Loading project team…</p>;
+  if (isLoading) return <p>Loading project team…</p>;
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 

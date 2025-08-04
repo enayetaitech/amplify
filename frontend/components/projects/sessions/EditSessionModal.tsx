@@ -35,7 +35,7 @@ import { useQuery } from "@tanstack/react-query";
 import { IProject } from "@shared/interface/ProjectInterface";
 import api from "lib/api";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "components/ui/switch";
 import { Info } from "lucide-react";
 import {
   Tooltip,
@@ -44,14 +44,19 @@ import {
   TooltipTrigger,
 } from "components/ui/tooltip";
 import { businessDaysBetween } from "utils/countDaysBetween";
-import { alphanumericSingleSpace, noLeadingSpace, noMultipleSpaces,  validate } from "schemas/validators";
+import {
+  alphanumericSingleSpace,
+  noLeadingSpace,
+  noMultipleSpaces,
+  validate,
+} from "schemas/validators";
 
 // 1️⃣ Define a Zod schema matching your ISession fields including timeZone
 const editSessionSchema = z.object({
-   title: z
+  title: z
     .string()
     .min(1, "Title is required")
-       .refine(noLeadingSpace, {
+    .refine(noLeadingSpace, {
       message: "Cannot start with a space",
     })
     .refine(noMultipleSpaces, {
@@ -82,7 +87,7 @@ export default function EditSessionModal({
   session,
   onClose,
   onSave,
-  isSaving
+  isSaving,
 }: EditSessionModalProps) {
   const params = useParams();
   if (!params.projectId || Array.isArray(params.projectId)) {
@@ -163,14 +168,16 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="Session title" {...field}
-                    disabled={isSaving}
-                     onChange={(e) => {
+                    <Input
+                      placeholder="Session title"
+                      {...field}
+                      disabled={isSaving}
+                      onChange={(e) => {
                         const v = e.target.value;
                         if (
                           !validate(v, [
                             noLeadingSpace,
-                           noMultipleSpaces,
+                            noMultipleSpaces,
                             alphanumericSingleSpace,
                           ])
                         ) {
@@ -195,10 +202,11 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Date</FormLabel>
                   <FormControl>
-                    <Input type="date"
-                    disabled={isSaving}
-                    {...field}
-                    min={new Date().toISOString().split("T")[0]}
+                    <Input
+                      type="date"
+                      disabled={isSaving}
+                      {...field}
+                      min={new Date().toISOString().split("T")[0]}
                     />
                   </FormControl>
                   <FormMessage />
@@ -213,9 +221,7 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Start Time</FormLabel>
                   <FormControl>
-                    <Input type="time" {...field}
-                    disabled={isSaving}
-                    />
+                    <Input type="time" {...field} disabled={isSaving} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -258,9 +264,10 @@ export default function EditSessionModal({
                 <FormItem>
                   <FormLabel>Time Zone</FormLabel>
                   <FormControl>
-                    <Select value={field.value} onValueChange={field.onChange}
-                    disabled={isSaving}
-                    
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={isSaving}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select time zone" />
@@ -325,10 +332,8 @@ export default function EditSessionModal({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-session-form"
-          disabled={isSaving}
-          >
-           {isSaving ? "Saving…" : "Save"}
+          <Button type="submit" form="edit-session-form" disabled={isSaving}>
+            {isSaving ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

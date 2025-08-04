@@ -6,7 +6,7 @@ import React from "react";
 import { Trash2 } from "lucide-react";
 import { Input } from "components/ui/input";
 import CustomButton from "components/shared/CustomButton";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "components/ui/switch";
 
 export interface SingleChoiceQuestionProps {
   id: string;
@@ -31,14 +31,11 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
   onRemoveChoice,
   onToggleShowDropdown,
   onCorrectAnswerChange,
-  disabled
+  disabled,
 }) => (
   <div className="space-y-4">
     {answers.map((ans, i) => (
-      <div
-        key={i}
-        className="relative group flex items-center space-x-2"
-      >
+      <div key={i} className="relative group flex items-center space-x-2">
         <input
           type="radio"
           name={`correct-${id}`}
@@ -64,7 +61,7 @@ const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
           className="absolute right-2 top-1/2 -translate-y-1/2
                      opacity-0 group-focus-within:opacity-100
                      transition-opacity"
-                     disabled={disabled}
+          disabled={disabled}
         />
       </div>
     ))}
