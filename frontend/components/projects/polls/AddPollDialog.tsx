@@ -292,8 +292,26 @@ const AddPollDialog = ({
     mutationFn: () => {
       const formData = new FormData();
 
+      const questionsPayload = questions.map((q) => {
+      // Drop the two file fields from every question
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const questionsPayload = questions.map(({ imageFile, ...rest }) => rest);
+      const { imageFile, tempImageName, ...rest } = q;
+
+      if (q.type === "RANK_ORDER") {
+        // Pull out the legacy fields and spit back in rows/columns
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { options, answers } = rest as any;
+        return {
+          ...rest,
+          type: "RANK_ORDER",
+          rows: options,
+          columns: answers,
+        };
+      }
+
+      // Everything else just keeps the other properties
+      return rest;
+    });
 
       formData.append("questions", JSON.stringify(questionsPayload));
       formData.append("projectId", projectId);
