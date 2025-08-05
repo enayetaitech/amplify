@@ -281,6 +281,17 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
       });
     } else if (type === "MATCHING")
       updateQuestion(id, { type, options: ["", ""], answers: ["", ""] });
+      else if (type === "RANK_ORDER") {
+    // ← NEW: initialise both rows & columns to two empty slots
+    updateQuestion(id, {
+      type,
+      rows:    ["", ""],
+      columns: ["", ""],
+      // clear legacy fields if you want
+      options:  [],
+      answers:  [],
+    });
+  }
     else if (type === "SHORT_ANSWER")
       updateQuestion(id, {
         type,
@@ -297,6 +308,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
         minChars: 1,
         maxChars: 2000,
       });
+      
     else if (type === "FILL_IN_BLANK") {
       updateQuestion(id, { type, prompt: "", answers: [] });
     } else updateQuestion(id, { type, options: [], answers: ["", ""] });
