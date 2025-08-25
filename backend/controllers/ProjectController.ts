@@ -100,6 +100,8 @@ export const createProjectByExternalAdmin = async (
     totalCreditsNeeded,
   } = req.body;
 
+  console.log('projectData', projectData)
+
   if (!userId || !projectData) {
     throw new ErrorHandler("User ID and project data are required", 400);
   }

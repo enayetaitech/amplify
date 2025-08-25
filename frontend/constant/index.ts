@@ -5,15 +5,28 @@ import { LoginFormValues } from "../schemas/loginSchema";
 import { RegisterFormValues } from "../schemas/registerSchema";
 
 export const durations = [
-  { label: "30 minutes", minutes: 30 },
-  { label: "45 minutes", minutes: 45 },
-  { label: "1 hour (60 minutes)", minutes: 60 },
-  { label: "1.25 hour (75 minutes)", minutes: 75 },
-  { label: "1.5 hour (90 minutes)", minutes: 90 },
-  { label: "2 hour (120 minutes)", minutes: 120 },
-  { label: "2.5 hour (150 minutes)", minutes: 150 },
-  { label: "3 hour (180+ minutes)", minutes: 180 },
+  { label: "15 mins", minutes: 15 },
+  { label: "20 mins", minutes: 20 },
+  { label: "30 mins", minutes: 30 },
+  { label: "40 mins", minutes: 40 },
+  { label: "45 mins", minutes: 45 },
+  { label: "1.00 hr", minutes: 60 },
+  { label: "1.25 hrs", minutes: 75 },
+  { label: "1.5 hrs", minutes: 90 },
+  { label: "1.75 hrs", minutes: 105 },
+  { label: "2.00 hrs", minutes: 120 },
+  { label: "2.25 hrs", minutes: 135 },
+  { label: "2.5 hrs", minutes: 150 },
+  { label: "2.75 hrs", minutes: 165 },
+  { label: "3.00 hrs", minutes: 180 },
+  { label: "4.00 hrs", minutes: 240 },
+  { label: "5.00 hrs", minutes: 300 },
+  { label: "6.00 hrs", minutes: 360 },
+  { label: "7.00 hrs", minutes: 420 },
+  { label: "8.00 hrs", minutes: 480 },
 ];
+
+
 export const durationStep3 = [
   "30 minutes",
   "45 minutes",
@@ -63,31 +76,31 @@ export const optionalAddOnServices = [
 // constants/timezones.ts
 
 export const timeZones = [
-  { value: "Pacific/Midway", utc: "-11", name: "Midway Island" },
-  { value: "Pacific/Honolulu", utc: "-10", name: "Hawaii" },
-  { value: "America/Anchorage", utc: "-9", name: "Alaska" },
-  { value: "America/Los_Angeles", utc: "-8", name: "Pacific Time" },
-  { value: "America/Denver", utc: "-7", name: "Mountain Time" },
-  { value: "America/Chicago", utc: "-6", name: "Central Time" },
-  { value: "America/New_York", utc: "-5", name: "Eastern Time" },
-  { value: "America/Halifax", utc: "-4", name: "Atlantic Time" },
-  { value: "America/Sao_Paulo", utc: "-3", name: "Brasilia" },
-  { value: "Atlantic/South_Georgia", utc: "-2", name: "Mid-Atlantic" },
-  { value: "Atlantic/Azores", utc: "-1", name: "Azores" },
-  { value: "UTC", utc: "+0", name: "UTC" },
-  { value: "Europe/London", utc: "+0", name: "London" },
-  { value: "Europe/Berlin", utc: "+1", name: "Berlin" },
-  { value: "Europe/Moscow", utc: "+3", name: "Moscow" },
-  { value: "Asia/Dubai", utc: "+4", name: "Dubai" },
-  { value: "Asia/Karachi", utc: "+5", name: "Pakistan" },
-  { value: "Asia/Dhaka", utc: "+6", name: "Bangladesh" },
-  { value: "Asia/Bangkok", utc: "+7", name: "Bangkok" },
-  { value: "Asia/Shanghai", utc: "+8", name: "China" },
-  { value: "Asia/Tokyo", utc: "+9", name: "Japan" },
+  { value: "America/New_York", utc: "-05", name: "Eastern Time" },
+  { value: "America/Chicago", utc: "-06", name: "Central Time" },
+  { value: "America/Denver", utc: "-07", name: "Mountain Time" },
+  { value: "America/Los_Angeles", utc: "-08", name: "Pacific Time" },
+  { value: "America/Anchorage", utc: "-09", name: "Alaska Time" },
+  { value: "Pacific/Honolulu", utc: "-10", name: "Hawaii Time" },
+  { value: "Europe/London", utc: "+00", name: "London Time" },
+  { value: "Atlantic/Cape_Verde", utc: "-01", name: "Cape Verde" },
+  { value: "Atlantic/South_Georgia", utc: "-02", name: "Sandwich Islands" },
+  { value: "America/Sao_Paulo", utc: "-03", name: "Rio de Janeiro" },
+  { value: "America/Santiago", utc: "-04", name: "Buenos Aires" },
+  { value: "Europe/Paris", utc: "+01", name: "Paris" },
+  { value: "Europe/Athens", utc: "+02", name: "Athens" },
+  { value: "Europe/Moscow", utc: "+03", name: "Moscow" },
+  { value: "Asia/Dubai", utc: "+04", name: "Dubai" },
+  { value: "Asia/Karachi", utc: "+05", name: "Pakistan" },
+  { value: "Asia/Kolkata", utc: "+05.5", name: "Delhi" },
+  { value: "Asia/Dhaka", utc: "+06", name: "Bangladesh" },
+  { value: "Asia/Bangkok", utc: "+07", name: "Bangkok" },
+  { value: "Asia/Shanghai", utc: "+08", name: "Beijing" },
+  { value: "Asia/Tokyo", utc: "+09", name: "Tokyo" },
   { value: "Australia/Sydney", utc: "+10", name: "Sydney" },
+  { value: "Pacific/Guadalcanal", utc: "+11", name: "Solomon Islands" },
   { value: "Pacific/Auckland", utc: "+12", name: "Auckland" },
 ];
-
 
 export const registerDefaults: RegisterFormValues = {
   firstName: "",
@@ -100,11 +113,11 @@ export const registerDefaults: RegisterFormValues = {
   terms: false,
 };
 
-export const loginDefaults: LoginFormValues={
-   email: "",
-      password: "Ab123456@",
-      rememberMe: false,
-}
+export const loginDefaults: LoginFormValues = {
+  email: "",
+  password: "Ab123456@",
+  rememberMe: false,
+};
 
 export const ALPHA_REGEX = /^[A-Za-z\s]+$/;
 
@@ -123,10 +136,10 @@ export const personalFields: Array<{
   name: keyof EditUserFormValues;
   label: string;
 }> = [
-  { name: "firstName",    label: "First Name*"    },
-  { name: "lastName",     label: "Last Name*"     },
-  { name: "phoneNumber",  label: "Phone Number*"  },
-  { name: "companyName",  label: "Company Name*"  },
+  { name: "firstName", label: "First Name*" },
+  { name: "lastName", label: "Last Name*" },
+  { name: "phoneNumber", label: "Phone Number*" },
+  { name: "companyName", label: "Company Name*" },
 ];
 
 export const numberFields: FieldConfig[] = [

@@ -13,20 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "components/ui/tooltip";
-import { timeZones } from "constant";
+// import {
+//   Tooltip,
+//   TooltipContent,
+//   TooltipProvider,
+//   TooltipTrigger,
+// } from "components/ui/tooltip";
+// import { timeZones } from "constant";
 import api from "lib/api";
 import React, { useEffect, useRef, useState } from "react";
 import AddModeratorModal from "./AddModeratorModal";
 import { ISessionFormData } from "./AddSessionModal";
 import MultiSelectDropdown from "./MultiSelectDropdown";
 import { useParams } from "next/navigation";
-import { BiQuestionMark } from "react-icons/bi";
+// import { BiQuestionMark } from "react-icons/bi";
 
 interface AddSessionStep1Props {
   formData: ISessionFormData;
@@ -94,6 +94,64 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
 
   return (
     <div className="space-y-5">
+      {/* Number of Sessions */}
+      <div>
+        <Label className="font-semibold text-sm mb-1 block">
+          Number of Sessions<span className="text-red-500">*</span>
+        </Label>
+        <Select
+          onValueChange={(val) =>
+            updateFormData({ numberOfSessions: Number(val) })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select number" />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: 60 }, (_, i) => (
+              <SelectItem key={i + 1} value={(i + 1).toString()}>
+                {i + 1}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Are all sessions the same length? */}
+      <div className="flex items-center justify-between">
+        <Label className="font-medium text-sm">
+          Are all sessions the same length?
+        </Label>
+        <div className="flex items-center gap-2">
+          <Switch
+            className="cursor-pointer"
+            checked={formData.sameModerator}
+            onCheckedChange={(b) => updateFormData({ sameModerator: b })}
+          />
+          <span className="text-sm font-medium">
+            {formData.sameModerator ? "Yes" : "No"}
+          </span>
+        </div>
+      </div>
+
+      {/* Same Moderator for All Sessions */}
+      <div className="flex items-center justify-between">
+        <Label className="font-medium text-sm">
+          Do you want the same moderator for all of your sessions?
+        </Label>
+        <div className="flex items-center gap-2">
+          <Switch
+            className="cursor-pointer"
+            checked={formData.sameModerator}
+            onCheckedChange={(b) => updateFormData({ sameModerator: b })}
+          />
+          <span className="text-sm font-medium">
+            {formData.sameModerator ? "Yes" : "No"}
+          </span>
+        </div>
+      </div>
+
+      {/* Moderators */}
       <div>
         <div className="flex gap-3 items-end">
           <div>
@@ -116,24 +174,7 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
         </div>
       </div>
 
-      {/* Same Moderator for All Sessions */}
-      <div className="flex items-center justify-between">
-        <Label className="font-medium text-sm">
-          Do you want the same moderator for all of your sessions?
-        </Label>
-        <div className="flex items-center gap-2">
-          <Switch
-            className="cursor-pointer"
-            checked={formData.sameModerator}
-            onCheckedChange={(b) => updateFormData({ sameModerator: b })}
-          />
-          <span className="text-sm font-medium">
-            {formData.sameModerator ? "Yes" : "No"}
-          </span>
-        </div>
-      </div>
-
-      {/* Breakout Room Toggle with Tooltip */}
+      {/* Breakout Room Toggle with Tooltip
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Label className="font-medium text-sm">
@@ -164,37 +205,14 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
             {formData.breakoutRoom ? "Yes" : "No"}
           </span>
         </div>
-      </div>
-
-      {/* Number of Sessions */}
-      <div>
-        <Label className="font-semibold text-sm mb-1 block">
-          Number of Sessions<span className="text-red-500">*</span>
-        </Label>
-        <Select
-          onValueChange={(val) =>
-            updateFormData({ numberOfSessions: Number(val) })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select number" />
-          </SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: 60 }, (_, i) => (
-              <SelectItem key={i + 1} value={(i + 1).toString()}>
-                {i + 1}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      </div> */}
 
       {/* Time Zone */}
-      <div>
+      {/* <div>
         <Label className="font-semibold text-sm mb-1 block">
           Time Zone<span className="text-red-500">*</span>
         </Label>
-        <Select onValueChange={(tz) => updateFormData({ timeZone: tz })}>
+        <Select value={formData.timeZone} onValueChange={(tz) => updateFormData({ timeZone: tz })}>
           <SelectTrigger>
             <SelectValue placeholder="Select timezone" />
           </SelectTrigger>
@@ -209,7 +227,7 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </div> */}
       <AddModeratorModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}

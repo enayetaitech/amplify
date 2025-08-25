@@ -17,6 +17,7 @@ import api from "lib/api";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { IProject } from "@shared/interface/ProjectInterface";
+import { timeZones } from "constant";
 
 interface AddSessionModalProps {
   open: boolean;
@@ -29,7 +30,7 @@ export interface ISessionFormData {
   allModerators?: IModerator[];
   timeZone: string;
   breakoutRoom: boolean;
-  sameModerator: boolean;  
+  sameModerator: boolean;
   sessions: Array<{
     title: string;
     date: string;
@@ -59,19 +60,40 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
   const projectId = params.projectId;
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
- const [formData, setFormData] = useState<ISessionFormData>(initialFormData);
+  const [formData, setFormData] = useState<ISessionFormData>(initialFormData);
 
-  const { data: project} = useQuery<IProject, Error>({
-    queryKey: ['project', projectId],
+  const { data: project } = useQuery<IProject, Error>({
+    queryKey: ["project", projectId],
     queryFn: () =>
       api
         .get(`/api/v1/projects/get-project-by-id/${projectId}`)
         .then((res) => res.data.data),
     enabled: Boolean(projectId),
-  })
+  });
 
+  // When project defaults load, prefill the form
+  useEffect(() => {
+    if (!project) return;
+    // Map project.defaultTimeZone label to IANA value used by our Select options
+    let mappedTimeZone = formData.timeZone;
+    if (project.defaultTimeZone) {
+      const label = project.defaultTimeZone; // e.g., "(UTC-05) Eastern Time"
+      const match = label.match(/^\(UTC([+-]?\d+(?:\.5)?)\)\s+(.+)$/);
+      if (match) {
+        const [, utc, name] = match;
+        const found = timeZones.find(
+          (tz) => tz.utc === utc && tz.name === name
+        );
+        if (found) mappedTimeZone = found.value;
+      }
+    }
+    setFormData((prev) => ({
+      ...prev,
+      timeZone: mappedTimeZone,
+      breakoutRoom: project.defaultBreakoutRoom ?? prev.breakoutRoom,
+    }));
+  }, [project]);
 
-  
   // whenever numberOfSessions changes, resize the sessions array
   useEffect(() => {
     setFormData((f) => ({
@@ -89,8 +111,6 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
       ),
     }));
   }, [formData.numberOfSessions]);
-
-
 
   const createSessions = useMutation({
     mutationFn: (payload: {
@@ -116,30 +136,30 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
       setStep(1);
     },
     onError: (error) => {
-    toast.error(error instanceof Error ? error.message : "Unknown error");
-  }
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
   });
 
   const handleSave = () => {
     if (project?.service === "Concierge") {
-    const now = new Date();
-    const cutoff = new Date(now);
-    cutoff.setDate(cutoff.getDate() + 14);
+      const now = new Date();
+      const cutoff = new Date(now);
+      cutoff.setDate(cutoff.getDate() + 14);
 
-    const tooSoon = formData.sessions.some((s) => {
-      const sessionDate = new Date(s.date);
-      return sessionDate < cutoff;
-    });
+      const tooSoon = formData.sessions.some((s) => {
+        const sessionDate = new Date(s.date);
+        return sessionDate < cutoff;
+      });
 
-    if (tooSoon) {
-      toast.error(
-        "You have selected Concierge Service for your project. " +
-        "Sessions cannot be added for dates less than 2 weeks in the future. " +
-        "Please contact info@amplifyresearch.com to check availability within this time window."
-      );
-      return;
+      if (tooSoon) {
+        toast.error(
+          "You have selected Concierge Service for your project. " +
+            "Sessions cannot be added for dates less than 2 weeks in the future. " +
+            "Please contact info@amplifyresearch.com to check availability within this time window."
+        );
+        return;
+      }
     }
-  }
     createSessions.mutate({
       projectId,
       timeZone: formData.timeZone,
@@ -150,13 +170,13 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
         startTime: s.startTime,
         duration: Number(s.duration),
         moderators: formData.sameModerator
-        ? formData.selectedModerators
-        : s.moderators,
+          ? formData.selectedModerators
+          : s.moderators,
       })),
     });
   };
 
-   const handleNext = () => {
+  const handleNext = () => {
     if (formData.selectedModerators.length === 0) {
       return toast.error("Please select at least one moderator.");
     }
@@ -171,21 +191,17 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
 
   const isSaving = createSessions.isPending;
 
-
   return (
     <Dialog
-  open={open}
-  onOpenChange={(nextOpen) => {
-    // when it’s closing…
-    if (!nextOpen) {
-      // reset everything
-      setFormData(initialFormData);
-      setStep(1);
-      // notify parent
-      onClose();
-    }
-  }}
->
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          setFormData(initialFormData);
+          setStep(1);
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="w-full max-w-5xl overflow-x-auto border-0">
         <DialogHeader>
           <DialogTitle>Add New Session</DialogTitle>
@@ -200,7 +216,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
             />
             <div className="flex justify-end">
               <CustomButton
-                 onClick={handleNext}
+                onClick={handleNext}
                 className="bg-custom-teal hover:bg-custom-dark-blue-3"
               >
                 Next
