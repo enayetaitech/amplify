@@ -12,7 +12,9 @@ export const authenticateJwt = (
   res: Response,
   next: NextFunction
 ) => {
+  
   const token = req.cookies.accessToken;
+  console.log("token", token);
   if (!token) {
     return next(new ErrorHandler("Not authenticated", 401));
   }

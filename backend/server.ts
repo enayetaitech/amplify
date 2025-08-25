@@ -8,7 +8,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser"; 
 import { deviceInfoMiddleware } from "./middlewares/deviceInfo";
 import http from "http";
-import { initSocket } from "./socket";
+
 
 const app = express();
 console.log("Starting server...",config.frontend_base_url);
@@ -56,7 +56,6 @@ app.use(errorMiddleware);
 const server = http.createServer(app);
 
 // Initialize Socket.IO on that server
-initSocket(server);
 
 // Connect to the database and start the server
 const PORT = config.port || 8008;

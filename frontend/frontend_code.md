@@ -1,183 +1,365 @@
-**File:** `next.config.ts`
+--- .gitignore ---
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-```typescript
-import type { NextConfig } from "next";
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  images: {
-    domains: [
-     
-      "interview-234343.s3.ap-southeast-2.amazonaws.com",
-    ],
-  },
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+--- app/(auth)/account-activation/page.tsx ---
+import { AccountActivationUI } from "@/components/accountActivation/AccountActivationUI";
+import { ComponentContainer } from "@/components/shared/ComponentContainer";
+import React from "react";
+
+const AccountActivation = () => {
+  return (
+    <ComponentContainer>
+      <AccountActivationUI />
+    </ComponentContainer>
+  );
 };
 
-export default nextConfig;
-```
+export default AccountActivation;
 
-**File:** `package.json`
+--- app/(auth)/create-user/page.tsx ---
+import { RegisterForm } from "@/components/createAccount/RegisterForm";
+import { ComponentContainer } from "@/components/shared/ComponentContainer";
+import React from "react";
 
-```json
-{
-  "name": "frontend",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "build:shared": "tsc --build ../shared",
-    "dev": "next dev",
-    "build": "npm run build:shared && next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^5.0.1",
-    "@radix-ui/react-accordion": "^1.2.10",
-    "@radix-ui/react-alert-dialog": "^1.1.6",
-    "@radix-ui/react-avatar": "^1.1.3",
-    "@radix-ui/react-checkbox": "^1.1.4",
-    "@radix-ui/react-dialog": "^1.1.7",
-    "@radix-ui/react-dropdown-menu": "^2.1.6",
-    "@radix-ui/react-label": "^2.1.2",
-    "@radix-ui/react-popover": "^1.1.7",
-    "@radix-ui/react-progress": "^1.1.7",
-    "@radix-ui/react-radio-group": "^1.2.3",
-    "@radix-ui/react-scroll-area": "^1.2.3",
-    "@radix-ui/react-select": "^2.1.6",
-    "@radix-ui/react-separator": "^1.1.2",
-    "@radix-ui/react-slot": "^1.1.2",
-    "@radix-ui/react-switch": "^1.2.4",
-    "@radix-ui/react-tabs": "^1.1.3",
-    "@radix-ui/react-tooltip": "^1.1.8",
-    "@stripe/react-stripe-js": "^3.6.0",
-    "@stripe/stripe-js": "^7.0.0",
-    "@tanstack/react-query": "^5.71.10",
-    "axios": "^1.8.4",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
-    "date-fns": "^3.6.0",
-    "lucide-react": "^0.487.0",
-    "next": "15.2.4",
-    "next-themes": "^0.4.6",
-    "react": "^19.0.0",
-    "react-day-picker": "^8.10.1",
-    "react-dom": "^19.0.0",
-    "react-hook-form": "^7.55.0",
-    "react-icons": "^5.5.0",
-    "socket.io-client": "^4.8.1",
-    "sonner": "^2.0.3",
-    "tailwind-merge": "^3.1.0",
-    "tw-animate-css": "^1.2.5",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4.1.3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^9",
-    "eslint-config-next": "15.2.4",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
-}
-```
+const CreateUser = () => {
+  return (
+    <ComponentContainer>
+      <RegisterForm />
+    </ComponentContainer>
+  );
+};
 
-**File:** `app/globals.css`
+export default CreateUser;
 
-```css
+--- app/(auth)/forgot-password/page.tsx ---
+"use client";
+import { ResetPasswordForm } from "@/components/reset-password/ResetPasswordForm";
+import { ComponentContainer } from "@/components/shared/ComponentContainer";
+import React from "react";
+
+const ForgotPassword = () => {
+  return (
+    <ComponentContainer>
+      <ResetPasswordForm />
+    </ComponentContainer>
+  );
+};
+
+export default ForgotPassword;
+
+--- app/(auth)/login/page.tsx ---
+"use client";
+import { Login } from "@/components/login/login";
+import { ComponentContainer } from "@/components/shared/ComponentContainer";
+import React from "react";
+
+const LoginPage = () => {
+  return (
+    <ComponentContainer>
+      <Login />
+    </ComponentContainer>
+  );
+};
+
+export default LoginPage;
+
+--- app/(auth)/reset-password/page.tsx ---
+"use client";
+import { ResetPasswordForm } from "@/components/reset-password/ResetPasswordForm";
+import { ComponentContainer } from "@/components/shared/ComponentContainer";
+import React from "react";
+
+const ResetPassword = () => {
+  return (
+    <ComponentContainer>
+      <ResetPasswordForm />
+    </ComponentContainer>
+  );
+};
+
+export default ResetPassword;
+
+--- app/(auth)/set-new-password/page.tsx ---
+import React from "react";
+
+const SetNewPassword = () => {
+  return <div>SetNewPassword</div>;
+};
+
+export default SetNewPassword;
+
+--- app/(auth)/verify-email/page.tsx ---
+import React from "react";
+
+const VerifyEmail = () => {
+  return <div>VerifyEmail</div>;
+};
+
+export default VerifyEmail;
+
+--- app/(before-meeting)/join/page.tsx ---
+import React from "react";
+
+const JoinMeeting = () => {
+  return <div>JoinMeeting</div>;
+};
+
+export default JoinMeeting;
+
+--- app/(before-meeting)/remove-participant/page.tsx ---
+import React from "react";
+
+const RemoveParticipant = () => {
+  return <div>RemoveParticipant</div>;
+};
+
+export default RemoveParticipant;
+
+--- app/(before-meeting)/waiting-room/page.tsx ---
+import React from "react";
+
+const WaitingRoom = () => {
+  return <div>WaitingRoom</div>;
+};
+
+export default WaitingRoom;
+
+--- app/(dashboard)/account/page.tsx ---
+import React from "react";
+
+const Account = () => {
+  return <div>Account</div>;
+};
+
+export default Account;
+
+--- app/(dashboard)/billing/page.tsx ---
+import React from "react";
+
+const Billing = () => {
+  return <div>Billing</div>;
+};
+
+export default Billing;
+
+--- app/(dashboard)/companies/page.tsx ---
+import React from "react";
+
+const Companies = () => {
+  return <div>Companies</div>;
+};
+
+export default Companies;
+
+--- app/(dashboard)/create-project/page.tsx ---
+import React from "react";
+
+const CreateProject = () => {
+  return <div>CreateProject</div>;
+};
+
+export default CreateProject;
+
+--- app/(dashboard)/edit-profile/page.tsx ---
+import React from "react";
+
+const EditProfile = () => {
+  return <div>EditProfile</div>;
+};
+
+export default EditProfile;
+
+--- app/(dashboard)/external-admin/page.tsx ---
+import React from "react";
+
+const ExternalAdmin = () => {
+  return <div>ExternalAdmin</div>;
+};
+
+export default ExternalAdmin;
+
+--- app/(dashboard)/internal-admin/page.tsx ---
+import React from "react";
+
+const InternalAdmin = () => {
+  return <div>InternalAdmin</div>;
+};
+
+export default InternalAdmin;
+
+--- app/(dashboard)/layout.tsx ---
+"use client";
+import { DashboardSidebarComponent } from "@/components/sidebar/DashboardSidebarComponent";
+import { DashboardProvider } from "@/context/DashboardContext";
+import React, { useState } from "react";
+
+const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  return (
+    <DashboardProvider>
+      <div className="flex h-screen">
+        <DashboardSidebarComponent
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+        />
+        <main
+          className={`flex-1 transition-all duration-300 ${
+            isSidebarOpen ? "ml-64" : "ml-16"
+          }`}
+        >
+          {children}
+        </main>
+      </div>
+    </DashboardProvider>
+  );
+};
+
+export default DashboardLayout;
+
+--- app/(dashboard)/my-profile/page.tsx ---
+"use client";
+import { PasswordModalComponent } from "@/components/profile/PasswordModalComponent";
+import { ProfileDetailsCard } from "@/components/profile/ProfileDetailsCard";
+import { useProfileModals } from "@/hooks/useProfileModals";
+import React from "react";
+
+const MyProfile = () => {
+  const {
+    isPasswordModalOpen,
+    handleOpenPasswordModal,
+    handleClosePasswordModal,
+  } = useProfileModals();
+
+  return (
+    <div className="p-4 md:p-6 lg:p-8">
+      <h1 className="text-2xl font-bold mb-4">My Profile</h1>
+      <ProfileDetailsCard onEditPassword={handleOpenPasswordModal} />
+      <PasswordModalComponent
+        isOpen={isPasswordModalOpen}
+        onClose={handleClosePasswordModal}
+      />
+    </div>
+  );
+};
+
+export default MyProfile;
+
+--- app/(dashboard)/projects/page.tsx ---
+"use client";
+import { ProjectsHeader } from "@/components/projects/ProjectsHeader";
+import { ProjectsTable } from "@/components/projects/ProjectsTable";
+import { useProjects } from "@/hooks/useProjects";
+import React from "react";
+
+const Projects = () => {
+  const {
+    projects,
+    loading,
+    error,
+    page,
+    limit,
+    search,
+    setSearch,
+    handlePageChange,
+  } = useProjects();
+
+  return (
+    <div className="p-4 md:p-6 lg:p-8">
+      <ProjectsHeader search={search} setSearch={setSearch} />
+      <ProjectsTable
+        projects={projects}
+        loading={loading}
+        error={error}
+        page={page}
+        limit={limit}
+        onPageChange={handlePageChange}
+      />
+    </div>
+  );
+};
+
+export default Projects;
+
+--- app/(dashboard)/view-project/page.tsx ---
+import React from "react";
+
+const ViewProject = () => {
+  return <div>ViewProject</div>;
+};
+
+export default ViewProject;
+
+--- app/favicon.ico ---
+--- app/globals.css ---
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
+body {
+  color: rgb(var(--foreground-rgb));
+  background: lightgray;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }
-```
 
-**File:** `app/layout.tsx`
-
-```typescript
+--- app/layout.tsx ---
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Providers from "@/provider/Providers";
+import { Providers } from "@/provider/Providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -199,964 +381,307 @@ export default function RootLayout({
     </html>
   );
 }
-```
 
-**File:** `app/page.tsx`
-
-```typescript
-import LoginComponent from "@/components/login/login";
+--- app/meeting/[id]/page.tsx ---
 import React from "react";
 
-const page = () => {
-  return (
-    <div>
-      <LoginComponent />
-    </div>
-  );
+const Meeting = () => {
+  return <div>Meeting</div>;
 };
 
-export default page;
-```
+export default Meeting;
 
-**File:** `app/(dashboard)/layout.tsx`
+--- app/page.tsx ---
+import { Login } from "@/components/login/login";
+import Image from "next/image";
 
-```typescript
-"use client";
-import DashboardSidebarComponent from "@/components/DashboardSidebarComponent";
-import { useAuth } from "@/context/AuthContext";
-import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect } from "react";
-
-const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  const sidebarHiddenPaths = [
-    "/dashboard/create-project",
-    "/dashboard/edit-project",
-    "/dashboard/view-project",
-  ];
-
-  const isSidebarHidden = sidebarHiddenPaths.some((path) =>
-    pathname.startsWith(path)
-  );
-
+export default function Home() {
   return (
-    <div className="flex h-screen">
-      {!isSidebarHidden && <DashboardSidebarComponent />}
-      <main
-        className={`flex-1 overflow-y-auto ${
-          isSidebarHidden ? "" : "md:ml-64"
-        }`}
-      >
-        {children}
-      </main>
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <Login />
+    </main>
   );
-};
+}
 
-export default DashboardLayout;
-```
-
-**File:** `app/privacy-policy/page.tsx`
-
-```typescript
+--- app/privacy-policy/page.tsx ---
 import React from "react";
 
 const PrivacyPolicy = () => {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
-      <p className="mb-4">
-        Your privacy is important to us. It is our policy to respect your
-        privacy regarding any information we may collect from you across our
-        website.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Information We Collect</h2>
-      <p className="mb-4">
-        We only ask for personal information when we truly need it to provide a
-        service to you. We collect it by fair and lawful means, with your
-        knowledge and consent. We also let you know why we’re collecting it and
-        how it will be used.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">How We Use Your Information</h2>
-      <p className="mb-4">
-        We use the information we collect in various ways, including to:
-      </p>
-      <ul className="list-disc list-inside mb-4">
-        <li>Provide, operate, and maintain our website</li>
-        <li>Improve, personalize, and expand our website</li>
-        <li>Understand and analyze how you use our website</li>
-        <li>Develop new products, services, features, and functionality</li>
-        <li>
-          Communicate with you, either directly or through one of our partners,
-          including for customer service, to provide you with updates and other
-          information relating to the website, and for marketing and promotional
-          purposes
-        </li>
-        <li>Send you emails</li>
-        <li>Find and prevent fraud</li>
-      </ul>
-      <h2 className="text-2xl font-bold mb-2">Security</h2>
-      <p className="mb-4">
-        The security of your personal information is important to us, but
-        remember that no method of transmission over the Internet, or method of
-        electronic storage, is 100% secure. While we strive to use commercially
-        acceptable means to protect your personal information, we cannot
-        guarantee its absolute security.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Changes to This Privacy Policy</h2>
-      <p className="mb-4">
-        We may update our Privacy Policy from time to time. We will notify you
-        of any changes by posting the new Privacy Policy on this page.
-      </p>
-      <p>This policy is effective as of 2024-01-01.</p>
-    </div>
-  );
+  return <div>PrivacyPolicy</div>;
 };
 
 export default PrivacyPolicy;
-```
 
-**File:** `app/terms-of-condition/page.tsx`
-
-```typescript
+--- app/terms-of-condition/page.tsx ---
 import React from "react";
 
-const TermsAndConditions = () => {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">Terms and Conditions</h1>
-      <p className="mb-4">
-        Please read these terms and conditions carefully before using our
-        website.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Conditions of Use</h2>
-      <p className="mb-4">
-        We will provide their services to you, which are subject to the
-        conditions stated below in this document. Every time you visit this
-        website, use its services, or make a purchase, you accept the following
-        conditions. This is why we urge you to read them carefully.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Privacy Policy</h2>
-      <p className="mb-4">
-        Before you continue using our website, we advise you to read our privacy
-        policy regarding our user data collection. It will help you better
-        understand our practices.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Copyright</h2>
-      <p className="mb-4">
-        Content published on this website (digital downloads, images, texts,
-        graphics, logos) is the property of [Your Company Name] and/or its
-        content creators and protected by international copyright laws.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Communications</h2>
-      <p className="mb-4">
-        The entire communication with us is electronic. Every time you send us
-        an email or visit our website, you are going to be communicating with
-        us. You hereby consent to receive communications from us.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Applicable Law</h2>
-      <p className="mb-4">
-        By visiting this website, you agree that the laws of [Your Country],
-        without regard to principles of conflict laws, will govern these terms
-        and conditions, or any dispute of any sort that might come between [Your
-        Company Name] and you, or its business partners and associates.
-      </p>
-      <h2 className="text-2xl font-bold mb-2">Disputes</h2>
-      <p className="mb-4">
-        Any dispute related in any way to your visit to this website or to
-        products you purchase from us shall be arbitrated by state or federal
-        court [Your Location] and you consent to exclusive jurisdiction and
-        venue of such courts.
-      </p>
-    </div>
-  );
+const TermsAndCondition = () => {
+  return <div>TermsAndCondition</div>;
 };
 
-export default TermsAndConditions;
-```
+export default TermsAndCondition;
 
-**File:** `components/AccountActivationUI.tsx`
+--- components.json ---
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "tailwind.config.ts",
+    "css": "app/globals.css",
+    "baseColor": "slate",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "components",
+    "utils": "lib/utils"
+  }
+}
 
-```typescript
+--- components/accountActivation/AccountActivationUI.tsx ---
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import Link from "next/link";
+import { useVerifyEmail } from "@/hooks/useVerifyEmail";
+import { BackToLogin } from "./BackToLogin";
 
-const AccountActivationUI = () => {
+export const AccountActivationUI = () => {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-  const { activateAccount } = useAuth();
-  const [message, setMessage] = useState("Activating your account...");
-  const [error, setError] = useState("");
+  const {
+    verifyEmail,
+    data,
+    loading: isVerifying,
+    error,
+  } = useVerifyEmail();
 
   useEffect(() => {
     if (token) {
-      const activate = async () => {
-        try {
-          const response = await activateAccount(token);
-          setMessage(response.message);
-        } catch (err: any) {
-          setError(
-            err.response?.data?.message ||
-              "An error occurred during account activation."
-          );
-        }
-      };
-      activate();
-    } else {
-      setMessage("Invalid activation link.");
+      verifyEmail(token);
     }
-  }, [token, activateAccount]);
+  }, [token, verifyEmail]);
+
+  if (isVerifying) {
+    return <p className="text-center">Verifying your account...</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-red-500">
+        <p>Error: {error.message}</p>
+        <BackToLogin />
+      </div>
+    );
+  }
+
+  if (data) {
+    return (
+      <div className="text-center text-green-500">
+        <p>Account activated successfully!</p>
+        <BackToLogin />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="p-8 bg-white shadow-md rounded-lg max-w-md text-center">
-        <h1 className="text-2xl font-bold mb-4">Account Activation</h1>
-        {message && !error && <p className="text-green-500">{message}</p>}
-        {error && <p className="text-red-500">{error}</p>}
-        <div className="mt-6">
-          <Link
-            href="/login"
-            className="text-blue-500 hover:underline"
-          >
-            Back to Login
-          </Link>
-        </div>
-      </div>
+    <div className="text-center">
+      <p>Invalid activation link.</p>
+      <BackToLogin />
     </div>
   );
 };
 
-export default AccountActivationUI;
-```
-
-**File:** `components/AddMeetingModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface AddMeetingModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddMeeting: (name: string, description: string) => void;
-}
-
-const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
-  isOpen,
-  onClose,
-  onAddMeeting,
-}) => {
-  const [name, setName] = React.useState("");
-  const [description, setDescription] = React.useState("");
-
-  const handleAdd = () => {
-    onAddMeeting(name, description);
-    setName("");
-    setDescription("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Meeting</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="meeting-name">Meeting Name</Label>
-            <Input
-              id="meeting-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="meeting-description">Description</Label>
-            <Input
-              id="meeting-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAdd}>Add Meeting</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default AddMeetingModal;
-```
-
-**File:** `components/AddPollModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface AddPollModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (question: string, options: string[]) => void;
-}
-
-const AddPollModal: React.FC<AddPollModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-  const [options, setOptions] = React.useState<string[]>(["", ""]);
-
-  const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
-  };
-
-  const addOption = () => {
-    setOptions([...options, ""]);
-  };
-
-  const removeOption = (index: number) => {
-    const newOptions = options.filter((_, i) => i !== index);
-    setOptions(newOptions);
-  };
-
-  const handleAddPoll = () => {
-    onAddPoll(question, options.filter((opt) => opt.trim() !== ""));
-    setQuestion("");
-    setOptions(["", ""]);
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Poll Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Options</Label>
-            {options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <Input
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeOption(index)}
-                >
-                  -
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addOption} className="mt-2">
-              Add Option
-            </Button>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default AddPollModal;
-```
-
-**File:** `components/AddRepositoryModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface AddRepositoryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddRepository: (name: string, url: string) => void;
-}
-
-const AddRepositoryModal: React.FC<AddRepositoryModalProps> = ({
-  isOpen,
-  onClose,
-  onAddRepository,
-}) => {
-  const [name, setName] = React.useState("");
-  const [url, setUrl] = React.useState("");
-
-  const handleAdd = () => {
-    onAddRepository(name, url);
-    setName("");
-    setUrl("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Repository</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="repo-name">Repository Name</Label>
-            <Input
-              id="repo-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="repo-url">URL</Label>
-            <Input
-              id="repo-url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAdd}>Add Repository</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default AddRepositoryModal;
-```
-
-**File:** `components/AddSingleChoicePollModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface AddSingleChoicePollModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (question: string, options: string[]) => void;
-}
-
-const AddSingleChoicePollModal: React.FC<AddSingleChoicePollModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-  const [options, setOptions] = React.useState<string[]>(["", ""]);
-
-  const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
-  };
-
-  const addOption = () => {
-    setOptions([...options, ""]);
-  };
-
-  const removeOption = (index: number) => {
-    const newOptions = options.filter((_, i) => i !== index);
-    setOptions(newOptions);
-  };
-
-  const handleAddPoll = () => {
-    onAddPoll(question, options.filter((opt) => opt.trim() !== ""));
-    setQuestion("");
-    setOptions(["", ""]);
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Single-Choice Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Poll Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Options</Label>
-            {options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2 mt-2">
-                <Input
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeOption(index)}
-                >
-                  -
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addOption} className="mt-2">
-              Add Option
-            </Button>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default AddSingleChoicePollModal;
-```
-
-**File:** `components/AssignTagModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-
-interface AssignTagModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  tags: { id: string; name: string }[];
-  onAssignTag: (tagId: string) => void;
-}
-
-const AssignTagModal: React.FC<AssignTagModalProps> = ({
-  isOpen,
-  onClose,
-  tags,
-  onAssignTag,
-}) => {
-  const [selectedTag, setSelectedTag] = React.useState<string>("");
-
-  const handleAssign = () => {
-    if (selectedTag) {
-      onAssignTag(selectedTag);
-      onClose();
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Assign Tag</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="tag-select">Select Tag</Label>
-            <Select onValueChange={setSelectedTag} value={selectedTag}>
-              <SelectTrigger id="tag-select">
-                <SelectValue placeholder="Select a tag" />
-              </SelectTrigger>
-              <SelectContent>
-                {tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAssign}>Assign Tag</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default AssignTagModal;
-```
-
-**File:** `components/BackToLogin.tsx`
-
-```typescript
+--- components/accountActivation/BackToLogin.tsx ---
 import Link from "next/link";
 import React from "react";
+import { CustomButton } from "../shared/CustomButton";
 
-const BackToLogin = () => {
+export const BackToLogin = () => {
   return (
-    <div className="text-center mt-4">
-      <Link
-        href="/login"
-        className="text-sm text-blue-600 hover:underline"
-      >
-        Back to Login
+    <div className="mt-4">
+      <Link href="/login">
+        <CustomButton>Back to Login</CustomButton>
       </Link>
     </div>
   );
 };
 
-export default BackToLogin;
-```
-
-**File:** `components/ConfirmationModalComponent.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-
-interface ConfirmationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  description: string;
-}
-
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  description,
-}) => {
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={onConfirm}>Confirm</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default ConfirmationModal;
-```
-
-**File:** `components/CreateTag.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface CreateTagModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCreateTag: (name: string) => void;
-}
-
-const CreateTagModal: React.FC<CreateTagModalProps> = ({
-  isOpen,
-  onClose,
-  onCreateTag,
-}) => {
-  const [name, setName] = React.useState("");
-
-  const handleCreate = () => {
-    onCreateTag(name);
-    setName("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create New Tag</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="tag-name">Tag Name</Label>
-            <Input
-              id="tag-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleCreate}>Create Tag</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default CreateTagModal;
-```
-
-**File:** `components/DashboardSidebarComponent.tsx`
-
-```typescript
+--- components/createAccount/countrySelector.tsx ---
 "use client";
-import React, { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  Home,
-  Users,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Briefcase,
-  FileText,
-} from "lucide-react";
-import LogoComponent from "./LogoComponent";
-import LogoutModalComponent from "./LogoutModalComponent";
-import { useAuth } from "@/context/AuthContext";
+import React from "react";
+import { useCountryList } from "@/hooks/useCountryList";
 
-const DashboardSidebarComponent = () => {
-  const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const { user } = useAuth();
+interface CountrySelectorProps {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+}
 
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+export const CountrySelector: React.FC<CountrySelectorProps> = ({
+  value,
+  onChange,
+}) => {
+  const { countries, loading, error } = useCountryList();
 
-  const handleLogout = () => {
-    setIsLogoutModalOpen(true);
-  };
-
-  const closeLogoutModal = () => {
-    setIsLogoutModalOpen(false);
-  };
-
-  const navItems = [
-    {
-      href: "/dashboard/projects",
-      icon: <Home className="h-5 w-5" />,
-      label: "Dashboard",
-    },
-    {
-      href: "/dashboard/my-profile",
-      icon: <Users className="h-5 w-5" />,
-      label: "My Profile",
-    },
-    {
-      href: "/dashboard/companies",
-      icon: <Briefcase className="h-5 w-5" />,
-      label: "Companies",
-    },
-    {
-      href: "/dashboard/billing",
-      icon: <FileText className="h-5 w-5" />,
-      label: "Billing",
-    },
-    {
-      href: "/dashboard/account",
-      icon: <Settings className="h-5 w-5" />,
-      label: "Account",
-    },
-  ];
-
-  if (user?.role === "superadmin") {
-    navItems.push(
-      {
-        href: "/dashboard/internal-admin",
-        icon: <Settings className="h-5 w-5" />,
-        label: "Internal Admin",
-      },
-      {
-        href: "/dashboard/external-admin",
-        icon: <Settings className="h-5 w-5" />,
-        label: "External Admin",
-      }
-    );
-  }
+  if (loading) return <p>Loading countries...</p>;
+  if (error) return <p>Error loading countries.</p>;
 
   return (
-    <>
-      <div
-        className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-gray-900 text-white transition-all duration-300 ${
-          isCollapsed ? "w-20" : "w-64"
-        }`}
-      >
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          {!isCollapsed && <LogoComponent />}
-          <button onClick={toggleSidebar} className="p-2 rounded-md">
-            {isCollapsed ? <ChevronRight /> : <ChevronLeft />}
-          </button>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                pathname === item.href
-                  ? "bg-blue-600 text-white"
-                  : "hover:bg-gray-700"
-              }`}
-            >
-              {item.icon}
-              {!isCollapsed && <span className="ml-4">{item.label}</span>}
-            </Link>
-          ))}
-        </nav>
-        <div className="p-4 border-t border-gray-700">
-          <button
-            onClick={handleLogout}
-            className="flex items-center w-full p-3 rounded-lg hover:bg-red-600 transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-            {!isCollapsed && <span className="ml-4">Logout</span>}
-          </button>
-        </div>
-      </div>
-      <LogoutModalComponent
-        isOpen={isLogoutModalOpen}
-        onClose={closeLogoutModal}
-      />
-    </>
+    <select
+      id="country"
+      name="country"
+      value={value}
+      onChange={onChange}
+      className="w-full px-3 py-2 border rounded-md"
+      required
+    >
+      <option value="">Select a country</option>
+      {countries.map((country) => (
+        <option key={country.value} value={country.value}>
+          {country.label}
+        </option>
+      ))}
+    </select>
   );
 };
 
-export default DashboardSidebarComponent;
-```
+--- components/createAccount/PasswordField.tsx ---
+import React from "react";
 
-**File:** `components/DatePicker.tsx`
+interface PasswordFieldProps {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
 
-```typescript
+export const PasswordField: React.FC<PasswordFieldProps> = ({
+  value,
+  onChange,
+}) => {
+  return (
+    <input
+      type="password"
+      id="password"
+      name="password"
+      value={value}
+      onChange={onChange}
+      className="w-full px-3 py-2 border rounded-md"
+      required
+    />
+  );
+};
+
+--- components/createAccount/RegisterForm.tsx ---
+"use client";
+import React from "react";
+import { useRegister } from "@/hooks/useRegister";
+import { CountrySelector } from "./countrySelector";
+import { TextInputField } from "./TextInputField";
+import { PasswordField } from "./PasswordField";
+import { CustomButton } from "../shared/CustomButton";
+
+export const RegisterForm = () => {
+  const { formData, loading, error, handleChange, handleSubmit } =
+    useRegister();
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 p-6 bg-white rounded-lg shadow-md"
+    >
+      <h2 className="text-2xl font-bold text-center">Create an Account</h2>
+      <TextInputField
+        label="First Name"
+        name="firstName"
+        value={formData.firstName}
+        onChange={handleChange}
+      />
+      <TextInputField
+        label="Last Name"
+        name="lastName"
+        value={formData.lastName}
+        onChange={handleChange}
+      />
+      <TextInputField
+        label="Email"
+        name="email"
+        type="email"
+        value={formData.email}
+        onChange={handleChange}
+      />
+      <div>
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Password
+        </label>
+        <PasswordField
+          value={formData.password}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label
+          htmlFor="country"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Country
+        </label>
+        <CountrySelector value={formData.country} onChange={handleChange} />
+      </div>
+      <CustomButton type="submit" disabled={loading} className="w-full">
+        {loading ? "Registering..." : "Register"}
+      </CustomButton>
+      {error && <p className="text-red-500 text-center">{error.message}</p>}
+    </form>
+  );
+};
+
+--- components/createAccount/TextInputField.tsx ---
+import React from "react";
+
+interface TextInputFieldProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+}
+
+export const TextInputField: React.FC<TextInputFieldProps> = ({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+}) => {
+  return (
+    <div>
+      <label
+        htmlFor={name}
+        className="block text-sm font-medium text-gray-700"
+      >
+        {label}
+      </label>
+      <input
+        type={type}
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="w-full px-3 py-2 border rounded-md"
+        required
+      />
+    </div>
+  );
+};
+
+--- components/DatePicker.tsx ---
 "use client";
 
 import * as React from "react";
+import { CalendarIcon } from "@radix-ui/react-icons";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -1179,7 +704,7 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
         <Button
           variant={"outline"}
           className={cn(
-            "w-[280px] justify-start text-left font-normal",
+            "w-[240px] justify-start text-left font-normal",
             !date && "text-muted-foreground"
           )}
         >
@@ -1187,7 +712,7 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
           {date ? format(date, "PPP") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
+      <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
           selected={date}
@@ -1198,2387 +723,521 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
     </Popover>
   );
 }
-```
 
-**File:** `components/EditProjectModal.tsx`
-
-```typescript
+--- components/login/login.tsx ---
+"use client";
 import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface EditProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (name: string, description: string) => void;
-  project: { name: string; description: string };
-}
-
-const EditProjectModal: React.FC<EditProjectModalProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  project,
-}) => {
-  const [name, setName] = React.useState(project.name);
-  const [description, setDescription] = React.useState(project.description);
-
-  React.useEffect(() => {
-    setName(project.name);
-    setDescription(project.description);
-  }, [project]);
-
-  const handleSave = () => {
-    onSave(name, description);
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Project</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="project-name">Project Name</Label>
-            <Input
-              id="project-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="project-description">Description</Label>
-            <Input
-              id="project-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default EditProjectModal;
-```
-
-**File:** `components/FillBlankModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface FillBlankModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (question: string) => void;
-}
-
-const FillBlankModal: React.FC<FillBlankModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-
-  const handleAddPoll = () => {
-    onAddPoll(question);
-    setQuestion("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Fill-in-the-Blank Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="e.g., The capital of France is ____."
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default FillBlankModal;
-```
-
-**File:** `components/FooterComponent.tsx`
-
-```typescript
+import { useLogin } from "@/hooks/useLogin";
+import { CustomButton } from "../shared/CustomButton";
 import Link from "next/link";
-import React from "react";
 
-const FooterComponent = () => {
+export const Login = () => {
+  const { formData, loading, error, handleChange, handleSubmit } = useLogin();
+
   return (
-    <footer className="bg-gray-800 text-white py-8">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <h3 className="text-lg font-bold mb-4">About Us</h3>
-            <p className="text-gray-400">
-              We are a company dedicated to providing the best services and
-              products to our customers.
-            </p>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold mb-4">Quick Links</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/about"
-                  className="text-gray-400 hover:text-white"
-                >
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/services"
-                  className="text-gray-400 hover:text-white"
-                >
-                  Services
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="text-gray-400 hover:text-white"
-                >
-                  Contact
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/privacy-policy"
-                  className="text-gray-400 hover:text-white"
-                >
-                  Privacy Policy
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold mb-4">Contact Us</h3>
-            <p className="text-gray-400">
-              123 Main Street, Anytown, USA
-              <br />
-              Email: info@example.com
-              <br />
-              Phone: (123) 456-7890
-            </p>
-          </div>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md"
+      >
+        <h2 className="text-2xl font-bold text-center">Login</h2>
+        <div>
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full px-3 py-2 mt-1 border rounded-md"
+            required
+          />
         </div>
-        <div className="text-center text-gray-500 mt-8">
-          &copy; {new Date().getFullYear()} Your Company. All rights reserved.
+        <div>
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className="w-full px-3 py-2 mt-1 border rounded-md"
+            required
+          />
         </div>
-      </div>
-    </footer>
-  );
-};
-
-export default FooterComponent;
-```
-
-**File:** `components/Heading20pxBlueUCComponent.tsx`
-
-```typescript
-import React from "react";
-
-interface Heading20pxBlueUCProps {
-  text: string;
-}
-
-const Heading20pxBlueUC: React.FC<Heading20pxBlueUCProps> = ({ text }) => {
-  return <h2 className="text-xl text-blue-600 uppercase">{text}</h2>;
-};
-
-export default Heading20pxBlueUC;
-```
-
-**File:** `components/HeadingBlue25pxComponent.tsx`
-
-```typescript
-import React from "react";
-
-interface HeadingBlue25pxProps {
-  text: string;
-}
-
-const HeadingBlue25px: React.FC<HeadingBlue25pxProps> = ({ text }) => {
-  return <h1 className="text-2xl text-blue-600">{text}</h1>;
-};
-
-export default HeadingBlue25px;
-```
-
-**File:** `components/HeadingParagraphComponent.tsx`
-
-```typescript
-import React from "react";
-
-interface HeadingParagraphProps {
-  heading: string;
-  paragraph: string;
-}
-
-const HeadingParagraph: React.FC<HeadingParagraphProps> = ({
-  heading,
-  paragraph,
-}) => {
-  return (
-    <div>
-      <h1 className="text-2xl font-bold">{heading}</h1>
-      <p className="text-gray-600">{paragraph}</p>
+        <CustomButton type="submit" disabled={loading} className="w-full">
+          {loading ? "Logging in..." : "Login"}
+        </CustomButton>
+        {error && <p className="text-red-500 text-center">{error.message}</p>}
+        <div className="text-center">
+          <Link href="/forgot-password">
+            <span className="text-sm text-blue-500 hover:underline">
+              Forgot Password?
+            </span>
+          </Link>
+        </div>
+        <div className="text-center">
+          <Link href="/create-user">
+            <span className="text-sm text-blue-500 hover:underline">
+              Create an account
+            </span>
+          </Link>
+        </div>
+      </form>
     </div>
   );
 };
 
-export default HeadingParagraph;
-```
-
-**File:** `components/InputFieldComponent.tsx`
-
-```typescript
-import React from "react";
-
-interface InputFieldProps {
-  label: string;
-  type: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-  error?: string;
-}
-
-const InputField: React.FC<InputFieldProps> = ({
-  label,
-  type,
-  value,
-  onChange,
-  placeholder,
-  error,
-}) => {
-  return (
-    <div className="mb-4">
-      <label className="block text-gray-700 text-sm font-bold mb-2">
-        {label}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-          error ? "border-red-500" : ""
-        }`}
-      />
-      {error && <p className="text-red-500 text-xs italic">{error}</p>}
-    </div>
-  );
-};
-
-export default InputField;
-```
-
-**File:** `components/LogoComponent.tsx`
-
-```typescript
-import Image from "next/image";
-import Link from "next/link";
-import React from "react";
-
-const LogoComponent = () => {
-  return (
-    <Link href="/" className="flex items-center space-x-2">
-      <Image src="/logo.svg" alt="Logo" width={40} height={40} />
-      <span className="text-xl font-bold">My App</span>
-    </Link>
-  );
-};
-
-export default LogoComponent;
-```
-
-**File:** `components/LogoutModalComponent.tsx`
-
-```typescript
+--- components/LogoutModalComponent.tsx ---
 import React from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/AuthContext";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface LogoutModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onConfirm: () => void;
 }
 
-const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => {
-  const { logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirm Logout</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to log out?
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={handleLogout}>
-            Logout
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default LogoutModal;
-```
-
-**File:** `components/LongAnswerPollModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "./ui/textarea";
-
-interface LongAnswerPollModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (question: string) => void;
-}
-
-const LongAnswerPollModal: React.FC<LongAnswerPollModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-
-  const handleAddPoll = () => {
-    onAddPoll(question);
-    setQuestion("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Long-Answer Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Question</Label>
-            <Textarea
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default LongAnswerPollModal;
-```
-
-**File:** `components/MatchingPollModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface MatchingPollModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (
-    question: string,
-    pairs: { left: string; right: string }[]
-  ) => void;
-}
-
-const MatchingPollModal: React.FC<MatchingPollModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-  const [pairs, setPairs] = React.useState<{ left: string; right: string }[]>([
-    { left: "", right: "" },
-  ]);
-
-  const handlePairChange = (
-    index: number,
-    side: "left" | "right",
-    value: string
-  ) => {
-    const newPairs = [...pairs];
-    newPairs[index][side] = value;
-    setPairs(newPairs);
-  };
-
-  const addPair = () => {
-    setPairs([...pairs, { left: "", right: "" }]);
-  };
-
-  const removePair = (index: number) => {
-    const newPairs = pairs.filter((_, i) => i !== index);
-    setPairs(newPairs);
-  };
-
-  const handleAddPoll = () => {
-    onAddPoll(
-      question,
-      pairs.filter((p) => p.left.trim() !== "" && p.right.trim() !== "")
-    );
-    setQuestion("");
-    setPairs([{ left: "", right: "" }]);
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Matching Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Matching Pairs</Label>
-            {pairs.map((pair, index) => (
-              <div key={index} className="flex items-center space-x-2 mt-2">
-                <Input
-                  value={pair.left}
-                  onChange={(e) => handlePairChange(index, "left", e.target.value)}
-                  placeholder="Left side"
-                />
-                <Input
-                  value={pair.right}
-                  onChange={(e) =>
-                    handlePairChange(index, "right", e.target.value)
-                  }
-                  placeholder="Right side"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removePair(index)}
-                >
-                  -
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addPair} className="mt-2">
-              Add Pair
-            </Button>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default MatchingPollModal;
-```
-
-**File:** `components/MemberBulkUpdate.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface MemberBulkUpdateModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onUpload: (file: File) => void;
-}
-
-const MemberBulkUpdateModal: React.FC<MemberBulkUpdateModalProps> = ({
-  isOpen,
-  onClose,
-  onUpload,
-}) => {
-  const [file, setFile] = React.useState<File | null>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUpload = () => {
-    if (file) {
-      onUpload(file);
-      onClose();
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Bulk Update Members</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="member-file">Upload Excel/CSV File</Label>
-            <Input id="member-file" type="file" onChange={handleFileChange} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleUpload} disabled={!file}>
-            Upload
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default MemberBulkUpdateModal;
-```
-
-**File:** `components/MemberTabAddMember.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-interface AddMemberModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddMember: (email: string, role: string) => void;
-}
-
-const AddMemberModal: React.FC<AddMemberModalProps> = ({
-  isOpen,
-  onClose,
-  onAddMember,
-}) => {
-  const [email, setEmail] = React.useState("");
-  const [role, setRole] = React.useState("");
-
-  const handleAdd = () => {
-    onAddMember(email, role);
-    setEmail("");
-    setRole("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Member</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="member-email">Email</Label>
-            <Input
-              id="member-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="member-role">Role</Label>
-            <Select onValueChange={setRole} value={role}>
-              <SelectTrigger id="member-role">
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="editor">Editor</SelectItem>
-                <SelectItem value="viewer">Viewer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAdd}>Add Member</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default AddMemberModal;
-```
-
-**File:** `components/MultipleChoicePollModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface MultipleChoicePollModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (question: string, options: string[]) => void;
-}
-
-const MultipleChoicePollModal: React.FC<MultipleChoicePollModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-  const [options, setOptions] = React.useState<string[]>(["", ""]);
-
-  const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
-  };
-
-  const addOption = () => {
-    setOptions([...options, ""]);
-  };
-
-  const removeOption = (index: number) => {
-    const newOptions = options.filter((_, i) => i !== index);
-    setOptions(newOptions);
-  };
-
-  const handleAddPoll = () => {
-    onAddPoll(question, options.filter((opt) => opt.trim() !== ""));
-    setQuestion("");
-    setOptions(["", ""]);
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Multiple-Choice Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Poll Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Options</Label>
-            {options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2 mt-2">
-                <Input
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeOption(index)}
-                >
-                  -
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addOption} className="mt-2">
-              Add Option
-            </Button>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default MultipleChoicePollModal;
-```
-
-**File:** `components/NoSearchResult.tsx`
-
-```typescript
-import React from "react";
-
-interface NoSearchResultsProps {
-  message: string;
-}
-
-const NoSearchResults: React.FC<NoSearchResultsProps> = ({ message }) => {
-  return (
-    <div className="text-center py-10">
-      <p className="text-gray-500">{message}</p>
-    </div>
-  );
-};
-
-export default NoSearchResults;
-```
-
-**File:** `components/PasswordModalComponent.tsx`
-
-```typescript
-import React, { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface PasswordModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: (password: string) => void;
-}
-
-const PasswordModal: React.FC<PasswordModalProps> = ({
+export const LogoutModalComponent: React.FC<LogoutModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
 }) => {
-  const [password, setPassword] = useState("");
+  if (!isOpen) return null;
 
-  const handleConfirm = () => {
-    onConfirm(password);
-    setPassword("");
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onClose}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You will be returned to the login page.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Logout</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+
+--- components/profile/PasswordModalComponent.tsx ---
+"use client";
+import React from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ProfileField } from "./ProfileField";
+import { useChangePassword } from "@/hooks/useChangePassword";
+
+interface PasswordModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const PasswordModalComponent: React.FC<PasswordModalProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const {
+    passwords,
+    loading,
+    error,
+    handleChange,
+    handleSubmit,
+    resetForm,
+  } = useChangePassword();
+
+  const handleClose = () => {
+    resetForm();
     onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Enter Password</DialogTitle>
+          <DialogTitle>Change Password</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+        >
+          <div className="grid gap-4 py-4">
+            <ProfileField
+              label="Old Password"
+              id="oldPassword"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={passwords.oldPassword}
+              onChange={handleChange}
+            />
+            <ProfileField
+              label="New Password"
+              id="newPassword"
+              type="password"
+              value={passwords.newPassword}
+              onChange={handleChange}
+            />
+            <ProfileField
+              label="Confirm New Password"
+              id="confirmPassword"
+              type="password"
+              value={passwords.confirmPassword}
+              onChange={handleChange}
             />
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleConfirm}>Confirm</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default PasswordModal;
-```
-
-**File:** `components/ProjectFilter.tsx`
-
-```typescript
-import React from "react";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-
-interface ProjectFilterProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  filterStatus: string;
-  setFilterStatus: (status: string) => void;
-  onAddNew: () => void;
-}
-
-const ProjectFilter: React.FC<ProjectFilterProps> = ({
-  searchTerm,
-  setSearchTerm,
-  filterStatus,
-  setFilterStatus,
-  onAddNew,
-}) => {
-  return (
-    <div className="flex justify-between items-center mb-4">
-      <div className="flex items-center space-x-4">
-        <Input
-          placeholder="Search projects..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-64"
-        />
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="on-hold">On Hold</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <Button onClick={onAddNew}>Add New Project</Button>
-    </div>
-  );
-};
-
-export default ProjectFilter;
-```
-
-**File:** `components/ProjectTable.tsx`
-
-```typescript
-import React from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-interface Project {
-  id: string;
-  name: string;
-  status: string;
-  lastUpdated: string;
-  team: string[];
-}
-
-interface ProjectTableProps {
-  projects: Project[];
-  onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
-  onShare: (project: Project) => void;
-}
-
-const ProjectTable: React.FC<ProjectTableProps> = ({
-  projects,
-  onEdit,
-  onDelete,
-  onShare,
-}) => {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Project Name</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Last Updated</TableHead>
-          <TableHead>Team</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {projects.map((project) => (
-          <TableRow key={project.id}>
-            <TableCell>{project.name}</TableCell>
-            <TableCell>
-              <Badge
-                variant={
-                  project.status === "Completed" ? "default" : "secondary"
-                }
-              >
-                {project.status}
-              </Badge>
-            </TableCell>
-            <TableCell>{project.lastUpdated}</TableCell>
-            <TableCell>{project.team.join(", ")}</TableCell>
-            <TableCell>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => onEdit(project)}>
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onDelete(project)}>
-                    Delete
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onShare(project)}>
-                    Share
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-};
-
-export default ProjectTable;
-```
-
-**File:** `components/RankOrderPollModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface RankOrderPollModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (question: string, items: string[]) => void;
-}
-
-const RankOrderPollModal: React.FC<RankOrderPollModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-  const [items, setItems] = React.useState<string[]>([""]);
-
-  const handleItemChange = (index: number, value: string) => {
-    const newItems = [...items];
-    newItems[index] = value;
-    setItems(newItems);
-  };
-
-  const addItem = () => {
-    setItems([...items, ""]);
-  };
-
-  const removeItem = (index: number) => {
-    const newItems = items.filter((_, i) => i !== index);
-    setItems(newItems);
-  };
-
-  const handleAddPoll = () => {
-    onAddPoll(question, items.filter((item) => item.trim() !== ""));
-    setQuestion("");
-    setItems([""]);
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Rank-Order Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Items to Rank</Label>
-            {items.map((item, index) => (
-              <div key={index} className="flex items-center space-x-2 mt-2">
-                <Input
-                  value={item}
-                  onChange={(e) => handleItemChange(index, e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeItem(index)}
-                >
-                  -
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addItem} className="mt-2">
-              Add Item
+          {error && <p className="text-red-500 text-sm">{error.message}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
             </Button>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default RankOrderPollModal;
-```
-
-**File:** `components/RatingScaleModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-interface RatingScaleModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (
-    question: string,
-    scale: number,
-    minLabel: string,
-    maxLabel: string
-  ) => void;
-}
-
-const RatingScaleModal: React.FC<RatingScaleModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-  const [scale, setScale] = React.useState<number>(5);
-  const [minLabel, setMinLabel] = React.useState("");
-  const [maxLabel, setMaxLabel] = React.useState("");
-
-  const handleAddPoll = () => {
-    onAddPoll(question, scale, minLabel, maxLabel);
-    setQuestion("");
-    setScale(5);
-    setMinLabel("");
-    setMaxLabel("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Rating-Scale Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="poll-scale">Scale</Label>
-            <Select
-              value={String(scale)}
-              onValueChange={(val) => setScale(Number(val))}
-            >
-              <SelectTrigger id="poll-scale">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">1-5</SelectItem>
-                <SelectItem value="10">1-10</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="min-label">Minimum Label</Label>
-            <Input
-              id="min-label"
-              value={minLabel}
-              onChange={(e) => setMinLabel(e.target.value)}
-              placeholder="e.g., Not Satisfied"
-            />
-          </div>
-          <div>
-            <Label htmlFor="max-label">Maximum Label</Label>
-            <Input
-              id="max-label"
-              value={maxLabel}
-              onChange={(e) => setMaxLabel(e.target.value)}
-              placeholder="e.g., Very Satisfied"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default RatingScaleModal;
-```
-
-**File:** `components/Search.tsx`
-
-```typescript
-import React from "react";
-import { Input } from "@/components/ui/input";
-
-interface SearchProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  placeholder: string;
-}
-
-const Search: React.FC<SearchProps> = ({
-  searchTerm,
-  setSearchTerm,
-  placeholder,
-}) => {
-  return (
-    <Input
-      placeholder={placeholder}
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      className="w-full"
-    />
-  );
-};
-
-export default Search;
-```
-
-**File:** `components/ShareProjectModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface ShareProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onShare: (email: string) => void;
-}
-
-const ShareProjectModal: React.FC<ShareProjectModalProps> = ({
-  isOpen,
-  onClose,
-  onShare,
-}) => {
-  const [email, setEmail] = React.useState("");
-
-  const handleShare = () => {
-    onShare(email);
-    setEmail("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Share Project</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="share-email">Email Address</Label>
-            <Input
-              id="share-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleShare}>Share</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default ShareProjectModal;
-```
-
-**File:** `components/ShortAnswerPollModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface ShortAnswerPollModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAddPoll: (question: string) => void;
-}
-
-const ShortAnswerPollModal: React.FC<ShortAnswerPollModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPoll,
-}) => {
-  const [question, setQuestion] = React.useState("");
-
-  const handleAddPoll = () => {
-    onAddPoll(question);
-    setQuestion("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Short-Answer Poll</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="poll-question">Question</Label>
-            <Input
-              id="poll-question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleAddPoll}>Add Poll</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default ShortAnswerPollModal;
-```
-
-**File:** `components/TabContent.tsx`
-
-```typescript
-import React from "react";
-
-interface TabContentProps {
-  children: React.ReactNode;
-}
-
-const TabContent: React.FC<TabContentProps> = ({ children }) => {
-  return <div className="p-4">{children}</div>;
-};
-
-export default TabContent;
-```
-
-**File:** `components/TabNavigation.tsx`
-
-```typescript
-import React from "react";
-
-interface Tab {
-  label: string;
-  content: React.ReactNode;
-}
-
-interface TabNavigationProps {
-  tabs: Tab[];
-  activeTab: number;
-  setActiveTab: (index: number) => void;
-}
-
-const TabNavigation: React.FC<TabNavigationProps> = ({
-  tabs,
-  activeTab,
-  setActiveTab,
-}) => {
-  return (
-    <div>
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-          {tabs.map((tab, index) => (
-            <button
-              key={tab.label}
-              onClick={() => setActiveTab(index)}
-              className={`${
-                activeTab === index
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-      <div>{tabs[activeTab].content}</div>
-    </div>
-  );
-};
-
-export default TabNavigation;
-```
-
-**File:** `components/UploadResultsModal.tsx`
-
-```typescript
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface UploadResultsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onUpload: (file: File) => void;
-}
-
-const UploadResultsModal: React.FC<UploadResultsModalProps> = ({
-  isOpen,
-  onClose,
-  onUpload,
-}) => {
-  const [file, setFile] = React.useState<File | null>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUpload = () => {
-    if (file) {
-      onUpload(file);
-      onClose();
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Upload Results</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="results-file">Upload File</Label>
-            <Input id="results-file" type="file" onChange={handleFileChange} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleUpload} disabled={!file}>
-            Upload
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default UploadResultsModal;
-```
-
-**File:** `components/ViewProject.tsx`
-
-```typescript
-import React from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  // Add other project properties as needed
-}
-
-interface ViewProjectProps {
-  project: Project;
-  onEdit: () => void;
-  onDelete: () => void;
-  onShare: () => void;
-}
-
-const ViewProject: React.FC<ViewProjectProps> = ({
-  project,
-  onEdit,
-  onDelete,
-  onShare,
-}) => {
-  return (
-    <div className="p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>{project.name}</CardTitle>
-          <CardDescription>{project.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-end space-x-2">
-            <Button onClick={onEdit}>Edit</Button>
-            <Button variant="destructive" onClick={onDelete}>
-              Delete
+            <Button type="submit" disabled={loading}>
+              {loading ? "Saving..." : "Save"}
             </Button>
-            <Button onClick={onShare}>Share</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="overview" className="mt-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview">
-          <p>Overview content goes here.</p>
-        </TabsContent>
-        <TabsContent value="tasks">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Task</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {/* Example Task Row */}
-              <TableRow>
-                <TableCell>Design Homepage</TableCell>
-                <TableCell>In Progress</TableCell>
-                <TableCell>2024-08-15</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TabsContent>
-        <TabsContent value="team">
-          <p>Team members content goes here.</p>
-        </TabsContent>
-        <TabsContent value="files">
-          <p>Files content goes here.</p>
-        </TabsContent>
-      </Tabs>
-    </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-export default ViewProject;
-```
-
-**File:** `components/createAccount/countrySelector.tsx`
-
-```typescript
-"use client";
+--- components/profile/ProfileDetailItem.tsx ---
 import React from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useCountryList } from "@/hooks/useCountryList";
 
-interface CountrySelectorProps {
-  value: string;
-  onChange: (value: string) => void;
-}
-
-const CountrySelector: React.FC<CountrySelectorProps> = ({
-  value,
-  onChange,
-}) => {
-  const countries = useCountryList();
-
-  return (
-    <Select onValueChange={onChange} value={value}>
-      <SelectTrigger>
-        <SelectValue placeholder="Select a country" />
-      </SelectTrigger>
-      <SelectContent>
-        {countries.map((country) => (
-          <SelectItem key={country.value} value={country.value}>
-            {country.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-};
-
-export default CountrySelector;
-```
-
-**File:** `components/createAccount/PasswordField.tsx`
-
-```typescript
-import React, { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
-
-interface PasswordFieldProps {
+interface ProfileDetailItemProps {
   label: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  error?: string;
 }
 
-const PasswordField: React.FC<PasswordFieldProps> = ({
+export const ProfileDetailItem: React.FC<ProfileDetailItemProps> = ({
   label,
   value,
-  onChange,
-  error,
-}) => {
-  const [showPassword, setShowPassword] = useState(false);
-
-  return (
-    <div className="relative">
-      <Label htmlFor={label}>{label}</Label>
-      <Input
-        id={label}
-        type={showPassword ? "text" : "password"}
-        value={value}
-        onChange={onChange}
-        className={error ? "border-red-500" : ""}
-      />
-      <button
-        type="button"
-        onClick={() => setShowPassword(!showPassword)}
-        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500"
-      >
-        {showPassword ? <EyeOff /> : <Eye />}
-      </button>
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-    </div>
-  );
-};
-
-export default PasswordField;
-```
-
-**File:** `components/createAccount/RegisterForm.tsx`
-
-```typescript
-"use client";
-import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { registerSchema } from "@/schemas/registerSchema";
-import CountrySelector from "./countrySelector";
-import useRegister from "@/hooks/useRegister";
-
-const RegisterForm = () => {
-  const form = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      country: "",
-    },
-  });
-
-  const { mutate: registerUser, isPending } = useRegister();
-
-  const onSubmit = (values: z.infer<typeof registerSchema>) => {
-    registerUser(values);
-  };
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="firstName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>First Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="John" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="lastName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Last Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Doe" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="john.doe@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
-              <FormControl>
-                <Input type="password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="country"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Country</FormLabel>
-              <FormControl>
-                <CountrySelector
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? "Creating Account..." : "Create Account"}
-        </Button>
-      </form>
-    </Form>
-  );
-};
-
-export default RegisterForm;
-```
-
-**File:** `components/createAccount/TextInputField.tsx`
-
-```typescript
-import React from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-interface TextInputFieldProps {
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  error?: string;
-}
-
-const TextInputField: React.FC<TextInputFieldProps> = ({
-  label,
-  value,
-  onChange,
-  error,
 }) => {
   return (
-    <div>
-      <Label htmlFor={label}>{label}</Label>
-      <Input
-        id={label}
-        type="text"
-        value={value}
-        onChange={onChange}
-        className={error ? "border-red-500" : ""}
-      />
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    <div className="flex justify-between py-2 border-b">
+      <span className="font-medium">{label}</span>
+      <span>{value}</span>
     </div>
   );
 };
 
-export default TextInputField;
-```
-
-**File:** `components/login/login.tsx`
-
-```typescript
+--- components/profile/ProfileDetailsCard.tsx ---
 "use client";
-import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { loginSchema } from "@/schemas/loginSchema";
-import useLogin from "@/hooks/useLogin";
-import Link from "next/link";
-
-const LoginComponent = () => {
-  const form = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-
-  const { mutate: loginUser, isPending } = useLogin();
-
-  const onSubmit = (values: z.infer<typeof loginSchema>) => {
-    loginUser(values);
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center">Login</h2>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="john.doe@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? "Logging in..." : "Login"}
-            </Button>
-          </form>
-        </Form>
-        <div className="text-center">
-          <Link
-            href="/forgot-password"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Forgot Password?
-          </Link>
-        </div>
-        <div className="text-center">
-          <p className="text-sm">
-            Don't have an account?{" "}
-            <Link
-              href="/create-user"
-              className="text-blue-600 hover:underline"
-            >
-              Sign up
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default LoginComponent;
-```
-
-**File:** `components/profile/ProfileDetailsCard.tsx`
-
-```typescript
 import React from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import ProfileField from "./ProfileField";
-
-interface UserProfile {
-  firstName: string;
-  lastName: string;
-  email: string;
-  company?: string;
-  country?: string;
-  role: string;
-}
+import { Button } from "@/components/ui/button";
+import { ProfileDetailItem } from "./ProfileDetailItem";
+import { useUserById } from "@/hooks/useUserById";
 
 interface ProfileDetailsCardProps {
-  user: UserProfile;
-  onEdit: (field: keyof UserProfile) => void;
+  onEditPassword: () => void;
 }
 
-const ProfileDetailsCard: React.FC<ProfileDetailsCardProps> = ({
-  user,
-  onEdit,
+export const ProfileDetailsCard: React.FC<ProfileDetailsCardProps> = ({
+  onEditPassword,
 }) => {
+  const { user, loading, error } = useUserById();
+
+  if (loading) return <p>Loading profile...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  if (!user) return <p>No user data found.</p>;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Profile Details</CardTitle>
-        <CardDescription>
-          Manage your personal and company information.
-        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <ProfileField
-          label="First Name"
-          value={user.firstName}
-          onEdit={() => onEdit("firstName")}
-        />
-        <ProfileField
-          label="Last Name"
-          value={user.lastName}
-          onEdit={() => onEdit("lastName")}
-        />
-        <ProfileField label="Email" value={user.email} />
-        <ProfileField
-          label="Company"
-          value={user.company || "Not set"}
-          onEdit={() => onEdit("company")}
-        />
-        <ProfileField
-          label="Country"
-          value={user.country || "Not set"}
-          onEdit={() => onEdit("country")}
-        />
-        <ProfileField label="Role" value={user.role} />
+      <CardContent>
+        <ProfileDetailItem label="Name" value={user.name} />
+        <ProfileDetailItem label="Email" value={user.email} />
+        <ProfileDetailItem label="Role" value={user.role} />
+        <div className="mt-4 flex justify-end">
+          <Button onClick={onEditPassword}>Edit Password</Button>
+        </div>
       </CardContent>
     </Card>
   );
 };
 
-export default ProfileDetailsCard;
-```
-
-**File:** `components/profile/ProfileField.tsx`
-
-```typescript
+--- components/profile/ProfileField.tsx ---
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ProfileFieldProps {
   label: string;
+  id: string;
   value: string;
-  onEdit?: () => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
 }
 
-const ProfileField: React.FC<ProfileFieldProps> = ({
+export const ProfileField: React.FC<ProfileFieldProps> = ({
   label,
+  id,
   value,
-  onEdit,
+  onChange,
+  type = "text",
 }) => {
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="font-medium">{label}</p>
-        <p className="text-gray-600">{value}</p>
-      </div>
-      {onEdit && <Button onClick={onEdit}>Edit</Button>}
+    <div className="grid grid-cols-4 items-center gap-4">
+      <Label htmlFor={id} className="text-right">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        name={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        className="col-span-3"
+      />
     </div>
   );
 };
 
-export default ProfileField;
-```
+--- components/projects/createProject/CreateProjectForm.tsx ---
+"use client";
+import React from "react";
+import { useCreateProject } from "@/hooks/useCreateProject";
+import { TextInputField } from "@/components/createAccount/TextInputField";
+import { CustomButton } from "@/components/shared/CustomButton";
+import { DatePicker } from "@/components/DatePicker";
 
-**File:** `components/projects/ProjectRow.tsx`
+export const CreateProjectForm = () => {
+  const { formData, loading, error, handleChange, handleDateChange, handleSubmit } =
+    useCreateProject();
 
-```typescript
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 p-6 bg-white rounded-lg shadow-md"
+    >
+      <h2 className="text-2xl font-bold text-center">Create a New Project</h2>
+      <TextInputField
+        label="Project Name"
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+      />
+      <TextInputField
+        label="Project Description"
+        name="description"
+        value={formData.description}
+        onChange={handleChange}
+      />
+      <div>
+        <label
+          htmlFor="startDate"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Start Date
+        </label>
+        <DatePicker date={formData.startDate} setDate={(date) => handleDateChange(date)} />
+      </div>
+      <CustomButton type="submit" disabled={loading} className="w-full">
+        {loading ? "Creating..." : "Create Project"}
+      </CustomButton>
+      {error && <p className="text-red-500 text-center">{error.message}</p>}
+    </form>
+  );
+};
+
+--- components/projects/NoSearchResult.tsx ---
+import React from "react";
+
+export const NoSearchResult = () => {
+  return (
+    <div className="text-center py-10">
+      <p className="text-gray-500">No projects found.</p>
+    </div>
+  );
+};
+
+--- components/projects/ProjectRow.tsx ---
 import React from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Project } from "@/hooks/useProjects";
-import Link from "next/link";
+import { Project } from "@/context/DashboardContext";
 
 interface ProjectRowProps {
   project: Project;
-  onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
-  onShare: (project: Project) => void;
 }
 
-const ProjectRow: React.FC<ProjectRowProps> = ({
-  project,
-  onEdit,
-  onDelete,
-  onShare,
-}) => {
+export const ProjectRow: React.FC<ProjectRowProps> = ({ project }) => {
   return (
     <TableRow>
-      <TableCell>
-        <Link href={`/dashboard/view-project/${project.id}`}>
-          {project.name}
-        </Link>
-      </TableCell>
+      <TableCell>{project.name}</TableCell>
+      <TableCell>{project.id}</TableCell>
+      <TableCell>{project.sessions}</TableCell>
       <TableCell>
         <Badge
-          variant={project.status === "Completed" ? "default" : "secondary"}
+          className={`${
+            project.status === "Active" ? "bg-green-500" : "bg-red-500"
+          } text-white`}
         >
           {project.status}
         </Badge>
       </TableCell>
-      <TableCell>{new Date(project.lastUpdated).toLocaleDateString()}</TableCell>
-      <TableCell>{project.team.join(", ")}</TableCell>
+      <TableCell>{project.team}</TableCell>
       <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => onEdit(project)}>
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(project)}>
-              Delete
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onShare(project)}>
-              Share
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="outline" size="sm">
+          View
+        </Button>
       </TableCell>
     </TableRow>
   );
 };
 
-export default ProjectRow;
-```
-
-**File:** `components/projects/ProjectsFilter.tsx`
-
-```typescript
+--- components/projects/ProjectsFilter.tsx ---
 import React from "react";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 interface ProjectsFilterProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  filterStatus: string;
-  setFilterStatus: (status: string) => void;
+  search: string;
+  setSearch: (value: string) => void;
 }
 
-const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
-  searchTerm,
-  setSearchTerm,
-  filterStatus,
-  setFilterStatus,
+export const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
+  search,
+  setSearch,
+}) => {
+  return (
+    <div className="flex items-center space-x-4">
+      <Input
+        placeholder="Search by project name..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+      />
+    </div>
+  );
+};
+
+--- components/projects/ProjectsHeader.tsx ---
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { ProjectsFilter } from "./ProjectsFilter";
+import Link from "next/link";
+
+interface ProjectsHeaderProps {
+  search: string;
+  setSearch: (value: string) => void;
+}
+
+export const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({
+  search,
+  setSearch,
 }) => {
   return (
     <div className="flex justify-between items-center mb-4">
+      <h1 className="text-2xl font-bold">Projects</h1>
       <div className="flex items-center space-x-4">
-        <Input
-          placeholder="Search projects..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-64"
-        />
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="on-hold">On Hold</SelectItem>
-          </SelectContent>
-        </Select>
+        <ProjectsFilter search={search} setSearch={setSearch} />
+        <Link href="/create-project">
+          <Button>Create Project</Button>
+        </Link>
       </div>
-      <Link href="/dashboard/create-project">
-        <Button>Add New Project</Button>
-      </Link>
     </div>
   );
 };
 
-export default ProjectsFilter;
-```
-
-**File:** `components/projects/ProjectsHeader.tsx`
-
-```typescript
+--- components/projects/ProjectsPagination.tsx ---
 import React from "react";
-
-const ProjectsHeader = () => {
-  return (
-    <div className="mb-6">
-      <h1 className="text-3xl font-bold">Projects</h1>
-      <p className="text-gray-600">
-        Manage your projects and track their progress.
-      </p>
-    </div>
-  );
-};
-
-export default ProjectsHeader;
-```
-
-**File:** `components/projects/ProjectsPagination.tsx`
-
-```typescript
-import React from "react";
-import { Button } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface ProjectsPaginationProps {
-  currentPage: number;
-  totalPages: number;
+  page: number;
+  limit: number;
+  total: number;
   onPageChange: (page: number) => void;
 }
 
-const ProjectsPagination: React.FC<ProjectsPaginationProps> = ({
-  currentPage,
-  totalPages,
+export const ProjectsPagination: React.FC<ProjectsPaginationProps> = ({
+  page,
+  limit,
+  total,
   onPageChange,
 }) => {
+  const totalPages = Math.ceil(total / limit);
+
   return (
-    <div className="flex justify-center items-center space-x-2 mt-4">
-      <Button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-      >
-        Previous
-      </Button>
-      <span>
-        Page {currentPage} of {totalPages}
-      </span>
-      <Button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-      >
-        Next
-      </Button>
-    </div>
+    <Pagination>
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            href="#"
+            onClick={() => onPageChange(page - 1)}
+            className={page === 1 ? "pointer-events-none opacity-50" : ""}
+          />
+        </PaginationItem>
+        {[...Array(totalPages)].map((_, i) => (
+          <PaginationItem key={i}>
+            <PaginationLink
+              href="#"
+              isActive={page === i + 1}
+              onClick={() => onPageChange(i + 1)}
+            >
+              {i + 1}
+            </PaginationLink>
+          </PaginationItem>
+        ))}
+        <PaginationItem>
+          <PaginationNext
+            href="#"
+            onClick={() => onPageChange(page + 1)}
+            className={
+              page === totalPages ? "pointer-events-none opacity-50" : ""
+            }
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
   );
 };
 
-export default ProjectsPagination;
-```
-
-**File:** `components/projects/ProjectsTable.tsx`
-
-```typescript
+--- components/projects/ProjectsTable.tsx ---
 import React from "react";
 import {
   Table,
@@ -3587,384 +1246,1935 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import ProjectRow from "./ProjectRow";
-import { Project } from "@/hooks/useProjects";
+import { ProjectRow } from "./ProjectRow";
+import { NoSearchResult } from "./NoSearchResult";
+import { ProjectsPagination } from "./ProjectsPagination";
+import { Project } from "@/context/DashboardContext";
 
 interface ProjectsTableProps {
-  projects: Project[];
-  onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
-  onShare: (project: Project) => void;
+  projects: Project[] | null;
+  loading: boolean;
+  error: Error | null;
+  page: number;
+  limit: number;
+  onPageChange: (page: number) => void;
 }
 
-const ProjectsTable: React.FC<ProjectsTableProps> = ({
+export const ProjectsTable: React.FC<ProjectsTableProps> = ({
   projects,
-  onEdit,
-  onDelete,
-  onShare,
+  loading,
+  error,
+  page,
+  limit,
+  onPageChange,
 }) => {
+  if (loading) {
+    return <p>Loading projects...</p>;
+  }
+
+  if (error) {
+    return <p>Error: {error.message}</p>;
+  }
+
+  if (!projects || projects.length === 0) {
+    return <NoSearchResult />;
+  }
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Project Name</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Last Updated</TableHead>
-          <TableHead>Team</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {projects.map((project) => (
-          <ProjectRow
-            key={project.id}
-            project={project}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onShare={onShare}
-          />
-        ))}
-      </TableBody>
-    </Table>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Project Name</TableHead>
+            <TableHead>ID</TableHead>
+            <TableHead>Sessions</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Team</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {projects.map((project) => (
+            <ProjectRow key={project.id} project={project} />
+          ))}
+        </TableBody>
+      </Table>
+      <ProjectsPagination
+        page={page}
+        limit={limit}
+        total={projects.length} // This should be the total number of projects from the API
+        onPageChange={onPageChange}
+      />
+    </>
   );
 };
 
-export default ProjectsTable;
-```
-
-**File:** `components/projects/ShareProjectModal.tsx`
-
-```typescript
+--- components/projects/ShareProjectModal.tsx ---
 import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
-interface ShareProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onShare: (email: string) => void;
-}
-
-const ShareProjectModal: React.FC<ShareProjectModalProps> = ({
-  isOpen,
-  onClose,
-  onShare,
-}) => {
-  const [email, setEmail] = React.useState("");
-
-  const handleShare = () => {
-    onShare(email);
-    setEmail("");
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Share Project</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="share-email">Email Address</Label>
-            <Input
-              id="share-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleShare}>Share</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+const ShareProjectModal = () => {
+  return <div>ShareProjectModal</div>;
 };
 
 export default ShareProjectModal;
-```
 
-**File:** `components/shared/ComponentContainer.tsx`
-
-```typescript
+--- components/reset-password/ResetPasswordForm.tsx ---
+"use client";
 import React from "react";
+import { useResetPassword } from "@/hooks/useResetPassword";
+import { CustomButton } from "../shared/CustomButton";
 
-interface ComponentContainerProps {
-  children: React.ReactNode;
-  className?: string;
-}
+export const ResetPasswordForm = () => {
+  const { email, loading, error, message, handleChange, handleSubmit } =
+    useResetPassword();
 
-const ComponentContainer: React.FC<ComponentContainerProps> = ({
-  children,
-  className,
-}) => {
   return (
-    <div className={`container mx-auto px-4 py-8 ${className}`}>
-      {children}
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md"
+      >
+        <h2 className="text-2xl font-bold text-center">Reset Password</h2>
+        <p className="text-center text-gray-600">
+          Enter your email to receive a password reset link.
+        </p>
+        <div>
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={email}
+            onChange={handleChange}
+            className="w-full px-3 py-2 mt-1 border rounded-md"
+            required
+          />
+        </div>
+        <CustomButton type="submit" disabled={loading} className="w-full">
+          {loading ? "Sending..." : "Send Reset Link"}
+        </CustomButton>
+        {error && <p className="text-red-500 text-center">{error.message}</p>}
+        {message && (
+          <p className="text-green-500 text-center">{message}</p>
+        )}
+      </form>
     </div>
   );
 };
 
-export default ComponentContainer;
-```
+--- components/shared/ComponentContainer.tsx ---
+import React from "react";
 
-**File:** `components/shared/CustomButton.tsx`
+export const ComponentContainer = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        {children}
+      </div>
+    </div>
+  );
+};
 
-```typescript
+--- components/shared/ConfirmationModalComponent.tsx ---
+import React from "react";
+
+const ConfirmationModalComponent = () => {
+  return <div>ConfirmationModalComponent</div>;
+};
+
+export default ConfirmationModalComponent;
+
+--- components/shared/CustomButton.tsx ---
 import React from "react";
 import { Button } from "@/components/ui/button";
 
-interface CustomButtonProps {
-  onClick: () => void;
-  label: string;
-  variant?:
-    | "default"
-    | "destructive"
-    | "outline"
-    | "secondary"
-    | "ghost"
-    | "link";
-  disabled?: boolean;
+interface CustomButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
 }
 
-const CustomButton: React.FC<CustomButtonProps> = ({
-  onClick,
-  label,
-  variant = "default",
-  disabled = false,
+export const CustomButton: React.FC<CustomButtonProps> = ({
+  children,
+  ...props
 }) => {
   return (
-    <Button onClick={onClick} variant={variant} disabled={disabled}>
-      {label}
+    <Button {...props}>
+      {children}
     </Button>
   );
 };
 
-export default CustomButton;
-```
-
-**File:** `components/shared/Pagination.tsx`
-
-```typescript
+--- components/shared/FooterComponent.tsx ---
 import React from "react";
-import { Button } from "@/components/ui/button";
 
-interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
+const FooterComponent = () => {
+  return <div>FooterComponent</div>;
+};
+
+export default FooterComponent;
+
+--- components/shared/Heading20pxBlueUCComponent.tsx ---
+import React from "react";
+
+const Heading20pxBlueUCComponent = () => {
+  return <div>Heading20pxBlueUCComponent</div>;
+};
+
+export default Heading20pxBlueUCComponent;
+
+--- components/shared/HeadingBlue25pxComponent.tsx ---
+import React from "react";
+
+const HeadingBlue25pxComponent = () => {
+  return <div>HeadingBlue25pxComponent</div>;
+};
+
+export default HeadingBlue25pxComponent;
+
+--- components/shared/HeadingParagraphComponent.tsx ---
+import React from "react";
+
+const HeadingParagraphComponent = () => {
+  return <div>HeadingParagraphComponent</div>;
+};
+
+export default HeadingParagraphComponent;
+
+--- components/shared/InputFieldComponent.tsx ---
+import React from "react";
+
+const InputFieldComponent = () => {
+  return <div>InputFieldComponent</div>;
+};
+
+export default InputFieldComponent;
+
+--- components/shared/LogoComponent.tsx ---
+import React from "react";
+
+const LogoComponent = () => {
+  return <div>LogoComponent</div>;
+};
+
+export default LogoComponent;
+
+--- components/shared/Pagination.tsx ---
+import React from "react";
+
+const Pagination = () => {
+  return <div>Pagination</div>;
+};
+
+export default Pagination;
+
+--- components/sidebar/DashboardSidebarComponent.tsx ---
+"use client";
+import React from "react";
+import { SidebarContent } from "./SidebarContent";
+
+interface DashboardSidebarProps {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
 }
 
-const Pagination: React.FC<PaginationProps> = ({
-  currentPage,
-  totalPages,
-  onPageChange,
+export const DashboardSidebarComponent: React.FC<DashboardSidebarProps> = ({
+  isOpen,
+  setIsOpen,
 }) => {
   return (
-    <div className="flex justify-center items-center space-x-2 mt-4">
-      <Button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-      >
-        Previous
-      </Button>
-      <span>
-        Page {currentPage} of {totalPages}
-      </span>
-      <Button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-      >
-        Next
-      </Button>
+    <div
+      className={`fixed top-0 left-0 h-full bg-gray-800 text-white transition-all duration-300 ${
+        isOpen ? "w-64" : "w-16"
+      }`}
+    >
+      <SidebarContent isOpen={isOpen} setIsOpen={setIsOpen} />
     </div>
   );
 };
 
-export default Pagination;
-```
-
-**File:** `components/sidebar/SidebarContent.tsx`
-
-```typescript
-import React from "react";
+--- components/sidebar/SidebarContent.tsx ---
+"use client";
+import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Home, Users, Settings, LogOut } from "lucide-react";
-import LogoComponent from "../LogoComponent";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  HomeIcon,
+  UsersIcon,
+  BriefcaseIcon,
+  UserCircleIcon,
+  CogIcon,
+  QuestionMarkCircleIcon,
+  ArrowLeftOnRectangleIcon,
+} from "@heroicons/react/24/outline";
+import { LogoutModalComponent } from "../LogoutModalComponent";
+import { useAuth } from "@/context/AuthContext";
 
 interface SidebarContentProps {
-  isCollapsed: boolean;
-  handleLogout: () => void;
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
 }
 
-const SidebarContent: React.FC<SidebarContentProps> = ({
-  isCollapsed,
-  handleLogout,
+export const SidebarContent: React.FC<SidebarContentProps> = ({
+  isOpen,
+  setIsOpen,
 }) => {
-  const pathname = usePathname();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    setIsLogoutModalOpen(false);
+  };
 
   const navItems = [
-    { href: "/dashboard", icon: <Home className="h-5 w-5" />, label: "Home" },
-    {
-      href: "/dashboard/profile",
-      icon: <Users className="h-5 w-5" />,
-      label: "Profile",
-    },
-    {
-      href: "/dashboard/settings",
-      icon: <Settings className="h-5 w-5" />,
-      label: "Settings",
-    },
+    { href: "/projects", icon: HomeIcon, label: "Home" },
+    { href: "/companies", icon: UsersIcon, label: "Companies" },
+    { href: "/projects", icon: BriefcaseIcon, label: "Projects" },
+    { href: "/my-profile", icon: UserCircleIcon, label: "My Profile" },
+    { href: "/settings", icon: CogIcon, label: "Settings" },
+    { href: "/help", icon: QuestionMarkCircleIcon, label: "Help" },
   ];
 
   return (
-    <>
-      <div className="flex items-center justify-center p-4 border-b border-gray-700">
-        {!isCollapsed && <LogoComponent />}
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        {isOpen && <h1 className="text-xl font-bold">Your Logo</h1>}
+        <button onClick={() => setIsOpen(!isOpen)} className="p-1">
+          {isOpen ? (
+            <ChevronLeftIcon className="h-6 w-6" />
+          ) : (
+            <ChevronRightIcon className="h-6 w-6" />
+          )}
+        </button>
       </div>
       <nav className="flex-1 p-4 space-y-2">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center p-3 rounded-lg transition-colors ${
-              pathname === item.href
-                ? "bg-blue-600 text-white"
-                : "hover:bg-gray-700"
-            }`}
+            className="flex items-center p-2 rounded-md hover:bg-gray-700"
           >
-            {item.icon}
-            {!isCollapsed && <span className="ml-4">{item.label}</span>}
+            <item.icon className="h-6 w-6" />
+            {isOpen && <span className="ml-4">{item.label}</span>}
           </Link>
         ))}
       </nav>
       <div className="p-4 border-t border-gray-700">
         <button
-          onClick={handleLogout}
-          className="flex items-center w-full p-3 rounded-lg hover:bg-red-600 transition-colors"
+          onClick={() => setIsLogoutModalOpen(true)}
+          className="flex items-center w-full p-2 rounded-md hover:bg-gray-700"
         >
-          <LogOut className="h-5 w-5" />
-          {!isCollapsed && <span className="ml-4">Logout</span>}
+          <ArrowLeftOnRectangleIcon className="h-6 w-6" />
+          {isOpen && <span className="ml-4">Logout</span>}
         </button>
       </div>
-    </>
+      <LogoutModalComponent
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleLogout}
+      />
+    </div>
   );
 };
 
-export default SidebarContent;
-```
+--- components/ui/accordion.tsx ---
+"use client"
 
-**File:** `constant/index.ts`
+import * as React from "react"
+import * as AccordionPrimitive from "@radix-ui/react-accordion"
+import { ChevronDownIcon } from "@radix-ui/react-icons"
 
-```typescript
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
-export const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
-```
+import { cn } from "@/lib/utils"
 
-**File:** `context/AuthContext.tsx`
+const Accordion = AccordionPrimitive.Root
 
-```typescript
+const AccordionItem = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
+>(({ className, ...props }, ref) => (
+  <AccordionPrimitive.Item
+    ref={ref}
+    className={cn("border-b", className)}
+    {...props}
+  />
+))
+AccordionItem.displayName = "AccordionItem"
+
+const AccordionTrigger = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <AccordionPrimitive.Header className="flex">
+    <AccordionPrimitive.Trigger
+      ref={ref}
+      className={cn(
+        "flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronDownIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+    </AccordionPrimitive.Trigger>
+  </AccordionPrimitive.Header>
+))
+AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
+
+const AccordionContent = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <AccordionPrimitive.Content
+    ref={ref}
+    className="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+    {...props}
+  >
+    <div className={cn("pb-4 pt-0", className)}>{children}</div>
+  </AccordionPrimitive.Content>
+))
+AccordionContent.displayName = AccordionPrimitive.Content.displayName
+
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+
+--- components/ui/alert-dialog.tsx ---
+"use client"
+
+import * as React from "react"
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
+
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
+
+const AlertDialog = AlertDialogPrimitive.Root
+
+const AlertDialogTrigger = AlertDialogPrimitive.Trigger
+
+const AlertDialogPortal = AlertDialogPrimitive.Portal
+
+const AlertDialogOverlay = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Overlay
+    className={cn(
+      "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+    ref={ref}
+  />
+))
+AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
+
+const AlertDialogContent = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPortal>
+    <AlertDialogOverlay />
+    <AlertDialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg md:w-full",
+        className
+      )}
+      {...props}
+    />
+  </AlertDialogPortal>
+))
+AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName
+
+const AlertDialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col space-y-2 text-center sm:text-left",
+      className
+    )}
+    {...props}
+  />
+)
+AlertDialogHeader.displayName = "AlertDialogHeader"
+
+const AlertDialogFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      className
+    )}
+    {...props}
+  />
+)
+AlertDialogFooter.displayName = "AlertDialogFooter"
+
+const AlertDialogTitle = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold", className)}
+    {...props}
+  />
+))
+AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName
+
+const AlertDialogDescription = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+AlertDialogDescription.displayName =
+  AlertDialogPrimitive.Description.displayName
+
+const AlertDialogAction = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Action>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Action
+    ref={ref}
+    className={cn(buttonVariants(), className)}
+    {...props}
+  />
+))
+AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName
+
+const AlertDialogCancel = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Cancel>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Cancel>
+>(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Cancel
+    ref={ref}
+    className={cn(
+      buttonVariants({ variant: "outline" }),
+      "mt-2 sm:mt-0",
+      className
+    )}
+    {...props}
+  />
+))
+AlertDialogCancel.displayName = AlertDialogPrimitive.Cancel.displayName
+
+export {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+}
+
+--- components/ui/alert.tsx ---
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const alertVariants = cva(
+  "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
+  {
+    variants: {
+      variant: {
+        default: "bg-background text-foreground",
+        destructive:
+          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+const Alert = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
+>(({ className, variant, ...props }, ref) => (
+  <div
+    ref={ref}
+    role="alert"
+    className={cn(alertVariants({ variant }), className)}
+    {...props}
+  />
+))
+Alert.displayName = "Alert"
+
+const AlertTitle = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h5
+    ref={ref}
+    className={cn("mb-1 font-medium leading-none tracking-tight", className)}
+    {...props}
+  />
+))
+AlertTitle.displayName = "AlertTitle"
+
+const AlertDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("text-sm [&_p]:leading-relaxed", className)}
+    {...props}
+  />
+))
+AlertDescription.displayName = "AlertDescription"
+
+export { Alert, AlertTitle, AlertDescription }
+
+--- components/ui/avatar.tsx ---
+"use client"
+
+import * as React from "react"
+import * as AvatarPrimitive from "@radix-ui/react-avatar"
+
+import { cn } from "@/lib/utils"
+
+const Avatar = React.forwardRef<
+  React.ElementRef<typeof AvatarPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
+      className
+    )}
+    {...props}
+  />
+))
+Avatar.displayName = AvatarPrimitive.Root.displayName
+
+const AvatarImage = React.forwardRef<
+  React.ElementRef<typeof AvatarPrimitive.Image>,
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
+>(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Image
+    ref={ref}
+    className={cn("aspect-square h-full w-full", className)}
+    {...props}
+  />
+))
+AvatarImage.displayName = AvatarPrimitive.Image.displayName
+
+const AvatarFallback = React.forwardRef<
+  React.ElementRef<typeof AvatarPrimitive.Fallback>,
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
+>(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Fallback
+    ref={ref}
+    className={cn(
+      "flex h-full w-full items-center justify-center rounded-full bg-muted",
+      className
+    )}
+    {...props}
+  />
+))
+AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
+
+export { Avatar, AvatarImage, AvatarFallback }
+
+--- components/ui/badge.tsx ---
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  )
+}
+
+export { Badge, badgeVariants }
+
+--- components/ui/button.tsx ---
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-8",
+        icon: "h-9 w-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
+
+export { Button, buttonVariants }
+
+--- components/ui/calendar.tsx ---
+"use client"
+
+import * as React from "react"
+import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons"
+import { DayPicker } from "react-day-picker"
+
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
+
+export type CalendarProps = React.ComponentProps<typeof DayPicker>
+
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  ...props
+}: CalendarProps) {
+  return (
+    <DayPicker
+      showOutsideDays={showOutsideDays}
+      className={cn("p-3", className)}
+      classNames={{
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        month: "space-y-4",
+        caption: "flex justify-center pt-1 relative items-center",
+        caption_label: "text-sm font-medium",
+        nav: "space-x-1 flex items-center",
+        nav_button: cn(
+          buttonVariants({ variant: "outline" }),
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        ),
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
+        table: "w-full border-collapse space-y-1",
+        head_row: "flex",
+        head_cell:
+          "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
+        row: "flex w-full mt-2",
+        cell: cn(
+          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected].day-range-end)]:rounded-r-md",
+          props.mode === "range"
+            ? "[&:has(>.day-range-end)]:rounded-r-md [&:has(>.day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
+            : "[&:has([aria-selected])]:rounded-md"
+        ),
+        day: cn(
+          buttonVariants({ variant: "ghost" }),
+          "h-8 w-8 p-0 font-normal aria-selected:opacity-100"
+        ),
+        day_range_start: "day-range-start",
+        day_range_end: "day-range-end",
+        day_selected:
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+        day_today: "bg-accent text-accent-foreground",
+        day_outside:
+          "day-outside text-muted-foreground opacity-50  aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+        day_disabled: "text-muted-foreground opacity-50",
+        day_range_middle:
+          "aria-selected:bg-accent aria-selected:text-accent-foreground",
+        day_hidden: "invisible",
+        ...classNames,
+      }}
+      components={{
+        IconLeft: ({ ...props }) => <ChevronLeftIcon className="h-4 w-4" />,
+        IconRight: ({ ...props }) => <ChevronRightIcon className="h-4 w-4" />,
+      }}
+      {...props}
+    />
+  )
+}
+Calendar.displayName = "Calendar"
+
+export { Calendar }
+
+--- components/ui/card.tsx ---
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-xl border bg-card text-card-foreground shadow",
+      className
+    )}
+    {...props}
+  />
+))
+Card.displayName = "Card"
+
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    {...props}
+  />
+))
+CardHeader.displayName = "CardHeader"
+
+const CardTitle = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn("font-semibold leading-none tracking-tight", className)}
+    {...props}
+  />
+))
+CardTitle.displayName = "CardTitle"
+
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+CardDescription.displayName = "CardDescription"
+
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+))
+CardContent.displayName = "CardContent"
+
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center p-6 pt-0", className)}
+    {...props}
+  />
+))
+CardFooter.displayName = "CardFooter"
+
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+
+--- components/ui/checkbox.tsx ---
+"use client"
+
+import * as React from "react"
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
+import { CheckIcon } from "@radix-ui/react-icons"
+
+import { cn } from "@/lib/utils"
+
+const Checkbox = React.forwardRef<
+  React.ElementRef<typeof CheckboxPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <CheckboxPrimitive.Root
+    ref={ref}
+    className={cn(
+      "peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+      className
+    )}
+    {...props}
+  >
+    <CheckboxPrimitive.Indicator
+      className={cn("flex items-center justify-center text-current")}
+    >
+      <CheckIcon className="h-4 w-4" />
+    </CheckboxPrimitive.Indicator>
+  </CheckboxPrimitive.Root>
+))
+Checkbox.displayName = CheckboxPrimitive.Root.displayName
+
+export { Checkbox }
+
+--- components/ui/collapsible.tsx ---
+"use client"
+
+import * as CollapsiblePrimitive from "@radix-ui/react-collapsible"
+
+const Collapsible = CollapsiblePrimitive.Root
+
+const CollapsibleTrigger = CollapsiblePrimitive.CollapsibleTrigger
+
+const CollapsibleContent = CollapsiblePrimitive.CollapsibleContent
+
+export { Collapsible, CollapsibleTrigger, CollapsibleContent }
+
+--- components/ui/command.tsx ---
+"use client"
+
+import * as React from "react"
+import { DialogProps } from "@radix-ui/react-dialog"
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons"
+import { Command as CommandPrimitive } from "cmdk"
+
+import { cn } from "@/lib/utils"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+
+const Command = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive
+    ref={ref}
+    className={cn(
+      "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
+      className
+    )}
+    {...props}
+  />
+))
+Command.displayName = CommandPrimitive.displayName
+
+interface CommandDialogProps extends DialogProps {}
+
+const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
+  return (
+    <Dialog {...props}>
+      <DialogContent className="overflow-hidden p-0">
+        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+          {children}
+        </Command>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const CommandInput = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Input>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
+>(({ className, ...props }, ref) => (
+  <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+    <MagnifyingGlassIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+    <CommandPrimitive.Input
+      ref={ref}
+      className={cn(
+        "flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  </div>
+))
+
+CommandInput.displayName = CommandPrimitive.Input.displayName
+
+const CommandList = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.List>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.List
+    ref={ref}
+    className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)}
+    {...props}
+  />
+))
+
+CommandList.displayName = CommandPrimitive.List.displayName
+
+const CommandEmpty = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Empty>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Empty>
+>((props, ref) => (
+  <CommandPrimitive.Empty
+    ref={ref}
+    className="py-6 text-center text-sm"
+    {...props}
+  />
+))
+
+CommandEmpty.displayName = CommandPrimitive.Empty.displayName
+
+const CommandGroup = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Group>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Group>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.Group
+    ref={ref}
+    className={cn(
+      "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
+      className
+    )}
+    {...props}
+  />
+))
+
+CommandGroup.displayName = CommandPrimitive.Group.displayName
+
+const CommandSeparator = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Separator>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 h-px bg-border", className)}
+    {...props}
+  />
+))
+CommandSeparator.displayName = CommandPrimitive.Separator.displayName
+
+const CommandItem = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Item>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    {...props}
+  />
+))
+
+CommandItem.displayName = CommandPrimitive.Item.displayName
+
+const CommandShortcut = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement>) => {
+  return (
+    <span
+      className={cn(
+        "ml-auto text-xs tracking-widest text-muted-foreground",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+CommandShortcut.displayName = "CommandShortcut"
+
+export {
+  Command,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+}
+
+--- components/ui/dialog.tsx ---
+"use client"
+
+import * as React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { Cross2Icon } from "@radix-ui/react-icons"
+
+import { cn } from "@/lib/utils"
+
+const Dialog = DialogPrimitive.Root
+
+const DialogTrigger = DialogPrimitive.Trigger
+
+const DialogPortal = DialogPrimitive.Portal
+
+const DialogClose = DialogPrimitive.Close
+
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+  />
+))
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        <Cross2Icon className="h-4 w-4" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  </DialogPortal>
+))
+DialogContent.displayName = DialogPrimitive.Content.displayName
+
+const DialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col space-y-1.5 text-center sm:text-left",
+      className
+    )}
+    {...props}
+  />
+)
+DialogHeader.displayName = "DialogHeader"
+
+const DialogFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      className
+    )}
+    {...props}
+  />
+)
+DialogFooter.displayName = "DialogFooter"
+
+const DialogTitle = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn(
+      "text-lg font-semibold leading-none tracking-tight",
+      className
+    )}
+    {...props}
+  />
+))
+DialogTitle.displayName = DialogPrimitive.Title.displayName
+
+const DialogDescription = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+DialogDescription.displayName = DialogPrimitive.Description.displayName
+
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogClose,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+}
+
+--- components/ui/dropdown-menu.tsx ---
+"use client"
+
+import * as React from "react"
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  DotFilledIcon,
+} from "@radix-ui/react-icons"
+
+import { cn } from "@/lib/utils"
+
+const DropdownMenu = DropdownMenuPrimitive.Root
+
+const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
+
+const DropdownMenuGroup = DropdownMenuPrimitive.Group
+
+const DropdownMenuPortal = DropdownMenuPrimitive.Portal
+
+const DropdownMenuSub = DropdownMenuPrimitive.Sub
+
+const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup
+
+const DropdownMenuSubTrigger = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.SubTrigger>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubTrigger> & {
+    inset?: boolean
+  }
+>(({ className, inset, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.SubTrigger
+    ref={ref}
+    className={cn(
+      "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent data-[state=open]:bg-accent",
+      inset && "pl-8",
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <ChevronRightIcon className="ml-auto h-4 w-4" />
+  </DropdownMenuPrimitive.SubTrigger>
+))
+DropdownMenuSubTrigger.displayName =
+  DropdownMenuPrimitive.SubTrigger.displayName
+
+const DropdownMenuSubContent = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
+>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.SubContent
+    ref={ref}
+    className={cn(
+      "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+      className
+    )}
+    {...props}
+  />
+))
+DropdownMenuSubContent.displayName =
+  DropdownMenuPrimitive.SubContent.displayName
+
+const DropdownMenuContent = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
+>(({ className, sideOffset = 4, ...props }, ref) => (
+  <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        className
+      )}
+      {...props}
+    />
+  </DropdownMenuPrimitive.Portal>
+))
+DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
+
+const DropdownMenuItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
+    inset?: boolean
+  }
+>(({ className, inset, ...props }, ref) => (
+  <DropdownMenuPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      inset && "pl-8",
+      className
+    )}
+    {...props}
+  />
+))
+DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName
+
+const DropdownMenuCheckboxItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>
+>(({ className, children, checked, ...props }, ref) => (
+  <DropdownMenuPrimitive.CheckboxItem
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    checked={checked}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <DropdownMenuPrimitive.ItemIndicator>
+        <CheckIcon className="h-4 w-4" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    {children}
+  </DropdownMenuPrimitive.CheckboxItem>
+))
+DropdownMenuCheckboxItem.displayName =
+  DropdownMenuPrimitive.CheckboxItem.displayName
+
+const DropdownMenuRadioItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
+>(({ className, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.RadioItem
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <DropdownMenuPrimitive.ItemIndicator>
+        <DotFilledIcon className="h-4 w-4 fill-current" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    {children}
+  </DropdownMenuPrimitive.RadioItem>
+))
+DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName
+
+const DropdownMenuLabel = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & {
+    inset?: boolean
+  }
+>(({ className, inset, ...props }, ref) => (
+  <DropdownMenuPrimitive.Label
+    ref={ref}
+    className={cn(
+      "px-2 py-1.5 text-sm font-semibold",
+      inset && "pl-8",
+      className
+    )}
+    {...props}
+  />
+))
+DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName
+
+const DropdownMenuSeparator = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Separator>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    {...props}
+  />
+))
+DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName
+
+const DropdownMenuShortcut = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement>) => {
+  return (
+    <span
+      className={cn("ml-auto text-xs tracking-widest opacity-60", className)}
+      {...props}
+    />
+  )
+}
+DropdownMenuShortcut.displayName = "DropdownMenuShortcut"
+
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+}
+
+--- components/ui/form.tsx ---
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { Slot } from "@radix-ui/react-slot"
+import {
+  Controller,
+  ControllerProps,
+  FieldPath,
+  FieldValues,
+  FormProvider,
+  useFormContext,
+} from "react-hook-form"
+
+import { cn } from "@/lib/utils"
+import { Label } from "@/components/ui/label"
+
+const Form = FormProvider
+
+type FormFieldContextValue<
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+> = {
+  name: TName
+}
+
+const FormFieldContext = React.createContext<FormFieldContextValue>(
+  {} as FormFieldContextValue
+)
+
+const FormField = <
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+>({
+  ...props
+}: ControllerProps<TFieldValues, TName>) => {
+  return (
+    <FormFieldContext.Provider value={{ name: props.name }}>
+      <Controller {...props} />
+    </FormFieldContext.Provider>
+  )
+}
+
+const useFormField = () => {
+  const fieldContext = React.useContext(FormFieldContext)
+  const itemContext = React.useContext(FormItemContext)
+  const { getFieldState, formState } = useFormContext()
+
+  const fieldState = getFieldState(fieldContext.name, formState)
+
+  if (!fieldContext) {
+    throw new Error("useFormField should be used within <FormField>")
+  }
+
+  const { id } = itemContext
+
+  return {
+    id,
+    name: fieldContext.name,
+    formItemId: `${id}-form-item`,
+    formDescriptionId: `${id}-form-item-description`,
+    formMessageId: `${id}-form-item-message`,
+    ...fieldState,
+  }
+}
+
+type FormItemContextValue = {
+  id: string
+}
+
+const FormItemContext = React.createContext<FormItemContextValue>(
+  {} as FormItemContextValue
+)
+
+const FormItem = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
+  const id = React.useId()
+
+  return (
+    <FormItemContext.Provider value={{ id }}>
+      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+    </FormItemContext.Provider>
+  )
+})
+FormItem.displayName = "FormItem"
+
+const FormLabel = React.forwardRef<
+  React.ElementRef<typeof LabelPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
+>(({ className, ...props }, ref) => {
+  const { error, formItemId } = useFormField()
+
+  return (
+    <Label
+      ref={ref}
+      className={cn(error && "text-destructive", className)}
+      htmlFor={formItemId}
+      {...props}
+    />
+  )
+})
+FormLabel.displayName = "FormLabel"
+
+const FormControl = React.forwardRef<
+  React.ElementRef<typeof Slot>,
+  React.ComponentPropsWithoutRef<typeof Slot>
+>(({ ...props }, ref) => {
+  const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
+
+  return (
+    <Slot
+      ref={ref}
+      id={formItemId}
+      aria-describedby={
+        !error
+          ? `${formDescriptionId}`
+          : `${formDescriptionId} ${formMessageId}`
+      }
+      aria-invalid={!!error}
+      {...props}
+    />
+  )
+})
+FormControl.displayName = "FormControl"
+
+const FormDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
+  const { formDescriptionId } = useFormField()
+
+  return (
+    <p
+      ref={ref}
+      id={formDescriptionId}
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  )
+})
+FormDescription.displayName = "FormDescription"
+
+const FormMessage = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, children, ...props }, ref) => {
+  const { error, formMessageId } = useFormField()
+  const body = error ? String(error?.message) : children
+
+  if (!body) {
+    return null
+  }
+
+  return (
+    <p
+      ref={ref}
+      id={formMessageId}
+      className={cn("text-sm font-medium text-destructive", className)}
+      {...props}
+    >
+      {body}
+    </p>
+  )
+})
+FormMessage.displayName = "FormMessage"
+
+export {
+  useFormField,
+  Form,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  FormField,
+}
+
+--- components/ui/input.tsx ---
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={cn(
+          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Input.displayName = "Input"
+
+export { Input }
+
+--- components/ui/label.tsx ---
+"use client"
+
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const labelVariants = cva(
+  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+)
+
+const Label = React.forwardRef<
+  React.ElementRef<typeof LabelPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> &
+    VariantProps<typeof labelVariants>
+>(({ className, ...props }, ref) => (
+  <LabelPrimitive.Root
+    ref={ref}
+    className={cn(labelVariants(), className)}
+    {...props}
+  />
+))
+Label.displayName = LabelPrimitive.Root.displayName
+
+export { Label }
+
+--- components/ui/pagination.tsx ---
+import * as React from "react"
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DotsHorizontalIcon,
+} from "@radix-ui/react-icons"
+
+import { cn } from "@/lib/utils"
+import { ButtonProps, buttonVariants } from "@/components/ui/button"
+
+const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
+  <nav
+    role="navigation"
+    aria-label="pagination"
+    className={cn("mx-auto flex w-full justify-center", className)}
+    {...props}
+  />
+)
+Pagination.displayName = "Pagination"
+
+const PaginationContent = React.forwardRef<
+  HTMLUListElement,
+  React.ComponentProps<"ul">
+>(({ className, ...props }, ref) => (
+  <ul
+    ref={ref}
+    className={cn("flex flex-row items-center gap-1", className)}
+    {...props}
+  />
+))
+PaginationContent.displayName = "PaginationContent"
+
+const PaginationItem = React.forwardRef<
+  HTMLLIElement,
+  React.ComponentProps<"li">
+>(({ className, ...props }, ref) => (
+  <li ref={ref} className={cn("", className)} {...props} />
+))
+PaginationItem.displayName = "PaginationItem"
+
+type PaginationLinkProps = {
+  isActive?: boolean
+} & Pick<ButtonProps, "size"> &
+  React.ComponentProps<"a">
+
+const PaginationLink = ({
+  className,
+  isActive,
+  size = "icon",
+  ...props
+}: PaginationLinkProps) => (
+  <a
+    aria-current={isActive ? "page" : undefined}
+    className={cn(
+      buttonVariants({
+        variant: isActive ? "outline" : "ghost",
+        size,
+      }),
+      className
+    )}
+    {...props}
+  />
+)
+PaginationLink.displayName = "PaginationLink"
+
+const PaginationPrevious = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof PaginationLink>) => (
+  <PaginationLink
+    aria-label="Go to previous page"
+    size="default"
+    className={cn("gap-1 pl-2.5", className)}
+    {...props}
+  >
+    <ChevronLeftIcon className="h-4 w-4" />
+    <span>Previous</span>
+  </PaginationLink>
+)
+PaginationPrevious.displayName = "PaginationPrevious"
+
+const PaginationNext = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof PaginationLink>) => (
+  <PaginationLink
+    aria-label="Go to next page"
+    size="default"
+    className={cn("gap-1 pr-2.5", className)}
+    {...props}
+  >
+    <span>Next</span>
+    <ChevronRightIcon className="h-4 w-4" />
+  </PaginationLink>
+)
+PaginationNext.displayName = "PaginationNext"
+
+const PaginationEllipsis = ({
+  className,
+  ...props
+}: React.ComponentProps<"span">) => (
+  <span
+    aria-hidden
+    className={cn("flex h-9 w-9 items-center justify-center", className)}
+    {...props}
+  >
+    <DotsHorizontalIcon className="h-4 w-4" />
+    <span className="sr-only">More pages</span>
+  </span>
+)
+PaginationEllipsis.displayName = "PaginationEllipsis"
+
+export {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+}
+
+--- components/ui/popover.tsx ---
+"use client"
+
+import * as React from "react"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
+
+import { cn } from "@/lib/utils"
+
+const Popover = PopoverPrimitive.Root
+
+const PopoverTrigger = PopoverPrimitive.Trigger
+
+const PopoverContent = React.forwardRef<
+  React.ElementRef<typeof PopoverPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
+>(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
+  <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Content
+      ref={ref}
+      align={align}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        className
+      )}
+      {...props}
+    />
+  </PopoverPrimitive.Portal>
+))
+PopoverContent.displayName = PopoverPrimitive.Content.displayName
+
+export { Popover, PopoverTrigger, PopoverContent }
+
+--- components/ui/progress.tsx ---
+"use client"
+
+import * as React from "react"
+import * as ProgressPrimitive from "@radix-ui/react-progress"
+
+import { cn } from "@/lib/utils"
+
+const Progress = React.forwardRef<
+  React.ElementRef<typeof ProgressPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
+>(({ className, value, ...props }, ref) => (
+  <ProgressPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+      className
+    )}
+    {...props}
+  >
+    <ProgressPrimitive.Indicator
+      className="h-full w-full flex-1 bg-primary transition-all"
+      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+    />
+  </ProgressPrimitive.Root>
+))
+Progress.displayName = ProgressPrimitive.Root.displayName
+
+export { Progress }
+
+--- constant/index.ts ---
+export const navItems = [
+  {
+    name: "Home",
+    path: "/",
+  },
+  {
+    name: "About",
+    path: "/about",
+  },
+  {
+    name: "Contact",
+    path: "/contact",
+  },
+];
+export const noAuthRoutes = [
+  "/login",
+  "/create-user",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/account-activation",
+];
+
+--- context/AuthContext.tsx ---
 "use client";
+import { noAuthRoutes } from "@/constant";
+import { usePathname, useRouter } from "next/navigation";
 import React, {
   createContext,
-  useContext,
   useState,
+  useContext,
   useEffect,
   ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
-import api from "@/lib/api";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
 
 interface AuthContextType {
-  user: User | null;
-  loading: boolean;
+  isAuthenticated: boolean;
   login: (token: string) => void;
   logout: () => void;
-  activateAccount: (token: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      api
-        .get("/users/me")
-        .then((response) => {
-          setUser(response.data);
-        })
-        .catch(() => {
-          localStorage.removeItem("token");
-          router.push("/login");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
+      setIsAuthenticated(true);
+    } else if (!noAuthRoutes.includes(pathname)) {
+      router.push("/login");
     }
-  }, [router]);
+  }, [pathname, router]);
 
   const login = (token: string) => {
     localStorage.setItem("token", token);
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    api
-      .get("/users/me")
-      .then((response) => {
-        setUser(response.data);
-        router.push("/dashboard");
-      })
-      .catch((error) => {
-        console.error("Failed to fetch user data after login", error);
-      });
+    setIsAuthenticated(true);
+    router.push("/projects");
   };
 
   const logout = () => {
     localStorage.removeItem("token");
-    delete api.defaults.headers.common["Authorization"];
-    setUser(null);
+    setIsAuthenticated(false);
     router.push("/login");
   };
 
-  const activateAccount = async (token: string) => {
-    const response = await api.post(`/auth/activate-account?token=${token}`);
-    return response.data;
-  };
-
   return (
-    <AuthContext.Provider
-      value={{ user, loading, login, logout, activateAccount }}
-    >
+    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -3977,17 +3187,22 @@ export const useAuth = () => {
   }
   return context;
 };
-```
 
-**File:** `context/DashboardContext.tsx`
-
-```typescript
+--- context/DashboardContext.tsx ---
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useState, useContext, ReactNode } from "react";
+
+export interface Project {
+  id: string;
+  name: string;
+  sessions: number;
+  status: "Active" | "Inactive";
+  team: string;
+}
 
 interface DashboardContextType {
-  isSidebarOpen: boolean;
-  toggleSidebar: () => void;
+  projects: Project[] | null;
+  setProjects: (projects: Project[] | null) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(
@@ -3995,14 +3210,10 @@ const DashboardContext = createContext<DashboardContextType | undefined>(
 );
 
 export const DashboardProvider = ({ children }: { children: ReactNode }) => {
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!isSidebarOpen);
-  };
+  const [projects, setProjects] = useState<Project[] | null>(null);
 
   return (
-    <DashboardContext.Provider value={{ isSidebarOpen, toggleSidebar }}>
+    <DashboardContext.Provider value={{ projects, setProjects }}>
       {children}
     </DashboardContext.Provider>
   );
@@ -4015,117 +3226,133 @@ export const useDashboard = () => {
   }
   return context;
 };
-```
 
-**File:** `context/GlobalContext.tsx`
+--- context/GlobalContext.tsx ---
+import React from "react";
 
-```typescript
-"use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
-
-interface GlobalContextType {
-  theme: string;
-  setTheme: (theme: string) => void;
-}
-
-const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
-
-export const GlobalProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState("light");
-
-  return (
-    <GlobalContext.Provider value={{ theme, setTheme }}>
-      {children}
-    </GlobalContext.Provider>
-  );
+const GlobalContext = () => {
+  return <div>GlobalContext</div>;
 };
 
-export const useGlobal = () => {
-  const context = useContext(GlobalContext);
-  if (context === undefined) {
-    throw new Error("useGlobal must be used within a GlobalProvider");
-  }
-  return context;
-};
-```
+export default GlobalContext;
 
-**File:** `context/MeetingContext.tsx`
+--- context/MeetingContext.tsx ---
+import React from "react";
 
-```typescript
-"use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import { io, Socket } from "socket.io-client";
-import { SOCKET_URL } from "@/constant";
-
-interface MeetingContextType {
-  socket: Socket | null;
-  joinMeeting: (meetingId: string) => void;
-  leaveMeeting: () => void;
-}
-
-const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
-
-export const MeetingProvider = ({ children }: { children: ReactNode }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
-
-  const joinMeeting = (meetingId: string) => {
-    const newSocket = io(SOCKET_URL, {
-      query: { meetingId },
-    });
-    setSocket(newSocket);
-  };
-
-  const leaveMeeting = () => {
-    if (socket) {
-      socket.disconnect();
-      setSocket(null);
-    }
-  };
-
-  return (
-    <MeetingContext.Provider value={{ socket, joinMeeting, leaveMeeting }}>
-      {children}
-    </MeetingContext.Provider>
-  );
+const MeetingContext = () => {
+  return <div>MeetingContext</div>;
 };
 
-export const useMeeting = () => {
-  const context = useContext(MeetingContext);
-  if (context === undefined) {
-    throw new Error("useMeeting must be used within a MeetingProvider");
-  }
-  return context;
-};
-```
+export default MeetingContext;
 
-**File:** `hooks/use-mobile.ts`
+--- eslint.config.mjs ---
+import globals from "globals";
+import pluginJs from "@eslint/js";
+import tseslint from "typescript-eslint";
+import pluginReactConfig from "eslint-plugin-react/configs/recommended.js";
 
-```typescript
-import { useState, useEffect } from "react";
 
-export function useMobile() {
+export default [
+  {languageOptions: { globals: globals.browser }},
+  pluginJs.configs.recommended,
+  ...tseslint.configs.recommended,
+  pluginReactConfig,
+];
+
+--- hooks/use-mobile.ts ---
+import { useEffect, useState } from "react";
+
+export const useMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkIsMobile = () => {
+    const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
 
-    checkIsMobile();
-    window.addEventListener("resize", checkIsMobile);
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener("resize", checkIsMobile);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   return isMobile;
-}
-```
+};
 
-**File:** `hooks/useCountryList.ts`
+--- hooks/useChangePassword.ts ---
+"use client";
+import { useState } from "react";
+import { api } from "@/lib/api";
 
-```typescript
+export const useChangePassword = () => {
+  const [passwords, setPasswords] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswords((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async () => {
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      setError(new Error("New passwords do not match."));
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/auth/change-password", {
+        oldPassword: passwords.oldPassword,
+        newPassword: passwords.newPassword,
+      });
+      // Optionally, show a success message or redirect
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("An unknown error occurred")
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setPasswords({
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    setError(null);
+  };
+
+  return {
+    passwords,
+    loading,
+    error,
+    handleChange,
+    handleSubmit,
+    resetForm,
+  };
+};
+
+--- hooks/useChargePayment.ts ---
+import React from "react";
+
+const useChargePayment = () => {
+  return <div>useChargePayment</div>;
+};
+
+export default useChargePayment;
+
+--- hooks/useCountryList.ts ---
+"use client";
 import { useState, useEffect } from "react";
 
 interface Country {
@@ -4133,792 +3360,862 @@ interface Country {
   label: string;
 }
 
-export const useCountryList = (): Country[] => {
+export const useCountryList = () => {
   const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // In a real app, you'd fetch this from an API
-    const countryList: Country[] = [
-      { value: "US", label: "United States" },
-      { value: "CA", label: "Canada" },
-      { value: "GB", label: "United Kingdom" },
-      // Add more countries as needed
-    ];
-    setCountries(countryList);
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch("https://restcountries.com/v3.1/all");
+        if (!response.ok) {
+          throw new Error("Failed to fetch countries");
+        }
+        const data = await response.json();
+        const countryList = data.map((country: any) => ({
+          value: country.name.common,
+          label: country.name.common,
+        }));
+        countryList.sort((a: Country, b: Country) =>
+          a.label.localeCompare(b.label)
+        );
+        setCountries(countryList);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err : new Error("An unknown error occurred")
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCountries();
   }, []);
 
-  return countries;
-};
-```
-
-**File:** `hooks/useCreateCustomer.ts`
-
-```typescript
-import { useMutation } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-interface CustomerData {
-  email: string;
-  name: string;
-}
-
-const createCustomer = async (customerData: CustomerData) => {
-  const { data } = await api.post("/stripe/create-customer", customerData);
-  return data;
+  return { countries, loading, error };
 };
 
-export const useCreateCustomer = () => {
-  return useMutation({
-    mutationFn: createCustomer,
-  });
+--- hooks/useCreateCustomer.ts ---
+import React from "react";
+
+const useCreateCustomer = () => {
+  return <div>useCreateCustomer</div>;
 };
-```
 
-**File:** `hooks/useCreateProject.ts`
+export default useCreateCustomer;
 
-```typescript
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
+--- hooks/useCreateProject.ts ---
+"use client";
+import { useState } from "react";
+import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
-interface ProjectData {
-  name: string;
-  description: string;
-}
-
-const createProject = async (projectData: ProjectData) => {
-  const { data } = await api.post("/projects", projectData);
-  return data;
-};
 
 export const useCreateProject = () => {
-  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    startDate: new Date(),
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const router = useRouter();
 
-  return useMutation({
-    mutationFn: createProject,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      router.push("/dashboard/projects");
-    },
-  });
-};
-```
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-**File:** `hooks/useDeleteUser.ts`
+  const handleDateChange = (date: Date | undefined) => {
+    if (date) {
+      setFormData((prev) => ({ ...prev, startDate: date }));
+    }
+  };
 
-```typescript
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/projects", formData);
+      router.push("/projects");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("An unknown error occurred")
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const deleteUser = async (userId: string) => {
-  const { data } = await api.delete(`/users/${userId}`);
-  return data;
-};
-
-export const useDeleteUser = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: deleteUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-  });
-};
-```
-
-**File:** `hooks/useEditProjectDescription.ts`
-
-```typescript
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-interface EditProjectDescriptionData {
-  projectId: string;
-  description: string;
-}
-
-const editProjectDescription = async ({
-  projectId,
-  description,
-}: EditProjectDescriptionData) => {
-  const { data } = await api.patch(`/projects/${projectId}/description`, {
-    description,
-  });
-  return data;
+  return {
+    formData,
+    loading,
+    error,
+    handleChange,
+    handleDateChange,
+    handleSubmit,
+  };
 };
 
-export const useEditProjectDescription = () => {
-  const queryClient = useQueryClient();
+--- hooks/useCreateProjectByExternalAdmin.ts ---
+import React from "react";
 
-  return useMutation({
-    mutationFn: editProjectDescription,
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["project", variables.projectId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
-  });
-};
-```
-
-**File:** `hooks/useEditProjectName.ts`
-
-```typescript
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-interface EditProjectNameData {
-  projectId: string;
-  name: string;
-}
-
-const editProjectName = async ({ projectId, name }: EditProjectNameData) => {
-  const { data } = await api.patch(`/projects/${projectId}/name`, { name });
-  return data;
+const useCreateProjectByExternalAdmin = () => {
+  return <div>useCreateProjectByExternalAdmin</div>;
 };
 
-export const useEditProjectName = () => {
-  const queryClient = useQueryClient();
+export default useCreateProjectByExternalAdmin;
 
-  return useMutation({
-    mutationFn: editProjectName,
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["project", variables.projectId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
-  });
+--- hooks/useDeleteUser.ts ---
+import React from "react";
+
+const useDeleteUser = () => {
+  return <div>useDeleteUser</div>;
 };
-```
 
-**File:** `hooks/useLogin.ts`
+export default useDeleteUser;
 
-```typescript
-import { useMutation } from "@tanstack/react-query";
-import { z } from "zod";
-import { loginSchema } from "@/schemas/loginSchema";
-import api from "@/lib/api";
+--- hooks/useEditProjectDescription.ts ---
+import React from "react";
+
+const useEditProjectDescription = () => {
+  return <div>useEditProjectDescription</div>;
+};
+
+export default useEditProjectDescription;
+
+--- hooks/useEditProjectName.ts ---
+import React from "react";
+
+const useEditProjectName = () => {
+  return <div>useEditProjectName</div>;
+};
+
+export default useEditProjectName;
+
+--- hooks/useForgotPassword.ts ---
+import React from "react";
+
+const useForgotPassword = () => {
+  return <div>useForgotPassword</div>;
+};
+
+export default useForgotPassword;
+
+--- hooks/useLogin.ts ---
+"use client";
+import { useState } from "react";
+import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
-type LoginData = z.infer<typeof loginSchema>;
+export const useLogin = () => {
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const { login } = useAuth();
 
-const login = async (data: LoginData) => {
-  const response = await api.post("/auth/login", data);
-  return response.data;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post("/auth/login", formData);
+      const { token } = response.data;
+      login(token);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("An unknown error occurred")
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { formData, loading, error, handleChange, handleSubmit };
 };
 
-const useLogin = () => {
-  const { login: setAuthToken } = useAuth();
-
-  return useMutation({
-    mutationFn: login,
-    onSuccess: (data) => {
-      setAuthToken(data.token);
-    },
-  });
-};
-
-export default useLogin;
-```
-
-**File:** `hooks/useProfileModals.ts`
-
-```typescript
+--- hooks/useProfileModals.ts ---
+"use client";
 import { useState } from "react";
-
-type ModalType = "firstName" | "lastName" | "company" | "country" | null;
 
 export const useProfileModals = () => {
-  const [modal, setModal] = useState<ModalType>(null);
-  const [currentValue, setCurrentValue] = useState("");
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
-  const openModal = (type: ModalType, value: string) => {
-    setModal(type);
-    setCurrentValue(value);
-  };
-
-  const closeModal = () => {
-    setModal(null);
-    setCurrentValue("");
-  };
+  const handleOpenPasswordModal = () => setIsPasswordModalOpen(true);
+  const handleClosePasswordModal = () => setIsPasswordModalOpen(false);
 
   return {
-    modal,
-    currentValue,
-    openModal,
-    closeModal,
+    isPasswordModalOpen,
+    handleOpenPasswordModal,
+    handleClosePasswordModal,
   };
 };
-```
 
-**File:** `hooks/useProject.ts`
+--- hooks/useProject.ts ---
+import React from "react";
 
-```typescript
-import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  status: string;
-  lastUpdated: string;
-  team: string[];
-}
-
-const fetchProject = async (projectId: string): Promise<Project> => {
-  const { data } = await api.get(`/projects/${projectId}`);
-  return data;
+const useProject = () => {
+  return <div>useProject</div>;
 };
 
-export const useProject = (projectId: string) => {
-  return useQuery({
-    queryKey: ["project", projectId],
-    queryFn: () => fetchProject(projectId),
-    enabled: !!projectId,
-  });
-};
-```
+export default useProject;
 
-**File:** `hooks/useProjectFilter.ts`
-
-```typescript
-import { useState } from "react";
-
-export const useProjectFilter = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-
-  return {
-    searchTerm,
-    setSearchTerm,
-    filterStatus,
-    setFilterStatus,
-  };
-};
-```
-
-**File:** `hooks/useProjects.ts`
-
-```typescript
-import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-export interface Project {
-  id: string;
-  name: string;
-  status: string;
-  lastUpdated: string;
-  team: string[];
-}
-
-const fetchProjects = async (): Promise<Project[]> => {
-  const { data } = await api.get("/projects");
-  return data;
-};
+--- hooks/useProjects.ts ---
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import { api } from "@/lib/api";
+import { useDashboard } from "@/context/DashboardContext";
 
 export const useProjects = () => {
-  return useQuery({
-    queryKey: ["projects"],
-    queryFn: fetchProjects,
-  });
+  const { projects, setProjects } = useDashboard();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [search, setSearch] = useState("");
+
+  const fetchProjects = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get("/projects", {
+        params: {
+          page,
+          limit,
+          search,
+        },
+      });
+      setProjects(response.data);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("An unknown error occurred")
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit, search, setProjects]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  return {
+    projects,
+    loading,
+    error,
+    page,
+    limit,
+    search,
+    setSearch,
+    handlePageChange,
+  };
 };
-```
 
-**File:** `hooks/useRegister.ts`
-
-```typescript
-import { useMutation } from "@tanstack/react-query";
-import { z } from "zod";
-import { registerSchema } from "@/schemas/registerSchema";
-import api from "@/lib/api";
+--- hooks/useRegister.ts ---
+"use client";
+import { useState } from "react";
+import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-type RegisterData = z.infer<typeof registerSchema>;
-
-const register = async (data: RegisterData) => {
-  const response = await api.post("/auth/register", data);
-  return response.data;
-};
-
-const useRegister = () => {
+export const useRegister = () => {
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    country: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const router = useRouter();
 
-  return useMutation({
-    mutationFn: register,
-    onSuccess: () => {
-      router.push("/login?registered=true");
-    },
-  });
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/auth/register", formData);
+      router.push("/login");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("An unknown error occurred")
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { formData, loading, error, handleChange, handleSubmit };
 };
 
-export default useRegister;
-```
+--- hooks/useResetPassword.ts ---
+"use client";
+import { useState } from "react";
+import { api } from "@/lib/api";
 
-**File:** `hooks/useSaveBilling.ts`
+export const useResetPassword = () => {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [message, setMessage] = useState("");
 
-```typescript
-import { useMutation } from "@tanstack/react-query";
-import api from "@/lib/api";
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
 
-interface BillingData {
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  country: string;
-}
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setMessage("");
+    try {
+      await api.post("/auth/reset-password", { email });
+      setMessage("Password reset link sent to your email.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("An unknown error occurred")
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const saveBilling = async (billingData: BillingData) => {
-  const { data } = await api.post("/billing", billingData);
-  return data;
+  return { email, loading, error, message, handleChange, handleSubmit };
 };
 
-export const useSaveBilling = () => {
-  return useMutation({
-    mutationFn: saveBilling,
-  });
-};
-```
+--- hooks/useSaveBilling.ts ---
+import React from "react";
 
-**File:** `hooks/useStep2.ts`
-
-```typescript
-import { useMutation } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-interface Step2Data {
-  companyName: string;
-  companySize: string;
-  industry: string;
-}
-
-const completeStep2 = async (step2Data: Step2Data) => {
-  const { data } = await api.post("/auth/complete-step2", step2Data);
-  return data;
+const useSaveBilling = () => {
+  return <div>useSaveBilling</div>;
 };
 
-export const useStep2 = () => {
-  return useMutation({
-    mutationFn: completeStep2,
-  });
-};
-```
+export default useSaveBilling;
 
-**File:** `hooks/useToggleRecordingAccess.ts`
+--- hooks/useSaveCard.ts ---
+import React from "react";
 
-```typescript
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-interface ToggleRecordingAccessData {
-  projectId: string;
-  sessionId: string;
-  participantId: string;
-  hasAccess: boolean;
-}
-
-const toggleRecordingAccess = async ({
-  projectId,
-  sessionId,
-  participantId,
-  hasAccess,
-}: ToggleRecordingAccessData) => {
-  const { data } = await api.patch(
-    `/projects/${projectId}/sessions/${sessionId}/participants/${participantId}/recording-access`,
-    { hasAccess }
-  );
-  return data;
+const useSaveCard = () => {
+  return <div>useSaveCard</div>;
 };
 
-export const useToggleRecordingAccess = () => {
-  const queryClient = useQueryClient();
+export default useSaveCard;
 
-  return useMutation({
-    mutationFn: toggleRecordingAccess,
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["project", variables.projectId],
-      });
-    },
-  });
-};
-```
+--- hooks/useStep2.ts ---
+import React from "react";
 
-**File:** `hooks/useUpdateUser.ts`
-
-```typescript
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-interface UserUpdateData {
-  firstName?: string;
-  lastName?: string;
-  company?: string;
-  country?: string;
-}
-
-const updateUser = async (userData: UserUpdateData) => {
-  const { data } = await api.patch("/users/me", userData);
-  return data;
+const useStep2 = () => {
+  return <div>useStep2</div>;
 };
 
-export const useUpdateUser = () => {
-  const queryClient = useQueryClient();
+export default useStep2;
 
-  return useMutation({
-    mutationFn: updateUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", "me"] });
-    },
-  });
+--- hooks/useToggleRecordingAccess.ts ---
+import React from "react";
+
+const useToggleRecordingAccess = () => {
+  return <div>useToggleRecordingAccess</div>;
 };
-```
 
-**File:** `hooks/useUserById.ts`
+export default useToggleRecordingAccess;
 
-```typescript
-import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+--- hooks/useUpdateUser.ts ---
+import React from "react";
+
+const useUpdateUser = () => {
+  return <div>useUpdateUser</div>;
+};
+
+export default useUpdateUser;
+
+--- hooks/useUploadObserverDocument.ts ---
+import React from "react";
+
+const useUploadObserverDocument = () => {
+  return <div>useUploadObserverDocument</div>;
+};
+
+export default useUploadObserverDocument;
+
+--- hooks/useUserById.ts ---
+"use client";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 
 interface User {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   role: string;
 }
 
-const fetchUserById = async (userId: string): Promise<User> => {
-  const { data } = await api.get(`/users/${userId}`);
-  return data;
+export const useUserById = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await api.get("/users/me"); // Assuming an endpoint to get the current user
+        setUser(response.data);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err : new Error("An unknown error occurred")
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  return { user, loading, error };
 };
 
-export const useUserById = (userId: string) => {
-  return useQuery({
-    queryKey: ["user", userId],
-    queryFn: () => fetchUserById(userId),
-    enabled: !!userId,
-  });
-};
-```
-
-**File:** `hooks/useVerifyEmail.ts`
-
-```typescript
-import { useMutation } from "@tanstack/react-query";
-import api from "@/lib/api";
-
-const verifyEmail = async (token: string) => {
-  const { data } = await api.post(`/auth/verify-email?token=${token}`);
-  return data;
-};
+--- hooks/useVerifyEmail.ts ---
+"use client";
+import { useState, useCallback } from "react";
+import { api } from "@/lib/api";
 
 export const useVerifyEmail = () => {
-  return useMutation({
-    mutationFn: verifyEmail,
-  });
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const verifyEmail = useCallback(async (token: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post(`/auth/verify-email?token=${token}`);
+      setData(response.data);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("An unknown error occurred")
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { verifyEmail, data, loading, error };
 };
-```
 
-**File:** `lib/api.ts`
-
-```typescript
+--- lib/api.ts ---
 import axios from "axios";
-import { API_BASE_URL } from "@/constant";
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
+export const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-export default api;
-```
-
-**File:** `lib/utils.ts`
-
-```typescript
+--- lib/utils.ts ---
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
-```
 
-**File:** `provider/Providers.tsx`
+--- next.config.ts ---
+import type { NextConfig } from "next";
 
-```typescript
+const nextConfig: NextConfig = {};
+
+export default nextConfig;
+
+--- package.json ---
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.1.4",
+    "@hookform/resolvers": "^3.6.0",
+    "@radix-ui/react-accordion": "^1.2.0",
+    "@radix-ui/react-alert-dialog": "^1.1.1",
+    "@radix-ui/react-avatar": "^1.1.0",
+    "@radix-ui/react-checkbox": "^1.1.0",
+    "@radix-ui/react-collapsible": "^1.1.0",
+    "@radix-ui/react-dialog": "^1.1.1",
+    "@radix-ui/react-dropdown-menu": "^2.1.1",
+    "@radix-ui/react-icons": "^1.3.0",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-popover": "^1.1.1",
+    "@radix-ui/react-progress": "^1.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@tanstack/react-query": "^5.45.1",
+    "axios": "^1.7.2",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.0.0",
+    "date-fns": "^3.6.0",
+    "next": "14.2.4",
+    "react": "^18",
+    "react-day-picker": "^8.10.1",
+    "react-dom": "^18",
+    "react-hook-form": "^7.51.5",
+    "tailwind-merge": "^2.3.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.5.0",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.3",
+    "globals": "^15.6.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.13.1"
+  }
+}
+
+--- postcss.config.mjs ---
+const config = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+export default config;
+
+--- provider/Providers.tsx ---
 "use client";
-import React from "react";
 import { AuthProvider } from "@/context/AuthContext";
-import { DashboardProvider } from "@/context/DashboardContext";
-import { GlobalProvider } from "@/context/GlobalContext";
-import { MeetingProvider } from "@/context/MeetingContext";
-import TanstackProvider from "./TanstackProvider";
+import React from "react";
+import { TanstackProvider } from "./TanstackProvider";
 
-const Providers = ({ children }: { children: React.ReactNode }) => {
+export const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
-    <GlobalProvider>
-      <TanstackProvider>
-        <AuthProvider>
-          <DashboardProvider>
-            <MeetingProvider>{children}</MeetingProvider>
-          </DashboardProvider>
-        </AuthProvider>
-      </TanstackProvider>
-    </GlobalProvider>
+    <TanstackProvider>
+      <AuthProvider>{children}</AuthProvider>
+    </TanstackProvider>
   );
 };
 
-export default Providers;
-```
-
-**File:** `provider/TanstackProvider.tsx`
-
-```typescript
+--- provider/TanstackProvider.tsx ---
 "use client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-const TanstackProvider = ({ children }: { children: React.ReactNode }) => {
+export const TanstackProvider = ({ children }: { children: React.ReactNode }) => {
   const queryClient = new QueryClient();
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
 
-export default TanstackProvider;
-```
-
-**File:** `schemas/addModeratorSchema.ts`
-
-```typescript
+--- schemas/addModeratorSchema.ts ---
 import { z } from "zod";
 
 export const addModeratorSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
-```
 
-**File:** `schemas/editModeratorSchema.ts`
+--- schemas/changePasswordSchema.ts ---
+import { z } from "zod";
 
-```typescript
+export const changePasswordSchema = z
+  .object({
+    oldPassword: z.string().min(1, "Old password is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+--- schemas/editModeratorSchema.ts ---
 import { z } from "zod";
 
 export const editModeratorSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
 });
-```
 
-**File:** `schemas/editUserSchema.ts`
-
-```typescript
+--- schemas/editUserSchema.ts ---
 import { z } from "zod";
 
 export const editUserSchema = z.object({
-  firstName: z
-    .string()
-    .min(2, { message: "First name must be at least 2 characters" }),
-  lastName: z
-    .string()
-    .min(2, { message: "Last name must be at least 2 characters" }),
-  company: z.string().optional(),
-  country: z.string().optional(),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
 });
-```
 
-**File:** `schemas/loginSchema.ts`
-
-```typescript
+--- schemas/loginSchema.ts ---
 import { z } from "zod";
 
 export const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   password: z.string().min(1, { message: "Password is required" }),
 });
-```
 
-**File:** `schemas/registerSchema.ts`
-
-```typescript
+--- schemas/registerSchema.ts ---
 import { z } from "zod";
 
-export const registerSchema = z
-  .object({
-    firstName: z
-      .string()
-      .min(2, { message: "First name must be at least 2 characters" }),
-    lastName: z
-      .string()
-      .min(2, { message: "Last name must be at least 2 characters" }),
-    email: z.string().email({ message: "Invalid email address" }),
-    password: z
-      .string()
-      .min(8, { message: "Password must be at least 8 characters" }),
-    confirmPassword: z.string(),
-    country: z.string().min(1, { message: "Country is required" }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
-```
+export const registerSchema = z.object({
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  country: z.string().min(1, "Country is required"),
+});
 
-**File:** `schemas/validators.ts`
-
-```typescript
+--- schemas/resetPasswordSchema.ts ---
 import { z } from "zod";
 
-export const requiredString = (message: string = "This field is required") =>
-  z.string().min(1, message);
+export const resetPasswordSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+});
 
-export const optionalString = () => z.string().optional();
-```
+--- schemas/validationConfigs.ts ---
+import { z } from "zod";
 
-**File:** `utils/calculateCreditsNeededForRemainingSchedules.ts`
-
-```typescript
-import { IProject } from "shared/types";
-
-export const calculateCreditsNeededForRemainingSchedules = (
-  project: IProject
-): number => {
-  // Implementation here
-  return 0;
+export const validationConfigs = {
+  string: () => z.string(),
+  email: () => z.string().email(),
+  password: () => z.string().min(8),
 };
-```
 
-**File:** `utils/calculateOriginalEstimatedProjectCredits.ts`
+--- schemas/validators.ts ---
+import { z } from "zod";
 
-```typescript
-import { IProject } from "shared/types";
-
-export const calculateOriginalEstimatedProjectCredits = (
-  project: IProject
-): number => {
-  // Implementation here
-  return 0;
+export const validate = (schema: z.ZodSchema<any>, data: any) => {
+  return schema.safeParse(data);
 };
-```
 
-**File:** `utils/countDaysBetween.tsx`
+--- tailwind.config.ts ---
+import type { Config } from "tailwindcss"
 
-```typescript
-import { differenceInDays } from "date-fns";
+const config = {
+  darkMode: ["class"],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+	],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+} satisfies Config
 
-export const countDaysBetween = (startDate: Date, endDate: Date): number => {
-  return differenceInDays(endDate, startDate);
+export default config
+
+--- tsconfig.json ---
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+--- utils/calculateCreditsNeededForRemainingSchedules.ts ---
+import React from "react";
+
+const calculateCreditsNeededForRemainingSchedules = () => {
+  return <div>calculateCreditsNeededForRemainingSchedules</div>;
 };
-```
 
-**File:** `utils/getFirstSessionDate.ts`
+export default calculateCreditsNeededForRemainingSchedules;
 
-```typescript
-import { IProject } from "shared/types";
+--- utils/calculateOriginalEstimatedProjectCredits.ts ---
+import React from "react";
 
-export const getFirstSessionDate = (project: IProject): Date | null => {
-  // Implementation here
-  return null;
+const calculateOriginalEstimatedProjectCredits = () => {
+  return <div>calculateOriginalEstimatedProjectCredits</div>;
 };
-```
 
-**File:** `utils/getPages.tsx`
+export default calculateOriginalEstimatedProjectCredits;
 
-```typescript
-export const getPages = (count: number, limit: number): number => {
-  return Math.ceil(count / limit);
+--- utils/countDaysBetween.tsx ---
+import React from "react";
+
+const countDaysBetween = () => {
+  return <div>countDaysBetween</div>;
 };
-```
 
-**File:** `utils/payment.ts`
+export default countDaysBetween;
 
-```typescript
+--- utils/formatProjectData.tsx ---
+import React from "react";
+
+const formatProjectData = () => {
+  return <div>formatProjectData</div>;
+};
+
+export default formatProjectData;
+
+--- utils/getFirstSessionDate.ts ---
+import React from "react";
+
+const getFirstSessionDate = () => {
+  return <div>getFirstSessionDate</div>;
+};
+
+export default getFirstSessionDate;
+
+--- utils/getPages.tsx ---
+import React from "react";
+
+const getPages = () => {
+  return <div>getPages</div>;
+};
+
+export default getPages;
+
+--- utils/payment.ts ---
 import { loadStripe } from "@stripe/stripe-js";
 
-const stripePromise = loadStripe(
+export const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-export const createPaymentIntent = async (amount: number) => {
-  // This should be done on the server-side in a real application
-  const response = await fetch("/api/create-payment-intent", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ amount }),
-  });
-  const { clientSecret } = await response.json();
-  return clientSecret;
-};
-
-export const confirmPayment = async (
-  clientSecret: string,
-  paymentMethodId: string
-) => {
-  const stripe = await stripePromise;
-  if (!stripe) {
-    throw new Error("Stripe.js has not loaded yet.");
-  }
-  const { error, paymentIntent } = await stripe.confirmCardPayment(
-    clientSecret,
-    {
-      payment_method: paymentMethodId,
-    }
-  );
-  if (error) {
-    throw error;
-  }
-  return paymentIntent;
-};
-```
-
-**File:** `utils/socket.ts`
-
-```typescript
-import { io } from "socket.io-client";
-import { SOCKET_URL } from "@/constant";
-
-const socket = io(SOCKET_URL, {
-  autoConnect: false,
-});
-
-export default socket;
-```
-
-**File:** `utils/validationHelper.ts`
-
-```typescript
+--- utils/validationHelper.ts ---
 import { z } from "zod";
 
-export const getErrorMessage = (error: any): string => {
-  if (error instanceof z.ZodError) {
-    return error.errors.map((e) => e.message).join(", ");
+export const validateForm = <T>(
+  schema: z.ZodSchema<T>,
+  formData: T
+): Partial<Record<keyof T, string>> => {
+  const result = schema.safeParse(formData);
+  if (result.success) {
+    return {};
   }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "An unknown error occurred";
+
+  const errors: Partial<Record<keyof T, string>> = {};
+  result.error.errors.forEach((err) => {
+    if (err.path.length > 0) {
+      errors[err.path[0] as keyof T] = err.message;
+    }
+  });
+
+  return errors;
 };
-```
