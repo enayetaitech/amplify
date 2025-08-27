@@ -17,7 +17,6 @@ import api from "lib/api";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { IProject } from "@shared/interface/ProjectInterface";
-import { timeZones } from "constant";
 
 interface AddSessionModalProps {
   open: boolean;
@@ -29,8 +28,8 @@ export interface ISessionFormData {
   selectedModerators: string[];
   allModerators?: IModerator[];
   timeZone: string;
-  breakoutRoom: boolean;
   sameModerator: boolean;
+  sameSession: boolean;
   sessions: Array<{
     title: string;
     date: string;
@@ -45,8 +44,8 @@ const initialFormData: ISessionFormData = {
   selectedModerators: [],
   allModerators: [],
   timeZone: "",
-  breakoutRoom: false,
   sameModerator: false,
+  sameSession: false,
   sessions: [
     { title: "", date: "", startTime: "", duration: "0", moderators: [] },
   ],
@@ -74,24 +73,13 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
   // When project defaults load, prefill the form
   useEffect(() => {
     if (!project) return;
-    // Map project.defaultTimeZone label to IANA value used by our Select options
-    let mappedTimeZone = formData.timeZone;
+    // Use project's IANA default timezone directly if provided
     if (project.defaultTimeZone) {
-      const label = project.defaultTimeZone; // e.g., "(UTC-05) Eastern Time"
-      const match = label.match(/^\(UTC([+-]?\d+(?:\.5)?)\)\s+(.+)$/);
-      if (match) {
-        const [, utc, name] = match;
-        const found = timeZones.find(
-          (tz) => tz.utc === utc && tz.name === name
-        );
-        if (found) mappedTimeZone = found.value;
-      }
+      setFormData((prev) => ({
+        ...prev,
+        timeZone: project.defaultTimeZone!,
+      }));
     }
-    setFormData((prev) => ({
-      ...prev,
-      timeZone: mappedTimeZone,
-      breakoutRoom: project.defaultBreakoutRoom ?? prev.breakoutRoom,
-    }));
   }, [project]);
 
   // whenever numberOfSessions changes, resize the sessions array
@@ -116,7 +104,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
     mutationFn: (payload: {
       projectId: string;
       timeZone: string;
-      breakoutRoom: boolean;
+      sameSession: boolean;
       sessions: {
         title: string;
         date: string;
@@ -141,6 +129,109 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
   });
 
   const handleSave = () => {
+    // Required fields validation before conflict checks
+    if (!formData.sessions || formData.sessions.length === 0) {
+      toast.error("Please add at least one session.");
+      return;
+    }
+
+    if (formData.sameSession) {
+      const sharedDuration = Number(formData.sessions[0]?.duration);
+      if (!sharedDuration || sharedDuration <= 0) {
+        toast.error("Please select a session length.");
+        return;
+      }
+    }
+
+    // Per-session validation
+    for (let i = 0; i < formData.sessions.length; i++) {
+      const s = formData.sessions[i];
+      const label = s.title?.trim() ? s.title.trim() : `Session ${i + 1}`;
+
+      if (!s.title || !s.title.trim()) {
+        toast.error(`Please enter a title for ${label}.`);
+        return;
+      }
+      if (!s.date) {
+        toast.error(`Please select a date for ${label}.`);
+        return;
+      }
+      if (!s.startTime) {
+        toast.error(`Please select a start time for ${label}.`);
+        return;
+      }
+      if (!formData.sameSession) {
+        const dur = Number(s.duration);
+        if (!dur || dur <= 0) {
+          toast.error(`Please select a duration for ${label}.`);
+          return;
+        }
+      }
+      if (!formData.sameModerator) {
+        if (!s.moderators || s.moderators.length === 0) {
+          toast.error(`Please select at least one moderator for ${label}.`);
+          return;
+        }
+      } else {
+        if (
+          !formData.selectedModerators ||
+          formData.selectedModerators.length === 0
+        ) {
+          toast.error("Please select at least one moderator in Step 1.");
+          return;
+        }
+      }
+    }
+
+    // Frontend conflict check: ensure no overlapping sessions
+    const parseToUtcMs = (dateStr: string, timeStr: string): number | null => {
+      if (!dateStr || !timeStr) return null;
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const [hh, mm] = timeStr.split(":").map(Number);
+      if ([y, m, d, hh, mm].some((n) => Number.isNaN(n))) return null;
+      // Treat entered local clock time as naive time and map to UTC epoch consistently
+      return Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0);
+    };
+
+    const sessionsWithTimes = formData.sessions
+      .map((s, idx) => {
+        const durationMin = Number(
+          formData.sameSession
+            ? formData.sessions[0]?.duration ?? 0
+            : s.duration ?? 0
+        );
+        const startMs = parseToUtcMs(s.date, s.startTime);
+        const endMs =
+          startMs !== null
+            ? startMs + Math.max(0, durationMin) * 60 * 1000
+            : null;
+        const label = s.title?.trim() ? s.title.trim() : `Session ${idx + 1}`;
+        return { idx, startMs, endMs, label } as const;
+      })
+      // consider only rows with complete timing info and positive duration
+      .filter((r) => r.startMs !== null && r.endMs !== null) as Array<{
+      idx: number;
+      startMs: number;
+      endMs: number;
+      label: string;
+    }>;
+
+    if (sessionsWithTimes.length > 1) {
+      const sorted = [...sessionsWithTimes].sort(
+        (a, b) => a.startMs - b.startMs
+      );
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        if (curr.startMs < prev.endMs) {
+          toast.error(
+            `Time conflict: "${prev.label}" overlaps with "${curr.label}".`
+          );
+          return;
+        }
+      }
+    }
+
     if (project?.service === "Concierge") {
       const now = new Date();
       const cutoff = new Date(now);
@@ -163,7 +254,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
     createSessions.mutate({
       projectId,
       timeZone: formData.timeZone,
-      breakoutRoom: formData.breakoutRoom,
+      sameSession: formData.sameSession,
       sessions: formData.sessions.map((s) => ({
         title: s.title,
         date: s.date,
@@ -184,7 +275,18 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
       return toast.error("Please select the number of sessions (minimum 1).");
     }
     if (!formData.timeZone) {
-      return toast.error("Please select a time zone.");
+      if (project?.defaultTimeZone) {
+        setFormData((f) => ({ ...f, timeZone: project.defaultTimeZone! }));
+      } else {
+        return toast.error("Project time zone is loading. Please try again.");
+      }
+    }
+    // If sessions share the same length, require a selection before continuing
+    if (formData.sameSession) {
+      const lengthValue = formData.sessions[0]?.duration;
+      if (!lengthValue || Number(lengthValue) <= 0) {
+        return toast.error("Please select a session length.");
+      }
     }
     setStep(2);
   };
@@ -217,6 +319,10 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
             <div className="flex justify-end">
               <CustomButton
                 onClick={handleNext}
+                disabled={
+                  formData.sameSession &&
+                  !(Number(formData.sessions[0]?.duration) > 0)
+                }
                 className="bg-custom-teal hover:bg-custom-dark-blue-3"
               >
                 Next

@@ -231,22 +231,26 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
             }
           >
             <SelectTrigger className="w-full">
-              {defaultTimeZone || "Select time zone"}
+              {(() => {
+                if (!defaultTimeZone) return "Select time zone";
+                const tz = timeZones.find((t) => t.name === defaultTimeZone);
+                if (!tz) return defaultTimeZone;
+                const computedLabel =
+                  tz.utc === "+00" && tz.name === "London Time"
+                    ? "(UTC-00) London Time"
+                    : `(UTC${tz.utc}) ${tz.name}`;
+                return computedLabel;
+              })()}
             </SelectTrigger>
             <SelectContent>
               {timeZones.map(
-                (tz: { value: string; utc: string; name: string }) => {
+                (tz: {  utc: string; name: string }) => {
                   const computedLabel =
                     tz.utc === "+00" && tz.name === "London Time"
                       ? "(UTC-00) London Time"
                       : `(UTC${tz.utc}) ${tz.name}`;
                   return (
-                    <SelectItem
-                      key={`${tz.value}-${tz.utc}`}
-                      value={
-                        (computedLabel as IProjectForm["defaultTimeZone"]) || ""
-                      }
-                    >
+                    <SelectItem key={`${tz.name}-${tz.utc}`} value={tz.name}>
                       {computedLabel}
                     </SelectItem>
                   );
@@ -257,7 +261,9 @@ const Step3: React.FC<Step3Props> = ({ formData, updateFormData }) => {
         </div>
         <div className="flex items-center justify-between mt-6">
           <div className="flex items-center gap-2">
-            <Label className="text-sm font-medium">Do you need breakout room functionality?</Label>
+            <Label className="text-sm font-medium">
+              Do you need breakout room functionality?
+            </Label>
             <Tooltip>
               <TooltipTrigger asChild>
                 <BiQuestionMark className="ml-2 h-5 w-5 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] px-0.5 mb-1.5" />
