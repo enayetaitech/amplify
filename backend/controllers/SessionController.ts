@@ -4,8 +4,10 @@ import ErrorHandler from "../utils/ErrorHandler";
 import { ISessionDocument, SessionModel } from "../model/SessionModel";
 import ProjectModel from "../model/ProjectModel";
 import ModeratorModel from "../model/ModeratorModel";
-import { toTimestamp } from "../processors/session/sessionTimeConflictChecker";
-import { DateTime } from "luxon";
+import {
+  resolveToIana,
+  toTimestampStrict,
+} from "../processors/session/sessionTimeConflictChecker";
 import * as sessionService from "../processors/liveSession/sessionService";
 import mongoose from "mongoose";
 
@@ -20,33 +22,38 @@ export const createSessions = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { projectId, timeZone, breakoutRoom, sessions } = req.body;
+  const { projectId, sessions } = req.body;
+
+  console.log("req.body", req.body);
 
   // 1. Basic payload validation
-  if (
-    !Array.isArray(sessions) ||
-    sessions.length === 0 ||
-    !projectId ||
-    typeof timeZone !== "string" ||
-    breakoutRoom === undefined
-  ) {
+  if (!Array.isArray(sessions) || sessions.length === 0 || !projectId) {
     return next(
       new ErrorHandler(
-        "Sessions array, project id, time zone, breakout room information are required",
+        "Sessions array, project id information are required",
         400
       )
     );
   }
-  console.log("req.body", req.body);
-  console.log(
-    "req.body.sessions =",
-    JSON.stringify(req.body.sessions, null, 2)
-  );
 
   // 2. Project existence check
   const project = await ProjectModel.findById(projectId);
+
   if (!project) {
     return next(new ErrorHandler("Project not found", 404));
+  }
+  // ✅ Display label from DB (keep storing this)
+  const displayTimeZone = project.defaultTimeZone as string;
+
+  // ✅ IANA for math
+  const ianaTimeZone = resolveToIana(displayTimeZone);
+  if (!ianaTimeZone) {
+    return next(
+      new ErrorHandler(
+        `Project time zone "${displayTimeZone}" is not recognized.`,
+        400
+      )
+    );
   }
 
   // 3. Moderator existence check
@@ -66,35 +73,46 @@ export const createSessions = async (
 
   // 5. Validate no overlaps
 
+  // Precompute epochs for new sessions and check intra-batch overlaps
+  type NewSess = (typeof sessions)[number] & {
+    startAtEpoch: number;
+    endAtEpoch: number;
+  };
+
+  const newSessions: NewSess[] = [];
+
   for (const s of sessions) {
-    const tz = timeZone;
-    const startNew = toTimestamp(s.date, s.startTime, tz);
-    const endNew = startNew + s.duration * 60_000;
+    const startAtEpoch = toTimestampStrict(s.date, s.startTime, ianaTimeZone);
+    const endAtEpoch = startAtEpoch + s.duration * 60_000;
+    newSessions.push({ ...s, startAtEpoch, endAtEpoch });
+  }
 
-    // calendar day in this timeZone
-    const dayNew = DateTime.fromISO(
-      typeof s.date === "string"
-        ? s.date
-        : DateTime.fromJSDate(s.date).toISODate()!,
-      { zone: tz }
-    ).toISODate();
-
-    for (const ex of existing) {
-      const exTz = ex.timeZone;
-      const dayEx = DateTime.fromISO(
-        DateTime.fromJSDate(ex.date).toISODate()!,
-        { zone: exTz }
-      ).toISODate();
-      if (dayEx !== dayNew) continue;
-
-      const startEx = toTimestamp(ex.date, ex.startTime, exTz);
-      const endEx = startEx + ex.duration * 60_000;
-
-      // overlap if: startNew < endEx && startEx < endNew
-      if (startNew < endEx && startEx < endNew) {
+  // Intra-batch overlap check
+  for (let i = 0; i < newSessions.length; i++) {
+    for (let j = i + 1; j < newSessions.length; j++) {
+      const a = newSessions[i];
+      const b = newSessions[j];
+      if (a.startAtEpoch < b.endAtEpoch && b.startAtEpoch < a.endAtEpoch) {
         return next(
           new ErrorHandler(
-            `Session "${s.title}" conflicts with existing "${ex.title}"`,
+            `Session "${a.title}" time conflicts with session "${b.title}" in this request`,
+            409
+          )
+        );
+      }
+    }
+  }
+
+  // Check against existing sessions (by epoch)
+  for (const s of newSessions) {
+    for (const ex of existing) {
+      const exIana = resolveToIana(ex.timeZone) ?? ianaTimeZone;
+      const startEx = toTimestampStrict(ex.date, ex.startTime, exIana);
+      const endEx = startEx + ex.duration * 60_000;
+      if (s.startAtEpoch < endEx && startEx < s.endAtEpoch) {
+        return next(
+          new ErrorHandler(
+            `Session "${s.title}" time conflicts with existing "${ex.title}"`,
             409
           )
         );
@@ -103,14 +121,16 @@ export const createSessions = async (
   }
 
   // 6. Map each session, injecting the shared fields
-  const docs = sessions.map((s: any) => ({
+  const docs = newSessions.map((s: any) => ({
     projectId,
-    timeZone,
-    breakoutRoom,
+    timeZone: displayTimeZone,
+    breakoutRoom: project.defaultBreakoutRoom ?? false,
     title: s.title,
     date: s.date,
     startTime: s.startTime,
     duration: s.duration,
+    startAtEpoch: s.startAtEpoch,
+    endAtEpoch: s.endAtEpoch,
     moderators: s.moderators,
   }));
 
@@ -133,16 +153,15 @@ export const createSessions = async (
     await project.save({ session: mongoSession });
 
     await mongoSession.commitTransaction();
+    // 8. Send uniform success response
+    sendResponse(res, created, "Sessions created", 201);
   } catch (err) {
     await mongoSession.abortTransaction();
     mongoSession.endSession();
     return next(err);
   } finally {
-    // always end the session
     mongoSession.endSession();
   }
-  // 8. Send uniform success response
-  sendResponse(res, created, "Sessions created", 201);
 };
 
 /**
@@ -234,6 +253,12 @@ export const updateSession = async (
       return next(new ErrorHandler("Session not found", 404));
     }
 
+    // 1a. Load project to enforce locked timezone
+    const project = await ProjectModel.findById(original.projectId);
+    if (!project) {
+      return next(new ErrorHandler("Project not found", 404));
+    }
+
     // 2. Build an updates object only with allowed fields
     const allowed = [
       "title",
@@ -272,7 +297,19 @@ export const updateSession = async (
     const newDate = updates.date ?? original.date;
     const newStartTime = updates.startTime ?? original.startTime;
     const newDuration = updates.duration ?? original.duration;
-    const newTz = updates.timeZone ?? original.timeZone;
+    // Enforce project-level timezone lock
+    if (
+      updates.timeZone !== undefined &&
+      updates.timeZone !== project.defaultTimeZone
+    ) {
+      return next(
+        new ErrorHandler(
+          "Project timezone is locked and cannot be changed",
+          400
+        )
+      );
+    }
+    const newTz = project.defaultTimeZone;
 
     // 7. Fetch all other sessions in this project
     const otherSessions = await SessionModel.find({
@@ -280,29 +317,17 @@ export const updateSession = async (
       _id: { $ne: sessionId },
     });
 
-    // 8. Check each “other” session for an overlap with our proposed slot
-    const startNew = toTimestamp(newDate, newStartTime, newTz);
+    // 8. Compute epochs with strict DST policy
+    const startNew = toTimestampStrict(newDate, newStartTime, newTz);
     const endNew = startNew + newDuration * 60_000;
-    const dayNew = DateTime.fromISO(
-      typeof newDate === "string"
-        ? newDate
-        : DateTime.fromJSDate(newDate).toISODate()!,
-      { zone: newTz }
-    ).toISODate();
 
     for (const ex of otherSessions) {
-      const exTz = ex.timeZone;
-      const dayEx = DateTime.fromISO(
-        DateTime.fromJSDate(ex.date).toISODate()!,
-        { zone: exTz }
-      ).toISODate();
-      if (dayEx !== dayNew) continue;
-
-      const startEx = toTimestamp(ex.date, ex.startTime, exTz);
+      const startEx = toTimestampStrict(ex.date, ex.startTime, ex.timeZone);
       const endEx = startEx + ex.duration * 60_000;
-
-      // overlap test:
       if (startNew < endEx && startEx < endNew) {
+        console.warn(
+          `Session conflict on update: proposed [${startNew}-${endNew}] vs existing {title:${ex.title}} [${startEx}-${endEx}] in project ${original.projectId}`
+        );
         return next(
           new ErrorHandler(
             `Proposed time conflicts with existing session "${ex.title}"`,
@@ -313,9 +338,18 @@ export const updateSession = async (
     }
 
     // 9. No conflicts — perform the update
-    const updated = await SessionModel.findByIdAndUpdate(sessionId, updates, {
-      new: true,
-    });
+    const updated = await SessionModel.findByIdAndUpdate(
+      sessionId,
+      {
+        ...updates,
+        timeZone: newTz,
+        startAtEpoch: startNew,
+        endAtEpoch: endNew,
+      },
+      {
+        new: true,
+      }
+    );
 
     // 10. If not found, 404
     if (!updated) {
@@ -343,6 +377,12 @@ export const duplicateSession = async (
       return next(new ErrorHandler("Session not found", 404));
     }
 
+    // 1a. Load project for timezone
+    const project = await ProjectModel.findById(original.projectId);
+    if (!project) {
+      return next(new ErrorHandler("Project not found", 404));
+    }
+
     const {
       _id, // drop
       createdAt, // drop
@@ -353,6 +393,14 @@ export const duplicateSession = async (
 
     // 3. Modify the title
     data.title = `${original.title} (copy)`;
+
+    // 3a. Recompute epochs with locked project timezone
+    const tz = project.defaultTimeZone;
+    const startAtEpoch = toTimestampStrict(data.date, data.startTime, tz);
+    const endAtEpoch = startAtEpoch + data.duration * 60_000;
+    data.timeZone = tz;
+    data.startAtEpoch = startAtEpoch;
+    data.endAtEpoch = endAtEpoch;
 
     // 4. Insert the new document
     const copy = await SessionModel.create(data);
