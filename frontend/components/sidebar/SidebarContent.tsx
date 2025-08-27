@@ -33,6 +33,7 @@ import {
   AccordionContent,
 } from "components/ui/accordion";
 import { IoIosLogOut } from "react-icons/io";
+import { projectSections } from "constant/projectSections";
 
 export default function SidebarContent({
   handleLogoutModalOpen,
@@ -47,7 +48,9 @@ export default function SidebarContent({
     queryKey: ["projectsByUser", userId],
     queryFn: () =>
       api
-        .get(`/api/v1/projects/get-project-by-userId/${userId}?search=&status=Active&page=1&limit=100`)
+        .get(
+          `/api/v1/projects/get-project-by-userId/${userId}?search=&status=Active&page=1&limit=100`
+        )
         .then((r) => r.data.data),
     staleTime: 300_000,
     enabled: Boolean(userId),
@@ -75,25 +78,23 @@ export default function SidebarContent({
   }, []);
 
   // inside SidebarContent.tsx, above your component or at top of it:
-function formatDisplayName(firstName: string, lastName: string) {
-  const initial = lastName.charAt(0).toUpperCase();
-  const maxLen = 16;
-  const spacePlusInit = ` ${initial}`;            // 2 chars
+  function formatDisplayName(firstName: string, lastName: string) {
+    const initial = lastName.charAt(0).toUpperCase();
+    const maxLen = 16;
+    const spacePlusInit = ` ${initial}`; // 2 chars
 
-  // If it already fits, just return "FirstName I"
-  if (`${firstName}${spacePlusInit}`.length <= maxLen) {
-    return `${firstName}${spacePlusInit}`;
+    // If it already fits, just return "FirstName I"
+    if (`${firstName}${spacePlusInit}`.length <= maxLen) {
+      return `${firstName}${spacePlusInit}`;
+    }
+
+    // Otherwise, truncate firstName so that:
+    //  truncatedFirst.length + 2 (for "..") + 2 (for " I") === maxLen
+    const truncatedFirstLen = maxLen - 4; // maxLen - (".." + spacePlusInit).length
+    const truncatedFirst = firstName.slice(0, truncatedFirstLen);
+
+    return `${truncatedFirst}..${spacePlusInit}`;
   }
-
-  // Otherwise, truncate firstName so that:
-  //  truncatedFirst.length + 2 (for "..") + 2 (for " I") === maxLen
-  const truncatedFirstLen = maxLen - 4;            // maxLen - (".." + spacePlusInit).length
-  const truncatedFirst = firstName.slice(0, truncatedFirstLen);
-
-  return `${truncatedFirst}..${spacePlusInit}`;
-}
-
-
 
   return (
     <>
@@ -132,80 +133,29 @@ function formatDisplayName(firstName: string, lastName: string) {
                     <AccordionTrigger
                       className={`flex items-center justify-between py-1 ${
                         pathname.startsWith(base)
-                          ? "text-custom-dark-blue-1 font-medium"
+                          ? "text-custom-dark-blue-1 font-medium bg-white rounded px-2"
                           : "text-custom-blue-gray-1 hover:text-custom-gray-5"
                       }`}
                     >
-                          <Link
-                  href={`/view-project/${p._id}`}
-                   className="flex-1"
-                  >
-                    {p.name}
-                  </Link>
+                      <Link href={`/view-project/${p._id}`} className="flex-1">
+                        {p.name}
+                      </Link>
                     </AccordionTrigger>
 
                     <AccordionContent className="pl-4 space-y-1">
-                      <Link
-                        href={`${base}/sessions`}
-                        className={`block py-1 ${
-                          pathname === `${base}/sessions`
-                            ? "text-custom-dark-blue-1 font-medium"
-                            : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                        }`}
-                      >
-                        Sessions
-                      </Link>
-                      <Link
-                        href={`${base}/project-team`}
-                        className={`block py-1 ${
-                          pathname === `${base}/project-team`
-                            ? "text-custom-dark-blue-1 font-medium"
-                            : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                        }`}
-                      >
-                        Project Team
-                      </Link>
-                      <Link
-                        href={`${base}/session-deliverables`}
-                        className={`block py-1 ${
-                          pathname === `${base}/session-deliverables`
-                            ? "text-custom-dark-blue-1 font-medium"
-                            : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                        }`}
-                      >
-                        Session Deliverables
-                      </Link>
-                      <Link
-                        href={`${base}/observer-documents`}
-                        className={`block py-1 ${
-                          pathname === `${base}/observer-documents`
-                            ? "text-custom-dark-blue-1 font-medium"
-                            : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                        }`}
-                      >
-                        Observer Documents
-                      </Link>
-
-                      <Link
-                        href={`${base}/polls`}
-                        className={`block py-1 ${
-                          pathname === `${base}/polls`
-                            ? "text-custom-dark-blue-1 font-medium"
-                            : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                        }`}
-                      >
-                        Polls
-                      </Link>
-                      <Link
-                        href={`${base}/reports`}
-                        className={`block py-1 ${
-                          pathname === `${base}/reports`
-                            ? "text-custom-dark-blue-1 font-medium"
-                            : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                        }`}
-                      >
-                        Reports
-                      </Link>
+                      {projectSections.map(({ slug, label }) => (
+                        <Link
+                          key={slug}
+                          href={`${base}/${slug}`}
+                          className={`block py-1 rounded px-2 ${
+                            pathname === `${base}/${slug}`
+                              ? "bg-white text-custom-dark-blue-1 font-medium"
+                              : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                          }`}
+                        >
+                          {label}
+                        </Link>
+                      ))}
                     </AccordionContent>
                   </AccordionItem>
                 );
@@ -296,13 +246,13 @@ function formatDisplayName(firstName: string, lastName: string) {
           <div className="flex items-center gap-3">
             <Avatar>
               <AvatarImage src="/user.jpg" alt="avatar" />
-              <AvatarFallback>{(user?.firstName?.[0] || 'U').toUpperCase()}</AvatarFallback>
+              <AvatarFallback>
+                {(user?.firstName?.[0] || "U").toUpperCase()}
+              </AvatarFallback>
             </Avatar>
             <div className="text-sm truncate">
               <p className="font-semibold">
-               {user
-   ? formatDisplayName(user.firstName, user.lastName)
-    : ""}
+                {user ? formatDisplayName(user.firstName, user.lastName) : ""}
               </p>
               <p className="text-xs text-gray-600 truncate">{user?.email}</p>
             </div>
@@ -313,7 +263,7 @@ function formatDisplayName(firstName: string, lastName: string) {
               size="icon"
               onClick={() => setShowLogoutMenu((v) => !v)}
             >
-              <FaBars /> 
+              <FaBars />
             </Button>
             {showLogoutMenu && (
               <div className="absolute bottom-full right-0 mb-2 w-36 bg-white border rounded shadow-md">
