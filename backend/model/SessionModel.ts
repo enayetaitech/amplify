@@ -11,7 +11,7 @@ type SessionDB = Omit<ISession, "_id" | "projectId" | "moderators"> & {
 // Now extend Document<Types.ObjectId, {}, SessionDB>
 export interface ISessionDocument
   extends Document<Types.ObjectId, {}, SessionDB>,
-          SessionDB {
+    SessionDB {
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -22,9 +22,11 @@ const SessionSchema = new Schema<ISessionDocument>(
     projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
     date: { type: Date, required: true },
     startTime: { type: String, required: true },
-    duration: { type: Number, required: true, min: 30 },
+    duration: { type: Number, required: true, min: 15 },
+    startAtEpoch: { type: Number, required: true },
+    endAtEpoch: { type: Number, required: true },
     moderators: [
-      { type: Schema.Types.ObjectId, ref: "Moderator", required: true }
+      { type: Schema.Types.ObjectId, ref: "Moderator", required: true },
     ],
     timeZone: { type: String, required: true },
     breakoutRoom: { type: Boolean, required: true, default: false },
@@ -32,7 +34,6 @@ const SessionSchema = new Schema<ISessionDocument>(
   { timestamps: true }
 );
 
-export const SessionModel = model<ISessionDocument>(
-  "Session",
-  SessionSchema
-);
+SessionSchema.index({ projectId: 1, startAtEpoch: 1, endAtEpoch: 1 });
+
+export const SessionModel = model<ISessionDocument>("Session", SessionSchema);

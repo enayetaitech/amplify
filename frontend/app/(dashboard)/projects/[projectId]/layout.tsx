@@ -8,7 +8,7 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
   const { projectId } = useParams() as { projectId: string };
 
   const { data: project, isLoading } = useProject(projectId)
-
+// console.log("Project", project)
 
   return (
     <div className=" py-4 px-5">

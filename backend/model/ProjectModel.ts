@@ -8,7 +8,13 @@ import {
 export interface IProjectDocument
   extends Omit<
       IProject,
-      "createdBy" | "tags" | "moderators" | "meetings" | "_id"
+      | "createdBy"
+      | "tags"
+      | "moderators"
+      | "meetings"
+      | "_id"
+      | "defaultTimeZone"
+      | "defaultBreakoutRoom"
     >,
     Document {
   createdBy: Types.ObjectId;
@@ -16,6 +22,9 @@ export interface IProjectDocument
   moderators: Types.ObjectId[];
   meetings: Types.ObjectId[];
   sessions: IProjectSession[];
+  // Override optional fields from shared interface with required types as per schema
+  defaultTimeZone: string;
+  defaultBreakoutRoom: boolean;
 }
 
 const projectSchema = new Schema<IProjectDocument>(
@@ -56,7 +65,7 @@ const projectSchema = new Schema<IProjectDocument>(
       },
     ],
     recordingAccess: { type: Boolean, default: false },
-    defaultTimeZone: { type: String },
+    defaultTimeZone: { type: String, required: true, immutable: true },
     defaultBreakoutRoom: { type: Boolean, default: false },
   },
   {
