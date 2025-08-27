@@ -6,6 +6,7 @@ import ProjectFormModel, {
 import User from "../model/UserModel";
 import ErrorHandler from "../utils/ErrorHandler";
 import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
+import { resolveToIana } from "../processors/session/sessionTimeConflictChecker";
 import mongoose, { PipelineStage, Types } from "mongoose";
 import {
   projectCreateAndPaymentConfirmationEmailTemplate,
@@ -100,7 +101,6 @@ export const createProjectByExternalAdmin = async (
     totalCreditsNeeded,
   } = req.body;
 
-  console.log('projectData', projectData)
 
   if (!userId || !projectData) {
     throw new ErrorHandler("User ID and project data are required", 400);
@@ -124,10 +124,22 @@ export const createProjectByExternalAdmin = async (
     //   { session }
     // );
 
+    // Validate defaultTimeZone presence and validity
+    const displayTz = projectData?.defaultTimeZone as string | undefined;
+    const ianaTz = resolveToIana(displayTz);
+    
+    if (!displayTz || !ianaTz) {
+      throw new ErrorHandler(
+        "A valid project time zone is required (use a listed option like '(UTC-05) Eastern Time' or a valid IANA zone).",
+        400
+      );
+    }
+
     const project = new ProjectModel({
       ...projectData,
       createdBy: userId,
     } as Partial<IProjectDocument>);
+
     await project.save({ session });
 
     // 3️⃣ Add external admin as moderator
@@ -261,7 +273,15 @@ export const getProjectByUserId = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId } = req.params;
-  const { search = "", tag = "", status="", page = 1, limit = 10, from, to } = req.query;
+  const {
+    search = "",
+    tag = "",
+    status = "",
+    page = 1,
+    limit = 10,
+    from,
+    to,
+  } = req.query;
 
   console.log("req.query", req.query);
 
@@ -273,10 +293,10 @@ export const getProjectByUserId = async (
   const pageNum = Math.max(Number(page), 1);
   const limitNum = Math.max(Number(limit), 1);
   const skip = (pageNum - 1) * limitNum;
-   let fromDate: Date | undefined;
+  let fromDate: Date | undefined;
   let toDate: Date | undefined;
   if (typeof from === "string") fromDate = new Date(from);
-  if (typeof to   === "string") toDate   = new Date(to);
+  if (typeof to === "string") toDate = new Date(to);
 
   const searchRegex = new RegExp(search as string, "i");
   const tagRegex = new RegExp(tag as string, "i");
@@ -286,8 +306,6 @@ export const getProjectByUserId = async (
       createdBy: new mongoose.Types.ObjectId(userId),
     },
   };
-
-  
 
   const searchMatch: PipelineStage.Match = {
     $match: {
@@ -307,7 +325,7 @@ export const getProjectByUserId = async (
   };
   const aggregationPipeline: PipelineStage[] = [
     baseMatch,
-   ...(status ? [{ $match: { status: status } }] : []),
+    ...(status ? [{ $match: { status: status } }] : []),
     {
       $lookup: {
         from: "moderators",
@@ -326,16 +344,18 @@ export const getProjectByUserId = async (
         as: "meetingObjects",
       },
     },
-       ...(fromDate || toDate
-  ? [{
-      $match: {
-      startDate: {
-          ...(fromDate ? { $gte: fromDate } : {}),
-          ...(toDate   ? { $lte: toDate   } : {}),
-        }
-      }
-    }]
-  : []),
+    ...(fromDate || toDate
+      ? [
+          {
+            $match: {
+              startDate: {
+                ...(fromDate ? { $gte: fromDate } : {}),
+                ...(toDate ? { $lte: toDate } : {}),
+              },
+            },
+          },
+        ]
+      : []),
     {
       $lookup: {
         from: "tags",
@@ -344,7 +364,7 @@ export const getProjectByUserId = async (
         as: "tags",
       },
     },
-     ...(tag ? [{ $match: { "tags.title": { $regex: tagRegex } } }] : []),
+    ...(tag ? [{ $match: { "tags.title": { $regex: tagRegex } } }] : []),
     {
       $group: {
         _id: "$_id",
@@ -362,7 +382,7 @@ export const getProjectByUserId = async (
   // Separate aggregation for count
   const totalAgg: PipelineStage[] = [
     baseMatch,
-      ...(status ? [{ $match: { status } }] : []),
+    ...(status ? [{ $match: { status } }] : []),
     {
       $lookup: {
         from: "moderators",
@@ -373,7 +393,7 @@ export const getProjectByUserId = async (
     },
     { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
     searchMatch,
-        {
+    {
       $lookup: {
         from: "sessions",
         localField: "meetings",
@@ -381,16 +401,18 @@ export const getProjectByUserId = async (
         as: "meetingObjects",
       },
     },
-           ...(fromDate || toDate
-  ? [{
-      $match: {
-      startDate: {
-          ...(fromDate ? { $gte: fromDate } : {}),
-          ...(toDate   ? { $lte: toDate   } : {}),
-        }
-      }
-    }]
-  : []),
+    ...(fromDate || toDate
+      ? [
+          {
+            $match: {
+              startDate: {
+                ...(fromDate ? { $gte: fromDate } : {}),
+                ...(toDate ? { $lte: toDate } : {}),
+              },
+            },
+          },
+        ]
+      : []),
     {
       $lookup: {
         from: "tags",
@@ -456,7 +478,8 @@ export const editProject = async (
   next: NextFunction
 ): Promise<void> => {
   // Expecting projectId in body along with the fields to be updated.
-  const { projectId, internalProjectName, description } = req.body;
+  const { projectId, internalProjectName, description, defaultTimeZone } =
+    req.body;
 
   if (!projectId) {
     return next(new ErrorHandler("Project ID is required", 400));
@@ -471,6 +494,13 @@ export const editProject = async (
   const project = await ProjectModel.findById(projectId);
   if (!project) {
     return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Disallow timezone updates (locked)
+  if (defaultTimeZone !== undefined) {
+    return next(
+      new ErrorHandler("Project timezone is locked and cannot be changed", 400)
+    );
   }
 
   // Update only the allowed fields if they are provided.

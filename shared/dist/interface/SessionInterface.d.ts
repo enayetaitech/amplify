@@ -7,6 +7,8 @@ export interface ISession {
     duration: number;
     moderators: string[];
     timeZone: string;
+    startAtEpoch: number;
+    endAtEpoch: number;
     breakoutRoom: boolean;
 }
 //# sourceMappingURL=SessionInterface.d.ts.map
