@@ -10,6 +10,7 @@ import sessionDeliverableRoutes from "./sessionDeliverable/SessionDeliverableRou
 import observerDocumentRoutes from "./observerDocument/ObserverDocumentRoutes"
 import pollRoutes from "./poll/PollRoutes"
 import liveSessionRoutes from "./liveSession/LiveSessionRoutes"
+import livekitRoutes from "./livekit/livekit.routes";
 
 
 const router = express.Router();
@@ -26,6 +27,7 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/observerDocuments", route: observerDocumentRoutes },
   { path: "/polls", route: pollRoutes },
   { path: "/liveSessions", route: liveSessionRoutes },
+  { path: "/livekit", route: livekitRoutes },
 ];
 
 // Loop through and mount each route

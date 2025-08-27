@@ -6,14 +6,19 @@ import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import api from "lib/api";
-
-import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
+import {
+  ApiResponse,
+  ErrorResponse,
+} from "@shared/interface/ApiResponseInterface";
 import { useGlobalContext } from "context/GlobalContext";
 import Step1 from "components/projects/createProject/Step1Component";
 import Step2 from "components/projects/createProject/Step2Component";
 import Step3 from "components/projects/createProject/Step3Component";
 import Step4 from "components/projects/createProject/Step4Component";
-import { IProjectFormState, StepProps } from "@shared/interface/CreateProjectInterface";
+import {
+  IProjectFormState,
+  StepProps,
+} from "@shared/interface/CreateProjectInterface";
 
 /**
  * Custom hook that centralizes:
@@ -46,6 +51,8 @@ export function useCreateProject() {
     provideInterpreter: "",
     languageSessionBreakdown: "",
     additionalInfo: "",
+    defaultTimeZone: undefined,
+    defaultBreakoutRoom: false,
     emailSent: "",
   });
 
@@ -118,7 +125,7 @@ export function useCreateProject() {
   const isLoading = saveMutation.isPending;
 
   // 5) helpers to navigate Back / Next
-const isLastStep =
+  const isLastStep =
     (formData.service === "Concierge" && currentStep === steps.length - 1) ||
     (formData.service === "Signature" && currentStep === steps.length - 1);
 
@@ -137,18 +144,17 @@ const isLastStep =
 
     if (steps[currentStep] === Step3) {
       const nameEmpty = !formData.name?.trim();
-      const noLang   =
+      const noLang =
         !formData.respondentLanguage ||
         (Array.isArray(formData.respondentLanguage) &&
-         formData.respondentLanguage.length === 0);
+          formData.respondentLanguage.length === 0);
       return nameEmpty || noLang;
     }
 
-    
     return false;
   };
 
-   const totalSteps = steps.length;
+  const totalSteps = steps.length;
 
   return {
     formData,
@@ -161,6 +167,6 @@ const isLastStep =
     isNextButtonDisabled,
     isLastStep,
     isLoading,
-      uniqueId,
+    uniqueId,
   };
 }

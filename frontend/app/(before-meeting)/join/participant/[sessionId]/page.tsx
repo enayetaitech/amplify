@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState} from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useMeeting } from "context/MeetingContext";
+
+// import { useMeeting } from "context/MeetingContext";
 
 
 export default function ParticipantJoinMeeting() {
-  const router = useRouter();
-  const {sessionId} = useParams();
+  // const router = useRouter();
+  // const {sessionId} = useParams();
  
-  const { socket } = useMeeting();
+  // const { socket } = useMeeting();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -17,7 +17,7 @@ export default function ParticipantJoinMeeting() {
 
 
   const handleJoin = () => {
-    if (!name || !email || !socket) return;
+    // if (!name || !email || !socket) return;
     setJoining(true);
 
     localStorage.setItem(
@@ -27,14 +27,14 @@ export default function ParticipantJoinMeeting() {
 
  
 
-    socket.emit(
-      "join-room",
-      { sessionId, name, email, role: "Participant" },
-      () => {
-        setJoining(false);
-        router.push(`/waiting-room/participant/${sessionId}`);
-      }
-    );
+    // socket.emit(
+    //   "join-room",
+    //   { sessionId, name, email, role: "Participant" },
+    //   () => {
+    //     setJoining(false);
+    //     router.push(`/waiting-room/participant/${sessionId}`);
+    //   }
+    // );
   };
 
   return (

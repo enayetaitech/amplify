@@ -13,20 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "components/ui/tooltip";
-import { timeZones } from "constant";
+// import {
+//   Tooltip,
+//   TooltipContent,
+//   TooltipProvider,
+//   TooltipTrigger,
+// } from "components/ui/tooltip";
+// import { timeZones } from "constant";
+import { durations } from "constant";
 import api from "lib/api";
 import React, { useEffect, useRef, useState } from "react";
 import AddModeratorModal from "./AddModeratorModal";
 import { ISessionFormData } from "./AddSessionModal";
 import MultiSelectDropdown from "./MultiSelectDropdown";
 import { useParams } from "next/navigation";
-import { BiQuestionMark } from "react-icons/bi";
+// import { BiQuestionMark } from "react-icons/bi";
 
 interface AddSessionStep1Props {
   formData: ISessionFormData;
@@ -94,78 +95,6 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
 
   return (
     <div className="space-y-5">
-      <div>
-        <div className="flex gap-3 items-end">
-          <div>
-            <Label className="font-semibold text-sm mb-1 block">
-              Moderators<span className="text-red-500">*</span>
-            </Label>
-            <MultiSelectDropdown
-              moderators={data?.data || []}
-              selected={formData.selectedModerators}
-              onChange={(ids) => updateFormData({ selectedModerators: ids })}
-            />
-          </div>
-
-          <CustomButton
-            className="bg-custom-teal text-white hover:bg-custom-dark-blue-3"
-            onClick={() => setShowAddModal(true)}
-          >
-            Add Study Moderator
-          </CustomButton>
-        </div>
-      </div>
-
-      {/* Same Moderator for All Sessions */}
-      <div className="flex items-center justify-between">
-        <Label className="font-medium text-sm">
-          Do you want the same moderator for all of your sessions?
-        </Label>
-        <div className="flex items-center gap-2">
-          <Switch
-            className="cursor-pointer"
-            checked={formData.sameModerator}
-            onCheckedChange={(b) => updateFormData({ sameModerator: b })}
-          />
-          <span className="text-sm font-medium">
-            {formData.sameModerator ? "Yes" : "No"}
-          </span>
-        </div>
-      </div>
-
-      {/* Breakout Room Toggle with Tooltip */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Label className="font-medium text-sm">
-            Do you need breakout room functionality?
-          </Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <BiQuestionMark className="ml-2 h-5 w-5 text-custom-orange-2 hover:text-custom-orange-1 cursor-help rounded-full border-custom-orange-2 border-[1px] px-0.5 mb-1.5" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs bg-white text-black shadow-sm">
-                Breakout rooms allow you to split participants into separate
-                rooms during your session for smaller group discussions or
-                activities. The moderator can only be present in one room at a
-                time, but all breakout rooms will be streamed to the backroom
-                for observers to view and will be recorded.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={formData.breakoutRoom}
-            onCheckedChange={(b) => updateFormData({ breakoutRoom: b })}
-            className="cursor-pointer"
-          />
-          <span className="text-sm font-medium">
-            {formData.breakoutRoom ? "Yes" : "No"}
-          </span>
-        </div>
-      </div>
-
       {/* Number of Sessions */}
       <div>
         <Label className="font-semibold text-sm mb-1 block">
@@ -189,27 +118,100 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
         </Select>
       </div>
 
-      {/* Time Zone */}
-      <div>
-        <Label className="font-semibold text-sm mb-1 block">
-          Time Zone<span className="text-red-500">*</span>
+      {/* Are all sessions the same length? */}
+      <div className="flex items-center justify-between">
+        <Label className="font-medium text-sm">
+          Are all sessions the same length?
         </Label>
-        <Select onValueChange={(tz) => updateFormData({ timeZone: tz })}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select timezone" />
-          </SelectTrigger>
-          <SelectContent className="max-h-60 overflow-y-auto">
-            {timeZones.map((tz) => (
-              <SelectItem key={tz.value} value={tz.value}>
-                <span className="text-muted-foreground mr-1">
-                  (UTC{tz.utc})
-                </span>
-                <span className="font-semibold">{tz.name}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Switch
+            className="cursor-pointer"
+            checked={formData.sameSession}
+            onCheckedChange={(b) => updateFormData({ sameSession: b })}
+          />
+          <span className="text-sm font-medium">
+            {formData.sameSession ? "Yes" : "No"}
+          </span>
+        </div>
       </div>
+
+      {formData.sameSession && (
+        <div>
+          <Label className="font-semibold text-sm mb-1 block">
+            Session Length
+          </Label>
+          <Select
+            onValueChange={(val) =>
+              updateFormData({
+                sessions: Array.from(
+                  { length: formData.numberOfSessions },
+                  (_, i) => ({
+                    title: formData.sessions[i]?.title ?? "",
+                    date: formData.sessions[i]?.date ?? "",
+                    startTime: formData.sessions[i]?.startTime ?? "",
+                    duration: val,
+                    moderators: formData.sameModerator
+                      ? formData.selectedModerators
+                      : formData.sessions[i]?.moderators ?? [],
+                  })
+                ),
+              })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select duration" />
+            </SelectTrigger>
+            <SelectContent>
+              {durations.map((d) => (
+                <SelectItem key={d.minutes} value={String(d.minutes)}>
+                  {d.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Same Moderator for All Sessions */}
+      <div className="flex items-center justify-between">
+        <Label className="font-medium text-sm">
+          Do you want the same moderator for all of your sessions?
+        </Label>
+        <div className="flex items-center gap-2">
+          <Switch
+            className="cursor-pointer"
+            checked={formData.sameModerator}
+            onCheckedChange={(b) => updateFormData({ sameModerator: b })}
+          />
+          <span className="text-sm font-medium">
+            {formData.sameModerator ? "Yes" : "No"}
+          </span>
+        </div>
+      </div>
+
+      {/* Moderators */}
+      <div>
+        <div className="flex gap-3 items-end">
+          <div>
+            <Label className="font-semibold text-sm mb-1 block">
+              Moderators<span className="text-red-500">*</span>
+            </Label>
+            <MultiSelectDropdown
+              moderators={data?.data || []}
+              selected={formData.selectedModerators}
+              onChange={(ids) => updateFormData({ selectedModerators: ids })}
+            />
+          </div>
+
+          <CustomButton
+            className="bg-custom-teal text-white hover:bg-custom-dark-blue-3"
+            onClick={() => setShowAddModal(true)}
+          >
+            Add Study Moderator
+          </CustomButton>
+        </div>
+      </div>
+
       <AddModeratorModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}

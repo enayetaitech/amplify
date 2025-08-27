@@ -35,5 +35,11 @@ export interface ILiveSession {
     observerWaitingRoom: IObserverWaitingUser[];
     participantsList: IParticipant[];
     observerList: IObserver[];
+    hlsPlaybackUrl: string | null;
+    hlsEgressId: string | null;
+    hlsPlaylistName: string | null;
+    fileEgressId: string | null;
+    startedBy: string;
+    endedBy: string;
 }
 //# sourceMappingURL=LiveSessionInterface.d.ts.map

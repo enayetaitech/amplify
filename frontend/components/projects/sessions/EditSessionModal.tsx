@@ -29,7 +29,7 @@ import {
   SelectContent,
   SelectItem,
 } from "components/ui/select";
-import { durations, timeZones } from "constant";
+import { durations } from "constant";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { IProject } from "@shared/interface/ProjectInterface";
@@ -257,34 +257,7 @@ export default function EditSessionModal({
               )}
             />
 
-            <FormField
-              control={control}
-              name="timeZone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Time Zone</FormLabel>
-                  <FormControl>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isSaving}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select time zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeZones.map((tz) => (
-                          <SelectItem key={tz.value} value={tz.value}>
-                            {`${tz.name} (UTC${tz.utc})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+         
 
             <FormField
               control={control}

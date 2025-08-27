@@ -5,36 +5,36 @@ import { LoginFormValues } from "../schemas/loginSchema";
 import { RegisterFormValues } from "../schemas/registerSchema";
 
 export const durations = [
-  { label: "30 minutes", minutes: 30 },
-  { label: "45 minutes", minutes: 45 },
-  { label: "1 hour (60 minutes)", minutes: 60 },
-  { label: "1.25 hour (75 minutes)", minutes: 75 },
-  { label: "1.5 hour (90 minutes)", minutes: 90 },
-  { label: "2 hour (120 minutes)", minutes: 120 },
-  { label: "2.5 hour (150 minutes)", minutes: 150 },
-  { label: "3 hour (180+ minutes)", minutes: 180 },
+  { label: "15 mins", minutes: 15 },
+  { label: "20 mins", minutes: 20 },
+  { label: "30 mins", minutes: 30 },
+  { label: "40 mins", minutes: 40 },
+  { label: "45 mins", minutes: 45 },
+  { label: "1.00 hr", minutes: 60 },
+  { label: "1.25 hrs", minutes: 75 },
+  { label: "1.5 hrs", minutes: 90 },
+  { label: "1.75 hrs", minutes: 105 },
+  { label: "2.00 hrs", minutes: 120 },
+  { label: "2.25 hrs", minutes: 135 },
+  { label: "2.5 hrs", minutes: 150 },
+  { label: "2.75 hrs", minutes: 165 },
+  { label: "3.00 hrs", minutes: 180 },
+  { label: "4.00 hrs", minutes: 240 },
+  { label: "5.00 hrs", minutes: 300 },
+  { label: "6.00 hrs", minutes: 360 },
+  { label: "7.00 hrs", minutes: 420 },
+  { label: "8.00 hrs", minutes: 480 },
 ];
-export const durationStep3 = [
-  "30 minutes",
-  "45 minutes",
-  "1 hour (60 minutes)",
-  "1.25 hour (75 minutes)",
-  "1.5 hour (90 minutes)",
-  "2 hour (120 minutes)",
-  "2.5 hour (150 minutes)",
-  "3 hour (180+ minutes)",
-];
+
+export const durationStep3 = durations.map((d) => d.label);
 // Map each duration option to its minute value for calculation purposes
-export const durationMapping: Record<string, number> = {
-  "30 minutes": 30,
-  "45 minutes": 45,
-  "1 hour (60 minutes)": 60,
-  "1.25 hour (75 minutes)": 75,
-  "1.5 hour (90 minutes)": 90,
-  "2 hour (120 minutes)": 120,
-  "2.5 hour (150 minutes)": 150,
-  "3 hour (180+ minutes)": 180,
-};
+export const durationMapping: Record<string, number> = durations.reduce(
+  (acc, { label, minutes }) => {
+    acc[label] = minutes;
+    return acc;
+  },
+  {} as Record<string, number>
+);
 
 export const availableLanguages = [
   "English",
@@ -63,31 +63,31 @@ export const optionalAddOnServices = [
 // constants/timezones.ts
 
 export const timeZones = [
-  { value: "Pacific/Midway", utc: "-11", name: "Midway Island" },
-  { value: "Pacific/Honolulu", utc: "-10", name: "Hawaii" },
-  { value: "America/Anchorage", utc: "-9", name: "Alaska" },
-  { value: "America/Los_Angeles", utc: "-8", name: "Pacific Time" },
-  { value: "America/Denver", utc: "-7", name: "Mountain Time" },
-  { value: "America/Chicago", utc: "-6", name: "Central Time" },
-  { value: "America/New_York", utc: "-5", name: "Eastern Time" },
-  { value: "America/Halifax", utc: "-4", name: "Atlantic Time" },
-  { value: "America/Sao_Paulo", utc: "-3", name: "Brasilia" },
-  { value: "Atlantic/South_Georgia", utc: "-2", name: "Mid-Atlantic" },
-  { value: "Atlantic/Azores", utc: "-1", name: "Azores" },
-  { value: "UTC", utc: "+0", name: "UTC" },
-  { value: "Europe/London", utc: "+0", name: "London" },
-  { value: "Europe/Berlin", utc: "+1", name: "Berlin" },
-  { value: "Europe/Moscow", utc: "+3", name: "Moscow" },
-  { value: "Asia/Dubai", utc: "+4", name: "Dubai" },
-  { value: "Asia/Karachi", utc: "+5", name: "Pakistan" },
-  { value: "Asia/Dhaka", utc: "+6", name: "Bangladesh" },
-  { value: "Asia/Bangkok", utc: "+7", name: "Bangkok" },
-  { value: "Asia/Shanghai", utc: "+8", name: "China" },
-  { value: "Asia/Tokyo", utc: "+9", name: "Japan" },
-  { value: "Australia/Sydney", utc: "+10", name: "Sydney" },
-  { value: "Pacific/Auckland", utc: "+12", name: "Auckland" },
+  { utc: "-10", name: "Hawaii Time" },
+  { utc: "-09", name: "Alaska Time" },
+  { utc: "-08", name: "Pacific Time" },
+  { utc: "-07", name: "Mountain Time" },
+  { utc: "-06", name: "Central Time" },
+  { utc: "-05", name: "Eastern Time" },
+  { utc: "-04", name: "Buenos Aires" },
+  { utc: "-03", name: "Rio de Janeiro" },
+  { utc: "-02", name: "Sandwich Islands" },
+  { utc: "-01", name: "Cape Verde" },
+  { utc: "+00", name: "London Time" },
+  { utc: "+01", name: "Paris" },
+  { utc: "+02", name: "Athens" },
+  { utc: "+03", name: "Moscow" },
+  { utc: "+04", name: "Dubai" },
+  { utc: "+05", name: "Pakistan" },
+  { utc: "+05.5", name: "Delhi" },
+  { utc: "+06", name: "Bangladesh" },
+  { utc: "+07", name: "Bangkok" },
+  { utc: "+08", name: "Beijing" },
+  { utc: "+09", name: "Tokyo" },
+  { utc: "+10", name: "Sydney" },
+  { utc: "+11", name: "Solomon Islands" },
+  { utc: "+12", name: "Auckland" },
 ];
-
 
 export const registerDefaults: RegisterFormValues = {
   firstName: "",
@@ -100,11 +100,11 @@ export const registerDefaults: RegisterFormValues = {
   terms: false,
 };
 
-export const loginDefaults: LoginFormValues={
-   email: "",
-      password: "Ab123456@",
-      rememberMe: false,
-}
+export const loginDefaults: LoginFormValues = {
+  email: "",
+  password: "Ab123456@",
+  rememberMe: false,
+};
 
 export const ALPHA_REGEX = /^[A-Za-z\s]+$/;
 
@@ -123,10 +123,10 @@ export const personalFields: Array<{
   name: keyof EditUserFormValues;
   label: string;
 }> = [
-  { name: "firstName",    label: "First Name*"    },
-  { name: "lastName",     label: "Last Name*"     },
-  { name: "phoneNumber",  label: "Phone Number*"  },
-  { name: "companyName",  label: "Company Name*"  },
+  { name: "firstName", label: "First Name*" },
+  { name: "lastName", label: "Last Name*" },
+  { name: "phoneNumber", label: "Phone Number*" },
+  { name: "companyName", label: "Company Name*" },
 ];
 
 export const numberFields: FieldConfig[] = [

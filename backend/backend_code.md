@@ -1,6 +1,4283 @@
---- C:\work\amplify-new\backend\package.json ---
+---
+// src/config/nodemailer.config.ts
+import nodemailer from 'nodemailer';
+import config from "./index"
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: config.SMTP_USER,
+    pass: config.SMTP_PASS,
+  },
+});
 
-```json
+
+export default transporter;
+
+
+---
+// src/config/db.ts
+import mongoose from "mongoose";
+import config from "./index";
+
+const connectDB = async (): Promise<void> => {
+  try {
+    const conn = await mongoose.connect(config.database_url as string);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`Error connecting to MongoDB: ${error}`);
+    process.exit(1);
+  }
+};
+
+export default connectDB;
+
+
+---
+// src/config/index.ts
+
+import dotenv from "dotenv";
+dotenv.config();
+
+
+if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+  throw new Error("Both JWT_SECRET and JWT_REFRESH_SECRET must be set");
+}
+
+export default {
+  port: process.env.PORT,
+  database_url: process.env.MONGO_URI,
+  NODE_ENV: process.env.NODE_ENV,
+  
+  jwt_secret: process.env.JWT_SECRET,
+  jwt_refresh_secret: process.env.JWT_REFRESH_SECRET, 
+
+  jwt_access_token_expires_in : process.env.ACCESS_TOKEN_EXPIRES_IN!,
+  jwt_refresh_token_expires_in : process.env.REFRESH_TOKEN_EXPIRES_IN!,
+
+
+  session_secret: process.env.SESSION_SECRET,
+  
+  frontend_base_url: process.env.FRONTEND_BASE_URL,
+  
+  cloudinary_cloud_name: process.env.CLOUDINARY_NAME,
+  cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
+  cloudinary_api_secret: process.env.CLOUDINARY_SECRET,
+  
+  next_payment_gateway_public_key: process.env.NEXT_PAYMENT_GATEWAY_PUBLIC_KEY,
+  stripe_secret_key: process.env.STRIPE_SECRET_KEY,
+  
+  s3_access_key: process.env.S3_ACCESS_KEY,
+  s3_secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
+  s3_bucket_name: process.env.S3_BUCKET_NAME,
+  s3_bucket_region: process.env.S3_BUCKET_REGION,
+  
+  bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
+
+  SMTP_USER:process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  EMAIL_FROM: process.env.EMAIL_FROM
+};
+
+
+---
+// src/constants/emailTemplates.ts
+
+import config from "../config/index";
+import { ProjectCreateAndPaymentConfirmationEmailTemplateParams, TemplateParams } from "../../shared/interface/ProjectInfoEmailInterface"
+import { ModeratorAddedEmailParams} from "../../shared/interface/ModeratorAddedEmailInterface"
+
+export const verificationEmailTemplate = (name: string, verificationLink : string): string => `
+  <p>Dear ${name},</p>
+  <p>Thank you for signing up to host your project on the Amplify Research Virtual Backroom platform. Please click the link below to verify your account information:</p>
+   <p style="text-align: center; margin: 24px 0;">
+      <a
+        href="${verificationLink }"
+        style="
+          background-color:  #FC6E15;
+          color: #ffffff;
+          padding: 12px 24px;
+          text-decoration: none;
+          border-radius: 4px;
+          display: inline-block;
+          font-weight: bold;
+        "
+      >
+        Verify Your Account
+      </a>
+    </p>
+  <p>You will not be able to set up project details or conduct any sessions until this step is complete, so we encourage you to do this immediately upon receipt of this email.</p>
+  <p>Thank you!</p>
+  <p>The Amplify Team</p>
+`;
+
+
+export const resetPasswordEmailTemplate = (name: string, token: string): string => `
+  <p>Hi ${name},</p>
+  <p>Please copy the link below to reset your password:</p>
+  <p>
+    <a href="${process.env.FRONTEND_BASE_URL}/reset-password?token=${token}">
+      Reset Your Password
+    </a>
+  </p>
+  <p>If you did not request a password reset, please ignore this email.</p>
+  <p>Thank you!</p>
+  <p>The Amplify Team</p>
+`;
+
+export const projectInfoEmailTemplate = ({ 
+  user,
+  formData,
+  formattedSessions,
+}: TemplateParams): string => `
+  <h2>Project Information</h2>
+  <p><strong>First Name:</strong> ${user.firstName}</p>
+  <p><strong>Last Name:</strong> ${user.lastName}</p>
+  <p><strong>Email:</strong> ${user.email}</p>
+  <h3>Form Data:</h3>
+  <p><strong>Service:</strong> ${formData.service}</p>
+  <p><strong>Add-Ons:</strong> ${formData.addOns?.join(", ")}</p>
+  <p><strong>Market:</strong> ${formData.respondentCountry}</p>
+  <p><strong>Language:</strong> ${formData.respondentLanguage}</p>
+  <h4>Sessions:</h4>
+  ${formattedSessions}
+  <p><strong>First Date of Streaming:</strong> ${formData.firstDateOfStreaming}</p>
+  <p><strong>Respondents per Session:</strong> ${formData.respondentsPerSession}</p>
+  <p><strong>Number of Sessions:</strong> ${formData.numberOfSessions}</p>
+  <p><strong>Session Length:</strong> ${formData.sessionLength}</p>
+  <p><strong>Pre-Work Details:</strong> ${formData.preWorkDetails}</p>
+  <p><strong>Selected Language:</strong> ${formData.selectedLanguage}</p>
+  <p><strong>Additional Info:</strong> ${formData.additionalInfo}</p>
+  <p class="mt-4">The Amplify Team</p>
+`;
+
+export const projectCreateAndPaymentConfirmationEmailTemplate = ({
+  firstName,
+  purchaseAmount,
+  creditsPurchased,
+  transactionDate,
+  newCreditBalance,
+}: ProjectCreateAndPaymentConfirmationEmailTemplateParams): string => `
+  <p>Dear ${firstName || "Customer"},</p>
+  <p>
+    Thank you for purchasing credit for Amplify’s Virtual Backroom. Your transaction has been successfully processed,
+    and the credits have been added to your account.
+  </p>
+  <p><strong>Transaction Details:</strong></p>
+  <ul>
+    <li>Purchase Amount: $${purchaseAmount}</li>
+    <li>Number of Credits: ${creditsPurchased}</li>
+    <li>Transaction Date: ${transactionDate}</li>
+    <li>New Credit Balance: ${newCreditBalance}</li>
+  </ul>
+  <p>
+    You can now access and use your credits for our Virtual Backroom services at any time. If you have any questions or need assistance,
+    please don’t hesitate to reach out to our support team at support@amplifyresearch.com.
+  </p>
+  <p>Cheers!</p>
+  <p>The Amplify Team</p>
+`;
+
+export const moderatorAddedEmailTemplate = ({ 
+  moderatorName,
+  addedByName,
+  projectName,
+  loginUrl,
+  roles
+}: ModeratorAddedEmailParams): string => { 
+  const list = roles.length > 1
+    ? roles.slice(0, -1).join(", ") + " and " + roles.slice(-1)
+    : roles[0];
+  const roleWord = roles.length > 1 ? "roles" : "role";
+  return `
+  <p>Hi ${moderatorName},</p>
+
+  <p>${addedByName} has just assigned you the following ${roleWord} on the project <strong>"${projectName}"</strong> in the Amplify platform.</p>
+
+   <ul>
+      ${roles.map(r => `<li>${r}</li>`).join("\n")}
+    </ul>
+
+  <p>You can log in to your account here to view and manage your permissions:</p>
+  <p><a href="${loginUrl}">Go to Amplify Dashboard</a></p>
+
+  <p>If you have any questions, feel free to reach out to support@amplifyresearch.com.</p>
+
+  <p>Cheers,<br/>The Amplify Team</p>
+`;
+}
+
+
+
+---
+// src/constants/roles.ts
+export enum Roles {
+  Admin = "Admin",
+  Participant = "Participant",
+  Moderator = "Moderator",
+  Observer = "Observer",
+  AmplifyAdmin = "AmplifyAdmin",
+  AmplifyModerator = "AmplifyModerator",
+  AmplifyTechHost = "AmplifyTechHost",
+  AmplifyObserver = "AmplifyObserver",
+  AmplifyParticipant = "AmplifyParticipant",
+  SuperAdmin = "SuperAdmin",
+}
+
+
+---
+// src/controllers/LiveSessionController.ts
+
+import { Request, Response, NextFunction } from "express";
+import { sendResponse } from "../utils/responseHelpers";
+import * as sessionService from "../processors/liveSession/sessionService";
+
+export const startSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { sessionId } = req.params;
+  const live = await sessionService.startSession(sessionId);
+  sendResponse(res, live, "Meeting started", 200);
+};
+
+export const endSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { sessionId } = req.params;
+  const live = await sessionService.endSession(sessionId);
+  sendResponse(res, { sessionId: live.sessionId }, "Meeting ended", 200);
+};
+
+export const getSessionHistory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { sessionId } = req.params;
+  const history = await sessionService.getSessionHistory(sessionId);
+  sendResponse(res, history, "Session history retrieved", 200);
+};
+
+
+---
+// src/controllers/ModeratorController.ts
+
+import { Request, Response, NextFunction } from "express";
+import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
+import { sendResponse } from "../utils/responseHelpers";
+import ErrorHandler from "../utils/ErrorHandler";
+import ProjectModel from "../model/ProjectModel";
+import User from "../model/UserModel";
+
+import config from "../config";
+import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { moderatorAddedEmailTemplate } from "../constants/emailTemplates";
+import mongoose, { PipelineStage, Types } from "mongoose";
+
+const ALLOWED_ROLES = ["Admin", "Moderator", "Observer"] as const;
+/**
+ * Controller to add a new moderator to a project.
+ * - Validates input
+ * - Prevents duplicate moderators on the same project
+ * - Verifies project existence
+ * - Looks up the project owner’s name
+ * - Saves the new moderator
+ * - Sends a “you’ve been added” email
+ * - Returns a standardized success response
+ */
+export const addModerator = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const {
+    firstName,
+    lastName,
+    email,
+    companyName,
+    adminAccess,
+    roles,
+    projectId,
+  } = req.body;
+ 
+  // 1️⃣ Validate required fields
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !companyName ||
+    !projectId ||
+    !Array.isArray(roles)
+  ) {
+    return next(
+      new ErrorHandler(
+        "firstName, lastName, email, companyName, roles[] and projectId are required",
+        400
+      )
+    );
+  }
+
+  // 1a️⃣ Validate roles values
+  for (const r of roles) {
+    if (!ALLOWED_ROLES.includes(r as (typeof ALLOWED_ROLES)[number])) {
+      return next(
+        new ErrorHandler(
+          `Invalid role "${r}". Must be one of: ${ALLOWED_ROLES.join(", ")}`, 
+          400
+        )
+      );
+    }
+  }
+
+  // 2️⃣ Prevent adding the same email twice to a single project
+  const alreadyModerator = await ModeratorModel.findOne({ email, projectId });
+  if (alreadyModerator) {
+    return next(
+      new ErrorHandler(
+        "A moderator with the same email is already assigned to this project",
+        409
+      )
+    );
+  }
+
+  // 3️⃣ Fetch the target project by ID
+  const project = await ProjectModel.findById(projectId);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+  // 4️⃣ Lookup the project owner (creator) to get their full name
+  const creator = await User.findById(project.createdBy);
+  if (!creator) {
+    return next(new ErrorHandler("Project owner not found", 500));
+  }
+
+  // console.log(req.body, project, creator) 
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  let moderator: IModeratorDocument;
+  // console.log('let moderator', moderator)
+  try {
+    // 5️⃣ Create and save the new moderator document
+    moderator = new ModeratorModel({
+      firstName,
+      lastName,
+      email,
+      companyName,
+      roles,
+      adminAccess: !!adminAccess,
+      projectId,
+    });
+
+    // 2️⃣ Save it, passing the session as part of save-options
+    await moderator.save({ session });
+
+    // 2️⃣ push into project's moderators array in the same session
+    project.moderators.push(moderator._id as Types.ObjectId);
+    await project.save({ session });
+
+    // 3️⃣ commit the transaction
+    await session.commitTransaction();
+  } catch (err) {
+    console.log("error", err);
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+
+  const addedByName = `${creator.firstName} ${creator.lastName}`;
+
+  // 6️⃣ Build and send the notification email
+  const emailHtml = moderatorAddedEmailTemplate({
+    moderatorName: firstName,
+    addedByName,
+    projectName: project.name,
+    loginUrl: `${config.frontend_base_url}/login`,
+    roles,
+  });
+
+  await sendEmail({
+    to: email,
+    subject: `You’ve been added to "${project.name}"`, 
+    html: emailHtml,
+  });
+
+  // 7️⃣ Respond to the API client with the newly created moderator
+  sendResponse(res, moderator, "Moderator added successfully", 201);
+};
+
+/**
+ * Edit a moderator’s details.
+ * - If the moderator.isVerified === true, only adminAccess can be updated.
+ * - Otherwise, firstName, lastName, email, companyName, and adminAccess are all editable.
+ */
+export const editModerator = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { moderatorId } = req.params;
+  const { firstName, lastName, email, companyName, adminAccess, isActive } = req.body;
+
+  // 1️⃣ Find the moderator
+  const moderator = await ModeratorModel.findById(moderatorId);
+  if (!moderator) {
+    return next(new ErrorHandler("Moderator not found", 404));
+  }
+
+  // 2️⃣ Determine which fields may be updated
+  if (moderator.isVerified) {
+    // Once verified, only adminAccess can change
+    if (typeof adminAccess === "boolean") {
+      moderator.adminAccess = adminAccess;
+    } else {
+      return next(
+        new ErrorHandler(
+          "Member is verified: only admin access and active status may be updated",
+          400
+        )
+      );
+    }
+
+    if (typeof isActive === "boolean") {
+      moderator.isActive = isActive;
+    } else {
+      return next(
+        new ErrorHandler(
+          "Member is verified: only admin access and active status may be updated",
+          400
+        )
+      );
+    }
+
+  } else {
+    // Not yet verified: allow personal fields + adminAccess
+    if (firstName !== undefined) moderator.firstName = firstName;
+    if (lastName !== undefined) moderator.lastName = lastName;
+    if (email !== undefined) moderator.email = email;
+    if (companyName !== undefined) moderator.companyName = companyName;
+    if (typeof adminAccess === "boolean") moderator.adminAccess = adminAccess;
+    if (typeof isActive === "boolean") moderator.isActive = isActive;
+  }
+
+  // 3️⃣ Save and respond
+  await moderator.save();
+  sendResponse(res, moderator, "Moderator updated successfully", 200);
+};
+
+/**
+ * Get a single moderator by ID.
+ */
+export const getModeratorById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { moderatorId } = req.params;
+  const moderator = await ModeratorModel.findById(moderatorId);
+  if (!moderator) {
+    return next(new ErrorHandler("Moderator not found", 404));
+  }
+  sendResponse(res, moderator, "Moderator retrieved successfully", 200);
+};
+
+/**
+ * Toggle a moderator’s active status.
+ * - If currently active, deactivates them.
+ * - If currently inactive, reactivates them.
+ */
+export const toggleModeratorStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { moderatorId } = req.params;
+
+  // 1️⃣ Find the moderator
+  const moderator = await ModeratorModel.findById(moderatorId);
+  if (!moderator) {
+    return next(new ErrorHandler("Moderator not found", 404));
+  }
+
+  // 2️⃣ Flip the flag
+  moderator.isActive = !moderator.isActive;
+
+  // 3️⃣ Save and respond
+  await moderator.save();
+  const status = moderator.isActive ? "re-activated" : "deactivated";
+  sendResponse(res, moderator, `Moderator ${status} successfully`, 200);
+};
+
+/**
+ * Get all moderators for a given project.
+ */
+export const getModeratorsByProjectId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.params;
+
+  // pagination
+  const page  = Math.max(Number(req.query.page)  || 1, 1);
+  const limit = Math.max(Number(req.query.limit) || 10, 1);
+  const skip  = (page - 1) * limit;
+
+  // 1) count total active/inactive moderators for meta
+  const total = await ModeratorModel.countDocuments({ projectId });
+
+  // 2) aggregation: compute roleRank, then sort & paginate
+  const moderators = await ModeratorModel.aggregate<IModeratorDocument>([
+    // only this project
+    { $match: { projectId: new Types.ObjectId(projectId) } },
+
+    // add a numeric rank based on roles & isActive
+    { $addFields: {
+        roleRank: {
+          $switch: {
+            branches: [
+              // 1. Admin only
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 1 ] },
+                    { $in: [ "Admin",    "$roles" ] },
+                    { $eq: [ "$isActive", true       ] }
+                  ]
+                },
+                then: 1
+              },
+              // 2. Admin + Moderator
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 2 ] },
+                    { $in: [ "Admin",     "$roles" ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $eq: [ "$isActive", true        ] }
+                  ]
+                },
+                then: 2
+              },
+              // 3. Admin + Moderator + Observer
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 3 ] },
+                    { $in: [ "Admin",     "$roles" ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $in: [ "Observer",  "$roles" ] },
+                    { $eq: [ "$isActive", true         ] }
+                  ]
+                },
+                then: 3
+              },
+              // 4. Moderator only
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 1 ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $eq: [ "$isActive", true         ] }
+                  ]
+                },
+                then: 4
+              },
+              // 5. Moderator + Observer
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 2 ] },
+                    { $in: [ "Moderator", "$roles" ] },
+                    { $in: [ "Observer",  "$roles" ] },
+                    { $eq: [ "$isActive", true         ] }
+                  ]
+                },
+                then: 5
+              },
+              // 6. Observer only
+              {
+                case: {
+                  $and: [
+                    { $eq: [ { $size: "$roles" }, 1 ] },
+                    { $in: [ "Observer", "$roles" ] },
+                    { $eq: [ "$isActive", true       ] }
+                  ]
+                },
+                then: 6
+              },
+              // 7. De‑activated (any roles but isActive=false)
+              {
+                case: { $eq: [ "$isActive", false ] },
+                then: 7
+              },
+              // 8. Active but no roles assigned
+              {
+                case: {
+                  $and: [
+                    { $eq: [ "$isActive", true         ] },
+                    { $eq: [ { $size: "$roles" }, 0 ] }
+                  ]
+                },
+                then: 8
+              }
+            ],
+            // any unexpected combination
+            default: 9
+          }
+        }
+      }
+    },
+
+    // finally sort by our custom rank, then alphabetically by lastName
+    { $sort: { roleRank: 1, lastName: 1 } },
+
+    // pagination
+    { $skip:  skip },
+    { $limit: limit }
+  ]);
+
+  // build meta
+  const totalPages = Math.ceil(total / limit);
+  const meta = {
+    page,
+    limit,
+    totalItems: total,
+    totalPages,
+    hasPrev: page > 1,
+    hasNext:  page < totalPages
+  };
+
+  sendResponse(res, moderators, "Moderators for project retrieved", 200, meta);
+};
+
+
+---
+// src/controllers/ObserverDocumentController.ts
+
+// controllers/ObserverDocumentController.ts
+import { Request, Response, NextFunction } from "express";
+import {
+  deleteFromS3,
+  getSignedUrl,
+  getSignedUrls,
+  uploadToS3,
+} from "../utils/uploadToS3";
+import { ObserverDocumentModel } from "../model/ObserverDocumentModel";
+import ErrorHandler from "../utils/ErrorHandler";
+import { sendResponse } from "../utils/responseHelpers";
+import mongoose from "mongoose";
+
+export const createObserverDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  /* 1️⃣ pull form-data fields */
+  const {projectId, sessionId, addedBy, addedByRole} = req.body;
+  const file = req.file as Express.Multer.File | undefined;
+  console.log("req.body", req.body);
+
+  /* 2️⃣ basic validations */
+  if (!file) {
+    return next(new ErrorHandler("File is required", 400));
+  }
+  if (!projectId || !addedBy || !addedByRole || !sessionId) {
+    return next(
+      new ErrorHandler(
+        "projectId,sessionId, addedBy, and addedByRole are required",
+        400
+      )
+    );
+  }
+
+  if (!["Admin", "Moderator", "Observer"].includes(addedByRole)) {
+    return next(
+      new ErrorHandler("Only Admin, Moderator Or Observer can upload", 403)
+    );
+  }
+
+  /* 3️⃣ upload binary to S3 */
+  const { key: storageKey } = await uploadToS3(
+    file.buffer,
+    file.mimetype,
+    file.originalname
+  );
+
+  /* 4️⃣ create DB row */
+  const doc = await ObserverDocumentModel.create({
+    projectId,
+    sessionId,
+    displayName: file.originalname,
+    size: file.size,
+    storageKey,
+    addedBy,
+    addedByRole,
+  });
+
+  /* 5️⃣ success response */
+  sendResponse(res, doc, "Observer document uploaded", 201);
+};
+
+/**
+ * GET /api/v1/observer-documents/project/:projectId?page=&limit=
+ * Returns observer documents for a project with pagination.
+ */
+export const getObserverDocumentsByProjectId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectId } = req.params;
+
+    /* 1️⃣ validate projectId format */
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return next(new ErrorHandler("Invalid project ID", 400));
+    }
+
+    /* 2️⃣ pagination params */
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 10, 1);
+    const skip = (page - 1) * limit;
+
+    /* 3️⃣ query slice + total in parallel */
+    const [docs, total] = await Promise.all([
+      ObserverDocumentModel.find({ projectId })
+        .sort({ createdAt: -1 }) // newest first
+        .skip(skip)
+        .limit(limit)
+        .populate("addedBy", "firstName lastName role") // optional: show uploader
+        .lean(),
+      ObserverDocumentModel.countDocuments({ projectId }),
+    ]);
+
+    /* 4️⃣ meta payload */
+    const totalPages = Math.ceil(total / limit);
+    const meta = {
+      page,
+      limit,
+      totalItems: total,
+      totalPages,
+      hasPrev: page > 1,
+      hasNext: page < totalPages,
+    };
+
+    sendResponse(res, docs, "Observer documents fetched", 200, meta);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  GET  /api/v1/observer-documents/:id/download                 */
+/*───────────────────────────────────────────────────────────────────────────*/
+export const downloadObserverDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { id } = req.params;
+
+  const doc = await ObserverDocumentModel.findById(id).lean();
+  if (!doc) return next(new ErrorHandler("Observer document not found", 404));
+
+  const url = getSignedUrl(doc.storageKey, 720);
+
+  // Option A – redirect (starts download immediately)
+  return res.redirect(url);
+
+  // Option B – send JSON (uncomment if you prefer)
+  // sendResponse(res, { url }, "Signed URL generated", 200);
+};
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  POST /api/v1/observer-documents/download   { ids: string[] } */
+/*───────────────────────────────────────────────────────────────────────────*/
+export const downloadObserverDocumentsBulk = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { ids } = req.body as { ids?: unknown };
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return next(new ErrorHandler("ids array is required", 400));
+  }
+
+  /* validate & keep only proper ObjectIds */
+  const validIds = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  if (validIds.length === 0) {
+    return next(new ErrorHandler("No valid Mongo IDs supplied in ids[]", 400));
+  }
+
+  const docs = await ObserverDocumentModel.find({
+    _id: { $in: validIds },
+  }).lean();
+
+  if (docs.length === 0) {
+    return next(
+      new ErrorHandler("No observer documents found for given ids", 404)
+    );
+  }
+
+  const keys = docs.map((d) => d.storageKey);
+  const signedUrls = getSignedUrls(keys, 300);
+
+  /* build meta for any ids that didn’t resolve */
+  const foundIds = new Set(docs.map((d) => d._id.toString()));
+  const notFound = validIds.filter((id) => !foundIds.has(id));
+
+  sendResponse(
+    res,
+    signedUrls,
+    "Signed URLs generated",
+    200,
+    notFound.length ? { notFound } : undefined
+  );
+};
+
+/**
+ * DELETE /api/v1/observer-documents/:id
+ * 1. Delete the file from S3
+ * 2. Remove the MongoDB row
+ * 3. Return the deleted doc
+ */
+export const deleteObserverDocument = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  /* 1️⃣ validate ID format */
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ErrorHandler("Invalid document ID", 400));
+  }
+
+  /* 2️⃣ find doc */
+  const doc = await ObserverDocumentModel.findById(id);
+  if (!doc) return next(new ErrorHandler("Observer document not found", 404));
+
+  /* 3️⃣ delete from S3 */
+  try {
+    await deleteFromS3(doc.storageKey);
+  } catch (err) {
+    return next(
+      new ErrorHandler(
+        `Failed to delete file from S3: ${(err as Error).message}`, 
+        502
+      )
+    );
+  }
+
+  /* 4️⃣ delete DB row */
+  await doc.deleteOne();
+
+  /* 5️⃣ success response */
+  sendResponse(res, doc, "Observer document deleted", 200);
+};
+
+
+---
+// src/controllers/PaymentController.ts
+
+import { Request, Response, NextFunction } from "express";
+import { sendResponse } from "../utils/responseHelpers";
+import User from "../model/UserModel";
+import ErrorHandler from "../utils/ErrorHandler";
+import Stripe from "stripe";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+
+/**
+ * Create or update a Stripe customer.
+ * Expects `userId` and (optionally) `billingInfo` (conforming to IBillingInfo)
+ * in req.body.
+ */
+export const createCustomer = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId, billingInfo } = req.body;
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new ErrorHandler("User Not Found", 400));
+    }
+
+    // If user does not have a Stripe customer, create one
+    if (!user.stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+        address: billingInfo,
+      });
+      user.stripeCustomerId = customer.id;
+    }
+    // Update billing info regardless if provided
+    if (billingInfo) {
+      user.billingInfo = billingInfo;
+    }
+    await user.save();
+
+    sendResponse(
+      res,
+      { stripeCustomerId: user.stripeCustomerId },
+      "Customer created/updated successfully",
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create a PaymentIntent for a charge.
+ * Expects `customerId`, `amount` (in cents), and `currency` in req.body.
+ */
+export const createPaymentIntent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { customerId, amount, currency } = req.body;
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      customer: customerId,
+      payment_method_types: ["card"],
+      setup_future_usage: "off_session",
+    });
+    sendResponse(
+      res,
+      { clientSecret: paymentIntent.client_secret },
+      "PaymentIntent created successfully",
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Save a payment method: attach the provided paymentMethodId to the customer,
+ * update it as the default payment method, and update the user document
+ * with card information.
+ *
+ * Expects `customerId` and `paymentMethodId` in req.body.
+ */
+export const savePaymentMethod = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { customerId, paymentMethodId } = req.body;
+  try {
+    // Attach payment method to customer
+    await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId,
+    });
+
+    // Set it as the default payment method
+    await stripe.customers.update(customerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
+
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    // Update user record with card info if available
+    const user = await User.findOne({ stripeCustomerId: customerId });
+
+    if (user && paymentMethod.card) {
+      user.creditCardInfo = {
+        last4: paymentMethod.card.last4,
+        brand: paymentMethod.card.brand,
+        expiryMonth: paymentMethod.card.exp_month.toString(),
+        expiryYear: paymentMethod.card.exp_year.toString(),
+      };
+      await user.save();
+    }
+    console.log("last 4", paymentMethod.card);
+    sendResponse(
+      res,
+      { last4: paymentMethod.card?.last4, user: user },
+      "Card saved as default",
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create a SetupIntent for saving/updating card information.
+ * This endpoint expects an authenticated user (req.userId set via auth middleware).
+ */
+export const createSetupIntent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Use our extended Request type so that userId exists.
+    const userId = req.body.userId;
+    if (!userId) {
+      return next(new ErrorHandler("User ID is required", 400));
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    // If the user does not have a Stripe customer, create one first.
+    if (!user.stripeCustomerId) {
+      const stripeAddress = user.billingInfo
+        ? {
+            line1: user.billingInfo.address,
+            city: user.billingInfo.city,
+            state: user.billingInfo.state,
+            postal_code: user.billingInfo.postalCode,
+            country: user.billingInfo.country,
+          }
+        : undefined;
+
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+          address: stripeAddress,
+        });
+        user.stripeCustomerId = customer.id;
+        await user.save();
+      } catch (innerError) {
+        console.error("Error during stripe.customers.create:", innerError);
+        return next(innerError);
+      }
+      // console.log('customer', customer)
+      // user.stripeCustomerId = customer.id;
+      await user.save();
+    }
+
+    // Create the SetupIntent
+    const setupIntent = await stripe.setupIntents.create({
+      customer: user.stripeCustomerId,
+      payment_method_types: ["card"],
+    });
+    console.log("user setup intent", setupIntent.client_secret);
+
+    sendResponse(
+      res,
+      { clientSecret: setupIntent.client_secret },
+      "SetupIntent created successfully",
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Retrieve a PaymentMethod by its ID.
+ * Expects `paymentMethodId` in req.body.
+ */
+export const retrievePaymentMethod = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { paymentMethodId, userId } = req.body;
+  try {
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    if (!paymentMethod) {
+      throw new ErrorHandler("Invalid payment method ID", 400);
+    }
+
+    const user = await User.findById(userId);
+    console.log("user", user);
+    sendResponse(
+      res,
+      { paymentMethod, user },
+      "Payment method retrieved successfully",
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Charge the customer using the saved default payment method.
+ * Expects `customerId`, `amount` (in cents), and `currency` in req.body.
+ */
+export const chargeCustomer = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { customerId, amount, currency, userId, purchasedCredit } = req.body;
+  try {
+    const customer = (await stripe.customers.retrieve(
+      customerId
+    )) as Stripe.Customer;
+    // Determine the default payment method ID. It might be a string or an object.
+    let defaultPaymentMethodId: string | undefined;
+    if (typeof customer.invoice_settings.default_payment_method === "string") {
+      defaultPaymentMethodId = customer.invoice_settings.default_payment_method;
+    } else if (
+      typeof customer.invoice_settings.default_payment_method === "object" &&
+      customer.invoice_settings.default_payment_method !== null
+    ) {
+      defaultPaymentMethodId =
+        customer.invoice_settings.default_payment_method.id;
+    }
+
+    if (!defaultPaymentMethodId) {
+      return next(
+        new ErrorHandler("Customer has no default payment method.", 400)
+      );
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      customer: customerId,
+      payment_method: defaultPaymentMethodId,
+      off_session: true,
+      confirm: true,
+    });
+
+    // Find the user using userId and add the purchased credits
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { credits: purchasedCredit } },
+      { new: true }
+    );
+
+    console.log("updated user", updatedUser);
+    if (!updatedUser) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    sendResponse(res, { user: updatedUser }, "Charge successful", 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const saveBillingInfo = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId, billingInfo } = req.body;
+  // console.log( billingData)
+  // Validate required fields
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
+  if (!billingInfo) {
+    return next(new ErrorHandler("Billing information is required", 400));
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    // Update the user's billingData field
+    user.billingInfo = billingInfo;
+    await user.save();
+    console.log("user", user);
+    sendResponse(
+      res,
+      { billingInfo: user.billingInfo },
+      "Billing info saved successfully",
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+---
+// src/controllers/PollController.ts
+
+import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
+import { PollModel } from "../model/PollModel";
+import ErrorHandler from "../utils/ErrorHandler";
+import { sendResponse } from "../utils/responseHelpers";
+import { validateQuestion } from "../processors/poll/QuestionValidationProcessor";
+import { uploadToS3 } from "../utils/uploadToS3";
+
+/* ───────────────────────────────────────────────────────────── */
+/*  Controller – Create Poll                                    */
+/* ───────────────────────────────────────────────────────────── */
+export const createPoll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId, sessionId, title, questions, createdBy, createdByRole } = 
+    req.body;
+
+  console.log("req.body", req.body);
+
+  /* 1. Basic payload validation ------------------------------------ */
+  if (!projectId || !title || !createdBy || !createdByRole) {
+    return next(
+      new ErrorHandler(
+        "projectId,  title, createdBy, createdByRole are required",
+        400
+      )
+    );
+  }
+
+  if (!["Admin", "Moderator"].includes(createdByRole)) {
+    return next(
+      new ErrorHandler("Only Admin or Moderator can create polls", 403)
+    );
+  }
+// ── 2) Parse questions JSON ───────────────────────────────────────
+    let questionsPayload: any[] = req.body.questions;
+    if (typeof questionsPayload === "string") {
+      try {
+        questionsPayload = JSON.parse(questionsPayload);
+      } catch {
+        return next(new ErrorHandler("Invalid questions JSON", 400));
+      }
+    }
+
+    if (!Array.isArray(questionsPayload) || questionsPayload.length === 0) {
+      return next(new ErrorHandler("questions array is required", 400));
+    }
+
+    // ── 3) Upload images to S3 & stitch into questions ───────────────
+    //    Expect front-end to send each File under field "images" and
+    //    each question to have a tempImageName === file.originalname
+    const files = (req.files as Express.Multer.File[]) || [];
+    for (const file of files) {
+      let result;
+      try {
+        result = await uploadToS3(file.buffer, file.mimetype, file.originalname);
+      } catch (err) {
+        return next(
+          new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
+        );
+      }
+console.log('files', files)
+      // find the matching question by your tempImageName
+      const q = questionsPayload.find((q) => q.tempImageName === file.originalname);
+console.log('question',q)
+      if (q) {
+        q.image = result.url;
+        // optionally store the S3 key if you need it:
+        // q.imageKey = result.key;
+        delete q.tempImageName;
+      }
+    }
+
+    
+    // ── 4) Per-question validation ────────────────────────────────────
+    for (let i = 0; i < questionsPayload.length; i++) {
+      if (validateQuestion(questionsPayload[i], i, next)) {
+        return; // stops on first error
+      }
+    }
+  /* 3. Create poll -------------------------------------------------- */
+
+  const poll = await PollModel.create({
+    projectId,
+    // sessionId,
+    title: title.trim(),
+    questions: questionsPayload,
+    createdBy,
+    createdByRole,
+  });
+
+  console.log("poll", poll);
+  sendResponse(res, poll, "Poll created", 201);
+};
+
+/**
+ * GET /api/v1/polls/project/:projectId
+ * Query params: ?page=1&limit=10
+ */
+export const getPollsByProjectId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.params;
+
+  // 2️⃣ Pagination params
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.max(Number(req.query.limit) || 10, 1);
+  const skip = (page - 1) * limit;
+
+  // 3️⃣ Fetch slice + count
+  const [polls, total] = await Promise.all([
+    PollModel.find({ projectId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('createdBy', 'firstName lastName') 
+      .lean(),
+    PollModel.countDocuments({ projectId }),
+  ]);
+
+  // 4️⃣ Build meta
+  const totalPages = Math.ceil(total / limit);
+  const meta = {
+    page,
+    limit,
+    totalItems: total,
+    totalPages,
+    hasPrev: page > 1,
+    hasNext: page < totalPages,
+  };
+
+  sendResponse(res, polls, "Polls fetched", 200, meta);
+};
+
+/**
+ * GET /api/v1/polls/:id
+ * Fetch a single poll by its ID.
+ */
+export const getPollById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  // 1️⃣  Lookup
+  const poll = await PollModel.findById(id);
+  if (!poll) {
+    return next(new ErrorHandler("Poll not found", 404));
+  }
+
+  // 2️⃣ Return it
+  sendResponse(res, poll, "Poll fetched", 200);
+};
+
+/**
+ * PATCH /api/v1/polls/:id
+ * Body may include any of: title, questions (full array), isRun
+ */
+export const updatePoll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  // Build updatable fields
+  const updates: any = { lastModified: new Date() };
+  // parse + validate title / isRun as before…
+  if (req.body.title) updates.title = req.body.title.trim();
+  if (req.body.isRun !== undefined) updates.isRun = req.body.isRun;
+
+  // 1) parse questions JSON
+  if (req.body.questions) {
+    let questionsPayload: any[] = req.body.questions;
+    if (typeof questionsPayload === "string") {
+      try {
+        questionsPayload = JSON.parse(questionsPayload);
+      } catch {
+        return next(new ErrorHandler("Invalid questions JSON", 400));
+      }
+    }
+
+    if (!Array.isArray(questionsPayload) || !questionsPayload.length) {
+      return next(new ErrorHandler("questions must be a non-empty array", 400));
+    }
+
+    // 2) upload any new files and stitch
+    const files = (req.files as Express.Multer.File[]) || [];
+    for (const file of files) {
+      let uploadResult;
+      try {
+        uploadResult = await uploadToS3(
+          file.buffer,
+          file.mimetype,
+          file.originalname
+        );
+      } catch {
+        return next(
+          new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
+        );
+      }
+
+      // now that your JSON has tempImageName, this will work:
+      const q = questionsPayload.find(
+        qq => qq.tempImageName === file.originalname
+      );
+      if (q) {
+        q.image = uploadResult.url;
+        delete q.tempImageName;
+      }
+    }
+
+    // 3) validate each question…
+    for (let i = 0; i < questionsPayload.length; i++) {
+      if (validateQuestion(questionsPayload[i], i, next)) return;
+    }
+
+    updates.questions = questionsPayload;
+  }
+
+  // if nothing to update
+  if (Object.keys(updates).length === 1 /* only lastModified */) {
+    return next(new ErrorHandler("No valid fields provided for update", 400));
+  }
+
+  // 4) perform the mongo update
+  const updated = await PollModel.findByIdAndUpdate(id, updates, { new: true });
+  if (!updated) return next(new ErrorHandler("Poll not found", 404));
+  sendResponse(res, updated, "Poll updated", 200);
+};
+
+/**
+ * POST /api/v1/polls/:id/duplicate
+ * Clone an existing poll (questions, metadata) into a new document.
+ */
+export const duplicatePoll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  // 1️⃣  find original
+  const original = await PollModel.findById(id).lean();
+  if (!original) {
+    return next(new ErrorHandler("Poll not found", 404));
+  }
+
+  // 2️⃣ prepare copy (strip mongoose fields)
+  const copyData: any = {
+    projectId: original.projectId,
+    sessionId: original.sessionId,
+    title: `${original.title} (copy)`,
+    questions: original.questions,
+    createdBy: original.createdBy,
+    createdByRole: original.createdByRole,
+    isRun: false,
+    responsesCount: 0,
+    lastModified: new Date(),
+  };
+
+  // 3️⃣insert new document
+  const copy = await PollModel.create(copyData);
+
+  sendResponse(res, copy, "Poll duplicated", 201);
+};
+
+/**
+ * DELETE /api/v1/polls/:id
+ * Remove a poll by its ID.
+ */
+export const deletePoll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  // 1️⃣  attempt deletion
+  const deleted = await PollModel.findByIdAndDelete(id);
+  if (!deleted) {
+    return next(new ErrorHandler("Poll not found", 404));
+  }
+
+  sendResponse(res, deleted, "Poll deleted", 200);
+};
+
+
+---
+// src/controllers/ProjectController.ts
+
+import { Request, Response, NextFunction } from "express";
+import { sendResponse } from "../utils/responseHelpers";
+import ProjectFormModel,
+  {
+    IProjectFormDocument,
+  } from "../model/ProjectFormModel";
+import User from "../model/UserModel";
+import ErrorHandler from "../utils/ErrorHandler";
+import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
+import mongoose, { PipelineStage, Types } from "mongoose";
+import {
+  projectCreateAndPaymentConfirmationEmailTemplate,
+  projectInfoEmailTemplate,
+} from "../constants/emailTemplates";
+import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
+import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
+
+// ! the fields you really need to keep the payload light
+const PROJECT_POPULATE = [
+  { path: "moderators", select: "firstName lastName email" },
+  { path: "meetings", select: "title date startTime duration timeZone " },
+  { path: "createdBy", select: "firstName lastName email" },
+  { path: "tags", select: "title color" },
+];
+
+export const saveProgress = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { uniqueId, formData, userId } = req.body;
+
+  if (!userId) {
+    sendResponse(res, null, "User ID is required", 400);
+  }
+
+  if (!formData || Object.keys(formData).length === 0) {
+    sendResponse(res, null, "Form data is required", 400);
+  }
+
+  let savedForm: IProjectFormDocument;
+
+  if (uniqueId) {
+    // Look for an existing form document by its ID
+    const existingForm = await ProjectFormModel.findById(uniqueId);
+
+    if (!existingForm) {
+      // If not found, create a new form entry
+      const newForm = new ProjectFormModel({
+        user: userId,
+        ...formData,
+      });
+      savedForm = await newForm.save();
+
+      sendResponse(
+        res,
+        { uniqueId: savedForm._id },
+        "Form not found. New progress saved successfully.",
+        201
+      );
+    } else {
+      // If found, update the existing document with the provided form data
+      existingForm.set(formData);
+      savedForm = await existingForm.save();
+
+      sendResponse(
+        res,
+        { uniqueId: savedForm._id },
+        "Progress updated successfully",
+        200
+      );
+    }
+  } else {
+    // Create a new form entry if no uniqueId is provided
+    const newForm = new ProjectFormModel({
+      user: userId,
+      ...formData,
+    });
+    savedForm = await newForm.save();
+
+    sendResponse(
+      res,
+      { uniqueId: savedForm._id },
+      "Progress saved successfully",
+      201
+    );
+  }
+};
+
+export const createProjectByExternalAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const {
+    userId,
+    uniqueId,
+    projectData,
+    totalPurchasePrice,
+    totalCreditsNeeded,
+  } = req.body;
+
+  if (!userId || !projectData) {
+    throw new ErrorHandler("User ID and project data are required", 400);
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = await User.findById(userId).session(session);
+
+    if (!user) throw new ErrorHandler("User not found", 404);
+
+    if (["AmplifyTechHost", "AmplifyModerator"].includes(user.role)) {
+      throw new ErrorHandler("You are not authorized to create a project", 403);
+    }
+
+    // Create the project
+    // const createdProject = await ProjectModel.create(
+    //   [{ ...projectData, createdBy: userId }],
+    //   { session }
+    // );
+
+    const project = new ProjectModel({
+      ...projectData,
+      createdBy: userId,
+    } as Partial<IProjectDocument>);
+    await project.save({ session });
+
+    // 3️⃣ Add external admin as moderator
+    const moderator = new ModeratorModel({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      companyName: user.companyName,
+      roles: ["Admin"], // new roles array
+      adminAccess: true, // if you still use this legacy flag
+      projectId: project._id,
+      isVerified: true,
+      isActive: true,
+    } as Partial<IModeratorDocument>);
+    await moderator.save({ session });
+
+    // 4️⃣ Push moderator._id into project.moderators
+    project.moderators.push(moderator._id as Types.ObjectId);
+    await project.save({ session });
+
+    // Delete draft if uniqueId exists
+    if (uniqueId) {
+      await ProjectModel.findByIdAndDelete(uniqueId).session(session);
+    }
+    await session.commitTransaction();
+    session.endSession();
+
+    // Populate tags outside the transaction (optional)
+    // !This should be uncommented once the tag collection is created
+    // const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
+
+    // console.log('populated project', populatedProject)
+
+    // ---- Send the confirmation email below ---- //
+
+    // Extract the payment information (with defaults if missing)
+    const purchaseAmount = totalPurchasePrice || 0;
+    const creditsPurchased = totalCreditsNeeded || 0;
+    // Current date as transaction date (formatted as needed)
+    const transactionDate = new Date().toLocaleDateString();
+
+    // If your user model stores a credit balance, compute the new balance; otherwise, use creditsPurchased as the balance.
+    const newCreditBalance =
+      (user.credits ? user.credits : 0) + creditsPurchased;
+
+    // Prepare the parameters for the confirmation email template
+    const emailParams: ProjectCreateAndPaymentConfirmationEmailTemplateParams =
+      {
+        firstName: user.firstName || "Customer",
+        purchaseAmount,
+        creditsPurchased,
+        transactionDate,
+        newCreditBalance,
+      };
+
+    // Build the email content using the separate template function
+    const emailContent =
+      projectCreateAndPaymentConfirmationEmailTemplate(emailParams);
+    const emailSubject =
+      "Success! Your Project Has Been Created for Amplify’s Virtual Backroom";
+
+    // Send the email using your email processor function
+    await sendEmail({
+      to: user.email,
+      subject: emailSubject,
+      html: emailContent,
+    });
+
+    sendResponse(res, project, "Project created successfully", 201);
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
+  }
+};
+
+export const emailProjectInfo = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId, uniqueId, formData } = req.body;
+
+  // Validate presence of required fields
+  if (!userId || !uniqueId) {
+    return next(new ErrorHandler("User ID and Unique ID are required", 400));
+  }
+
+  // Find user
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Format sessions
+  const formattedSessions = (formData.sessions || [])
+    .map(
+      (session: any, index: number) =>
+        `<p>Session ${index + 1}: ${session.number} sessions - Duration: ${ 
+          session.duration
+        }</p>`
+    )
+    .join("");
+
+  // Build HTML email template
+  const emailContent = projectInfoEmailTemplate({
+    user,
+    formData,
+    formattedSessions,
+  });
+
+  // Send email
+  await sendEmail({
+    to: "enayetflweb@gmail.com",
+    subject: "New Project Information Submission",
+    html: emailContent,
+  });
+
+  // Delete project form from DB
+  await ProjectFormModel.findByIdAndDelete(uniqueId);
+
+  res.status(200).json({
+    success: true,
+    message: "Project information emailed and progress form removed",
+  });
+};
+
+export const getProjectByUserId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId } = req.params;
+  const { search = "", tag = "", status="", page = 1, limit = 10, from, to} = req.query;
+
+  console.log("req.query", req.query);
+
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
+
+  // ── pagination params ───────────────────────────────────────
+  const pageNum = Math.max(Number(page), 1);
+  const limitNum = Math.max(Number(limit), 1);
+  const skip = (pageNum - 1) * limitNum;
+   let fromDate: Date | undefined;
+  let toDate: Date | undefined;
+  if (typeof from === "string") fromDate = new Date(from);
+  if (typeof to   === "string") toDate   = new Date(to);
+
+  const searchRegex = new RegExp(search as string, "i");
+  const tagRegex = new RegExp(tag as string, "i");
+
+  const baseMatch: PipelineStage.Match = {
+    $match: {
+      createdBy: new mongoose.Types.ObjectId(userId),
+    },
+  };
+
+  
+
+  const searchMatch: PipelineStage.Match = {
+    $match: {
+      $or: [
+        { name: { $regex: searchRegex } },
+        { "moderators.firstName": { $regex: searchRegex } },
+        { "moderators.lastName": { $regex: searchRegex } },
+        { "moderators.companyName": { $regex: searchRegex } },
+      ],
+    },
+  };
+
+  const tagMatch: PipelineStage.Match = {
+    $match: {
+      ...(tag ? { "tags.name": { $regex: tagRegex } } : {}),
+    },
+  };
+  const aggregationPipeline: PipelineStage[] = [
+    baseMatch,
+   ...(status ? [{ $match: { status: status } }] : []),
+    {
+      $lookup: {
+        from: "moderators",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "moderators",
+      },
+    },
+    { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
+    searchMatch,
+    {
+      $lookup: {
+        from: "sessions",
+        localField: "meetings",
+        foreignField: "_id",
+        as: "meetingObjects",
+      },
+    },
+       ...(fromDate || toDate
+  ? [{
+      $match: {
+      startDate: {
+          ...(fromDate ? { $gte: fromDate } : {}),
+          ...(toDate   ? { $lte: toDate   } : {}),
+        }
+      }
+    }]
+  : []),
+    {
+      $lookup: {
+        from: "tags",
+        localField: "tags",
+        foreignField: "_id",
+        as: "tags",
+      },
+    },
+     ...(tag ? [{ $match: { "tags.title": { $regex: tagRegex } } }] : []),
+    {
+      $group: {
+        _id: "$_id",
+        doc: { $first: "$$ROOT" },
+      },
+    },
+    { $replaceRoot: { newRoot: "$doc" } },
+    { $sort: { name: 1 } },
+    { $skip: skip },
+    { $limit: limitNum },
+  ];
+
+  const projects = await ProjectModel.aggregate(aggregationPipeline);
+
+  // Separate aggregation for count
+  const totalAgg: PipelineStage[] = [
+    baseMatch,
+      ...(status ? [{ $match: { status } }] : []),
+    {
+      $lookup: {
+        from: "moderators",
+        localField: "_id",
+        foreignField: "projectId",
+        as: "moderators",
+      },
+    },
+    { $unwind: { path: "$moderators", preserveNullAndEmptyArrays: true } },
+    searchMatch,
+        {
+      $lookup: {
+        from: "sessions",
+        localField: "meetings",
+        foreignField: "_id",
+        as: "meetingObjects",
+      },
+    },
+           ...(fromDate || toDate
+  ? [{
+      $match: {
+      startDate: {
+          ...(fromDate ? { $gte: fromDate } : {}),
+          ...(toDate   ? { $lte: toDate   } : {}),
+        }
+      }
+    }]
+  : []),
+    {
+      $lookup: {
+        from: "tags",
+        localField: "tags",
+        foreignField: "_id",
+        as: "tags",
+      },
+    },
+    ...(tag ? [tagMatch] : []),
+    {
+      $group: {
+        _id: "$_id",
+      },
+    },
+    {
+      $count: "total",
+    },
+  ];
+
+  const totalCountAgg = await ProjectModel.aggregate(totalAgg);
+  const totalCount = totalCountAgg[0]?.total || 0;
+  const totalPages = Math.ceil(totalCount / limitNum);
+
+  const meta = {
+    page: pageNum,
+    limit: limitNum,
+    totalItems: totalCount,
+    totalPages,
+    hasPrev: pageNum > 1,
+    hasNext: pageNum < totalPages,
+  };
+
+  // Send the result back to the frontend using your sendResponse utility
+  sendResponse(res, projects, "Projects retrieved successfully", 200, meta);
+};
+
+export const getProjectById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.params;
+
+  if (!projectId) {
+    return next(new ErrorHandler("Project ID is required", 400));
+  }
+
+  // findById + populate all related paths
+  const project = await ProjectModel.findById(projectId)
+    .populate(PROJECT_POPULATE)
+    .exec();
+
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  sendResponse(res, project, "Project retrieved successfully", 200);
+};
+
+export const editProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // Expecting projectId in body along with the fields to be updated.
+  const { projectId, internalProjectName, description } = req.body;
+
+  if (!projectId) {
+    return next(new ErrorHandler("Project ID is required", 400));
+  }
+
+  // Ensure at least one field to update is provided.
+  if (!internalProjectName && !description) {
+    return next(new ErrorHandler("No update data provided", 400));
+  }
+
+  // Find the project by its ID.
+  const project = await ProjectModel.findById(projectId);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Update only the allowed fields if they are provided.
+  if (internalProjectName) {
+    project.internalProjectName = internalProjectName;
+  }
+  if (description) {
+    project.description = description;
+  }
+
+  console.log("req.body", req.body);
+
+  // Save the updated project.
+  const updatedProject = await project.save();
+  sendResponse(res, updatedProject, "Project updated successfully", 200);
+};
+
+export const toggleRecordingAccess = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.body;
+
+  if (!projectId) {
+    return next(new ErrorHandler("Project ID is required", 400));
+  }
+
+  // Find the project by its ID
+  const project = await ProjectModel.findById(projectId);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Toggle the recordingAccess field
+  project.recordingAccess = !project.recordingAccess;
+
+  // Save the updated project
+  const updatedProject = await project.save();
+  sendResponse(
+    res,
+    updatedProject,
+    "Recording access toggled successfully",
+    200
+  );
+};
+
+
+---
+// src/controllers/SessionController.ts
+
+import { Request, Response, NextFunction } from "express";
+import { sendResponse } from "../utils/responseHelpers";
+import ErrorHandler from "../utils/ErrorHandler";
+import { ISessionDocument, SessionModel } from "../model/SessionModel";
+import ProjectModel from "../model/ProjectModel";
+import ModeratorModel from "../model/ModeratorModel";
+import { toTimestamp } from "../processors/session/sessionTimeConflictChecker";
+import { DateTime } from "luxon";
+import * as sessionService from "../processors/liveSession/sessionService";
+import mongoose from "mongoose";
+
+// !  the fields you really need to keep the payload light
+const SESSION_POPULATE = [
+  { path: "moderators", select: "firstName lastName email" },
+  { path: "projectId", select: "service" },
+];
+
+export const createSessions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId, timeZone, breakoutRoom, sessions } = req.body;
+
+  // 1. Basic payload validation
+  if (
+    !Array.isArray(sessions) ||
+    sessions.length === 0 ||
+    !projectId ||
+    typeof timeZone !== "string" ||
+    breakoutRoom === undefined
+  ) {
+    return next(
+      new ErrorHandler(
+        "Sessions array, project id, time zone, breakout room information are required",
+        400
+      )
+    );
+  }
+  console.log("req.body", req.body);
+  console.log(
+    "req.body.sessions =",
+    JSON.stringify(req.body.sessions, null, 2)
+  );
+
+  // 2. Project existence check
+  const project = await ProjectModel.findById(projectId);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // 3. Moderator existence check
+
+  const modIds = Array.from(new Set(sessions.flatMap((s) => s.moderators)));
+
+  const allMods = await ModeratorModel.find({
+    _id: { $in: modIds },
+  });
+
+  if (allMods.length !== modIds.length) {
+    return next(new ErrorHandler("One or more moderators not found", 404));
+  }
+
+  // 4. Pull all existing sessions for this project
+  const existing = await SessionModel.find({ projectId });
+
+  // 5. Validate no overlaps
+
+  for (const s of sessions) {
+    const tz = timeZone;
+    const startNew = toTimestamp(s.date, s.startTime, tz);
+    const endNew = startNew + s.duration * 60_000;
+
+    // calendar day in this timeZone
+    const dayNew = DateTime.fromISO(
+      typeof s.date === "string"
+        ? s.date
+        : DateTime.fromJSDate(s.date).toISODate()!,
+      { zone: tz }
+    ).toISODate();
+
+    for (const ex of existing) {
+      const exTz = ex.timeZone;
+      const dayEx = DateTime.fromISO(
+        DateTime.fromJSDate(ex.date).toISODate()!,
+        { zone: exTz }
+      ).toISODate();
+      if (dayEx !== dayNew) continue;
+
+      const startEx = toTimestamp(ex.date, ex.startTime, exTz);
+      const endEx = startEx + ex.duration * 60_000;
+
+      // overlap if: startNew < endEx && startEx < endNew
+      if (startNew < endEx && startEx < endNew) {
+        return next(
+          new ErrorHandler(
+            `Session "${s.title}" conflicts with existing "${ex.title}"`, 
+            409
+          )
+        );
+      }
+    }
+  }
+
+  // 6. Map each session, injecting the shared fields
+  const docs = sessions.map((s: any) => ({
+    projectId,
+    timeZone,
+    breakoutRoom,
+    title: s.title,
+    date: s.date,
+    startTime: s.startTime,
+    duration: s.duration,
+    moderators: s.moderators,
+  }));
+
+  // 7. Bulk insert into MongoDB
+  // ─── START TRANSACTION ────────────────────────────────────────────
+  const mongoSession = await mongoose.startSession();
+  mongoSession.startTransaction();
+  let created: ISessionDocument[];
+
+  try {
+    created = await SessionModel.insertMany(docs, { session: mongoSession });
+
+    for (const sess of created) {
+      await sessionService.createLiveSession(sess._id.toString(), {
+        session: mongoSession,
+      });
+    }
+
+    project.meetings.push(...created.map((s) => s._id));
+    await project.save({ session: mongoSession });
+
+    await mongoSession.commitTransaction();
+  } catch (err) {
+    await mongoSession.abortTransaction();
+    mongoSession.endSession();
+    return next(err);
+  } finally {
+    // always end the session
+    mongoSession.endSession();
+  }
+  // 8. Send uniform success response
+  sendResponse(res, created, "Sessions created", 201);
+};
+
+/**
+ * GET /sessions/project/:projectId
+ * Fetch all sessions for a given project
+ */
+export const getSessionsByProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectId } = req.params;
+
+    // ── pagination params ───────────────────────────────────────
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 10, 1);
+
+    const skip = (page - 1) * limit;
+
+    // ── parallel queries: data + count ─────────────────────────
+    const [sessions, total] = await Promise.all([
+      SessionModel.find({ projectId })
+        .sort({ date: 1, startTime: 1 })
+        .skip(skip)
+        .limit(limit)
+        .populate(SESSION_POPULATE)
+        .lean(),
+      SessionModel.countDocuments({ projectId }),
+    ]);
+
+    // ── build meta payload ─────────────────────────────────────
+    const totalPages = Math.ceil(total / limit);
+
+    const meta = {
+      page,
+      limit,
+      totalItems: total,
+      totalPages,
+      hasPrev: page > 1,
+      hasNext: page < totalPages,
+    };
+
+    sendResponse(res, sessions, "Sessions fetched", 200, meta);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /sessions/:id
+ * Fetch a single session by its ID
+ */
+export const getSessionById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // 1. Lookup
+    const session = await SessionModel.findById(id)
+      .populate(SESSION_POPULATE)
+      .lean();
+
+    if (!session) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 2. Return it
+    sendResponse(res, session, "Session fetched", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sessionId = req.params.id;
+
+    // 1. Load the original session
+    const original = await SessionModel.findById(sessionId);
+    if (!original) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 2. Build an updates object only with allowed fields
+    const allowed = [
+      "title",
+      "date",
+      "startTime",
+      "duration",
+      "moderators",
+      "timeZone",
+      "breakoutRoom",
+    ] as const;
+
+    // 3. Build an updates object only with allowed fields
+    const updates: Partial<Record<(typeof allowed)[number], any>> = {};
+
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        updates[key] = req.body[key];
+      }
+    }
+
+    // 4. If nothing to update, reject
+    if (Object.keys(updates).length === 0) {
+      return next(new ErrorHandler("No valid fields provided for update", 400));
+    }
+
+    // 5. If moderators updated, re-validate them
+    if (updates.moderators) {
+      const modIds = Array.from(new Set(updates.moderators));
+      const found = await ModeratorModel.find({ _id: { $in: modIds } });
+      if (found.length !== modIds.length) {
+        return next(new ErrorHandler("One or more moderators not found", 404));
+      }
+    }
+
+    // 6. Determine the “new” values to check for conflicts
+    const newDate = updates.date ?? original.date;
+    const newStartTime = updates.startTime ?? original.startTime;
+    const newDuration = updates.duration ?? original.duration;
+    const newTz = updates.timeZone ?? original.timeZone;
+
+    // 7. Fetch all other sessions in this project
+    const otherSessions = await SessionModel.find({
+      projectId: original.projectId,
+      _id: { $ne: sessionId },
+    });
+
+    // 8. Check each “other” session for an overlap with our proposed slot
+    const startNew = toTimestamp(newDate, newStartTime, newTz);
+    const endNew = startNew + newDuration * 60_000;
+    const dayNew = DateTime.fromISO(
+      typeof newDate === "string"
+        ? newDate
+        : DateTime.fromJSDate(newDate).toISODate()!,
+      { zone: newTz }
+    ).toISODate();
+
+    for (const ex of otherSessions) {
+      const exTz = ex.timeZone;
+      const dayEx = DateTime.fromISO(
+        DateTime.fromJSDate(ex.date).toISODate()!,
+        { zone: exTz }
+      ).toISODate();
+      if (dayEx !== dayNew) continue;
+
+      const startEx = toTimestamp(ex.date, ex.startTime, exTz);
+      const endEx = startEx + ex.duration * 60_000;
+
+      // overlap test:
+      if (startNew < endEx && startEx < endNew) {
+        return next(
+          new ErrorHandler(
+            `Proposed time conflicts with existing session "${ex.title}"`, 
+            409
+          )
+        );
+      }
+    }
+
+    // 9. No conflicts — perform the update
+    const updated = await SessionModel.findByIdAndUpdate(sessionId, updates, {
+      new: true,
+    });
+
+    // 10. If not found, 404
+    if (!updated) {
+      return next(new ErrorHandler("Session not found during update", 404));
+    }
+
+    // 11. Return the updated session
+    sendResponse(res, updated, "Session updated", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const duplicateSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sessionId = req.params.id;
+
+    // 1. Find the existing session
+    const original = await SessionModel.findById(sessionId);
+    if (!original) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    const {
+      _id, // drop
+      createdAt, // drop
+      updatedAt, // drop
+      __v, // (optional) drop version key too
+      ...data // data now has only the session fields you care about
+    } = original.toObject();
+
+    // 3. Modify the title
+    data.title = `${original.title} (copy)`;
+
+    // 4. Insert the new document
+    const copy = await SessionModel.create(data);
+
+    // 5. Return the duplicated session
+    sendResponse(res, copy, "Session duplicated", 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sessionId = req.params.id;
+
+    // 1. Attempt deletion
+    const deleted = await SessionModel.findByIdAndDelete(sessionId);
+
+    // 2. If nothing was deleted, the id was invalid
+    if (!deleted) {
+      return next(new ErrorHandler("Session not found", 404));
+    }
+
+    // 3. Success—return the deleted doc for confirmation
+    sendResponse(res, deleted, "Session deleted", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+---
+// src/controllers/SessionDeliverableController.ts
+
+import { Request, Response, NextFunction } from "express";
+import { SessionDeliverableModel } from "../model/SessionDeliverableModel";
+import ProjectModel from "../model/ProjectModel";
+import ErrorHandler from "../utils/ErrorHandler";
+import { sendResponse } from "../utils/responseHelpers";
+import {
+  deleteFromS3,
+  getSignedUrl,
+  getSignedUrls,
+  uploadToS3,
+} from "../utils/uploadToS3";
+import { SessionModel } from "../model/SessionModel";
+import { Socket } from "dgram";
+
+/**
+ * POST /api/v1/deliverables
+ * multipart/form-data:
+ *   file         (binary)
+ *   sessionId    (string)
+ *   projectId    (string)
+ *   type         (AUDIO | VIDEO | ...)
+ *   uploadedBy   (string)  ← user _id
+ *
+ * Optional:
+ *   displayName  (string)  ← if omitted, we auto-generate
+ */
+export const createDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  /* ── pull fields & file ─────────────────────────── */
+  const { sessionId, projectId, type, uploadedBy, displayName } = req.body;
+
+  const file = req.file as Express.Multer.File | undefined;
+
+  if (!file || !sessionId || !projectId || !type || !uploadedBy) {
+    return next(
+      new ErrorHandler(
+        "file, sessionId, projectId, type and uploadedBy are required",
+        400
+      )
+    );
+  }
+
+  /* ── sanity checks (optional but recommended) ───── */
+  const [projectExists, sessionExists] = await Promise.all([
+    ProjectModel.exists({ _id: projectId }),
+    SessionModel.exists({ _id: sessionId }),
+  ]);
+
+  if (!projectExists) return next(new ErrorHandler("Project not found", 404));
+
+  if (!sessionExists) return next(new ErrorHandler("Session not found", 404));
+
+  /* ── upload binary to S3 ───────────────────────── */
+  const { url: s3Url, key: s3Key } = await uploadToS3(
+    file.buffer,
+    file.mimetype,
+    file.originalname
+  );
+
+  /* ── create doc ──────────────────────────────────── */
+  const doc = await SessionDeliverableModel.create({
+    sessionId,
+    projectId,
+    type,
+    displayName,
+    size: file.size,
+    storageKey: s3Key,
+    uploadedBy,
+  });
+
+  /* ── respond ───────────────────────────────────── */
+  sendResponse(
+    res,
+    { ...doc.toObject(), url: s3Url },
+    "Deliverable uploaded",
+    201
+  );
+};
+
+/**
+ * List deliverables for a project with skip/limit pagination
+ * and optional ?type=AUDIO | VIDEO | …
+ */
+export const getDeliverablesByProjectId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { projectId } = req.params;
+  const { type } = req.query;
+  /* ––– pagination params ––– */
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.max(Number(req.query.limit) || 10, 1);
+  const skip = (page - 1) * limit;
+
+  /* ––– verify project exists (optional safety) ––– */
+  const projectExists = await ProjectModel.exists({ _id: projectId });
+  if (!projectExists) return next(new ErrorHandler("Project not found", 404));
+
+  /* ––– build filter ––– */
+  const filter: Record<string, unknown> = { projectId };
+  if (type) filter.type = type; // e.g. ?type=AUDIO
+
+  /* ––– query slice + total in parallel ––– */
+  const [rows, total] = await Promise.all([
+    SessionDeliverableModel.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    SessionDeliverableModel.countDocuments(filter),
+  ]);
+
+  /* ––– meta payload ––– */
+  const totalPages = Math.ceil(total / limit);
+  const meta = {
+    page,
+    limit,
+    totalItems: total,
+    totalPages,
+    hasPrev: page > 1,
+    hasNext: page < totalPages,
+  };
+
+  sendResponse(res, rows, "Deliverables fetched", 200, meta);
+};
+
+export const downloadDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const deliverable = await SessionDeliverableModel.findById(id).lean();
+
+  if (!deliverable) return next(new ErrorHandler("Not found", 404));
+
+  const url = getSignedUrl(deliverable.storageKey, 300);
+  res.redirect(url);
+};
+
+export const downloadMultipleDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  /* 1️⃣ request-body sanity check */
+  const { ids } = req.body as { ids?: unknown };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return next(new ErrorHandler("ids array is required", 400));
+  }
+
+  /* 2️⃣ fetch matching docs */
+  const docs = await SessionDeliverableModel.find({ _id: { $in: ids } }).lean();
+
+  if (docs.length === 0) {
+    return next(
+      new ErrorHandler("No deliverables found for the given ids", 404)
+    );
+  }
+
+  /* 3️⃣ compute signed URLs */
+  const keys = docs.map((d) => d.storageKey);
+
+  const links = getSignedUrls(keys, 300);
+
+  sendResponse(res, links, "Signed URLs", 200);
+};
+
+export const deleteDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  /* ── find doc first ────────────────────────────────────────── */
+  const doc = await SessionDeliverableModel.findById(id);
+  if (!doc) return next(new ErrorHandler("Deliverable not found", 404));
+
+  await deleteFromS3(doc.storageKey);
+
+  /* ── delete DB row ────────────────────────────────────────── */
+  await doc.deleteOne();
+
+  sendResponse(res, doc, "Deliverable deleted", 200);
+};
+
+
+---
+// src/controllers/TagController.ts
+
+import { Request, Response, NextFunction } from "express";
+import { sendResponse } from "../utils/responseHelpers";
+import ErrorHandler from "../utils/ErrorHandler";
+
+import UserModel from "../model/UserModel";
+import ProjectModel from "../model/ProjectModel";
+import { TagDocument, TagModel } from "../model/TagModel";
+import mongoose from "mongoose";
+import { ITag } from "../../shared/interface/TagInterface";
+import { ClientSession } from "mongoose";
+
+export const createTag = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { title, color, createdBy, projectId } = req.body;
+
+    // 1️⃣ basic validation ----------------------------------------------------
+    if (!title || !color || !createdBy || !projectId) {
+      return next(
+        new ErrorHandler(
+          "title, color, createdBy and projectId are required",
+          400
+        )
+      );
+    }
+
+    // 2️⃣ existence checks ----------------------------------------------------
+    const [project, user] = await Promise.all([
+      ProjectModel.findById(projectId),
+      UserModel.findById(createdBy),
+    ]);
+
+    if (!project) return next(new ErrorHandler("Project not found", 404));
+
+    if (!user) return next(new ErrorHandler("User not found", 404));
+
+    // 3️⃣ optional duplicate-title guard (case-insensitive) -------------------
+    const clash = await TagModel.findOne({
+      projectId,
+      title: { $regex: new RegExp(`^${title}$`, "i") },
+    });
+
+    if (clash) {
+      return next(
+        new ErrorHandler(
+          "A tag with this title already exists for this project",
+          409
+        )
+      );
+    }
+
+    // ─── START TRANSACTION ───────────────────────────────────────────────
+    const session: ClientSession = await mongoose.startSession();
+    session.startTransaction();
+
+    let tagDoc: TagDocument;
+    try {
+      // 4️⃣ Create & save tag under txn
+      tagDoc = new TagModel({ title, color, createdBy, projectId });
+      await tagDoc.save({ session });
+
+      // 5️⃣ Push its ObjectId into project.tags & save
+      project.tags.push(tagDoc._id);
+      await project.save({ session });
+
+      // 6️⃣ Commit both writes
+      await session.commitTransaction();
+    } catch (err) {
+      // 7️⃣ Roll back everything on error
+      await session.abortTransaction();
+      session.endSession();
+      return next(err);
+    } finally {
+      session.endSession();
+    }
+    // ─── TRANSACTION END ─────────────────────────────────────────────
+
+    // 8️⃣ Convert to your shared ITag shape (if needed)
+    const responsePayload = {
+      ...tagDoc.toObject(),
+      _id: tagDoc._id.toString(),
+      createdBy: tagDoc.createdBy.toString(),
+      projectId: tagDoc.projectId.toString(),
+      createdAt: tagDoc.createdAt,
+      updatedAt: tagDoc.updatedAt,
+    };
+
+    sendResponse(res, responsePayload, "Tag created", 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getTagsByProjectId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectId } = req.params;
+
+    const projectExists = await ProjectModel.exists({ _id: projectId });
+
+    if (!projectExists) return next(new ErrorHandler("Project not found", 404));
+
+    const tags = await TagModel.find({ projectId }).sort({ title: 1 }).lean();
+
+    sendResponse(res, tags, "Tags fetched", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getTagsByUserId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { userId } = req.params;
+
+    const userExists = await UserModel.exists({ _id: userId });
+    if (!userExists) return next(new ErrorHandler("User not found", 404));
+
+    const tags = await TagModel.find({ createdBy: userId })
+      .sort({
+        title: 1,
+      })
+      .lean();
+    sendResponse(res, tags, "Tags fetched", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const editTag = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { title, color } = req.body;
+
+    if (!title && !color) {
+      return next(new ErrorHandler("No update data provided", 400));
+    }
+
+    const tag = await TagModel.findById(id);
+    if (!tag) return next(new ErrorHandler("Tag not found", 404));
+
+    // Optional duplicate title guard (same project)
+    if (title && title !== tag.title) {
+      const duplicate = await TagModel.findOne({
+        projectId: tag.projectId,
+        title: { $regex: new RegExp(`^${title}$`, "i") },
+      });
+      if (duplicate) {
+        return next(
+          new ErrorHandler(
+            "Another tag with this title already exists in the project",
+            409
+          )
+        );
+      }
+      tag.title = title;
+    }
+
+    if (color) tag.color = color;
+
+    const updated = await tag.save();
+    sendResponse(res, updated, "Tag updated", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteTag = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const deleted = await TagModel.findByIdAndDelete(id);
+    if (!deleted) return next(new ErrorHandler("Tag not found", 404));
+
+    await ProjectModel.updateMany({ tags: id }, { $pull: { tags: id } });
+
+    sendResponse(res, deleted, "Tag deleted", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+---
+// src/controllers/UserController.ts
+
+import { Request, Response, NextFunction } from "express";
+import bcrypt from "bcryptjs";
+import User from "../model/UserModel";
+import ErrorHandler from "../utils/ErrorHandler";
+import { sendResponse } from "../utils/responseHelpers";
+import {
+  resetPasswordEmailTemplate,
+  verificationEmailTemplate,
+} from "../constants/emailTemplates";
+import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
+import { sanitizeUser } from "../processors/user/removePasswordFromUserObjectProcessor";
+import config from "../config/index";
+import jwt from "jsonwebtoken";
+import { isStrongPassword } from "../processors/user/isStrongPasswordProcessor";
+import ProjectModel from "../model/ProjectModel";
+
+import {
+  cookieOptions,
+  parseExpiryToMs,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "../utils/tokenService";
+import { AuthRequest } from "../middlewares/authenticateJwt";
+import { Types } from "mongoose";
+
+import { isValidEmail } from "../processors/isValidEmail";
+
+
+export const createAccount = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const {
+    firstName,
+    lastName,
+    email,
+    phoneNumber,
+    companyName,
+    password,
+    role,
+    status,
+    termsAccepted,
+  } = req.body;
+
+  // Check if the email format is valid
+  if (!isValidEmail(email)) {
+    return next(new ErrorHandler("Invalid email format", 400));
+  }
+
+  const existingUser = await User.findOne({ email });
+
+  if (existingUser) {
+    return next(new ErrorHandler("User already exists", 400));
+  }
+
+  if (await User.findOne({ phoneNumber })) {
+    return next(new ErrorHandler("phoneNumber already exists", 409));
+  }
+
+  if (!isStrongPassword(password)) {
+    return next(
+      new ErrorHandler(
+        "Password must be at least 9 characters long and include uppercase, lowercase, number, and special character.",
+        400
+      )
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const newUser = new User({
+    firstName,
+    lastName,
+    email,
+    phoneNumber,
+    companyName,
+    password: hashedPassword,
+    role,
+    status: status || "Active",
+    isEmailVerified: false,
+    termsAccepted,
+    termsAcceptedTime: new Date(),
+    isDeleted: false,
+    createdBy: "self",
+    credits: 0,
+    stripeCustomerId: undefined,
+  });
+
+  const savedUser = await newUser.save();
+
+  // In createAccount controller, after saving the user
+  const token = jwt.sign(
+    { userId: savedUser._id },
+    config.jwt_secret as string,
+    { expiresIn: "1d" }
+  );
+
+  const verificationLink = `${config.frontend_base_url}/verify-email?token=${token}`;
+
+  // Send verification email with token
+  await sendEmail({
+    to: savedUser.email,
+    subject: "Verify Your Account",
+    html: verificationEmailTemplate(savedUser.firstName, verificationLink),
+  });
+
+  const userResponse = sanitizeUser(savedUser);
+
+  sendResponse(res, userResponse, "User registered successfully", 201);
+};
+
+export const loginUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { email, password } = req.body;
+
+  const { ip, deviceType, platform, browser, location } = (req as any)
+    .deviceInfo;
+
+  if (!email || !password) {
+    return next(new ErrorHandler("Email and password are required", 400));
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new ErrorHandler("Invalid credentials", 401));
+  }
+
+  if (user.isDeleted) {
+    return next(new ErrorHandler("Account has been deleted", 403));
+  }
+
+  if (user.status !== "Active") {
+    return next(new ErrorHandler("Account is not active", 403));
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (!isMatch) {
+    console.log("Invalid credentials");
+    return next(new ErrorHandler("Invalid credentials", 401));
+  }
+
+  const idString =
+    typeof user._id === "string"
+      ? user._id
+      : (user._id as Types.ObjectId).toString();
+
+  const accessToken = signAccessToken({ userId: idString, role: user.role });
+
+  const refreshToken = signRefreshToken({ userId: idString });
+
+  // parse the expiry strings from config
+  const accessMaxAge = parseExpiryToMs(config.jwt_access_token_expires_in!);
+
+  const refreshMaxAge = parseExpiryToMs(config.jwt_refresh_token_expires_in!);
+
+  // set the cookies
+  res.cookie("accessToken", accessToken, cookieOptions(accessMaxAge));
+  res.cookie("refreshToken", refreshToken, cookieOptions(refreshMaxAge));
+
+  const userResponse = sanitizeUser(user);
+
+  sendResponse(res, { user: userResponse }, "Login successful");
+};
+
+export const getCurrentUser = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // req.user is set by authenticateJwt
+  const payload = req.user;
+  if (!payload) {
+    return next(new ErrorHandler("Not authenticated", 401));
+  }
+
+  const user = await User.findById(payload.userId);
+  if (!user || user.isDeleted) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  const userResponse = sanitizeUser(user);
+  sendResponse(res, { user: userResponse }, "Current user retrieved", 200);
+};
+
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new ErrorHandler("Email is required", 400));
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if the account is deleted or inactive
+  if (user.isDeleted) {
+    return next(new ErrorHandler("This account has been deleted", 403));
+  }
+
+  if (user.status !== "Active") {
+    return next(new ErrorHandler("Account is not active", 403));
+  }
+
+  // Generate a reset token valid for 1 hour
+  const token = jwt.sign({ userId: user._id }, config.jwt_secret as string, {
+    expiresIn: "1h",
+  });
+
+  // Use the provided email template function and modify it for a reset-password email
+  const emailHtml = resetPasswordEmailTemplate(user.firstName, token);
+
+  // Send the reset email
+  await sendEmail({
+    to: user.email,
+    subject: "Password Reset Instructions",
+    html: emailHtml,
+  });
+
+  sendResponse(
+    res,
+    null,
+    "Password reset instructions sent to your email",
+    200
+  );
+};
+
+export const changePassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId, oldPassword, newPassword } = req.body;
+  if (!userId || !oldPassword || !newPassword) {
+    return next(
+      new ErrorHandler(
+        "User id, old password, and new password are required",
+        400
+      )
+    );
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Additional checks for account status and deletion
+  if (user.isDeleted) {
+    return next(new ErrorHandler("This account has been deleted", 403));
+  }
+  if (user.status !== "Active") {
+    return next(new ErrorHandler("Account is not active", 403));
+  }
+
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) {
+    return next(new ErrorHandler("Old password is incorrect", 401));
+  }
+
+  if (!isStrongPassword(newPassword)) {
+    return next(
+      new ErrorHandler(
+        "Password must be at least 9 characters long and include uppercase, lowercase, number, and special character.",
+        400
+      )
+    );
+  }
+
+   const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+  if (isSameAsOld) {
+    return next(
+      new ErrorHandler("New password must be different from the old password", 400)
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  user.password = hashedPassword;
+  await user.save();
+
+  sendResponse(res, null, "Password changed successfully", 200);
+};
+
+export const verifyEmail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { token } = req.query;
+  if (!token || typeof token !== "string") {
+    return next(new ErrorHandler("Verification token is required", 400));
+  }
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, config.jwt_secret as string);
+  } catch (error) {
+    return next(new ErrorHandler("Invalid or expired token", 400));
+  }
+
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  user.isEmailVerified = true;
+  await user.save();
+
+  sendResponse(res, null, "Email verified successfully", 200);
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return next(new ErrorHandler("Token and new password are required", 400));
+  }
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, config.jwt_secret as string);
+  } catch (error) {
+    return next(new ErrorHandler("Invalid or expired token", 400));
+  }
+
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  if (!isStrongPassword(newPassword)) {
+    return next(
+      new ErrorHandler(
+        "Password must be at least 9 characters long and include uppercase, lowercase, number, and special character.",
+        400
+      )
+    );
+  }
+
+   const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+  if (isSameAsOld) {
+    return next(
+      new ErrorHandler("New password must be different from the old password", 400)
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  user.password = hashedPassword;
+  await user.save();
+
+  sendResponse(res, null, "Password reset successful", 200);
+};
+
+export const editUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+
+  const { firstName, lastName, phoneNumber, companyName } = req.body;
+
+  // Find the user by id
+  const user = await User.findById(id);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Update only the allowed fields if provided
+  if (firstName !== undefined) user.firstName = firstName;
+  if (lastName !== undefined) user.lastName = lastName;
+  if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+  if (companyName !== undefined) user.companyName = companyName;
+
+  // Save the updated user document
+  const updatedUser = await user.save();
+
+  // Sanitize and send the updated user response
+  const userResponse = sanitizeUser(updatedUser);
+  sendResponse(res, userResponse, "User updated successfully");
+};
+
+export const deleteUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // Extract user id from route parameters.
+  const { id } = req.params;
+
+  // Check if the user exists.
+  const user = await User.findById(id);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Fixed default user id to be used as replacement for project createdBy field.
+  const defaultUserId = "67f35a519c899e0dc4b6dee5";
+
+  // Update all projects where this user is the creator.
+  await ProjectModel.updateMany(
+    { createdBy: user._id },
+    { $set: { createdBy: defaultUserId } }
+  );
+
+  // Instead of deleting the user, update the isDeleted field to true.
+  user.isDeleted = true;
+  await user.save();
+
+  // Send a success response.
+  sendResponse(res, null, "User deleted successfully", 200);
+};
+
+export const findUserById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const userId = (req.query._id || req.query.id) as string;
+
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user || user.isDeleted) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  sendResponse(res, user, "User retrieved successfully", 200);
+};
+
+export const refreshToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const token = req.cookies.refreshToken;
+  if (!token) {
+    return next(new ErrorHandler("No refresh token", 401));
+  }
+
+  const { userId } = verifyRefreshToken(token);
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // sign a fresh access token
+  const newAccessToken = signAccessToken({
+    userId,
+    role: user.role,
+  });
+
+  // convert your expiry‐string to a number
+  const accessMaxAge = parseExpiryToMs(config.jwt_access_token_expires_in!);
+
+  // set the cookie
+  res.cookie("accessToken", newAccessToken, cookieOptions(accessMaxAge));
+
+  sendResponse(res, null, "Access token refreshed", 200);
+};
+
+export const logoutUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  res.clearCookie("accessToken");
+  res.clearCookie("refreshToken");
+  sendResponse(res, null, "Logged out successfully", 200);
+};
+
+
+---
+// src/middlewares/CatchErrorMiddleware.ts
+
+import { Request, Response, NextFunction } from "express";
+
+/**
+ * Higher-order function to catch errors in asynchronous route handlers.
+ * Automatically forwards errors to Express error-handling middleware.
+ *
+ * @param handler - An asynchronous function handling an Express request.
+ * @returns A function that wraps the handler and catches any errors.
+ */
+export const catchError = (
+  handler: (req: Request, res: Response, next: NextFunction) => Promise<void>
+) => (req: Request, res: Response, next: NextFunction): void => {
+  handler(req, res, next).catch(next);
+};
+
+
+---
+// src/middlewares/ErrorMiddleware.ts
+
+import { Request, Response, NextFunction } from "express";
+import { ICustomError } from "../../shared/interface/ErrorInterface";
+import ErrorHandler from "../utils/ErrorHandler";
+
+const errorMiddleware = ( 
+  err: ICustomError,
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  // Set default values if not provided
+  err.statusCode = err.statusCode || 500;
+  err.message = err.message || "Internal Server Error";
+
+  // Handle CastError (e.g., invalid MongoDB ID)
+  if (err.name === "CastError" && err.path) {
+    const message = `Resource not found. Invalid: ${err.path}`;
+    err = new ErrorHandler(message, 400);
+  }
+
+  // Handle Duplicate Key Error (e.g., duplicate field in MongoDB)
+  if (err.code === 11000 && err.keyValue) {
+    const message = `Duplicate ${Object.keys(err.keyValue)} entered`;
+    err = new ErrorHandler(message, 400);
+  }
+
+  // Handle invalid JWT token
+  if (err.name === "JsonWebTokenError") {
+    const message = "Json Web Token is invalid, try again";
+    err = new ErrorHandler(message, 400);
+  }
+
+  // Handle expired JWT token
+  if (err.name === "TokenExpiredError") {
+    const message = "Json Web Token is expired, try again";
+    err = new ErrorHandler(message, 400);
+  }
+
+  // Send the error response
+  res.status(err.statusCode ?? 500).json({
+    success: false,
+    message: err.message,
+  });
+};
+
+export default errorMiddleware;
+
+
+---
+// src/middlewares/authenticateJwt.ts
+
+// src/middlewares/authenticateJwt.ts
+import { Request, Response, NextFunction } from "express";
+import { verifyAccessToken } from "../utils/tokenService";
+import ErrorHandler from "../utils/ErrorHandler";
+
+export interface AuthRequest extends Request {
+  user?: { userId: string; role: string };
+}
+
+export const authenticateJwt = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const token = req.cookies.accessToken;
+  if (!token) {
+    return next(new ErrorHandler("Not authenticated", 401));
+  }
+
+  try {
+    // throws if invalid/expired
+    const payload = verifyAccessToken(token);
+    req.user = { userId: payload.userId, role: payload.role };
+    next();
+  } catch {
+    next(new ErrorHandler("Invalid or expired access token", 401));
+  }
+};
+
+
+---
+// src/middlewares/authorizeRoles.ts
+
+// src/middlewares/authorizeRoles.ts
+import { Response, NextFunction } from "express";
+import { AuthRequest } from "./authenticateJwt";
+import ErrorHandler from "../utils/ErrorHandler";
+
+export const authorizeRoles =
+  (...allowedRoles: string[]) =>
+  (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(new ErrorHandler("Not authenticated", 401));
+    }
+    if (!allowedRoles.includes(req.user.role)) {
+      return next(new ErrorHandler("Forbidden: insufficient permissions", 403));
+    }
+    next();
+  };
+
+
+---
+// src/middlewares/deviceInfo.ts
+
+// src/middlewares/deviceInfo.ts
+import { Request, Response, NextFunction, RequestHandler } from 'express';
+import requestIp from 'request-ip';
+import useragent from 'express-useragent';
+import geoip, { Lookup } from 'geoip-lite';
+
+export const deviceInfoMiddleware: RequestHandler[] = [
+  // 1) populate `req.useragent`
+  useragent.express(),
+
+  // 2) our own middleware
+  (req: Request, res: Response, next: NextFunction) => {
+    // get the IP
+    const ip = requestIp.getClientIp(req) || '';
+
+    // unwrap the typed `req.useragent`
+    const ua = req.useragent;             // now TS knows this is `Details`
+    const deviceType = ua.isMobile
+      ? 'mobile'
+      : ua.isDesktop
+      ? 'desktop'
+      : 'other';
+
+    // typed lookup
+    const geo: Lookup | null = geoip.lookup(ip);
+    const location = {
+      country: geo?.country ?? null,
+      region: geo?.region ?? null,
+      city: geo?.city ?? null,
+    };
+
+    // attach a fully typed object
+    req.deviceInfo = {
+      ip,
+      deviceType,
+      platform: ua.platform,
+      browser: ua.browser,
+      location,
+    };
+
+    next();
+  },
+];
+
+
+---
+// src/model/ChatModel.ts
+
+import mongoose, { Document, Schema, Model } from "mongoose";
+import { IChatMessage } from "../../shared/interface/ChatMessageInterface";
+
+export interface IChatMessageDoc
+  extends Omit<IChatMessage, "_id">,
+    Document {}
+
+const ChatMessageSchema = new Schema<IChatMessageDoc>(
+  {
+    senderName:   { type: String, required: true },
+    receiverName: { type: String, required: true },
+    senderEmail:  { type: String, required: true },
+    receiverEmail:{ type: String, required: true },
+    message:      { type: String, required: true },
+  },
+  {
+    timestamps: { createdAt: "timestamp", updatedAt: false },
+  }
+);
+
+export const ChatMessageModel: Model<IChatMessageDoc> =
+  mongoose.model<IChatMessageDoc>("ChatMessage", ChatMessageSchema);
+
+export default ChatMessageModel;
+
+
+---
+// src/model/GroupMessage.ts
+
+import mongoose, { Document, Schema, Model } from "mongoose";
+import { IGroupMessage } from "../../shared/interface/GroupMessageInterface";
+
+export interface IGroupMessageDoc
+  extends Omit<IGroupMessage, "_id">,
+    Document {}
+
+const GroupMessageSchema = new Schema<IGroupMessageDoc>(
+  {
+    meetingId:   { type: String, required: true },
+    senderEmail: { type: String, required: true },
+    name:        { type: String, required: true },
+    content:     { type: String, required: true },
+  },
+  {
+    timestamps: { createdAt: "timestamp", updatedAt: false },
+  }
+);
+
+export const GroupMessageModel: Model<IGroupMessageDoc> =
+  mongoose.model<IGroupMessageDoc>("GroupMessage", GroupMessageSchema);
+
+export default GroupMessageModel;
+
+
+---
+// src/model/LiveSessionModel.ts
+
+// backend/models/LiveSessionModel.ts
+import mongoose, { Document, Schema, Model, Types } from "mongoose";
+import { ILiveSession } from "../../shared/interface/LiveSessionInterface";
+
+export interface ILiveSessionDocument extends Omit<ILiveSession,'_id'| "sessionId">, Document {sessionId: Types.ObjectId;}
+
+
+const WaitingRoomParticipantSchema = new Schema< 
+  ILiveSessionDocument["participantWaitingRoom"][0]
+>({ 
+  name: { type: String, required: true }, 
+  email: { type: String, required: true }, 
+  role: { type: String, enum: ["Participant", "Moderator", "Admin"], required: true }, 
+  joinedAt: { type: Date, required: true, default: () => new Date() }, 
+});
+const WaitingRoomObserverSchema = new Schema< 
+  ILiveSessionDocument["observerWaitingRoom"][0]
+>({ 
+  userId:     { type: Schema.Types.ObjectId, ref: "User", required: false }, 
+  name: { type: String, required: true }, 
+  email: { type: String, required: true }, 
+  role: { type: String, enum: ["Observer", "Moderator" , "Admin"], required: true }, 
+  joinedAt: { type: Date, required: true, default: () => new Date() }, 
+});
+
+const ParticipantSchema = new Schema< 
+  ILiveSessionDocument["participantsList"][0]
+>({ 
+  email:   { type: String, required: true }, 
+  name: { type: String, required: true }, 
+  role: { type: String, enum: ["Participant", "Moderator" , "Admin"], required: true }, 
+  joinedAt: { type: Date, required: true, default: () => new Date() }, 
+});
+
+const ObserverSchema = new Schema< 
+  ILiveSessionDocument["observerList"][0]
+>({ 
+  userId: { type: Schema.Types.ObjectId, ref: "User", required: false  }, 
+  name: { type: String, required: true }, 
+  email:   { type: String, required: true }, 
+  role: { type: String, enum: ["Observer", "Moderator" , "Admin"], required: true }, 
+  joinedAt: { type: Date, required: true, default: () => new Date() }, 
+});
+
+const LiveSessionSchema = new Schema<ILiveSessionDocument>(
+  {
+    sessionId: {  type: Schema.Types.ObjectId, ref: "Session", required: true },
+    ongoing: { type: Boolean, default: false },
+    startTime: { type: Date },
+    endTime: { type: Date },
+    participantWaitingRoom: { type: [WaitingRoomParticipantSchema], default: [] },
+    observerWaitingRoom: { type: [WaitingRoomObserverSchema], default: [] },
+    participantsList: { type: [ParticipantSchema], default: [] },
+    observerList: { type: [ObserverSchema], default: [] },
+    // add other flags or subdocuments here
+  },
+  {
+    timestamps: true, 
+  }
+);
+
+export const LiveSessionModel: Model<ILiveSessionDocument> =
+  mongoose.model<ILiveSessionDocument>("LiveSession", LiveSessionSchema);
+
+
+---
+// src/model/ModeratorModel.ts
+
+// src/models/moderator.model.ts
+
+import { Schema, model, Document, Types } from "mongoose";
+import { IModerator, Role } from "../../shared/interface/ModeratorInterface";
+
+// Omit the '_id' from IModerator to avoid conflicts with Document's '_id'
+export interface IModeratorDocument
+  extends Omit<IModerator, "_id" | "projectId" >,
+    Document {
+      _id: Types.ObjectId;
+  projectId: Types.ObjectId;
+}
+
+const moderatorSchema = new Schema<IModeratorDocument>(
+  {
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    email: { type: String, required: true },
+    companyName: { type: String, required: true },
+     roles: {
+      type: [String],
+      enum: ["Admin", "Moderator", "Observer"] as Role[],
+      default: [],
+      required: true,
+    },
+    adminAccess: { type: Boolean, default: false },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+    isVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export default model<IModeratorDocument>("Moderator", moderatorSchema);
+
+
+---
+// src/model/ObserverDocumentModel.ts
+
+// backend/model/ObserverDocumentModel.ts
+import { Schema, model, Types, Document } from "mongoose";
+
+import {IObserverDocument} from "../../shared/interface/ObserverDocumentInterface"
+/* map string IDs → ObjectId for DB layer */
+type ObserverDocDB = Omit<
+  IObserverDocument,
+  "_id" | "projectId" | "sessionId" | "addedBy"
+> & {
+  _id: Types.ObjectId;
+  projectId: Types.ObjectId;
+  sessionId: Types.ObjectId;
+  addedBy: Types.ObjectId;
+};
+
+export interface ObserverDocument
+  extends Document<Types.ObjectId, {}, ObserverDocDB>,
+    ObserverDocDB {}
+
+const ObserverDocSchema = new Schema<ObserverDocument>(
+  {
+    projectId:   { type: Schema.Types.ObjectId, ref: "Project", required: true },
+    sessionId:   { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    displayName: { type: String, required: true, trim: true },
+    size:        { type: Number, required: true }, 
+    storageKey:  { type: String, required: true, trim: true },
+    addedBy:     { type: Schema.Types.ObjectId, ref: "User", required: true },
+    addedByRole: {
+      type: String,
+      enum: ["Admin", "Moderator", "Observer"],
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+export const ObserverDocumentModel = model<ObserverDocument>(
+  "ObserverDocument",
+  ObserverDocSchema
+);
+
+
+---
+// src/model/ObserverGroupMessage.ts
+
+import mongoose, { Document, Schema, Model } from "mongoose";
+import { IObserverGroupMessage } from "../../shared/interface/ObserverGroupMessageInterface";
+
+export interface IObserverGroupMessageDoc
+  extends Omit<IObserverGroupMessage, "_id">,
+    Document {}
+
+const ObserverGroupMessageSchema = new Schema<IObserverGroupMessageDoc>(
+  {
+    meetingId:   { type: String, required: true },
+    senderEmail: { type: String, required: true },
+    name:        { type: String, required: true },
+    content:     { type: String, required: true },
+  },
+  {
+    timestamps: { createdAt: "timestamp", updatedAt: false },
+  }
+);
+
+export const ObserverGroupMessageModel: Model<IObserverGroupMessageDoc> =
+  mongoose.model<IObserverGroupMessageDoc>(
+    "ObserverGroupMessage",
+    ObserverGroupMessageSchema
+  );
+
+export default ObserverGroupMessageModel;
+
+
+---
+// src/model/ObserverWaitingRoomChatModel.ts
+
+import mongoose, { Document, Schema, Model, Types } from "mongoose";
+import { IWaitingRoomChat } from "../../shared/interface/WaitingRoomChatInterface";
+
+interface IObserverWaitingRoomChatDocument
+  extends Omit<IWaitingRoomChat, "sessionId" | "_id">,
+    Document {
+  sessionId: Types.ObjectId;
+}
+
+const ObserverWaitingRoomChatSchema = new Schema<IObserverWaitingRoomChatDocument>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "LiveSession", required: true },
+    email: { type: String, required: true },
+    senderName: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["Participant", "Observer", "Moderator"],
+      required: true,
+    },
+    content: { type: String, required: true },
+    timestamp: { type: Date, default: () => new Date() },
+  },
+  { timestamps: false }
+);
+
+export const ObserverWaitingRoomChatModel: Model<IObserverWaitingRoomChatDocument> =
+  mongoose.model<IObserverWaitingRoomChatDocument>(
+    "ObserverWaitingRoomChat",
+    ObserverWaitingRoomChatSchema
+  );
+
+
+---
+// src/model/ParticipantMeetingChatModel.ts
+
+import mongoose, { Schema, Document, Types } from "mongoose";
+import { IWaitingRoomChat } from "../../shared/interface/WaitingRoomChatInterface";
+
+
+export interface ParticipantMeetingChatDocument extends Omit<IWaitingRoomChat,"sessionId" | "_id">, Document {sessionId: Types.ObjectId;}
+
+const ParticipantMeetingChatSchema = new Schema<ParticipantMeetingChatDocument>({
+   sessionId: { type: Schema.Types.ObjectId, ref: "LiveSession", required: true },
+   email:   { type: String, required: true },
+  senderName:    { type: String, required: true },
+ role: { type: String, enum: ["Participant", "Observer", "Moderator"], required: true },
+    content: { type: String, required: true },
+  timestamp:     { type: Date,   required: true },
+});
+
+export const ParticipantMeetingChatModel = mongoose.model< 
+  ParticipantMeetingChatDocument
+>("ParticipantMeetingChat", ParticipantMeetingChatSchema);
+
+
+---
+// src/model/ParticipantWaitingRoomChatModel.ts
+
+// backend/models/WaitingRoomChatModel.ts
+import mongoose, { Document, Schema, Model, Types } from "mongoose";
+import { IWaitingRoomChat } from "../../shared/interface/WaitingRoomChatInterface";
+
+export interface IParticipantWaitingRoomChatDocument extends Omit<IWaitingRoomChat, "sessionId" | "_id">, Document {sessionId: Types.ObjectId;}
+
+const ParticipantWaitingRoomChatSchema  = new Schema<IParticipantWaitingRoomChatDocument>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "LiveSession", required: true },
+    email:   { type: String, required: true },
+    senderName: { type: String, required: true },
+    role: { type: String, enum: ["Participant", "Observer", "Moderator"], required: true },
+    content: { type: String, required: true },
+    timestamp: { type: Date, default: () => new Date() },
+  },
+  {
+    timestamps: false,
+  }
+);
+
+export const ParticipantWaitingRoomChatModel: Model<IParticipantWaitingRoomChatDocument> =
+  mongoose.model<IParticipantWaitingRoomChatDocument>(
+    "ParticipantWaitingRoomChat",
+    ParticipantWaitingRoomChatSchema
+  );
+
+
+---
+// src/model/PollModel.ts
+
+import { Schema, model, Types, Document } from "mongoose";
+import { IPoll } from "../../shared/interface/PollInterface";
+
+/* Convert front-end strings → ObjectIds */
+type PollDB = Omit<IPoll, "_id" | "projectId" | "sessionId" | "createdBy" | "questions"> & {
+  _id: Types.ObjectId;
+  projectId: Types.ObjectId;
+  sessionId: Types.ObjectId;
+  createdBy: Types.ObjectId;
+  questions: (IPoll["questions"][number] & { _id: Types.ObjectId })[];
+};
+
+export interface PollDocument
+  extends Document<Types.ObjectId, {}, PollDB>,
+    PollDB {}
+
+/* ---------- Question schema (all optional fields declared) ---------- */
+const QuestionSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: [
+        "SINGLE_CHOICE",
+        "MULTIPLE_CHOICE",
+        "MATCHING",
+        "RANK_ORDER",
+        "SHORT_ANSWER",
+        "LONG_ANSWER",
+        "FILL_IN_BLANK",
+        "RATING_SCALE",
+      ],
+      required: true,
+    },
+    prompt: { type: String, required: true, trim: true },
+    required: { type: Boolean, default: false },
+    image: { type: String },
+
+    /* single / multiple choice */
+    answers: { type: [String] },
+    correctAnswer: { type: Number },
+    correctAnswers: { type: [Number] },
+    showDropdown: { type: Boolean },
+
+    /* matching */
+    options: { type: [String] },
+
+    /* rank order */
+    rows: { type: [String] },
+    columns: { type: [String] },
+
+    /* text questions */
+    minChars: { type: Number },
+    maxChars: { type: Number },
+
+    /* rating scale */
+    scoreFrom: { type: Number },
+    scoreTo: { type: Number },
+    lowLabel: { type: String },
+    highLabel: { type: String },
+  },
+  { _id: true }
+);
+
+/* ---------- Poll schema ---------- */
+const PollSchema = new Schema<PollDocument>(
+  {
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session" },
+
+    title: { type: String, required: true, trim: true },
+    questions: { type: [QuestionSchema], required: true },
+
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    createdByRole: {
+      type: String,
+      enum: ["Admin", "Moderator"],
+      required: true,
+    },
+
+    lastModified: { type: Date, default: Date.now },
+    responsesCount: { type: Number, default: 0 },
+    isRun: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+export const PollModel = model<PollDocument>("Poll", PollSchema);
+
+
+---
+// src/model/ProjectFormModel.ts
+
+import { Schema, model, Document, Types } from "mongoose";
+import { IProjectForm } from "../../shared/interface/ProjectFormInterface";
+
+export interface IProjectFormDocument extends Omit<IProjectForm, "user">, Document {
+  user: Types.ObjectId;
+}
+
+const projectFormSchema = new Schema<IProjectFormDocument>(
+  { name: { type: String },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    service: {
+      type: String,
+      enum: ["Concierge", "Signature"],
+      required: true,
+    },
+    addOns: { type: [String] },
+    respondentCountry: { type: String },
+    respondentLanguage: { type: [String] },
+    sessions: [
+      {
+        number: { type: Number },
+        duration: { type: String },
+      },
+    ],
+    firstDateOfStreaming: { type: Date, required: true },
+    respondentsPerSession: { type: Number, default: 0 },
+    numberOfSessions: { type: Number, default: 0 },
+    sessionLength: { type: Number, default: 0},
+    recruitmentSpecs: { type: String, default: ""},
+    preWorkDetails: { type: String, default: "" },
+    selectedLanguage: { type: String, default: ""},
+    inLanguageHosting: {
+      type: String,
+      enum: ["yes", "no", ""],
+      default: "",
+    },
+    provideInterpreter: {
+      type: String,
+      enum: ["yes", "no", ""],
+      default: "",
+    },
+    languageSessionBreakdown: { type: String, default: "" },
+    additionalInfo: { type: String, default: "" },
+    emailSent: { type: String, default: "Pending" },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export default model<IProjectFormDocument>("ProjectForm", projectFormSchema);
+
+
+---
+// src/model/ProjectModel.ts
+
+
+import { Schema, model, Document, Types } from "mongoose";
+import { IProject, IProjectSession } from "../../shared/interface/ProjectInterface";
+
+// Override types for backend/Mongoose usage
+export interface IProjectDocument extends Omit<IProject, "createdBy" | "tags" | "moderators" | "meetings" | "_id">, Document {
+  createdBy: Types.ObjectId;
+  tags: Types.ObjectId[];
+  moderators: Types.ObjectId[];
+  meetings: Types.ObjectId[];
+  sessions: IProjectSession[];
+}
+
+const projectSchema = new Schema<IProjectDocument>(
+  {
+    name: { type: String, required: true },
+    internalProjectName: { type: String, default: "" },
+    description: { type: String, default: "" },
+    startDate: { type: Date, required: true },
+    status: {
+      type: String,
+      enum: ["Draft", "Active", "Inactive", "Closed", "Archived"],
+      default: "Draft",
+    },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    tags: { type: [Schema.Types.ObjectId], ref: "Tag", default: [] },
+    moderators: { type: [Schema.Types.ObjectId], ref: "Moderator", default: [] },
+    meetings: { type: [Schema.Types.ObjectId], ref: "Session", default: [] },
+    projectPasscode: {
+      type: String,
+      default: () =>
+        Math.floor(10000000 + Math.random() * 90000000).toString(),
+    },
+    cumulativeMinutes: { type: Number, default: 0 },
+    service: {
+      type: String,
+      enum: ["Concierge", "Signature"],
+      required: true,
+    },
+    respondentCountry: { type: String },
+    respondentLanguage: { type: String },
+    sessions: [
+      {
+        number: { type: Number },
+        duration: { type: String },
+      },
+    ],
+    recordingAccess: { type: Boolean, default: false },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export default model<IProjectDocument>("Project", projectSchema);
+
+
+---
+// src/model/SessionDeliverableModel.ts
+
+import { Schema, model, Types, Document } from "mongoose";
+import { ISessionDeliverable } from "../../shared/interface/SessionDeliverableInterface"
+
+/* Convert string IDs to ObjectId for Mongo layer */
+type DeliverableDB = Omit<
+ISessionDeliverable,
+  "_id" | "sessionId" | "projectId" | "uploadedBy"
+> & {
+  _id: Types.ObjectId;
+  sessionId: Types.ObjectId;
+  projectId: Types.ObjectId;
+  uploadedBy: Types.ObjectId;
+};
+
+export interface SessionDeliverableDocument
+  extends Document<Types.ObjectId, {}, DeliverableDB>,
+    DeliverableDB {}
+
+const DeliverableSchema = new Schema<SessionDeliverableDocument>(
+  {
+    sessionId:  { type: Schema.Types.ObjectId, ref: "Session",  required: true },
+    projectId:  { type: Schema.Types.ObjectId, ref: "Project",  required: true },
+
+    type: {
+      type:    String,
+      enum:    [
+        "AUDIO",
+        "VIDEO",
+        "TRANSCRIPT",
+        "BACKROOM_CHAT",
+        "SESSION_CHAT",
+        "WHITEBOARD",
+        "POLL_RESULT",
+      ],
+      required: true,
+    },
+    displayName:  { type: String, required: true, trim: true },
+    size:         { type: Number, required: true }, 
+    storageKey:   { type: String, required: true, trim: true },
+    uploadedBy:   { type: Schema.Types.ObjectId, ref: "User", required: true },
+  },
+  { timestamps: true }
+);
+
+export const SessionDeliverableModel = model<SessionDeliverableDocument>(
+  "SessionDeliverable",
+  DeliverableSchema
+);
+
+
+---
+// src/model/SessionModel.ts
+
+// backend/models/SessionModel.ts
+import { Schema, model, Document, Types } from "mongoose";
+import { ISession } from "../../shared/interface/SessionInterface";
+
+// Omit the raw string-IDs so we can re-add them as ObjectId
+type SessionDB = Omit<ISession, "_id" | "projectId" | "moderators"> & {
+  projectId: Types.ObjectId;
+  moderators: Types.ObjectId[];
+};
+
+// Now extend Document<Types.ObjectId, {}, SessionDB>
+export interface ISessionDocument
+  extends Document<Types.ObjectId, {}, SessionDB>,
+          SessionDB {
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+const SessionSchema = new Schema<ISessionDocument>(
+  {
+    title: { type: String, required: true, trim: true },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+    date: { type: Date, required: true },
+    startTime: { type: String, required: true },
+    duration: { type: Number, required: true, min: 30 },
+    moderators: [
+      { type: Schema.Types.ObjectId, ref: "Moderator", required: true }
+    ],
+    timeZone: { type: String, required: true },
+    breakoutRoom: { type: Boolean, required: true, default: false },
+  },
+  { timestamps: true }
+);
+
+export const SessionModel = model<ISessionDocument>(
+  "Session",
+  SessionSchema
+);
+
+
+---
+// src/model/TagModel.ts
+
+import { Schema, model, Types, Document } from "mongoose";
+import { ITag } from "../../shared/interface/TagInterface"; 
+/**
+ * Convert the three IDs from `string` to `Types.ObjectId`
+ * so they line up with what Mongoose actually stores.
+ */
+type TagDBProps = Omit<ITag, "_id" | "createdBy" | "projectId"> & {
+  createdBy: Types.ObjectId;
+  projectId: Types.ObjectId;
+};
+
+/**
+ * Mongoose document type = your converted props + the built-in Document
+ * + automatic timestamp fields.
+ */
+export interface TagDocument
+  extends Document<Types.ObjectId, {}, TagDBProps>,
+    TagDBProps {
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const TagSchema = new Schema<TagDocument>(
+  {
+    title:     { type: String, required: true, trim: true },
+    color:     { type: String, required: true, trim: true },
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: "Project",
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+export const TagModel = model<TagDocument>("Tag", TagSchema);
+
+
+---
+// src/model/UserActivityModel.ts
+
+// backend/models/UserActivityModel.ts
+import mongoose, { Document, Schema, Model, Types } from "mongoose";
+import { IUserActivity } from "../../shared/interface/UserActivityInterface";
+
+export interface IUserActivityDocument extends Omit<IUserActivity, "_id"| "sessionId" | "userId">, Document {sessionId: Types.ObjectId, userId: Types.ObjectId}
+
+const DeviceInfoSchema = new Schema<IUserActivityDocument["deviceInfo"]>(
+  {
+    ip: { type: String },
+    deviceType: { type: String },
+    platform: { type: String },
+    browser: { type: String },
+    location: { type: String },
+  },
+  { _id: false }
+);
+
+const UserActivitySchema = new Schema<IUserActivityDocument>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "LiveSession", required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: false },
+    role: { type: String, enum: ["Participant", "Observer", "Moderator", "Admin"], required: true },
+    joinTime: { type: Date, default: () => new Date(), required: true },
+    leaveTime: { type: Date },
+    deviceInfo: { type: DeviceInfoSchema },
+  },
+  {
+    timestamps: false,
+  }
+);
+
+export const UserActivityModel: Model<IUserActivityDocument> =
+  mongoose.model<IUserActivityDocument>("UserActivity", UserActivitySchema);
+
+
+---
+// src/model/UserModel.ts
+
+import mongoose, { Schema, Document, Model } from "mongoose";
+import { IUser } from "../../shared/interface/UserInterface";
+export interface IUserDocument extends Omit<IUser, "_id">, Document {}
+
+const UserSchema: Schema<IUserDocument> = new Schema(
+  {
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    phoneNumber: { type: String, required: true, unique: true },
+    companyName: { type: String, required: true },
+    password: { type: String, required: true },
+    role: {
+      type: String,
+      enum: [
+        "Admin",
+        "Moderator",
+        "Observer",
+        "Participant",
+        "AmplifyAdmin",
+        "AmplifyModerator",
+        "AmplifyObserver",
+        "AmplifyParticipant",
+        "AmplifyTechHost",
+      ],
+      required: true,
+    },
+    status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
+    isEmailVerified: { type: Boolean, default: false },
+    termsAccepted: { type: Boolean, required: true },
+    termsAcceptedTime: { type: Date, default: Date.now },
+    isDeleted: { type: Boolean, default: false },
+    createdBy: { type: String, default: "self" },
+    createdById: { type: Schema.Types.ObjectId },
+    credits: { type: Number, default: 0 },
+    stripeCustomerId: { type: String },
+    billingInfo: {
+      address: { type: String },
+      city: { type: String },
+      state: { type: String },
+      country: { type: String },
+      postalCode: { type: String },
+    },
+    creditCardInfo: {
+      last4: { type: String },
+      brand: { type: String },
+      expiryMonth: { type: String },
+      expiryYear: { type: String },
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const User: Model<IUserDocument> = mongoose.model<IUserDocument>(
+  "User",
+  UserSchema
+);
+
+export default User;
+
+
+---
+// src/package.json
 {
   "name": "backend",
   "version": "1.0.0",
@@ -65,11 +4342,843 @@
     "typescript": "^5.8.2"
   }
 }
-```
 
---- C:\work\amplify-new\backend\server.ts ---
 
-```typescript
+---
+// src/processors/isValidEmail.ts
+
+export const isValidEmail = (email: string): boolean => {
+  // This regex pattern checks for a basic email format.
+  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+  return emailRegex.test(email);
+};
+
+
+---
+// src/processors/liveSession/sessionService.ts
+
+// backend/processors/sessionService.ts
+
+import { ClientSession, Types } from "mongoose";
+import { LiveSessionModel } from "../../model/LiveSessionModel";
+import { UserActivityModel } from "../../model/UserActivityModel";
+import ChatMessageModel from "../../model/ChatModel";
+import GroupMessageModel from "../../model/GroupMessage";
+import ObserverGroupMessageModel from "../../model/ObserverGroupMessage";
+import { ParticipantWaitingRoomChatModel } from "../../model/ParticipantWaitingRoomChatModel";
+
+export interface EnqueueUserData {
+  userId?: string;
+  name: string;
+  email: string;
+  role: "Participant" | "Observer" | "Moderator" | "Admin";
+}
+
+/**
+ * Ensure there is a LiveSession for the given scheduled session.
+ * If none exists, create it with ongoing=false.
+ */
+export async function createLiveSession(sessionId: string,  options?: { session?: ClientSession }) {
+  // include the session on the query (so even findOne is under txn)
+  const live = await LiveSessionModel.findOne(
+    { sessionId: new Types.ObjectId(sessionId) },
+    null,
+    { session: options?.session }
+  );
+   if (live) return live;
+    // create with the session option
+  const [created] = await LiveSessionModel.create(
+    [
+      {
+        sessionId: new Types.ObjectId(sessionId),
+        ongoing: false,
+      }
+    ],
+    { session: options?.session }
+  );
+
+  return created;
+}
+
+/**
+ * Add a user to the waiting room and record their join in UserActivity.
+ */
+export async function enqueueUser(
+  sessionId: string,
+  userData: EnqueueUserData
+) {
+  const live = await LiveSessionModel.findOne({ sessionId });
+  if (!live) throw new Error("LiveSession not found");
+
+  // 🛑 skip if already in waiting room
+  if (
+    userData.role === "Participant" && (
+      live.participantWaitingRoom.some((u) => u.email === userData.email) ||
+      live.participantsList.some((u) => u.email === userData.email)
+    )
+  ) {
+    return {
+      participantsWaitingRoom: live.participantWaitingRoom,
+      observersWaitingRoom: live.observerWaitingRoom,
+      participantList: live.participantsList,
+      observerList: live.observerList
+    };
+  }
+  // Add to waiting room
+  if (userData.role === "Participant") {
+    live.participantWaitingRoom.push({
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      joinedAt: new Date(),
+    });
+  } else if (userData.role === "Observer") {
+    live.observerWaitingRoom.push({
+      userId: userData.userId || undefined,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      joinedAt: new Date(),
+    });
+  } else if (userData.role === "Moderator" || userData.role === "Admin" ) {
+    const email = userData.email;
+    if (
+      live.observerList.some(u => u.email === email) ||
+      live.participantsList.some(u => u.email === email)
+    ) {
+      return {
+            participantsWaitingRoom: live.participantWaitingRoom,
+    observersWaitingRoom:    live.observerWaitingRoom,
+    participantList:         live.participantsList,
+    observerList:            live.observerList,
+      };
+    }
+    
+    live.observerList.push({
+      userId: userData.userId || undefined,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      joinedAt: new Date(),
+    });
+    live.participantsList.push({
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      joinedAt: new Date(),
+    });
+  }
+
+  await live.save();
+
+  // Log join in activity
+  await UserActivityModel.create({
+    sessionId: live._id,
+    userId: userData.userId ? new Types.ObjectId(userData.userId) : undefined,
+    role: userData.role,
+    joinTime: new Date(),
+  });
+
+  return {
+     participantsWaitingRoom: live.participantWaitingRoom,
+      observersWaitingRoom: live.observerWaitingRoom,
+      participantList: live.participantsList,
+      observerList: live.observerList
+  };
+}
+
+/**
+ * Mark the LiveSession as started.
+ */
+export async function startSession(sessionId: string) {
+  const live = await LiveSessionModel.findOne({ sessionId });
+  if (!live) throw new Error("LiveSession not found");
+
+  live.ongoing = true;
+  live.startTime = new Date();
+  await live.save();
+
+  return live;
+}
+
+/**
+ * Mark the LiveSession as ended and record endTime.
+ */
+export async function endSession(sessionId: string) {
+  const live = await LiveSessionModel.findOne({ sessionId });
+  if (!live) throw new Error("LiveSession not found");
+
+  live.ongoing = false;
+  live.endTime = new Date();
+  await live.save();
+
+  return live;
+}
+
+/**
+ * Fetch consolidated session history:
+ *  • liveSession metadata
+ *  • all join/leave activities
+ *  • all waiting-room chats
+ *  • all in-meeting direct and group chats
+ */
+export async function getSessionHistory(sessionId: string) {
+  const live = await LiveSessionModel.findOne({ sessionId });
+  if (!live) throw new Error("LiveSession not found");
+
+  const liveId = live._id;
+
+  // Join/leave activity
+  const activities = await UserActivityModel.find({ sessionId: liveId }).lean();
+
+  // Waiting-room chats
+  const waitingRoomChats = await ParticipantWaitingRoomChatModel.find({
+    sessionId: liveId,
+  }).lean();
+
+  // In-meeting direct chats (1:1)
+  const directChats = await ChatMessageModel.find({ 
+    sessionId: liveId,
+  }).lean();
+
+  // In-meeting participant group chats
+  const groupChats = await GroupMessageModel.find({
+    meetingId: sessionId,
+  }).lean();
+
+  // In-meeting observer group chats
+  const observerChats = await ObserverGroupMessageModel.find({
+    meetingId: sessionId,
+  }).lean();
+
+  return {
+    liveSession: live.toObject(),
+    activities,
+    waitingRoomChats,
+    directChats,
+    groupChats,
+    observerChats,
+  };
+}
+
+export async function logLeave(
+  sessionId: string,
+  userId: string
+): Promise<void> {
+  // Find the LiveSession to get its _id
+  const live = await LiveSessionModel.findOne({ sessionId });
+  if (!live) throw new Error("LiveSession not found");
+
+  // Find the most recent activity without a leaveTime
+  const activity = await UserActivityModel.findOne({ 
+    sessionId: live._id,
+    userId: new Types.ObjectId(userId),
+    leaveTime: { $exists: false },
+  }).sort({ joinTime: -1 });
+
+  if (activity) {
+    activity.leaveTime = new Date();
+    await activity.save();
+  }
+}
+
+
+---
+// src/processors/poll/QuestionValidationProcessor.ts
+
+import { NextFunction } from "express";
+import ErrorHandler from "../../utils/ErrorHandler";
+
+export const validateQuestion = (
+  q: any,
+  idx: number,
+  next: NextFunction
+): boolean => {
+  const fail = (msg: string) => {
+    next(new ErrorHandler(`Question ${idx + 1}: ${msg}`, 400));
+    return true;
+  };
+
+  if (!q || typeof q !== "object") return fail("must be an object");
+  if (!q.type) return fail("type is required");
+
+  switch (q.type) {
+    case "SINGLE_CHOICE":
+      if (!Array.isArray(q.answers) || q.answers.length < 2)
+        return fail("requires at least two answers");
+      if (typeof q.correctAnswer !== "number")
+        return fail("correctAnswer (index) is required");
+      if (q.correctAnswer < 0 || q.correctAnswer >= q.answers.length)
+        return fail("correctAnswer index is out of range");
+      break;
+
+    case "MULTIPLE_CHOICE":
+      if (!Array.isArray(q.answers) || q.answers.length < 2)
+        return fail("requires at least two answers");
+      if (!Array.isArray(q.correctAnswers) || q.correctAnswers.length === 0)
+        return fail("correctAnswers array is required");
+      if (q.correctAnswers.some((n: number) => n < 0 || n >= q.answers.length))
+        return fail("one or more correctAnswers indices are out of range");
+      break;
+
+    case "MATCHING":
+      if (!Array.isArray(q.options) || !Array.isArray(q.answers))
+        return fail("options and answers arrays are required");
+      // Add length check here if you need strict one-to-one mapping
+      // if (q.options.length !== q.answers.length)
+      //   return error("options and answers must be the same length");
+      break;
+
+    case "RANK_ORDER":
+      if (!Array.isArray(q.rows) || !Array.isArray(q.columns))
+        return fail("rows and columns arrays are required");
+      break;
+
+    case "SHORT_ANSWER":
+    case "LONG_ANSWER":
+      // Add min/max char checks if desired
+      break;
+
+    case "FILL_IN_BLANK":
+      if (!Array.isArray(q.answers) || q.answers.length === 0)
+        return fail("answers array is required");
+      break;
+
+    case "RATING_SCALE":
+      if (
+        typeof q.scoreFrom !== "number" ||
+        typeof q.scoreTo !== "number" ||
+        q.scoreFrom >= q.scoreTo
+      )
+        return fail("scoreFrom must be less than scoreTo");
+      break;
+
+    default:
+      return fail(`unknown type "${q.type}"`);
+  }
+
+  return false; // validation passed
+};
+
+
+---
+// src/processors/sendEmail/sendVerifyAccountEmailProcessor.ts
+
+import transporter from "../../config/NodemailerConfig";
+import config from "../../config/index"
+import {SendEmailOptions} from "../../../shared/interface/SendEmailInterface"
+
+
+export const sendEmail = async (options: SendEmailOptions): Promise<void> => {
+  const mailOptions = {
+    from: config.EMAIL_FROM || 'test356sales@gmail.com',
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+  };
+
+  await transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error("Error sending email:", error);
+    } else {
+      console.log("Email has been sent:", info);
+    }
+  });
+  
+};
+
+
+---
+// src/processors/session/sessionTimeConflictChecker.ts
+
+// backend/processors/session/sessionTimeConflictChecker.ts
+import { DateTime } from "luxon";
+
+/**
+ * Combines a date (Date or ISO “YYYY-MM-DD”) and a “HH:mm” time string
+ * into a millisecond timestamp in the given IANA timeZone.
+ */
+export const toTimestamp = (
+  dateVal: Date | string,
+  timeStr: string,
+  timeZone: string
+): number => {
+  // Normalize date to “YYYY-MM-DD”
+  const dateISO =
+    typeof dateVal === "string"
+      ? dateVal
+      : DateTime.fromJSDate(dateVal).toISODate()!;
+
+  const dt = DateTime.fromISO(`${dateISO}T${timeStr}`, { zone: timeZone });
+  if (!dt.isValid) {
+    throw new Error(
+      `Invalid date/time/timeZone: ${dateISO} ${timeStr} ${timeZone}`
+    );
+  }
+  return dt.toMillis();
+};
+
+
+---
+// src/processors/user/isStrongPasswordProcessor.ts
+
+export const isStrongPassword = (password: string): boolean => {
+  const minLength = 9;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
+
+  return (
+    password.length >= minLength &&
+    hasUpperCase &&
+    hasLowerCase &&
+    hasNumber &&
+    hasSpecialChar
+  );
+};
+
+
+---
+// src/processors/user/isValidEmailProcessor.ts
+
+export const isValidEmail = (email: string): boolean => {
+  // This regex pattern checks for a basic email format.
+  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+  return emailRegex.test(email);
+};
+
+
+---
+// src/processors/user/removePasswordFromUserObjectProcessor.ts
+
+import { IUserDocument } from "../../model/UserModel";
+
+export const sanitizeUser = (user: IUserDocument) => {
+  const { password, ...sanitizedUser } = user.toObject();
+  return sanitizedUser;
+};
+
+
+---
+// src/routes/index.ts
+
+// src/routes/index.ts
+import express from "express";
+import userRoutes from "./user/userRoutes";
+import projectRoutes from "./project/projectRoutes";
+import paymentRoutes from "./payment/PaymentRoutes";
+import moderatorRoutes from "./moderator/ModeratorRoutes";
+import sessionRoutes from "./session/SessionRoutes"
+import tagRoutes from "./tag/TagRoutes"
+import sessionDeliverableRoutes from "./sessionDeliverable/SessionDeliverableRoutes"
+import observerDocumentRoutes from "./observerDocument/ObserverDocumentRoutes"
+import pollRoutes from "./poll/PollRoutes"
+import liveSessionRoutes from "./liveSession/LiveSessionRoutes"
+
+
+const router = express.Router();
+
+// Define all your routes here
+const routes: { path: string; route: express.Router }[] = [
+  { path: "/users", route: userRoutes },
+  { path: "/projects", route: projectRoutes },
+  { path: "/payment", route: paymentRoutes },
+  { path: "/moderators", route: moderatorRoutes },
+  { path: "/sessions", route: sessionRoutes },
+  { path: "/tags", route: tagRoutes },
+  { path: "/sessionDeliverables", route: sessionDeliverableRoutes },
+  { path: "/observerDocuments", route: observerDocumentRoutes },
+  { path: "/polls", route: pollRoutes },
+  { path: "/liveSessions", route: liveSessionRoutes },
+];
+
+// Loop through and mount each route
+routes.forEach((r) => {
+  router.use(r.path, r.route);
+});
+
+export default router;
+
+
+---
+// src/routes/liveSession/LiveSessionRoutes.ts
+
+import express from "express";
+import { authenticateJwt } from "../../middlewares/authenticateJwt";
+import { authorizeRoles } from "../../middlewares/authorizeRoles";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import { endSession, getSessionHistory, startSession } from "../../controllers/LiveSessionController";
+
+const router = express.Router();
+
+// only moderators can start or end
+// POST api/v1/liveSessions/:sessionId/start
+router.post(
+  "/:sessionId/start",
+  authenticateJwt,
+  // authorizeRoles("Moderator"),
+  catchError(startSession)
+);
+
+// POST api/v1/liveSessions/:sessionId/end
+router.post(
+  "/:sessionId/end",
+  authenticateJwt,
+  // authorizeRoles("Moderator"),
+  catchError(endSession)
+);
+
+// GET api/v1/liveSessions/:sessionId/history
+router.get(
+  "/:sessionId/history",
+  authenticateJwt,
+  catchError(getSessionHistory)
+);
+
+export default router;
+
+
+---
+// src/routes/moderator/ModeratorRoutes.ts
+
+import { addModerator,  editModerator, getModeratorById, getModeratorsByProjectId, toggleModeratorStatus } from "../../controllers/ModeratorController";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import express from "express";
+
+
+const router = express.Router();
+
+// POST /api/v1/moderators/add-moderator
+router.post("/add-moderator", catchError(addModerator));
+
+// PUT /api/v1/moderators/:moderatorId
+router.put("/:moderatorId", catchError(editModerator));
+
+// POST /api/v1/moderators/project/:projectId
+router.get("/project/:projectId", catchError(getModeratorsByProjectId));
+
+// POST /api/v1/moderators/:moderatorId
+router.get("/:moderatorId", catchError(getModeratorById));
+
+// POST /api/v1/moderators/toggle/:moderatorId
+router.patch("/toggle/:moderatorId", catchError(toggleModeratorStatus));
+
+export default router;
+
+--- 
+// src/routes/observerDocument/ObserverDocumentRoutes.ts
+
+import express from "express";
+import multer from "multer";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import { createObserverDocument, deleteObserverDocument, downloadObserverDocument, downloadObserverDocumentsBulk, getObserverDocumentsByProjectId } from "../../controllers/ObserverDocumentController";
+
+
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+// POST   /api/v1/observerDocuments 
+router.post("/", upload.single("file"),
+  catchError(createObserverDocument)
+);
+
+// GET   /api/v1/observerDocuments/project/:projectId 
+router.get(
+  "/project/:projectId",
+  catchError(getObserverDocumentsByProjectId)
+);
+
+// GET   /api/v1/observerDocuments/:id/download 
+router.get("/:id/download", catchError(downloadObserverDocument));
+
+// POST   /api/v1/observerDocuments/download
+
+router.post("/download-bulk", catchError(downloadObserverDocumentsBulk));
+
+/* DELETE /api/v1/observerDocuments/:id */
+router.delete("/:id", catchError(deleteObserverDocument));
+
+export default router;
+
+
+---
+// src/routes/payment/PaymentRoutes.ts
+
+import express from "express";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import {
+  createCustomer,
+  createPaymentIntent,
+  savePaymentMethod,
+  createSetupIntent,
+  retrievePaymentMethod,
+  chargeCustomer,
+  saveBillingInfo
+} from "../../controllers/PaymentController";
+
+const router = express.Router();
+
+// POST /api/v1/payment/create-customer
+router.post("/create-customer", catchError(createCustomer));
+
+// POST /api/v1/payment/create-payment-intent
+router.post("/create-payment-intent", catchError(createPaymentIntent));
+
+// POST /api/v1/payment/save-payment-method
+router.post("/save-payment-method", catchError(savePaymentMethod));
+
+// POST /api/v1/payment/create-setup-intent
+router.post("/create-setup-intent", catchError(createSetupIntent));
+
+// POST /api/v1/payment/retrieve-payment-method
+router.post("/retrieve-payment-method", catchError(retrievePaymentMethod));
+
+// POST /api/v1/payment/charge
+router.post("/charge", catchError(chargeCustomer));
+
+// POST /api/v1/payment/save-billing-info
+router.post("/save-billing-info", catchError(saveBillingInfo));
+
+export default router;
+
+
+---
+// src/routes/poll/PollRoutes.ts
+
+import express from "express";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import { createPoll, deletePoll, duplicatePoll, getPollById, getPollsByProjectId, updatePoll } from "../../controllers/PollController";
+import { uploadImage } from "../../utils/multer";
+
+
+const router = express.Router();
+
+/* POST /api/v1/polls  – Create a new poll */
+router.post("/", uploadImage.array("images", 20), catchError(createPoll));
+
+// GET /api/v1/polls/project/:projectId?page=&limit=
+router.get("/project/:projectId", catchError(getPollsByProjectId));
+
+// GET /api/v1/polls/:id
+router.get("/:id", catchError(getPollById));  
+
+/* PATCH /api/v1/polls/:id  – Update a poll */
+router.patch("/:id", uploadImage.array("images", 20),  catchError(updatePoll));
+
+/* POST /api/v1/polls/:id/duplicate  – Duplicate a  poll */
+router.post("/:id/duplicate", catchError(duplicatePoll));
+
+/* DELETE /api/v1/polls/:id  – Delete a  poll */
+router.delete("/:id",  catchError(deletePoll));
+
+
+---
+// src/routes/project/projectRoutes.ts
+
+
+import express from 'express';
+import { catchError } from '../../middlewares/CatchErrorMiddleware';
+import { createProjectByExternalAdmin, editProject, emailProjectInfo, getProjectById, getProjectByUserId, saveProgress, toggleRecordingAccess } from '../../controllers/ProjectController';
+import { authenticateJwt } from '../../middlewares/authenticateJwt';
+import { authorizeRoles } from '../../middlewares/authorizeRoles';
+
+
+const router = express.Router();
+
+// POST /api/v1/projects/save-progress - Register a new user
+router.post("/save-progress", catchError(saveProgress));
+
+// POST /api/v1/projects/create-project-by-external-admin
+router.post("/create-project-by-external-admin", catchError(createProjectByExternalAdmin));
+
+// POST /api/v1/projects/email-project-info
+router.post("/email-project-info", catchError(emailProjectInfo));
+
+// POST /api/v1/projects/get-project-by-userId/:userId
+router.get("/get-project-by-userId/:userId", authenticateJwt,
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"), catchError(getProjectByUserId));
+
+// GET /api/v1/projects/get-project-by-id/:projectId 
+router.get("/get-project-by-id/:projectId",authenticateJwt,
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"), catchError(getProjectById));
+
+// PATCH /api/v1/projects/edit-project 
+router.patch("/edit-project", catchError(editProject));
+
+// GET /api/v1/projects/toggle-recording-access
+router.patch("/toggle-recording-access", catchError(toggleRecordingAccess));
+
+export default router;
+
+
+---
+// src/routes/sessionDeliverable/SessionDeliverableRoutes.ts
+
+import express from "express";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import multer from "multer";
+import { createDeliverable, deleteDeliverable, downloadDeliverable, downloadMultipleDeliverable, getDeliverablesByProjectId } from "../../controllers/SessionDeliverableController";
+
+
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });         
+
+// POST   /api/v1/sessionDeliverables       
+router.post("/", upload.single("file"), catchError(createDeliverable));
+
+
+// GET    /api/v1/sessionDeliverables/project/:projectId?page=&limit=&type=
+router.get(
+  "/project/:projectId",
+  catchError(getDeliverablesByProjectId)
+);
+
+// GET    /api/v1/sessionDeliverables/:id/download   
+router.get("/:id/download", catchError(downloadDeliverable));
+
+// POST   /api/v1/sessionDeliverables/download        
+router.post("/download-bulk", catchError(downloadMultipleDeliverable));
+
+// DELETE /api/v1/sessionDeliverables/:id             
+router.delete("/:id", catchError(deleteDeliverable));
+
+export default router;
+
+
+---
+// src/routes/session/SessionRoutes.ts
+
+
+import { createSessions, updateSession, duplicateSession, deleteSession, getSessionsByProject, getSessionById } from "../../controllers/SessionController";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import express from "express";
+
+
+const router = express.Router();
+
+// POST /api/v1/sessions/
+router.post("/", catchError(createSessions));
+
+// GET /api/v1/sessions/project/:projectId
+router.get(
+  "/project/:projectId",
+  catchError(getSessionsByProject)
+);
+
+// GET /api/v1/sessions/:id
+router.get(
+  "/:id",
+  catchError(getSessionById)
+);
+
+// PATCH /api/v1/sessions/:id
+router.patch("/:id", catchError(updateSession));
+
+// POST /api/v1/sessions/:id/duplicate
+router.post("/:id/duplicate", catchError(duplicateSession));
+
+// DELETE /api/v1/sessions/:d
+router.delete("/:id", catchError(deleteSession));
+
+export default router;
+
+--- 
+// src/routes/tag/TagRoutes.ts
+
+import express from "express";
+import { catchError } from "../../middlewares/CatchErrorMiddleware";
+import { createTag, getTagsByProjectId,getTagsByUserId, editTag, deleteTag} from "../../controllers/TagController";
+
+const router = express.Router();
+
+// POST /api/v1/tags
+router.post("/", catchError(createTag));
+
+// GET    /api/v1/tags/project/:projectId
+router.get("/project/:projectId", catchError(getTagsByProjectId));
+
+// GET    /api/v1/tags/user/:userId
+router.get("/user/:userId", catchError(getTagsByUserId));
+
+// PATCH  /api/v1/tags/:id
+router.patch("/:id", catchError(editTag));
+
+// DELETE /api/v1/tags/:id
+router.delete("/:id", catchError(deleteTag));
+
+export default router;
+
+
+---
+// src/routes/user/userRoutes.ts
+
+import express from 'express'
+import {
+  createAccount,
+  loginUser,
+  forgotPassword,
+  resetPassword,
+  verifyEmail,
+  changePassword,
+  editUser,
+  deleteUser,
+  findUserById,
+  refreshToken,
+  logoutUser,
+  getCurrentUser,
+} from '../../controllers/UserController'
+import { catchError } from '../../middlewares/CatchErrorMiddleware'
+import { authenticateJwt } from '../../middlewares/authenticateJwt'
+
+const router = express.Router()
+
+// POST /api/v1/users/register - Register a new user
+router.post('/register', catchError(createAccount))
+// POST /api/v1/users/login - login a user
+router.post('/login', catchError(loginUser))
+
+// POST /api/v1/users/logout - logout a user
+router.post('/logout', catchError(logoutUser))
+
+// POST /api/v1/users/refreshToken - 
+router.post('/refreshToken', catchError(refreshToken))
+
+// POST /api/v1/users/forgot-password
+router.post('/forgot-password', catchError(forgotPassword))
+
+// POST /api/v1/users/reset-password
+router.post('/reset-password', catchError(resetPassword))
+
+// GET /api/v1/users/verify-email
+router.get('/verify-email', catchError(verifyEmail))
+
+// GET /api/v1/users/find-by-id
+router.get('/find-by-id', catchError(findUserById))
+
+// POST /api/v1/users/change-password
+router.post('/change-password', catchError(changePassword))
+
+// PUT /api/v1/users/edit/:id
+router.put('/edit/:id', catchError(editUser))
+
+// DELETE /api/v1/users/:id
+router.delete('/:id', catchError(deleteUser))
+
+router.get(
+  "/me",
+  authenticateJwt,  
+  catchError(getCurrentUser)
+);
+// ! Delete route will be implemented after creating project
+// ! Find all and find by id route need to be implemented for the amplify admin
+
+export default router
+
+
+---
+// src/server.ts
+
 // src/server.ts
 import express from "express";
 import config from "./config/index";
@@ -136,11 +5245,10 @@ server.listen(PORT, async () => {
   await connectDB();
   console.log(`Server is running on port ${PORT}`);
 });
-```
 
---- C:\work\amplify-new\backend\tsconfig.json ---
 
-```json
+---
+// src/tsconfig.json
 {"extends": "../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
@@ -153,7 +5261,7 @@ server.listen(PORT, async () => {
     // "tsBuildInfoFile": "./.tsbuildinfo",              /* Specify the path to .tsbuildinfo incremental compilation file. */
     // "disableSourceOfProjectReferenceRedirect": true,  /* Disable preferring source files instead of declaration files when referencing composite projects. */
     // "disableSolutionSearching": true,                 /* Opt a project out of multi-project reference checking when editing. */
-    // "disableReferencedProjectLoad": true,             /* Reduce the number of projects loaded automatically by TypeScript. */
+    // "disableReferencedProjectLoad": true,                 /* Reduce the number of projects loaded automatically by TypeScript. */
 
     /* Language and Environment */
     "target": "es2016",                                  /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
@@ -175,9 +5283,9 @@ server.listen(PORT, async () => {
     "rootDir": ".",                                  /* Specify the root folder within your source files. */
     // "moduleResolution": "node10",                     /* Specify how TypeScript looks up a file from a given module specifier. */
     "baseUrl": ".",                                  /* Specify the base directory to resolve non-relative module names. */
-    "paths": {"@shared/*":  ["../shared/dist/*"]},                                      /* Specify a set of entries that re-map imports to additional lookup locations. */
+    "paths": {"@shared/*":  ["../shared/dist/*"]},
     // "rootDirs": [],                                   /* Allow multiple folders to be treated as one when resolving modules. */
-    // "typeRoots": [],                                  /* Specify multiple folders that act like './node_modules/@types'. */
+    // "typeRoots": [],                                      /* Specify multiple folders that act like './node_modules/@types'. */
     // "types": [],                                      /* Specify type package names to be included without being referenced in a source file. */
     // "allowUmdGlobalAccess": true,                     /* Allow accessing UMD globals from modules. */
     // "moduleSuffixes": [],                             /* List of file name suffixes to search when resolving a module. */
@@ -262,2711 +5370,308 @@ server.listen(PORT, async () => {
  "include": ["**/*.ts"],
   "exclude": ["node_modules","dist"]
 }
-```
 
---- C:\work\amplify-new\backend\config\db.ts ---
 
-```typescript
-import mongoose from "mongoose";
-import config from "./index";
+---
+// src/types/express-useragent.d.ts
 
-const connectDB = async () => {
-  try {
-    await mongoose.connect(config.database_url as string);
-    console.log("MongoDB connected successfully");
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
-    process.exit(1);
-  }
-};
-
-export default connectDB;
-```
-
---- C:\work\amplify-new\backend\config\index.ts ---
-
-```typescript
-import dotenv from "dotenv";
-dotenv.config();
-
-const config = {
-  port: process.env.PORT,
-  database_url: process.env.DATABASE_URL,
-  frontend_base_url: process.env.FRONTEND_BASE_URL,
-  access_token_secret: process.env.ACCESS_TOKEN_SECRET,
-  refresh_token_secret: process.env.REFRESH_TOKEN_SECRET,
-  access_token_expiry: process.env.ACCESS_TOKEN_EXPIRY,
-  refresh_token_expiry: process.env.REFRESH_TOKEN_EXPIRY,
-  cloudinary_cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
-  cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET,
-  smtp_host: process.env.SMTP_HOST,
-  smtp_port: process.env.SMTP_PORT,
-  smtp_service: process.env.SMTP_SERVICE,
-  smtp_mail: process.env.SMTP_MAIL,
-  smtp_password: process.env.SMTP_PASSWORD,
-  stripe_publishable_key: process.env.STRIPE_PUBLISHABLE_KEY,
-  stripe_secret_key: process.env.STRIPE_SECRET_KEY,
-  aws_access_key_id: process.env.AWS_ACCESS_KEY_ID,
-  aws_secret_access_key: process.env.AWS_SECRET_ACCESS_KEY,
-  aws_region: process.env.AWS_REGION,
-  aws_s3_bucket_name: process.env.AWS_S3_BUCKET_NAME,
-};
-
-export default config;
-```
-
---- C:\work\amplify-new\backend\config\NodemailerConfig.ts ---
-
-```typescript
-import nodemailer from "nodemailer";
-import config from "./index";
-
-const transporter = nodemailer.createTransport({
-  host: config.smtp_host,
-  port: Number(config.smtp_port),
-  service: config.smtp_service,
-  auth: {
-    user: config.smtp_mail,
-    pass: config.smtp_password,
-  },
-});
-
-export default transporter;
-```
-
---- C:\work\amplify-new\backend\constants\emailTemplates.ts ---
-
-```typescript
-export const verificationEmailTemplate = (
-  username: string,
-  verificationLink: string
-) => {
-  return `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <h2>Welcome to Our Platform, ${username}!</h2>
-      <p>Thank you for registering. Please verify your email address by clicking the link below:</p>
-      <p>
-        <a href="${verificationLink}" style="background-color: #4CAF50; color: white; padding: 14px 25px; text-align: center; text-decoration: none; display: inline-block;">
-          Verify Your Email
-        </a>
-      </p>
-      <p>If you did not create an account, please ignore this email.</p>
-      <p>Best regards,<br>The Team</p>
-    </div>
-  `;
-};
-```
-
---- C:\work\amplify-new\backend\constants\roles.ts ---
-
-```typescript
-export const ROLES = {
-    PARTICIPANT: 'participant',
-    MODERATOR: 'moderator',
-    OBSERVER: 'observer',
-    ADMIN: 'admin',
-  };
-```
-
---- C:\work\amplify-new\backend\controllers\LiveSessionController.ts ---
-
-```typescript
-import { Request, Response } from "express";
-import { CatchErrorMiddleware } from "../middlewares/CatchErrorMiddleware";
-import LiveSession from "../model/LiveSessionModel";
-import { AuthenticatedRequest } from "../middlewares/authenticateJwt";
-import { startLiveSession, joinLiveSession, endLiveSession } from "../processors/liveSession/sessionService";
-
-export const startSession = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { projectId, sessionId } = req.body;
-    const moderatorId = req.user?._id;
-
-    if (!moderatorId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const session = await startLiveSession(projectId, sessionId, moderatorId.toString());
-    res.status(201).json(session);
-});
-
-export const joinSession = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { sessionId } = req.params;
-    const userId = req.user?._id;
-    const { role } = req.body; // 'participant' or 'observer'
-
-    if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const session = await joinLiveSession(sessionId, userId.toString(), role);
-    res.status(200).json(session);
-});
-
-export const endSession = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { sessionId } = req.params;
-    const moderatorId = req.user?._id;
-
-    if (!moderatorId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const session = await endLiveSession(sessionId, moderatorId.toString());
-    res.status(200).json(session);
-});
-
-export const getSessionDetails = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-    const session = await LiveSession.findById(sessionId).populate('moderator participants observers');
-    if (!session) {
-        return res.status(404).json({ message: "Session not found" });
-    }
-    res.status(200).json(session);
-});
-```
-
---- C:\work\amplify-new\backend\controllers\ModeratorController.ts ---
-
-```typescript
-import { Request, Response } from 'express';
-import Moderator from '../model/ModeratorModel';
-import { CatchErrorMiddleware } from '../middlewares/CatchErrorMiddleware';
-
-// Get all moderators
-export const getAllModerators = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const moderators = await Moderator.find();
-    res.status(200).json(moderators);
-});
-
-// Get a single moderator by ID
-export const getModeratorById = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const moderator = await Moderator.findById(req.params.id);
-    if (!moderator) {
-        return res.status(404).json({ message: 'Moderator not found' });
-    }
-    res.status(200).json(moderator);
-});
-
-// Create a new moderator
-export const createModerator = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { userId, projectId, assignedSessions } = req.body;
-    const newModerator = new Moderator({ userId, projectId, assignedSessions });
-    await newModerator.save();
-    res.status(201).json(newModerator);
-});
-
-// Update a moderator
-export const updateModerator = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const updatedModerator = await Moderator.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updatedModerator) {
-        return res.status(404).json({ message: 'Moderator not found' });
-    }
-    res.status(200).json(updatedModerator);
-});
-
-// Delete a moderator
-export const deleteModerator = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const deletedModerator = await Moderator.findByIdAndDelete(req.params.id);
-    if (!deletedModerator) {
-        return res.status(404).json({ message: 'Moderator not found' });
-    }
-    res.status(200).json({ message: 'Moderator deleted successfully' });
-});
-```
-
---- C:\work\amplify-new\backend\controllers\ObserverDocumentController.ts ---
-
-```typescript
-import { Response } from 'express';
-import { AuthenticatedRequest } from '../middlewares/authenticateJwt';
-import ObserverDocument from '../model/ObserverDocumentModel';
-import { CatchErrorMiddleware } from '../middlewares/CatchErrorMiddleware';
-import { sendSuccess } from '../utils/responseHelpers';
-import multer from 'multer';
-import { uploadToS3 } from '../utils/uploadToS3';
-import ErrorHandler from '../utils/ErrorHandler';
-
-const upload = multer({ storage: multer.memoryStorage() });
-
-export const uploadObserverDocument = [
-    upload.single('file'),
-    CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-        const { projectId, sessionId } = req.body;
-        const userId = req.user?._id;
-        const file = req.file;
-
-        if (!file) {
-            throw new ErrorHandler('No file uploaded.', 400);
-        }
-
-        const s3Url = await uploadToS3(file.buffer, file.originalname, file.mimetype);
-
-        const newDocument = new ObserverDocument({
-            project: projectId,
-            session: sessionId,
-            user: userId,
-            fileName: file.originalname,
-            fileType: file.mimetype,
-            s3Url: s3Url,
-        });
-
-        await newDocument.save();
-        sendSuccess(res, { message: 'Document uploaded successfully', document: newDocument });
-    })
-];
-
-export const getObserverDocuments = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { projectId, sessionId } = req.query;
-    const query: any = {};
-
-    if (projectId) query.project = projectId;
-    if (sessionId) query.session = sessionId;
-
-    const documents = await ObserverDocument.find(query).populate('user', 'name email');
-    sendSuccess(res, documents);
-});
-```
-
---- C:\work\amplify-new\backend\controllers\PaymentController.ts ---
-
-```typescript
-import { Request, Response } from "express";
-import Stripe from "stripe";
-import config from "../config";
-import { CatchErrorMiddleware } from "../middlewares/CatchErrorMiddleware";
-import { AuthenticatedRequest } from "../middlewares/authenticateJwt";
-
-const stripe = new Stripe(config.stripe_secret_key as string, {
-  apiVersion: "2024-04-10",
-});
-
-export const createPaymentIntent = CatchErrorMiddleware(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const { amount, currency, paymentMethodId } = req.body;
-
-    try {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount,
-        currency,
-        payment_method: paymentMethodId,
-        confirm: true,
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: "never",
-        },
-      });
-
-      res.status(200).json({
-        clientSecret: paymentIntent.client_secret,
-        status: paymentIntent.status,
-      });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  }
-);
-
-export const getStripePublishableKey = (req: Request, res: Response) => {
-  res.status(200).json({ publishableKey: config.stripe_publishable_key });
-};
-```
-
---- C:\work\amplify-new\backend\controllers\PollController.ts ---
-
-```typescript
-import { Request, Response } from 'express';
-import Poll from '../model/PollModel';
-import { CatchErrorMiddleware } from '../middlewares/CatchErrorMiddleware';
-import { AuthenticatedRequest } from '../middlewares/authenticateJwt';
-import { validateQuestions } from '../processors/poll/QuestionValidationProcessor';
-import ErrorHandler from '../utils/ErrorHandler';
-
-// Create a new poll
-export const createPoll = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { title, questions, projectId, sessionId } = req.body;
-    const createdBy = req.user?._id;
-
-    if (!validateQuestions(questions)) {
-        throw new ErrorHandler('Invalid question structure.', 400);
-    }
-
-    const newPoll = new Poll({ title, questions, createdBy, projectId, sessionId });
-    await newPoll.save();
-    res.status(201).json(newPoll);
-});
-
-// Get all polls for a project/session
-export const getPolls = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { projectId, sessionId } = req.query;
-    const query: any = {};
-    if (projectId) query.projectId = projectId;
-    if (sessionId) query.sessionId = sessionId;
-
-    const polls = await Poll.find(query);
-    res.status(200).json(polls);
-});
-
-// Get a single poll by ID
-export const getPollById = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const poll = await Poll.findById(req.params.id);
-    if (!poll) {
-        return res.status(404).json({ message: 'Poll not found' });
-    }
-    res.status(200).json(poll);
-});
-
-// Submit a response to a poll
-export const submitPollResponse = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { pollId } = req.params;
-    const { responses } = req.body; // responses: [{ questionId: string, answer: any }]
-    const userId = req.user?._id;
-
-    const poll = await Poll.findById(pollId);
-    if (!poll) {
-        return res.status(404).json({ message: 'Poll not found' });
-    }
-
-    responses.forEach((response: { questionId: string, answer: any }) => {
-        const question = poll.questions.find(q => q._id.toString() === response.questionId);
-        if (question) {
-            question.responses.push({ user: userId, answer: response.answer });
-        }
-    });
-
-    await poll.save();
-    res.status(200).json({ message: 'Response submitted successfully' });
-});
-
-// Get poll results
-export const getPollResults = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { pollId } = req.params;
-    const poll = await Poll.findById(pollId).populate('questions.responses.user', 'name');
-    if (!poll) {
-        return res.status(404).json({ message: 'Poll not found' });
-    }
-    res.status(200).json(poll);
-});
-```
-
---- C:\work\amplify-new\backend\controllers\ProjectController.ts ---
-
-```typescript
-import { Request, Response } from "express";
-import Project from "../model/ProjectModel";
-import { CatchErrorMiddleware } from "../middlewares/CatchErrorMiddleware";
-import { AuthenticatedRequest } from "../middlewares/authenticateJwt";
-import { sendSuccess, sendError } from "../utils/responseHelpers";
-import mongoose from "mongoose";
-import Session from "../model/SessionModel";
-import archiver from "archiver";
-import ObserverDocument from "../model/ObserverDocumentModel";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import config from "../config";
-import stream from "stream";
-
-const s3Client = new S3Client({
-  region: config.aws_region,
-  credentials: {
-    accessKeyId: config.aws_access_key_id as string,
-    secretAccessKey: config.aws_secret_access_key as string,
-  },
-});
-
-// Create a new project
-export const createProject = CatchErrorMiddleware(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const {
-      name,
-      description,
-      startDate,
-      endDate,
-      projectType,
-      status,
-      client,
-      budget,
-      team,
-      tasks,
-      risks,
-      deliverables,
-    } = req.body;
-    const createdBy = req.user?._id;
-
-    const newProject = new Project({
-      name,
-      description,
-      startDate,
-      endDate,
-      projectType,
-      status,
-      client,
-      budget,
-      team,
-      tasks,
-      risks,
-      deliverables,
-      createdBy,
-    });
-
-    await newProject.save();
-    sendSuccess(res, newProject, 201);
-  }
-);
-
-// Get all projects
-export const getAllProjects = CatchErrorMiddleware(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const projects = await Project.find({ createdBy: req.user?._id });
-    sendSuccess(res, projects);
-  }
-);
-
-// Get a single project by ID
-export const getProjectById = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const project = await Project.findById(req.params.id);
-    if (!project) {
-      return sendError(res, "Project not found", 404);
-    }
-    sendSuccess(res, project);
-  }
-);
-
-// Update a project
-export const updateProject = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const updatedProject = await Project.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedProject) {
-      return sendError(res, "Project not found", 404);
-    }
-    sendSuccess(res, updatedProject);
-  }
-);
-
-// Delete a project
-export const deleteProject = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const deletedProject = await Project.findByIdAndDelete(req.params.id);
-    if (!deletedProject) {
-      return sendError(res, "Project not found", 404);
-    }
-    sendSuccess(res, { message: "Project deleted successfully" });
-  }
-);
-
-// Add a user to a project's team
-export const addUserToProject = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const { projectId, userId, role } = req.body;
-
-    if (
-      !mongoose.Types.ObjectId.isValid(projectId) ||
-      !mongoose.Types.ObjectId.isValid(userId)
-    ) {
-      return sendError(res, "Invalid projectId or userId", 400);
-    }
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return sendError(res, "Project not found", 404);
-    }
-
-    // Check if user is already in the team
-    const userExists = project.team.some(
-      (member) => member.user.toString() === userId
-    );
-    if (userExists) {
-      return sendError(res, "User is already in the project team", 400);
-    }
-
-    project.team.push({ user: userId, role });
-    await project.save();
-
-    sendSuccess(res, project);
-  }
-);
-
-// Remove a user from a project's team
-export const removeUserFromProject = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const { projectId, userId } = req.body;
-
-    if (
-      !mongoose.Types.ObjectId.isValid(projectId) ||
-      !mongoose.Types.ObjectId.isValid(userId)
-    ) {
-      return sendError(res, "Invalid projectId or userId", 400);
-    }
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return sendError(res, "Project not found", 404);
-    }
-
-    project.team = project.team.filter(
-      (member) => member.user.toString() !== userId
-    );
-    await project.save();
-
-    sendSuccess(res, project);
-  }
-);
-
-export const getProjectSessions = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const { projectId } = req.params;
-    const sessions = await Session.find({ project: projectId });
-    sendSuccess(res, sessions);
-  }
-);
-
-export const downloadProjectFiles = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const { projectId } = req.params;
-
-    const documents = await ObserverDocument.find({ project: projectId });
-
-    if (documents.length === 0) {
-      return sendError(res, "No documents found for this project.", 404);
-    }
-
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=project_${projectId}_files.zip`
-    );
-
-    const archive = archiver("zip", {
-      zlib: { level: 9 },
-    });
-
-    archive.pipe(res);
-
-    for (const doc of documents) {
-      try {
-        const command = new GetObjectCommand({
-          Bucket: config.aws_s3_bucket_name,
-          Key: doc.s3Url.split("/").pop(),
-        });
-        const signedUrl = await getSignedUrl(s3Client, command, {
-          expiresIn: 3600,
-        });
-
-        // Use fetch to get the file stream
-        const response = await fetch(signedUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${doc.fileName} from S3`);
-        }
-        const fileStream = response.body;
-        if (fileStream) {
-          // Convert web stream to Node.js stream
-          const nodeStream = stream.Readable.fromWeb(
-            fileStream as import("stream/web").ReadableStream<any>
-          );
-          archive.append(nodeStream, { name: doc.fileName });
-        }
-      } catch (error) {
-        console.error(`Error processing file ${doc.fileName}:`, error);
-        // Optionally, you can log this to a file or notify an admin
-      }
-    }
-
-    archive.finalize();
-  }
-);
-```
-
---- C:\work\amplify-new\backend\controllers\SessionController.ts ---
-
-```typescript
-import { Request, Response } from 'express';
-import Session from '../model/SessionModel';
-import { CatchErrorMiddleware } from '../middlewares/CatchErrorMiddleware';
-import { AuthenticatedRequest } from '../middlewares/authenticateJwt';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
-import { checkSessionConflict } from '../processors/session/sessionTimeConflictChecker';
-
-// Create a new session
-export const createSession = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { project, title, description, startTime, endTime, sessionType, status, participants, observers, moderators } = req.body;
-
-    if (await checkSessionConflict(startTime, endTime, '')) {
-        return sendError(res, 'Session time conflicts with an existing session.', 409);
-    }
-
-    const newSession = new Session({
-        project,
-        title,
-        description,
-        startTime,
-        endTime,
-        sessionType,
-        status,
-        participants,
-        observers,
-        moderators
-    });
-
-    await newSession.save();
-    sendSuccess(res, newSession, 201);
-});
-
-// Get all sessions
-export const getAllSessions = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const sessions = await Session.find().populate('project', 'name');
-    sendSuccess(res, sessions);
-});
-
-// Get a single session by ID
-export const getSessionById = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const session = await Session.findById(req.params.id).populate('project participants observers moderators', 'name email');
-    if (!session) {
-        return sendError(res, 'Session not found', 404);
-    }
-    sendSuccess(res, session);
-});
-
-// Update a session
-export const updateSession = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { startTime, endTime } = req.body;
-    const sessionId = req.params.id;
-
-    if (await checkSessionConflict(startTime, endTime, sessionId)) {
-        return sendError(res, 'Session time conflicts with an existing session.', 409);
-    }
-
-    const updatedSession = await Session.findByIdAndUpdate(sessionId, req.body, { new: true });
-    if (!updatedSession) {
-        return sendError(res, 'Session not found', 404);
-    }
-    sendSuccess(res, updatedSession);
-});
-
-// Delete a session
-export const deleteSession = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const deletedSession = await Session.findByIdAndDelete(req.params.id);
-    if (!deletedSession) {
-        return sendError(res, 'Session not found', 404);
-    }
-    sendSuccess(res, { message: 'Session deleted successfully' });
-});
-```
-
---- C:\work\amplify-new\backend\controllers\SessionDeliverableController.ts ---
-
-```typescript
-import { Request, Response } from 'express';
-import SessionDeliverable from '../model/SessionDeliverableModel';
-import { CatchErrorMiddleware } from '../middlewares/CatchErrorMiddleware';
-import { AuthenticatedRequest } from '../middlewares/authenticateJwt';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
-import multer from 'multer';
-import { uploadToS3 } from '../utils/uploadToS3';
-import ErrorHandler from '../utils/ErrorHandler';
-
-const upload = multer({ storage: multer.memoryStorage() });
-
-export const uploadDeliverable = [
-    upload.single('file'),
-    CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-        const { projectId, sessionId, description } = req.body;
-        const uploadedBy = req.user?._id;
-        const file = req.file;
-
-        if (!file) {
-            throw new ErrorHandler('No file uploaded.', 400);
-        }
-
-        const s3Url = await uploadToS3(file.buffer, file.originalname, file.mimetype);
-
-        const newDeliverable = new SessionDeliverable({
-            project: projectId,
-            session: sessionId,
-            uploadedBy,
-            fileName: file.originalname,
-            fileType: file.mimetype,
-            s3Url,
-            description,
-        });
-
-        await newDeliverable.save();
-        sendSuccess(res, { message: 'Deliverable uploaded successfully', deliverable: newDeliverable });
-    })
-];
-
-export const getDeliverables = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { projectId, sessionId } = req.query;
-    const query: any = {};
-
-    if (projectId) query.project = projectId;
-    if (sessionId) query.session = sessionId;
-
-    const deliverables = await SessionDeliverable.find(query).populate('uploadedBy', 'name email');
-    sendSuccess(res, deliverables);
-});
-
-export const updateDeliverable = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { description, status } = req.body;
-
-    const deliverable = await SessionDeliverable.findById(id);
-    if (!deliverable) {
-        return sendError(res, 'Deliverable not found', 404);
-    }
-
-    if (description) deliverable.description = description;
-    if (status) deliverable.status = status;
-
-    await deliverable.save();
-    sendSuccess(res, deliverable);
-});
-
-export const deleteDeliverable = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const deletedDeliverable = await SessionDeliverable.findByIdAndDelete(id);
-    if (!deletedDeliverable) {
-        return sendError(res, 'Deliverable not found', 404);
-    }
-    sendSuccess(res, { message: 'Deliverable deleted successfully' });
-});
-```
-
---- C:\work\amplify-new\backend\controllers\TagController.ts ---
-
-```typescript
-import { Request, Response } from 'express';
-import Tag from '../model/TagModel';
-import { CatchErrorMiddleware } from '../middlewares/CatchErrorMiddleware';
-import { AuthenticatedRequest } from '../middlewares/authenticateJwt';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
-
-// Create a new tag
-export const createTag = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const { name, description } = req.body;
-    const createdBy = req.user?._id;
-
-    const newTag = new Tag({ name, description, createdBy });
-    await newTag.save();
-    sendSuccess(res, newTag, 201);
-});
-
-// Get all tags
-export const getAllTags = CatchErrorMiddleware(async (req: AuthenticatedRequest, res: Response) => {
-    const tags = await Tag.find({ createdBy: req.user?._id });
-    sendSuccess(res, tags);
-});
-
-// Get a single tag by ID
-export const getTagById = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const tag = await Tag.findById(req.params.id);
-    if (!tag) {
-        return sendError(res, 'Tag not found', 404);
-    }
-    sendSuccess(res, tag);
-});
-
-// Update a tag
-export const updateTag = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const updatedTag = await Tag.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updatedTag) {
-        return sendError(res, 'Tag not found', 404);
-    }
-    sendSuccess(res, updatedTag);
-});
-
-// Delete a tag
-export const deleteTag = CatchErrorMiddleware(async (req: Request, res: Response) => {
-    const deletedTag = await Tag.findByIdAndDelete(req.params.id);
-    if (!deletedTag) {
-        return sendError(res, 'Tag not found', 404);
-    }
-    sendSuccess(res, { message: 'Tag deleted successfully' });
-});
-```
-
---- C:\work\amplify-new\backend\controllers\UserController.ts ---
-
-```typescript
-import { Request, Response, NextFunction } from "express";
-import User from "../model/UserModel";
-import { CatchErrorMiddleware } from "../middlewares/CatchErrorMiddleware";
-import ErrorHandler from "../utils/ErrorHandler";
-import { sendToken } from "../utils/tokenService";
-import { sendVerificationEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
-import { AuthenticatedRequest } from "../middlewares/authenticateJwt";
-import { removePasswordFromUser } from "../processors/user/removePasswordFromUserObjectProcessor";
-import { isValidEmail } from "../processors/isValidEmail";
-import { isStrongPassword } from "../processors/user/isStrongPasswordProcessor";
-
-// User Registration
-export const registerUser = CatchErrorMiddleware(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, password, role } = req.body;
-
-    if (!name || !email || !password) {
-      return next(new ErrorHandler("Please provide all required fields", 400));
-    }
-
-    if (!isValidEmail(email)) {
-      return next(new ErrorHandler("Invalid email format", 400));
-    }
-
-    if (!isStrongPassword(password)) {
-      return next(
-        new ErrorHandler(
-          "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-          400
-        )
-      );
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return next(new ErrorHandler("User already exists", 409));
-    }
-
-    const user = await User.create({ name, email, password, role });
-    await sendVerificationEmail(user, req);
-
-    res.status(201).json({
-      success: true,
-      message: `Verification email sent to ${user.email}`,
-    });
-  }
-);
-
-// Verify User Account
-export const verifyUser = CatchErrorMiddleware(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const { token } = req.params;
-    const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return next(new ErrorHandler("Invalid or expired token", 400));
-    }
-
-    user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationTokenExpires = undefined;
-    await user.save();
-
-    sendToken(user, 200, res);
-  }
-);
-
-// User Login
-export const loginUser = CatchErrorMiddleware(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return next(new ErrorHandler("Please provide email and password", 400));
-    }
-
-    const user = await User.findOne({ email }).select("+password");
-    if (!user) {
-      return next(new ErrorHandler("Invalid credentials", 401));
-    }
-
-    const isPasswordMatched = await user.comparePassword(password);
-    if (!isPasswordMatched) {
-      return next(new ErrorHandler("Invalid credentials", 401));
-    }
-
-    if (!user.isVerified) {
-      return next(new ErrorHandler("Please verify your email to login", 403));
-    }
-
-    sendToken(user, 200, res);
-  }
-);
-
-// User Logout
-export const logoutUser = CatchErrorMiddleware(
-  (req: Request, res: Response) => {
-    res.cookie("accessToken", "", {
-      httpOnly: true,
-      expires: new Date(0),
-    });
-    res.cookie("refreshToken", "", {
-      httpOnly: true,
-      expires: new Date(0),
-    });
-    res.status(200).json({ success: true, message: "Logged out" });
-  }
-);
-
-// Get User Profile
-export const getUserProfile = CatchErrorMiddleware(
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    const userId = req.user?._id;
-    if (!userId) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-    const user = await User.findById(userId);
-    if (!user) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-    res.status(200).json({ success: true, user: removePasswordFromUser(user) });
-  }
-);
-
-// Update User Profile
-export const updateUserProfile = CatchErrorMiddleware(
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    const userId = req.user?._id;
-    if (!userId) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-    const { name, email } = req.body;
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-
-    if (email && email !== user.email) {
-      if (!isValidEmail(email)) {
-        return next(new ErrorHandler("Invalid email format", 400));
-      }
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return next(new ErrorHandler("Email already in use", 409));
-      }
-      user.email = email;
-    }
-
-    if (name) {
-      user.name = name;
-    }
-
-    await user.save();
-    res.status(200).json({ success: true, user: removePasswordFromUser(user) });
-  }
-);
-
-// Update User Password
-export const updateUserPassword = CatchErrorMiddleware(
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    const userId = req.user?._id;
-    if (!userId) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-    const { oldPassword, newPassword } = req.body;
-    const user = await User.findById(userId).select("+password");
-
-    if (!user) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-
-    const isPasswordMatched = await user.comparePassword(oldPassword);
-    if (!isPasswordMatched) {
-      return next(new ErrorHandler("Incorrect old password", 401));
-    }
-
-    if (!isStrongPassword(newPassword)) {
-      return next(
-        new ErrorHandler(
-          "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-          400
-        )
-      );
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    res
-      .status(200)
-      .json({ success: true, message: "Password updated successfully" });
-  }
-);
-
-// Get all users (Admin only)
-export const getAllUsers = CatchErrorMiddleware(
-  async (req: Request, res: Response) => {
-    const users = await User.find();
-    const usersWithoutPasswords = users.map(removePasswordFromUser);
-    res.status(200).json({ success: true, users: usersWithoutPasswords });
-  }
-);
-
-// Get user by ID (Admin only)
-export const getUserById = CatchErrorMiddleware(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return next(
-        new ErrorHandler(`User not found with id: ${req.params.id}`, 404)
-      );
-    }
-    res.status(200).json({ success: true, user: removePasswordFromUser(user) });
-  }
-);
-
-// Update user role (Admin only)
-export const updateUserRole = CatchErrorMiddleware(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return next(
-        new ErrorHandler(`User not found with id: ${req.params.id}`, 404)
-      );
-    }
-
-    user.role = req.body.role;
-    await user.save();
-
-    res.status(200).json({ success: true, user: removePasswordFromUser(user) });
-  }
-);
-
-// Delete user (Admin only)
-export const deleteUser = CatchErrorMiddleware(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return next(
-        new ErrorHandler(`User not found with id: ${req.params.id}`, 404)
-      );
-    }
-
-    await user.deleteOne();
-    res.status(200).json({ success: true, message: "User deleted" });
-  }
-);
-```
-
---- C:\work\amplify-new\backend\middlewares\authenticateJwt.ts ---
-
-```typescript
-import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import config from "../config";
-import ErrorHandler from "../utils/ErrorHandler";
-import User, { IUser } from "../model/UserModel";
-import { CatchErrorMiddleware } from "./CatchErrorMiddleware";
-
-export interface AuthenticatedRequest extends Request {
-  user?: IUser;
-}
-
-export const authenticateJwt = CatchErrorMiddleware(
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    const accessToken = req.cookies.accessToken;
-
-    if (!accessToken) {
-      return next(new ErrorHandler("Authentication token is missing", 401));
-    }
-
-    try {
-      const decoded = jwt.verify(
-        accessToken,
-        config.access_token_secret as string
-      ) as { id: string };
-      const user = await User.findById(decoded.id);
-
-      if (!user) {
-        return next(new ErrorHandler("User not found", 404));
-      }
-
-      req.user = user;
-      next();
-    } catch (error) {
-      return next(new ErrorHandler("Invalid or expired token", 403));
-    }
-  }
-);
-```
-
---- C:\work\amplify-new\backend\middlewares\authorizeRoles.ts ---
-
-```typescript
-import { Response, NextFunction } from "express";
-import { AuthenticatedRequest } from "./authenticateJwt";
-import ErrorHandler from "../utils/ErrorHandler";
-
-export const authorizeRoles = (...roles: string[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return next(
-        new ErrorHandler(
-          `Role (${req.user?.role}) is not allowed to access this resource`,
-          403
-        )
-      );
-    }
-    next();
-  };
-};
-```
-
---- C:\work\amplify-new\backend\middlewares\CatchErrorMiddleware.ts ---
-
-```typescript
-import { Request, Response, NextFunction } from "express";
-
-type AsyncFunction = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => Promise<any>;
-
-export const CatchErrorMiddleware =
-  (theFunc: AsyncFunction) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(theFunc(req, res, next)).catch(next);
-  };
-```
-
---- C:\work\amplify-new\backend\middlewares\deviceInfo.ts ---
-
-```typescript
-import { Request, Response, NextFunction } from 'express';
-import useragent from 'express-useragent';
-import requestIp from 'request-ip';
-import geoip from 'geoip-lite';
-
-export interface DeviceInfo {
-    ip: string;
-    browser: string;
-    os: string;
-    platform: string;
-    device: string;
-    source: string;
-    isMobile: boolean;
-    isDesktop: boolean;
-    isBot: boolean;
-    geo?: geoip.Lookup | null;
-}
-
-// Extend the Express Request interface
-declare global {
-    namespace Express {
-        interface Request {
-            deviceInfo?: DeviceInfo;
-        }
-    }
-}
-
-export const deviceInfoMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    const source = req.headers['user-agent'] || '';
-    const ua = useragent.parse(source);
-    const clientIp = requestIp.getClientIp(req);
-
-    const geo = clientIp ? geoip.lookup(clientIp) : null;
-
-    req.deviceInfo = {
-        ip: clientIp || 'Unknown',
-        browser: ua.browser,
-        os: ua.os,
-        platform: ua.platform,
-        device: ua.isMobile ? 'Mobile' : (ua.isDesktop ? 'Desktop' : 'Other'),
-        source: ua.source,
-        isMobile: ua.isMobile,
-        isDesktop: ua.isDesktop,
-        isBot: ua.isBot,
-        geo: geo
-    };
-
-    next();
-};
-```
-
---- C:\work\amplify-new\backend\middlewares\ErrorMiddleware.ts ---
-
-```typescript
-import { Request, Response, NextFunction } from "express";
-import ErrorHandler from "../utils/ErrorHandler";
-
-const errorMiddleware = (
-  err: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  err.statusCode = err.statusCode || 500;
-  err.message = err.message || "Internal Server Error";
-
-  // Wrong Mongoose Object ID Error
-  if (err.name === "CastError") {
-    const message = `Resource not found. Invalid: ${err.path}`;
-    err = new ErrorHandler(message, 400);
-  }
-
-  // Handling Mongoose Validation Error
-  if (err.name === "ValidationError") {
-    const message = Object.values(err.errors)
-      .map((value: any) => value.message)
-      .join(", ");
-    err = new ErrorHandler(message, 400);
-  }
-
-  // Handling Mongoose duplicate key errors
-  if (err.code === 11000) {
-    const message = `Duplicate ${Object.keys(err.keyValue)} entered`;
-    err = new ErrorHandler(message, 400);
-  }
-
-  // Handling wrong JWT error
-  if (err.name === "JsonWebTokenError") {
-    const message = "JSON Web Token is invalid. Try Again!!!";
-    err = new ErrorHandler(message, 400);
-  }
-
-  // Handling Expired JWT error
-  if (err.name === "TokenExpiredError") {
-    const message = "JSON Web Token is expired. Try Again!!!";
-    err = new ErrorHandler(message, 400);
-  }
-
-  res.status(err.statusCode).json({
-    success: false,
-    message: err.message,
-  });
-};
-
-export default errorMiddleware;
-```
-
---- C:\work\amplify-new\backend\model\ChatModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IChat extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    user: mongoose.Types.ObjectId;
-    message: string;
-    timestamp: Date;
-    type: 'participant-waiting' | 'participant-meeting' | 'observer-waiting' | 'observer-meeting';
-}
-
-const ChatSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    message: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now },
-    type: { type: String, required: true, enum: ['participant-waiting', 'participant-meeting', 'observer-waiting', 'observer-meeting'] }
-});
-
-export default mongoose.model<IChat>('Chat', ChatSchema);
-```
-
---- C:\work\amplify-new\backend\model\GroupMessage.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IGroupMessage extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    from: mongoose.Types.ObjectId;
-    to: mongoose.Types.ObjectId[]; // Can be empty for broadcast to all in a role
-    role: 'moderator' | 'participant' | 'observer'; // Role of the recipients
-    message: string;
-    timestamp: Date;
-}
-
-const GroupMessageSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    from: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    to: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    role: { type: String, enum: ['moderator', 'participant', 'observer'] },
-    message: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<IGroupMessage>('GroupMessage', GroupMessageSchema);
-```
-
---- C:\work\amplify-new\backend\model\LiveSessionModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface ILiveSession extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    moderator: mongoose.Types.ObjectId;
-    participants: mongoose.Types.ObjectId[];
-    observers: mongoose.Types.ObjectId[];
-    startTime: Date;
-    endTime?: Date;
-    status: 'active' | 'ended';
-}
-
-const LiveSessionSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    moderator: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    participants: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    observers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    startTime: { type: Date, default: Date.now },
-    endTime: { type: Date },
-    status: { type: String, enum: ['active', 'ended'], default: 'active' }
-});
-
-export default mongoose.model<ILiveSession>('LiveSession', LiveSessionSchema);
-```
-
---- C:\work\amplify-new\backend\model\ModeratorModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IModerator extends Document {
-    userId: mongoose.Types.ObjectId;
-    projectId: mongoose.Types.ObjectId;
-    assignedSessions: mongoose.Types.ObjectId[];
-}
-
-const ModeratorSchema: Schema = new Schema({
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    assignedSessions: [{ type: Schema.Types.ObjectId, ref: 'Session' }]
-});
-
-export default mongoose.model<IModerator>('Moderator', ModeratorSchema);
-```
-
---- C:\work\amplify-new\backend\model\ObserverDocumentModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IObserverDocument extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    user: mongoose.Types.ObjectId; // The observer who uploaded it
-    fileName: string;
-    fileType: string;
-    s3Url: string;
-    uploadDate: Date;
-}
-
-const ObserverDocumentSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    fileName: { type: String, required: true },
-    fileType: { type: String, required: true },
-    s3Url: { type: String, required: true },
-    uploadDate: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<IObserverDocument>('ObserverDocument', ObserverDocumentSchema);
-```
-
---- C:\work\amplify-new\backend\model\ObserverGroupMessage.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IObserverGroupMessage extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    from: mongoose.Types.ObjectId; // Moderator
-    message: string;
-    timestamp: Date;
-}
-
-const ObserverGroupMessageSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    from: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    message: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<IObserverGroupMessage>('ObserverGroupMessage', ObserverGroupMessageSchema);
-```
-
---- C:\work\amplify-new\backend\model\ObserverWaitingRoomChatModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IObserverWaitingRoomChat extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    user: mongoose.Types.ObjectId; // Observer or Moderator
-    message: string;
-    timestamp: Date;
-}
-
-const ObserverWaitingRoomChatSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    message: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<IObserverWaitingRoomChat>('ObserverWaitingRoomChat', ObserverWaitingRoomChatSchema);
-```
-
---- C:\work\amplify-new\backend\model\ParticipantMeetingChatModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IParticipantMeetingChat extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    user: mongoose.Types.ObjectId; // Participant or Moderator
-    message: string;
-    timestamp: Date;
-}
-
-const ParticipantMeetingChatSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    message: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<IParticipantMeetingChat>('ParticipantMeetingChat', ParticipantMeetingChatSchema);
-```
-
---- C:\work\amplify-new\backend\model\ParticipantWaitingRoomChatModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IParticipantWaitingRoomChat extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    user: mongoose.Types.ObjectId; // Participant or Moderator
-    message: string;
-    timestamp: Date;
-}
-
-const ParticipantWaitingRoomChatSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    message: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<IParticipantWaitingRoomChat>('ParticipantWaitingRoomChat', ParticipantWaitingRoomChatSchema);
-```
-
---- C:\work\amplify-new\backend\model\PollModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IQuestion extends Document {
-    questionText: string;
-    questionType: 'multiple-choice' | 'single-choice' | 'text' | 'rating';
-    options?: string[];
-    responses: {
-        user: mongoose.Types.ObjectId;
-        answer: any;
-    }[];
-}
-
-export interface IPoll extends Document {
-    title: string;
-    questions: IQuestion[];
-    createdBy: mongoose.Types.ObjectId;
-    projectId: mongoose.Types.ObjectId;
-    sessionId: mongoose.Types.ObjectId;
-    createdAt: Date;
-}
-
-const QuestionSchema: Schema = new Schema({
-    questionText: { type: String, required: true },
-    questionType: { type: String, required: true, enum: ['multiple-choice', 'single-choice', 'text', 'rating'] },
-    options: [{ type: String }],
-    responses: [{
-        user: { type: Schema.Types.ObjectId, ref: 'User' },
-        answer: Schema.Types.Mixed
-    }]
-});
-
-const PollSchema: Schema = new Schema({
-    title: { type: String, required: true },
-    questions: [QuestionSchema],
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    sessionId: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    createdAt: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<IPoll>('Poll', PollSchema);
-```
-
---- C:\work\amplify-new\backend\model\ProjectFormModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IProjectForm extends Document {
-    projectId: mongoose.Types.ObjectId;
-    formSchema: any; // Flexible schema for form builder
-    responses: {
-        userId: mongoose.Types.ObjectId;
-        responseData: any;
-        submittedAt: Date;
-    }[];
-}
-
-const ProjectFormSchema: Schema = new Schema({
-    projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    formSchema: { type: Schema.Types.Mixed, required: true },
-    responses: [{
-        userId: { type: Schema.Types.ObjectId, ref: 'User' },
-        responseData: { type: Schema.Types.Mixed },
-        submittedAt: { type: Date, default: Date.now }
-    }]
-});
-
-export default mongoose.model<IProjectForm>('ProjectForm', ProjectFormSchema);
-```
-
---- C:\work\amplify-new\backend\model\ProjectModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IProject extends Document {
-    name: string;
-    description: string;
-    startDate: Date;
-    endDate: Date;
-    projectType: string;
-    status: 'planning' | 'in-progress' | 'completed' | 'on-hold';
-    client: string;
-    budget: number;
-    team: {
-        user: mongoose.Types.ObjectId;
-        role: string;
-    }[];
-    tasks: {
-        title: string;
-        description: string;
-        assignedTo: mongoose.Types.ObjectId;
-        dueDate: Date;
-        status: 'todo' | 'in-progress' | 'done';
-    }[];
-    risks: {
-        description: string;
-        mitigation: string;
-        probability: 'low' | 'medium' | 'high';
-        impact: 'low' | 'medium' | 'high';
-    }[];
-    deliverables: {
-        name: string;
-        description: string;
-        dueDate: Date;
-        status: 'pending' | 'completed';
-    }[];
-    createdBy: mongoose.Types.ObjectId;
-}
-
-const ProjectSchema: Schema = new Schema({
-    name: { type: String, required: true },
-    description: { type: String, required: true },
-    startDate: { type: Date, required: true },
-    endDate: { type: Date, required: true },
-    projectType: { type: String },
-    status: { type: String, enum: ['planning', 'in-progress', 'completed', 'on-hold'], default: 'planning' },
-    client: { type: String },
-    budget: { type: Number },
-    team: [{
-        user: { type: Schema.Types.ObjectId, ref: 'User' },
-        role: { type: String }
-    }],
-    tasks: [{
-        title: { type: String },
-        description: { type: String },
-        assignedTo: { type: Schema.Types.ObjectId, ref: 'User' },
-        dueDate: { type: Date },
-        status: { type: String, enum: ['todo', 'in-progress', 'done'] }
-    }],
-    risks: [{
-        description: { type: String },
-        mitigation: { type: String },
-        probability: { type: String, enum: ['low', 'medium', 'high'] },
-        impact: { type: String, enum: ['low', 'medium', 'high'] }
-    }],
-    deliverables: [{
-        name: { type: String },
-        description: { type: String },
-        dueDate: { type: Date },
-        status: { type: String, enum: ['pending', 'completed'] }
-    }],
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
-});
-
-export default mongoose.model<IProject>('Project', ProjectSchema);
-```
-
---- C:\work\amplify-new\backend\model\SessionDeliverableModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface ISessionDeliverable extends Document {
-    project: mongoose.Types.ObjectId;
-    session: mongoose.Types.ObjectId;
-    uploadedBy: mongoose.Types.ObjectId;
-    fileName: string;
-    fileType: string;
-    s3Url: string;
-    description?: string;
-    status: 'pending-review' | 'approved' | 'rejected';
-    uploadDate: Date;
-}
-
-const SessionDeliverableSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    session: { type: Schema.Types.ObjectId, ref: 'Session', required: true },
-    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    fileName: { type: String, required: true },
-    fileType: { type: String, required: true },
-    s3Url: { type: String, required: true },
-    description: { type: String },
-    status: { type: String, enum: ['pending-review', 'approved', 'rejected'], default: 'pending-review' },
-    uploadDate: { type: Date, default: Date.now }
-});
-
-export default mongoose.model<ISessionDeliverable>('SessionDeliverable', SessionDeliverableSchema);
-```
-
---- C:\work\amplify-new\backend\model\SessionModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface ISession extends Document {
-    project: mongoose.Types.ObjectId;
-    title: string;
-    description: string;
-    startTime: Date;
-    endTime: Date;
-    sessionType: 'focus-group' | 'interview' | 'workshop';
-    status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-    participants: mongoose.Types.ObjectId[];
-    observers: mongoose.Types.ObjectId[];
-    moderators: mongoose.Types.ObjectId[];
-}
-
-const SessionSchema: Schema = new Schema({
-    project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    title: { type: String, required: true },
-    description: { type: String },
-    startTime: { type: Date, required: true },
-    endTime: { type: Date, required: true },
-    sessionType: { type: String, enum: ['focus-group', 'interview', 'workshop'], required: true },
-    status: { type: String, enum: ['scheduled', 'in-progress', 'completed', 'cancelled'], default: 'scheduled' },
-    participants: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    observers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    moderators: [{ type: Schema.Types.ObjectId, ref: 'User' }]
-});
-
-export default mongoose.model<ISession>('Session', SessionSchema);
-```
-
---- C:\work\amplify-new\backend\model\TagModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface ITag extends Document {
-    name: string;
-    description?: string;
-    createdBy: mongoose.Types.ObjectId;
-}
-
-const TagSchema: Schema = new Schema({
-    name: { type: String, required: true, unique: true },
-    description: { type: String },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
-});
-
-export default mongoose.model<ITag>('Tag', TagSchema);
-```
-
---- C:\work\amplify-new\backend\model\UserActivityModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IUserActivity extends Document {
-    userId: mongoose.Types.ObjectId;
-    activityType: 'login' | 'logout' | 'project_creation' | 'session_join';
-    timestamp: Date;
-    details: any;
-}
-
-const UserActivitySchema: Schema = new Schema({
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    activityType: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now },
-    details: { type: Schema.Types.Mixed }
-});
-
-export default mongoose.model<IUserActivity>('UserActivity', UserActivitySchema);
-```
-
---- C:\work\amplify-new\backend\model\UserModel.ts ---
-
-```typescript
-import mongoose, { Schema, Document } from "mongoose";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import config from "../config";
-import { ROLES } from "../constants/roles";
-
-export interface IUser extends Document {
-  name: string;
-  email: string;
-  password?: string;
-  role: string;
-  isVerified: boolean;
-  verificationToken?: string;
-  verificationTokenExpires?: Date;
-  createdAt: Date;
-  comparePassword(password: string): Promise<boolean>;
-  getVerificationToken(): string;
-}
-
-const UserSchema: Schema = new Schema({
-  name: {
-    type: String,
-    required: [true, "Please enter your name"],
-  },
-  email: {
-    type: String,
-    required: [true, "Please enter your email"],
-    unique: true,
-    match: [/.+\@.+\..+/, "Please fill a valid email address"],
-  },
-  password: {
-    type: String,
-    required: [true, "Please enter your password"],
-    minlength: [8, "Password must be at least 8 characters"],
-    select: false,
-  },
-  role: {
-    type: String,
-    enum: Object.values(ROLES),
-    default: ROLES.PARTICIPANT,
-  },
-  isVerified: {
-    type: Boolean,
-    default: false,
-  },
-  verificationToken: String,
-  verificationTokenExpires: Date,
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-// Hash password before saving
-UserSchema.pre<IUser>("save", async function (next) {
-  if (!this.isModified("password") || !this.password) {
-    return next();
-  }
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
-
-// Compare user password
-UserSchema.methods.comparePassword = async function (
-  enteredPassword
-): Promise<boolean> {
-  if (!this.password) {
-    return false;
-  }
-  return await bcrypt.compare(enteredPassword, this.password);
-};
-
-// Generate verification token
-UserSchema.methods.getVerificationToken = function (): string {
-  const verificationToken = crypto.randomBytes(20).toString("hex");
-
-  this.verificationToken = crypto
-    .createHash("sha256")
-    .update(verificationToken)
-    .digest("hex");
-
-  this.verificationTokenExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-  return verificationToken;
-};
-
-export default mongoose.model<IUser>("User", UserSchema);
-```
-
---- C:\work\amplify-new\backend\processors\isValidEmail.ts ---
-
-```typescript
-export const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^
-@]+@[^
-@]+\.[^
-@]+$/;
-    return emailRegex.test(email);
-  };
-```
-
---- C:\work\amplify-new\backend\processors\liveSession\sessionService.ts ---
-
-```typescript
-import LiveSession from "../../model/LiveSessionModel";
-import Session from "../../model/SessionModel";
-import ErrorHandler from "../../utils/ErrorHandler";
-
-export const startLiveSession = async (projectId: string, sessionId: string, moderatorId: string) => {
-    const sessionDetails = await Session.findById(sessionId);
-    if (!sessionDetails) {
-        throw new ErrorHandler("Session not found", 404);
-    }
-
-    // Check if the moderator is assigned to this session
-    if (!sessionDetails.moderators.includes(moderatorId as any)) {
-        throw new ErrorHandler("Moderator not authorized for this session", 403);
-    }
-
-    const liveSession = new LiveSession({
-        project: projectId,
-        session: sessionId,
-        moderator: moderatorId,
-        participants: [],
-        observers: [],
-        status: 'active'
-    });
-
-    await liveSession.save();
-    return liveSession;
-};
-
-export const joinLiveSession = async (sessionId: string, userId: string, role: 'participant' | 'observer') => {
-    const liveSession = await LiveSession.findOne({ session: sessionId, status: 'active' });
-    if (!liveSession) {
-        throw new ErrorHandler("Live session not found or not active", 404);
-    }
-
-    if (role === 'participant' && !liveSession.participants.includes(userId as any)) {
-        liveSession.participants.push(userId as any);
-    } else if (role === 'observer' && !liveSession.observers.includes(userId as any)) {
-        liveSession.observers.push(userId as any);
-    }
-
-    await liveSession.save();
-    return liveSession;
-};
-
-export const endLiveSession = async (sessionId: string, moderatorId: string) => {
-    const liveSession = await LiveSession.findOne({ session: sessionId, status: 'active' });
-    if (!liveSession) {
-        throw new ErrorHandler("Live session not found or not active", 404);
-    }
-
-    if (liveSession.moderator.toString() !== moderatorId) {
-        throw new ErrorHandler("Only the moderator can end the session", 403);
-    }
-
-    liveSession.status = 'ended';
-    liveSession.endTime = new Date();
-    await liveSession.save();
-
-    // Also update the main session status
-    await Session.findByIdAndUpdate(sessionId, { status: 'completed' });
-
-    return liveSession;
-};
-```
-
---- C:\work\amplify-new\backend\processors\poll\QuestionValidationProcessor.ts ---
-
-```typescript
-import { IQuestion } from "../../model/PollModel";
-
-export const validateQuestions = (questions: IQuestion[]): boolean => {
-    if (!Array.isArray(questions) || questions.length === 0) {
-        return false;
-    }
-
-    for (const q of questions) {
-        if (!q.questionText || !q.questionType) {
-            return false;
-        }
-        if ((q.questionType === 'multiple-choice' || q.questionType === 'single-choice') && (!q.options || q.options.length === 0)) {
-            return false;
-        }
-    }
-
-    return true;
-};
-```
-
---- C:\work\amplify-new\backend\processors\sendEmail\sendVerifyAccountEmailProcessor.ts ---
-
-```typescript
-import { Request } from "express";
-import { IUser } from "../../model/UserModel";
-import transporter from "../../config/NodemailerConfig";
-import { verificationEmailTemplate } from "../../constants/emailTemplates";
-import config from "../../config";
-
-export const sendVerificationEmail = async (
-  user: IUser,
-  req: Request
-): Promise<void> => {
-  const verificationToken = user.getVerificationToken();
-  await user.save({ validateBeforeSave: false });
-
-  const verificationUrl = `${config.frontend_base_url}/verify-email/${verificationToken}`;
-
-  const mailOptions = {
-    from: config.smtp_mail,
-    to: user.email,
-    subject: "Verify Your Account",
-    html: verificationEmailTemplate(user.name, verificationUrl),
-  };
-
-  await transporter.sendMail(mailOptions);
-};
-```
-
---- C:\work\amplify-new\backend\processors\session\sessionTimeConflictChecker.ts ---
-
-```typescript
-import Session from '../../model/SessionModel';
-
-export const checkSessionConflict = async (startTime: Date, endTime: Date, sessionIdToExclude?: string): Promise<boolean> => {
-    const query: any = {
-        $or: [
-            { startTime: { $lt: endTime, $gte: startTime } },
-            { endTime: { $gt: startTime, $lte: endTime } },
-            { startTime: { $lte: startTime }, endTime: { $gte: endTime } }
-        ]
-    };
-
-    if (sessionIdToExclude) {
-        query._id = { $ne: sessionIdToExclude };
-    }
-
-    const conflictingSession = await Session.findOne(query);
-    return !!conflictingSession;
-};
-```
-
---- C:\work\amplify-new\backend\processors\user\isStrongPasswordProcessor.ts ---
-
-```typescript
-export const isStrongPassword = (password: string): boolean => {
-    const strongPasswordRegex = new RegExp(
-      "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})"
-    );
-    return strongPasswordRegex.test(password);
-  };
-```
-
---- C:\work\amplify-new\backend\processors\user\isValidEmailProcessor.ts ---
-
-```typescript
-export const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^
-@]+@[^
-@]+\.[^
-@]+$/;
-    return emailRegex.test(email);
-  };
-```
-
---- C:\work\amplify-new\backend\processors\user\removePasswordFromUserObjectProcessor.ts ---
-
-```typescript
-import { IUser } from "../../model/UserModel";
-
-export const removePasswordFromUser = (user: IUser): Partial<IUser> => {
-  const userObj = user.toObject();
-  delete userObj.password;
-  return userObj;
-};
-```
-
---- C:\work\amplify-new\backend\routes\index.ts ---
-
-```typescript
-import { Router } from "express";
-import userRoutes from "./user/userRoutes";
-import projectRoutes from "./project/projectRoutes";
-import sessionRoutes from "./session/SessionRoutes";
-import tagRoutes from "./tag/TagRoutes";
-import moderatorRoutes from "./moderator/ModeratorRoutes";
-import observerDocumentRoutes from "./observerDocument/ObserverDocumentRoutes";
-import paymentRoutes from "./payment/PaymentRoutes";
-import pollRoutes from "./poll/PollRoutes";
-import sessionDeliverableRoutes from "./sessionDeliverable/SessionDeliverableRoutes";
-import liveSessionRoutes from "./liveSession/LiveSessionRoutes";
-
-const router = Router();
-
-router.use("/users", userRoutes);
-router.use("/projects", projectRoutes);
-router.use("/sessions", sessionRoutes);
-router.use("/tags", tagRoutes);
-router.use("/moderators", moderatorRoutes);
-router.use("/observer-documents", observerDocumentRoutes);
-router.use("/payments", paymentRoutes);
-router.use("/polls", pollRoutes);
-router.use("/session-deliverables", sessionDeliverableRoutes);
-router.use("/live-sessions", liveSessionRoutes);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\liveSession\LiveSessionRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import { startSession, joinSession, endSession, getSessionDetails } from '../../controllers/LiveSessionController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-import { authorizeRoles } from '../../middlewares/authorizeRoles';
-import { ROLES } from '../../constants/roles';
-
-const router = Router();
-
-router.post('/start', authenticateJwt, authorizeRoles(ROLES.MODERATOR), startSession);
-router.post('/:sessionId/join', authenticateJwt, joinSession);
-router.post('/:sessionId/end', authenticateJwt, authorizeRoles(ROLES.MODERATOR), endSession);
-router.get('/:sessionId', authenticateJwt, getSessionDetails);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\moderator\ModeratorRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import {
-    getAllModerators,
-    getModeratorById,
-    createModerator,
-    updateModerator,
-    deleteModerator
-} from '../../controllers/ModeratorController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-import { authorizeRoles } from '../../middlewares/authorizeRoles';
-import { ROLES } from '../../constants/roles';
-
-const router = Router();
-
-router.use(authenticateJwt, authorizeRoles(ROLES.ADMIN));
-
-router.route('/')
-    .get(getAllModerators)
-    .post(createModerator);
-
-router.route('/:id')
-    .get(getModeratorById)
-    .put(updateModerator)
-    .delete(deleteModerator);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\observerDocument\ObserverDocumentRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import { uploadObserverDocument, getObserverDocuments } from '../../controllers/ObserverDocumentController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-import { authorizeRoles } from '../../middlewares/authorizeRoles';
-import { ROLES } from '../../constants/roles';
-
-const router = Router();
-
-router.post('/upload', authenticateJwt, authorizeRoles(ROLES.OBSERVER, ROLES.ADMIN), uploadObserverDocument);
-router.get('/', authenticateJwt, authorizeRoles(ROLES.MODERATOR, ROLES.ADMIN), getObserverDocuments);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\payment\PaymentRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import { createPaymentIntent, getStripePublishableKey } from '../../controllers/PaymentController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-
-const router = Router();
-
-router.post('/create-payment-intent', authenticateJwt, createPaymentIntent);
-router.get('/stripe-key', getStripePublishableKey);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\poll\PollRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import {
-    createPoll,
-    getPolls,
-    getPollById,
-    submitPollResponse,
-    getPollResults
-} from '../../controllers/PollController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-import { authorizeRoles } from '../../middlewares/authorizeRoles';
-import { ROLES } from '../../constants/roles';
-
-const router = Router();
-
-router.post('/', authenticateJwt, authorizeRoles(ROLES.MODERATOR, ROLES.ADMIN), createPoll);
-router.get('/', authenticateJwt, getPolls);
-router.get('/:id', authenticateJwt, getPollById);
-router.post('/:pollId/submit', authenticateJwt, submitPollResponse);
-router.get('/:pollId/results', authenticateJwt, authorizeRoles(ROLES.MODERATOR, ROLES.ADMIN), getPollResults);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\project\projectRoutes.ts ---
-
-```typescript
-import { Router } from "express";
-import {
-  createProject,
-  getAllProjects,
-  getProjectById,
-  updateProject,
-  deleteProject,
-  addUserToProject,
-  removeUserFromProject,
-  getProjectSessions,
-  downloadProjectFiles,
-} from "../../controllers/ProjectController";
-import { authenticateJwt } from "../../middlewares/authenticateJwt";
-import { authorizeRoles } from "../../middlewares/authorizeRoles";
-import { ROLES } from "../../constants/roles";
-
-const router = Router();
-
-router.use(authenticateJwt);
-
-router
-  .route("/")
-  .post(authorizeRoles(ROLES.ADMIN, ROLES.MODERATOR), createProject)
-  .get(getAllProjects);
-
-router
-  .route("/:id")
-  .get(getProjectById)
-  .put(authorizeRoles(ROLES.ADMIN, ROLES.MODERATOR), updateProject)
-  .delete(authorizeRoles(ROLES.ADMIN), deleteProject);
-
-router.post(
-  "/add-user",
-  authorizeRoles(ROLES.ADMIN, ROLES.MODERATOR),
-  addUserToProject
-);
-router.post(
-  "/remove-user",
-  authorizeRoles(ROLES.ADMIN, ROLES.MODERATOR),
-  removeUserFromProject
-);
-
-router.get("/:projectId/sessions", getProjectSessions);
-router.get(
-  "/:projectId/download-files",
-  authorizeRoles(ROLES.ADMIN, ROLES.MODERATOR),
-  downloadProjectFiles
-);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\session\SessionRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import {
-    createSession,
-    getAllSessions,
-    getSessionById,
-    updateSession,
-    deleteSession
-} from '../../controllers/SessionController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-import { authorizeRoles } from '../../middlewares/authorizeRoles';
-import { ROLES } from '../../constants/roles';
-
-const router = Router();
-
-router.use(authenticateJwt, authorizeRoles(ROLES.ADMIN, ROLES.MODERATOR));
-
-router.route('/')
-    .post(createSession)
-    .get(getAllSessions);
-
-router.route('/:id')
-    .get(getSessionById)
-    .put(updateSession)
-    .delete(deleteSession);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\sessionDeliverable\SessionDeliverableRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import {
-    uploadDeliverable,
-    getDeliverables,
-    updateDeliverable,
-    deleteDeliverable
-} from '../../controllers/SessionDeliverableController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-import { authorizeRoles } from '../../middlewares/authorizeRoles';
-import { ROLES } from '../../constants/roles';
-
-const router = Router();
-
-router.post('/upload', authenticateJwt, uploadDeliverable);
-router.get('/', authenticateJwt, getDeliverables);
-router.put('/:id', authenticateJwt, authorizeRoles(ROLES.MODERATOR, ROLES.ADMIN), updateDeliverable);
-router.delete('/:id', authenticateJwt, authorizeRoles(ROLES.MODERATOR, ROLES.ADMIN), deleteDeliverable);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\tag\TagRoutes.ts ---
-
-```typescript
-import { Router } from 'express';
-import {
-    createTag,
-    getAllTags,
-    getTagById,
-    updateTag,
-    deleteTag
-} from '../../controllers/TagController';
-import { authenticateJwt } from '../../middlewares/authenticateJwt';
-import { authorizeRoles } from '../../middlewares/authorizeRoles';
-import { ROLES } from '../../constants/roles';
-
-const router = Router();
-
-router.use(authenticateJwt, authorizeRoles(ROLES.ADMIN, ROLES.MODERATOR));
-
-router.route('/')
-    .post(createTag)
-    .get(getAllTags);
-
-router.route('/:id')
-    .get(getTagById)
-    .put(updateTag)
-    .delete(deleteTag);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\routes\user\userRoutes.ts ---
-
-```typescript
-import { Router } from "express";
-import {
-  registerUser,
-  verifyUser,
-  loginUser,
-  logoutUser,
-  getUserProfile,
-  updateUserProfile,
-  updateUserPassword,
-  getAllUsers,
-  getUserById,
-  updateUserRole,
-  deleteUser,
-} from "../../controllers/UserController";
-import { authenticateJwt } from "../../middlewares/authenticateJwt";
-import { authorizeRoles } from "../../middlewares/authorizeRoles";
-import { ROLES } from "../../constants/roles";
-
-const router = Router();
-
-router.post("/register", registerUser);
-router.post("/verify/:token", verifyUser);
-router.post("/login", loginUser);
-router.post("/logout", logoutUser);
-
-router.get("/profile", authenticateJwt, getUserProfile);
-router.put("/profile", authenticateJwt, updateUserProfile);
-router.put("/password", authenticateJwt, updateUserPassword);
-
-// Admin routes
-router.get(
-  "/",
-  authenticateJwt,
-  authorizeRoles(ROLES.ADMIN),
-  getAllUsers
-);
-router
-  .route("/:id")
-  .get(authenticateJwt, authorizeRoles(ROLES.ADMIN), getUserById)
-  .put(authenticateJwt, authorizeRoles(ROLES.ADMIN), updateUserRole)
-  .delete(authenticateJwt, authorizeRoles(ROLES.ADMIN), deleteUser);
-
-export default router;
-```
-
---- C:\work\amplify-new\backend\socket\index.ts ---
-
-```typescript
-import { Server as SocketIOServer, Socket } from "socket.io";
-import http from "http";
-import { handleJoinRoom } from "./handlers/joinRoom";
-import { handleParticipantWaitingRoomChat } from "./handlers/participantWaitingRoomChat";
-import { handleParticipantMeetingChat } from "./handlers/participantMeetingChat";
-import { handleObserverWaitingRoomChat } from "./handlers/observerWaitingRoomChat";
-import { handleSessionControl } from "./handlers/sessionControl";
-import { handleActivityLog } from "./handlers/activityLogger";
-import config from "../config";
-
-export const initSocket = (server: http.Server) => {
-  const io = new SocketIOServer(server, {
-    cors: {
-      origin: config.frontend_base_url,
-      methods: ["GET", "POST"],
-      credentials: true,
-    },
-  });
-
-  io.on("connection", (socket: Socket) => {
-    console.log("A user connected:", socket.id);
-
-    // Room joining handler
-    handleJoinRoom(socket);
-
-    // Chat handlers
-    handleParticipantWaitingRoomChat(socket, io);
-    handleParticipantMeetingChat(socket, io);
-    handleObserverWaitingRoomChat(socket, io);
-
-    // Session control handlers
-    handleSessionControl(socket, io);
-
-    // Activity logger
-    handleActivityLog(socket);
-
-    socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
-    });
-  });
-};
-```
-
---- C:\work\amplify-new\backend\socket\handlers\activityLogger.ts ---
-
-```typescript
-import { Socket } from 'socket.io';
-import UserActivity from '../../model/UserActivityModel';
-
-export const handleActivityLog = (socket: Socket) => {
-    socket.on('logActivity', async (data) => {
-        try {
-            const { userId, activityType, details } = data;
-            if (userId && activityType) {
-                const activity = new UserActivity({
-                    userId,
-                    activityType,
-                    details
-                });
-                await activity.save();
-            }
-        } catch (error) {
-            console.error('Error logging activity:', error);
-        }
-    });
-};
-```
-
---- C:\work\amplify-new\backend\socket\handlers\joinRoom.ts ---
-
-```typescript
-import { Socket } from 'socket.io';
-
-export const handleJoinRoom = (socket: Socket) => {
-    socket.on('joinRoom', (room) => {
-        socket.join(room);
-        console.log(`Socket ${socket.id} joined room ${room}`);
-    });
-};
-```
-
---- C:\work\amplify-new\backend\socket\handlers\observerWaitingRoomChat.ts ---
-
-```typescript
-import { Server, Socket } from 'socket.io';
-import ObserverWaitingRoomChat from '../../model/ObserverWaitingRoomChatModel';
-
-export const handleObserverWaitingRoomChat = (socket: Socket, io: Server) => {
-    socket.on('observerWaitingRoomMessage', async (data) => {
-        try {
-            const { project, session, user, message } = data;
-            const chatMessage = new ObserverWaitingRoomChat({
-                project,
-                session,
-                user,
-                message
-            });
-            await chatMessage.save();
-            io.to(`session-observers-waiting-${session}`).emit('newObserverWaitingRoomMessage', chatMessage);
-        } catch (error) {
-            console.error('Error handling observer waiting room message:', error);
-        }
-    });
-};
-```
-
---- C:\work\amplify-new\backend\socket\handlers\participantMeetingChat.ts ---
-
-```typescript
-import { Server, Socket } from 'socket.io';
-import ParticipantMeetingChat from '../../model/ParticipantMeetingChatModel';
-
-export const handleParticipantMeetingChat = (socket: Socket, io: Server) => {
-    socket.on('participantMeetingMessage', async (data) => {
-        try {
-            const { project, session, user, message } = data;
-            const chatMessage = new ParticipantMeetingChat({
-                project,
-                session,
-                user,
-                message
-            });
-            await chatMessage.save();
-            io.to(`session-participants-meeting-${session}`).emit('newParticipantMeetingMessage', chatMessage);
-        } catch (error) => {
-            console.error('Error handling participant meeting message:', error);
-        }
-    });
-};
-```
-
---- C:\work\amplify-new\backend\socket\handlers\participantWaitingRoomChat.ts ---
-
-```typescript
-import { Server, Socket } from 'socket.io';
-import ParticipantWaitingRoomChat from '../../model/ParticipantWaitingRoomChatModel';
-
-export const handleParticipantWaitingRoomChat = (socket: Socket, io: Server) => {
-    socket.on('participantWaitingRoomMessage', async (data) => {
-        try {
-            const { project, session, user, message } = data;
-            const chatMessage = new ParticipantWaitingRoomChat({
-                project,
-                session,
-                user,
-                message
-            });
-            await chatMessage.save();
-            io.to(`session-participants-waiting-${session}`).emit('newParticipantWaitingRoomMessage', chatMessage);
-        } catch (error) {
-            console.error('Error handling participant waiting room message:', error);
-        }
-    });
-};
-```
-
---- C:\work\amplify-new\backend\socket\handlers\sessionControl.ts ---
-
-```typescript
-import { Server, Socket } from 'socket.io';
-
-export const handleSessionControl = (socket: Socket, io: Server) => {
-    // Moderator admits a participant from waiting room to main session
-    socket.on('admitParticipant', (data) => {
-        const { sessionId, participantId } = data;
-        io.to(`session-participants-waiting-${sessionId}`).emit('participantAdmitted', { participantId });
-        // Logic to move participant socket to the main session room
-    });
-
-    // Moderator starts the session for all participants
-    socket.on('startSessionForAll', (data) => {
-        const { sessionId } = data;
-        io.to(`session-participants-waiting-${sessionId}`).emit('sessionStarted');
-    });
-
-    // Moderator ends the session
-    socket.on('endSessionForAll', (data) => {
-        const { sessionId } = data;
-        io.to(`session-participants-meeting-${sessionId}`).emit('sessionEnded');
-        io.to(`session-observers-meeting-${sessionId}`).emit('sessionEnded');
-    });
-};
-```
-
---- C:\work\amplify-new\backend\types\express-useragent.d.ts ---
-
-```typescript
-import { Request } from 'express';
+// src/types/express-useragent.d.ts
+import 'express';
 import { Details } from 'express-useragent';
+import { Lookup } from 'geoip-lite';
 
-declare module 'express' {
+declare module 'express-serve-static-core' {
   interface Request {
-    useragent?: Details;
+    useragent: Details;
+    deviceInfo?: {
+      ip: string;
+      deviceType: 'mobile' | 'desktop' | 'other';
+      platform: string;
+      browser: string;
+      location: {
+        country: string | null;
+        region: string | null;
+        city: string | null;
+      }
+    };
   }
 }
-```
 
---- C:\work\amplify-new\backend\utils\ErrorHandler.ts ---
 
-```typescript
+---
+// src/utils/ErrorHandler.ts
+
 class ErrorHandler extends Error {
-  statusCode: number;
+  public statusCode: number;
 
   constructor(message: string, statusCode: number) {
     super(message);
-_Generated by Gemini
     this.statusCode = statusCode;
-    Error.captureStackTrace(this, this.constructor);
+    (Error as any).captureStackTrace(this, this.constructor);
   }
 }
 
 export default ErrorHandler;
-```
 
---- C:\work\amplify-new\backend\utils\multer.ts ---
 
-```typescript
-import multer from 'multer';
+---
+// src/utils/multer.ts
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
-    }
-});
+// backend/utils/multer.ts
+import multer, { FileFilterCallback } from 'multer';
+import { Request } from 'express';
 
-const upload = multer({ storage });
+// Store files in memory so we can hand the buffer off to S3
+const storage = multer.memoryStorage();
 
-export default upload;
-```
-
---- C:\work\amplify-new\backend\utils\responseHelpers.ts ---
-
-```typescript
-import { Response } from 'express';
-
-export const sendSuccess = (res: Response, data: any, statusCode: number = 200) => {
-    res.status(statusCode).json({
-        success: true,
-        data
-    });
+// Only accept common image types
+const imageFileFilter = (
+  req: Request,
+  file: Express.Multer.File,
+  cb: FileFilterCallback
+) => {
+  if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JPEG, PNG, WEBP or GIF images are allowed'));
+  }
 };
 
-export const sendError = (res: Response, message: string, statusCode: number = 500) => {
-    res.status(statusCode).json({
-        success: false,
-        message
-    });
-};
-```
-
---- C:\work\amplify-new\backend\utils\tokenService.ts ---
-
-```typescript
-import { Response } from "express";
-import { IUser } from "../model/UserModel";
-import config from "../config";
-import ms from "ms";
-
-interface ITokenOptions {
-  expires: Date;
-  httpOnly: boolean;
-  secure?: boolean;
-}
-
-export const sendToken = (user: IUser, statusCode: number, res: Response) => {
-  const accessToken = user.getSignedToken();
-  const refreshToken = user.getRefreshToken();
-
-  // Set cookie options
-  const accessTokenExpire = new Date(
-    Date.now() + ms(config.access_token_expiry || "5m")
-  );
-  const refreshTokenExpire = new Date(
-    Date.now() + ms(config.refresh_token_expiry || "3d")
-  );
-
-  const accessTokenOptions: ITokenOptions = {
-    expires: accessTokenExpire,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
-  const refreshTokenOptions: ITokenOptions = {
-    expires: refreshTokenExpire,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
-
-  res.cookie("accessToken", accessToken, accessTokenOptions);
-  res.cookie("refreshToken", refreshToken, refreshTokenOptions);
-
-  res.status(statusCode).json({
-    success: true,
-    user,
-    accessToken,
-  });
-};
-```
-
---- C:\work\amplify-new\backend\utils\uploadToS3.ts ---
-
-```typescript
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import config from "../config";
-
-const s3Client = new S3Client({
-  region: config.aws_region,
-  credentials: {
-    accessKeyId: config.aws_access_key_id as string,
-    secretAccessKey: config.aws_secret_access_key as string,
+// Export a configured Multer instance
+export const uploadImage = multer({
+  storage,
+  fileFilter: imageFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // limit to 5MB
   },
 });
 
-export const uploadToS3 = async (fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> => {
-  const key = `observer-documents/${Date.now()}_${fileName}`;
-  
-  const command = new PutObjectCommand({
-    Bucket: config.aws_s3_bucket_name,
-    Key: key,
-    Body: fileBuffer,
-    ContentType: mimeType,
-  });
 
-  await s3Client.send(command);
+---
+// src/utils/responseHelpers.ts
 
-  return `https://${config.aws_s3_bucket_name}.s3.${config.aws_region}.amazonaws.com/${key}`;
+import { Request, Response, NextFunction } from "express";
+
+/**
+ * Higher-order function to catch errors in asynchronous route handlers.
+ * Automatically forwards errors to Express error-handling middleware.
+ *
+ * @param handler - An asynchronous function handling an Express request.
+ * @returns A function that wraps the handler and catches any errors.
+ */
+export const catchError = (
+  handler: (req: Request, res: Response, next: NextFunction) => Promise<void>
+) => (req: Request, res: Response, next: NextFunction): void => {
+  handler(req, res, next).catch(next);
 };
-```
+
+/**
+ * Reusable function to send a standardized JSON response.
+ *
+ * @param res - The Express response object.
+ * @param data - The data to include in the response.
+ * @param message - A custom message for the response (default is "Request successful").
+ * @param statusCode - HTTP status code (default is 200).
+ * @param meta - Optional metadata to include in the response.
+ * @returns A JSON response with a consistent format.
+ */
+export const sendResponse = <T, U>(
+  res: Response,
+  data: T,
+  message: string = "Request successful",
+  statusCode: number = 200,
+  meta?: U
+): Response => {
+  const responsePayload: { success: boolean; message: string; data: T; meta?: U } = {
+    success: true,
+    message,
+    data,
+  };
+
+  if (meta) {
+    responsePayload.meta = meta;
+  }
+
+  return res.status(statusCode).json(responsePayload);
+};
+
+
+---
+// src/utils/tokenService.ts
+
+// src/utils/tokenService.ts
+import jwt from "jsonwebtoken";
+import config from "../config/index";
+
+export interface AccessPayload {
+  userId: string;
+  role: string;
+}
+
+export interface RefreshPayload {
+  userId: string;
+}
+
+/** Sign an access token */
+export function signAccessToken(payload: AccessPayload): string {
+  return jwt.sign(
+    payload,
+    config.jwt_secret!,
+    {
+      expiresIn: config.jwt_access_token_expires_in as jwt.SignOptions["expiresIn"],
+    }
+  );
+}
+
+/** Sign a refresh token */
+export function signRefreshToken(payload: RefreshPayload): string {
+  return jwt.sign(
+    payload,
+    config.jwt_refresh_secret!,
+    {
+      expiresIn: config.jwt_refresh_token_expires_in as jwt.SignOptions["expiresIn"],
+    }
+  );
+}
+
+/** Verify an access token */
+export function verifyAccessToken(token: string): AccessPayload {
+  return jwt.verify(token, config.jwt_secret!) as AccessPayload;
+}
+
+/** Verify a refresh token */
+export function verifyRefreshToken(token: string): RefreshPayload {
+  return jwt.verify(token, config.jwt_refresh_secret!) as RefreshPayload;
+}
+
+export function cookieOptions(maxAgeMs: number) {
+  return {
+    httpOnly: true,
+    secure: config.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    maxAge: maxAgeMs,
+  };
+}
+
+
+/**
+ * Turn a string like "15m", "7d", "30s", "2h" into milliseconds.
+ * Throws if the format is invalid.
+ */
+export function parseExpiryToMs(expiry: string): number {
+  const m = /^(\d+)([smhd])$/.exec(expiry.trim());
+  if (!m) {
+    throw new Error(`Invalid expiry format: "${expiry}"`);
+  }
+  const value = Number(m[1]);
+  switch (m[2]) {
+    case "s":
+      return value * 1_000;
+    case "m":
+      return value * 60_000;
+    case "h":
+      return value * 3_600_000;
+    case "d":
+      return value * 86_400_000;
+    default:
+      throw new Error(`Unsupported time unit "${m[2]}"`);
+  }
+}
+
+
+---
+// src/utils/uploadToS3.ts
+
+// utils/uploadToS3.ts  (TypeScript — works in JS if you drop the types)
+import AWS from "aws-sdk";
+import config from "../config";
+
+/** One reusable S3 client (creds & region picked up from env vars) */
+const s3 = new AWS.S3({
+  accessKeyId:     config.s3_access_key,
+  secretAccessKey: config.s3_secret_access_key
+});
+
+/**
+ * Upload a Buffer to S3 under the `mediabox/` prefix.
+ *
+ * @param buffer      Raw file bytes (e.g. from multer.memoryStorage()).
+ * @param mimeType    Content-Type, e.g. "video/mp4", "image/png".
+ * @param displayName The filename you want to appear in S3 *unchanged*.
+ *
+ * @returns `{ url, key }`
+ *          key → "mediabox/<displayName>"   (store in DB)
+ *          url → public URL (works if bucket/prefix is public)
+ */
+export async function uploadToS3(
+  buffer: Buffer,
+  mimeType: string,
+  displayName: string
+): Promise<{ url: string; key: string }> {
+  const key   = `mediabox/${displayName}`;
+  const Bucket = config.s3_bucket_name as string;
+
+  const params: AWS.S3.PutObjectRequest = {
+    Bucket,
+    Key:  key,
+    Body: buffer,
+    ContentType: mimeType,
+  };
+
+  const { Location } = await s3.upload(params).promise();
+
+  return { url: Location as string, key };
+}
+
+
+/* ───────────────────────────────────────────────────────────── */
+/*  SINGLE DOWNLOAD HELPER                                      */
+/*  — Returns a short-lived signed URL (default 2 min)          */
+/* ───────────────────────────────────────────────────────────── */
+export function getSignedUrl(
+  key: string,
+  expiresSeconds = 120
+): string {
+  const Bucket = config.s3_bucket_name;
+
+  return s3.getSignedUrl("getObject", {
+    Bucket,
+    Key: key,
+    Expires: expiresSeconds,
+    ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
+      key.split("/").pop() || "download"
+    )}"`,
+  });
+}
+
+/* ───────────────────────────────────────────────────────────── */
+/*  MULTIPLE DOWNLOAD HELPER                                    */
+/*  — Returns an array of { key, url } signed links             */
+/* ───────────────────────────────────────────────────────────── */
+export function getSignedUrls(
+  keys: string[],
+  expiresSeconds = 120
+): { key: string; url: string }[] {
+  return keys.map((k) => ({
+    key: k,
+    url: getSignedUrl(k, expiresSeconds),
+  }));
+}
+
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Delete helper                                                            */
+/*───────────────────────────────────────────────────────────────────────────*/
+export async function deleteFromS3(key: string): Promise<void> {
+  if (!config.s3_bucket_name) {
+    throw new Error("S3_BUCKET_NAME is not configured");
+  }
+  const Bucket = config.s3_bucket_name; 
+
+  await s3
+    .deleteObject({
+      Bucket,
+      Key: key,
+    })
+    .promise();
+}

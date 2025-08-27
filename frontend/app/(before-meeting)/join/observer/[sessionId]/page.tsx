@@ -1,15 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-import { useParams, useRouter } from 'next/navigation';
-import { useMeeting } from 'context/MeetingContext';
 import { Input } from 'components/ui/input';
 import { Button } from 'components/ui/button';
-import { IObserverWaitingUser } from '@shared/interface/LiveSessionInterface';
+
 
 
 const observerJoinSchema = z.object({
@@ -19,10 +16,10 @@ const observerJoinSchema = z.object({
 type ObserverJoinData = z.infer<typeof observerJoinSchema>;
 
 const ObserverJoinMeeting: React.FC = () => {
-  const router = useRouter();
- const { sessionId } = useParams() as { sessionId: string };
-  const { joinRoom,  onObserverWaitingRoomUpdate,
-    offObserverWaitingRoomUpdate } = useMeeting();
+//   const router = useRouter();
+//  const { sessionId } = useParams() as { sessionId: string };
+  // const { joinRoom,  onObserverWaitingRoomUpdate,
+  //   offObserverWaitingRoomUpdate } = useMeeting();
 
   const {
     register,
@@ -32,33 +29,33 @@ const ObserverJoinMeeting: React.FC = () => {
     resolver: zodResolver(observerJoinSchema),
   });
 
-  const onSubmit = (data: ObserverJoinData) => {
-    joinRoom(
-      {
-        sessionId,
-        name: data.name,
-        email: data.email,
-        role: 'Observer',
-      },
-      ({ observers }) => {
-        console.log('observers', observers)
-        router.push(
-          `/waiting-room/observer/${sessionId}`
-        );
-      }
-    );
+  const onSubmit = () => {
+    // joinRoom(
+    //   {
+    //     sessionId,
+    //     name: data.name,
+    //     email: data.email,
+    //     role: 'Observer',
+    //   },
+    //   ({ observers }) => {
+    //     console.log('observers', observers)
+    //     router.push(
+    //       `/waiting-room/observer/${sessionId}`
+    //     );
+    //   }
+    // );
   };
 
   // subscribe to real‐time observer waiting‐room updates
-  useEffect(() => {
-    const handleUpdate = (list: IObserverWaitingUser[]) => {
-      console.log('observer waiting room now has', list.length, 'members');
-    };
-    onObserverWaitingRoomUpdate(handleUpdate);
-    return () => {
-      offObserverWaitingRoomUpdate(handleUpdate);
-    };
-  }, [onObserverWaitingRoomUpdate, offObserverWaitingRoomUpdate]);
+  // useEffect(() => {
+  //   const handleUpdate = (list: IObserverWaitingUser[]) => {
+  //     console.log('observer waiting room now has', list.length, 'members');
+  //   };
+  //   onObserverWaitingRoomUpdate(handleUpdate);
+  //   return () => {
+  //     offObserverWaitingRoomUpdate(handleUpdate);
+  //   };
+  // }, [onObserverWaitingRoomUpdate, offObserverWaitingRoomUpdate]);
 
   return (
     <div className="max-w-md mx-auto mt-12 p-6 bg-white rounded-lg shadow">

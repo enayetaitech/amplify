@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+import { resolveToIana } from "../../../utils/timezones";
+import { DateTime } from "luxon";
 import { ISession } from "@shared/interface/SessionInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import {
@@ -34,43 +36,20 @@ function formatDateTimeWithZone(
   timeStr: string,
   timeZone: string
 ): string {
-  // normalize to a Date object
-  const dateObj = typeof date === "string" ? new Date(date) : date;
+  // resolve UI label (e.g., "Buenos Aires") to IANA (e.g., "America/Argentina/Buenos_Aires")
+  const ianaZone = resolveToIana(timeZone) || "UTC";
 
-  // apply the hour/minute
-  const [hour, minute] = timeStr.split(":").map(Number);
-  const dt = new Date(dateObj);
-  dt.setHours(hour, minute, 0, 0);
+  // Build the local date-time in the target zone
+  const dateISO =
+    typeof date === "string"
+      ? date.split("T")[0]
+      : DateTime.fromJSDate(date).toISODate()!;
+  const dt = DateTime.fromISO(`${dateISO}T${timeStr}`, { zone: ianaZone });
+  if (!dt.isValid) return "";
 
-  // format the date part in that zone
-  const formattedDate = dt.toLocaleDateString("en-US", {
-    timeZone,
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  // format the time part (e.g. “3 p.m.”)
-  const formattedTime = dt
-    .toLocaleTimeString("en-US", {
-      timeZone,
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-    })
-    .toLowerCase()
-    .replace(/:00/, "")
-    .replace(/\s?pm$/, " p.m.")
-    .replace(/\s?am$/, " a.m."); // if you want “a.m.” too
-
-  // pull the region after the slash
-  const region = timeZone.split("/").pop() ?? timeZone;
-
-  return `${formattedDate}, ${formattedTime} ${region}`;
+  // Format like "Mar 06, 2025 | 03:00PM"
+  return dt.toFormat("LLL dd, yyyy | hh:mma");
 }
-
-
-
 
 export const SessionsTable: React.FC<SessionsTableProps> = ({
   sessions,
@@ -83,7 +62,6 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -98,7 +76,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
-  
+
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto">
       <div className="bg-white rounded-lg shadow-lg">
@@ -124,7 +102,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   </div>
                 </TableHead>
               ))}
-              <TableHead className="px-6 py-3" /> 
+              <TableHead className="px-6 py-3" />
             </TableRow>
           </TableHeader>
 
@@ -162,20 +140,24 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex space-x-2">
-                    <Button 
-                    className="bg-custom-orange-1"
-                    size="sm" onClick={() => onModerate(s._id)}>
+                    <Button
+                      className="bg-custom-orange-1"
+                      size="sm"
+                      onClick={() => onModerate(s._id)}
+                    >
                       Moderate
                     </Button>
-                    <Button size="sm" 
-                    className="bg-custom-dark-blue-1"
-                    onClick={() => onObserve(s._id)}>
+                    <Button
+                      size="sm"
+                      className="bg-custom-dark-blue-1"
+                      onClick={() => onObserve(s._id)}
+                    >
                       Observe
                     </Button>
                   </div>
                 </TableCell>
 
-             <TableCell
+                <TableCell
                   className="px-6 py-4 whitespace-nowrap text-right relative"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -243,7 +225,6 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
               </TableCell>
             </TableRow>
           </TableFooter>
-         
         </Table>
       </div>
     </div>

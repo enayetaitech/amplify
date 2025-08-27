@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams, useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
@@ -23,6 +23,8 @@ import EditSessionModal, {
   EditSessionValues,
 } from "components/projects/sessions/EditSessionModal";
 import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
+import { useProject } from "hooks/useProject";
+import { formatUiTimeZone } from "utils/timezones";
 
 interface EditSessionInput {
   id: string;
@@ -43,6 +45,16 @@ const Sessions = () => {
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId as string)
+
+  const tzPretty = useMemo(() => {
+    if (!project?.defaultTimeZone) return "";
+    // Use the project's startDate if you want the offset for that exact date (DST-correct),
+    // otherwise omit the 2nd arg to use "now".
+    const atDate = project.startDate ?? undefined;
+    return formatUiTimeZone(project.defaultTimeZone, atDate);
+  }, [project?.defaultTimeZone, project?.startDate]);
+  
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
     { data: ISession[]; meta: IPaginationMeta },
@@ -118,7 +130,7 @@ const Sessions = () => {
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
-        <HeadingBlue25px>Session</HeadingBlue25px>
+        <HeadingBlue25px>Sessions (All Times {isProjectLoading ? "Loading..." : tzPretty || project?.defaultTimeZone})</HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
           text="Add New Session"

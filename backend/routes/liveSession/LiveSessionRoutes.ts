@@ -1,8 +1,7 @@
 import express from "express";
 import { authenticateJwt } from "../../middlewares/authenticateJwt";
-import { authorizeRoles } from "../../middlewares/authorizeRoles";
 import { catchError } from "../../middlewares/CatchErrorMiddleware";
-import { endSession, getSessionHistory, startSession } from "../../controllers/LiveSessionController";
+import { endLiveSession,  startLiveSession } from "../../controllers/LiveSessionController";
 
 const router = express.Router();
 
@@ -12,7 +11,7 @@ router.post(
   "/:sessionId/start",
   authenticateJwt,
   // authorizeRoles("Moderator"),
-  catchError(startSession)
+  catchError(startLiveSession)
 );
 
 // POST api/v1/liveSessions/:sessionId/end
@@ -20,14 +19,8 @@ router.post(
   "/:sessionId/end",
   authenticateJwt,
   // authorizeRoles("Moderator"),
-  catchError(endSession)
+  catchError(endLiveSession)
 );
 
-// GET api/v1/liveSessions/:sessionId/history
-router.get(
-  "/:sessionId/history",
-  authenticateJwt,
-  catchError(getSessionHistory)
-);
 
 export default router;

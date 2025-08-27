@@ -23,13 +23,13 @@ const CreateProjectPage: React.FC = () => {
 
     const stepTitles: Record<number, string[]> = {
     2: [
-      "Choose Service",   // step 0
-      "Project Information Request" // step 1
+      "Choose Service",   
+      "Project Information Request"
     ],
     3: [
-      "Choose Service",      // step 0
-      "Tell us about your project", // step 1
-      "Review & Pay"             // step 2
+      "Choose Service",   
+      "Tell us about your project", 
+      "Review & Pay" 
     ]
   };
 

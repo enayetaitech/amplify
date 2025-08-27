@@ -1,0 +1,48 @@
+{
+  "cursor.cmdk.useThemedDiffBackground2": false,
+  "workbench.colorTheme": "Cursor Dark High Contrast",
+  "workbench.preferredDarkColorTheme": "Cursor Dark Midnight",
+  "workbench.preferredLightColorTheme": "Default Light Modern",
+  "editor.bracketPairColorization.independentColorPoolPerBracketType": true,
+  "outline.problems.colors": true,
+  "terminal.integrated.tabs.defaultColor": "terminal.ansiGreen",
+  "editor.inlineCompletionsAccessibilityVerbose": false,
+  "editor.renderLineHighlightOnlyWhenFocus": true,
+  "editor.renderValidationDecorations": "on",
+  "errorLens.enabled": true,
+  "errorLens.messageEnabled": true,
+  "errorLens.followCursor": "allLines",
+  // Always show diagnostics in text
+  "editor.renderLineHighlight": "all",
+  "editor.renderValidationDecorations": "on",
+  "problems.showCurrentInStatus": true,
+
+  // Forcing squiggly underlines
+  "editor.errorSquiggles": "enabled",
+  "editor.warningSquiggles": "enabled",
+  "console-ninja.lightTheme.error.decorationAttachmentRenderOptions": {
+    "border": null,
+    "borderColor": null,
+    "fontStyle": null,
+    "fontWeight": null,
+    "textDecoration": null,
+    "color": "#c80000",
+    "backgroundColor": null,
+    "margin": "1em",
+    "width": null,
+    "height": null
+  },
+  "console-ninja.darkTheme.error.decorationAttachmentRenderOptions": {
+    "border": null,
+    "borderColor": null,
+    "fontStyle": null,
+    "fontWeight": null,
+    "textDecoration": null,
+    "color": "#fe536a",
+    "backgroundColor": null,
+    "margin": "1em",
+    "width": null,
+    "height": null
+  },
+  "cSpell.words": ["LIVEKIT"]
+}
