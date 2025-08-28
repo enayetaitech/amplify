@@ -90,13 +90,7 @@ export async function startHlsEgress(roomName: string): Promise<{
 
   const playbackUrl = cdnBase ? `${cdnBase}${roomName}/live.m3u8` : null;
 
-  console.log('[EGRESS:HLS:STARTED]', {
-    roomName,
-    egressId: info.egressId,
-    playbackUrl,
-    s3Bucket: s3Common.bucket,
-    prefix: roomName
-  });
+  
 
   return { egressId: info.egressId, playbackUrl, playlistName: 'live.m3u8' };
 }
@@ -119,12 +113,7 @@ export async function startFileEgress(roomName: string): Promise<{ egressId: str
     { layout: 'grid', encodingOptions: EncodingOptionsPreset.H264_720P_30 }
   );
 
-  console.log('[EGRESS:FILE:STARTED]', {
-    roomName,
-    egressId: info.egressId,
-    s3Bucket: s3Common.bucket,
-    prefix: `${roomName}/`
-  });
+  
 
   return { egressId: info.egressId };
 }

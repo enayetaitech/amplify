@@ -10,7 +10,7 @@ export const getToken = (): string => {
       const userObj = JSON.parse(userStr);
       return userObj.token || "";
     } catch (error) {
-      console.log("Error in getToken function", error);
+      console.error("Error in getToken function", error);
       return "";
     }
   }
@@ -24,7 +24,7 @@ export const getUser = (): IUser | null => {
   try {
     return JSON.parse(userStr);
   } catch (error) {
-    console.log("Error in getUser function", error);
+    console.error("Error in getUser function", error);
     return null;
   }
 };

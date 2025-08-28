@@ -13,7 +13,6 @@ const VerifyAccountClient = () => {
   const params = useSearchParams();
   const token = params.get("token") || "";
 
-  console.log('token', token)
   const verifyEmail = useVerifyEmail();
 
   useEffect(() => {

@@ -36,7 +36,6 @@ const Login = () => {
 
   const handleErrors = (errors: FieldErrors<LoginFormValues>) => {
     Object.values(errors).forEach((fieldError) => {
-      console.log("errors", errors);
       if (fieldError?.message) {
         toast.error(fieldError.message);
       }

@@ -1,40 +1,88 @@
 "use client";
 
-import React, { useState} from "react";
-
-// import { useMeeting } from "context/MeetingContext";
-
+import React, { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import api from "lib/api";
+import axios from "axios";
+import { toast } from "sonner";
 
 export default function ParticipantJoinMeeting() {
-  // const router = useRouter();
-  // const {sessionId} = useParams();
- 
-  // const { socket } = useMeeting();
+  const router = useRouter();
+  const { sessionId: idParam } = useParams() as { sessionId: string };
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [joining, setJoining] = useState(false);
 
-
-  const handleJoin = () => {
-    // if (!name || !email || !socket) return;
-    setJoining(true);
-
-    localStorage.setItem(
-      "liveSessionUser",
-      JSON.stringify({ name, email, role: "Participant" })
+  async function resolveProjectToSession(projectId: string) {
+    const res = await api.get<{ data: { sessionId: string } }>(
+      `/api/v1/sessions/project/${projectId}/latest`,
+      { params: { role: "Participant" } }
     );
+    return res.data.data.sessionId;
+  }
 
- 
+  async function tryGetSession(projectOrSessionId: string) {
+    try {
+      const res = await api.get<{ data: { _id: string; projectId: string } }>(
+        `/api/v1/sessions/${projectOrSessionId}`
+      );
+      return {
+        sessionId: res.data.data._id,
+        projectId: res.data.data.projectId,
+      };
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        return null;
+      }
+      throw err;
+    }
+  }
 
-    // socket.emit(
-    //   "join-room",
-    //   { sessionId, name, email, role: "Participant" },
-    //   () => {
-    //     setJoining(false);
-    //     router.push(`/waiting-room/participant/${sessionId}`);
-    //   }
-    // );
+  const handleJoin = async () => {
+    if (!name || !email) {
+      toast.error("Name and email are required");
+      return;
+    }
+    setJoining(true);
+    try {
+      // Determine if the route param is a sessionId or a projectId
+      const maybeSession = await tryGetSession(idParam);
+      let projectId: string;
+      if (maybeSession) {
+        // Always resolve via project to enforce Participant semantics
+        projectId = String(maybeSession.projectId);
+      } else {
+        projectId = idParam;
+      }
+
+      // Resolve latest session for participant
+      let sessionId: string;
+      try {
+        sessionId = await resolveProjectToSession(projectId);
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          toast.error("No session is currently running");
+          return;
+        }
+        throw err;
+      }
+
+      // Enqueue into waiting room
+      await api.post(`/api/v1/waiting-room/enqueue`, {
+        sessionId,
+        name,
+        email,
+        role: "Participant",
+      });
+
+      router.push(`/waiting-room/participant/${sessionId}`);
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.message : "Failed to join";
+      toast.error(msg);
+    } finally {
+      setJoining(false);
+    }
   };
 
   return (

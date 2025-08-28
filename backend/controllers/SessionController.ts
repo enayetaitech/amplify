@@ -10,6 +10,7 @@ import {
 } from "../processors/session/sessionTimeConflictChecker";
 import * as sessionService from "../processors/liveSession/sessionService";
 import mongoose from "mongoose";
+import { LiveSessionModel } from "../model/LiveSessionModel";
 
 // !  the fields you really need to keep the payload light
 const SESSION_POPULATE = [
@@ -24,7 +25,6 @@ export const createSessions = async (
 ): Promise<void> => {
   const { projectId, sessions } = req.body;
 
-  console.log("req.body", req.body);
 
   // 1. Basic payload validation
   if (!Array.isArray(sessions) || sessions.length === 0 || !projectId) {
@@ -234,6 +234,130 @@ export const getSessionById = async (
 
     // 2. Return it
     sendResponse(res, session, "Session fetched", 200);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /sessions/project/:projectId/latest?role=Participant|Observer|Moderator|Admin
+ * Resolve the latest session for a project based on role semantics.
+ * Priority:
+ *  1) If any LiveSession is ongoing for this project's sessions, return that (status: "ongoing").
+ *  2) If none ongoing:
+ *     - Participant: Option B → 404 "No session is currently running".
+ *     - Observer/Moderator/Admin: Option A → return time-window ongoing if any, else nearest upcoming.
+ */
+export const getLatestSessionForProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectId } = req.params;
+    const roleRaw = (req.query.role as string) || "";
+    const allowedRoles = new Set([
+      "Participant",
+      "Observer",
+      "Moderator",
+      "Admin",
+    ]);
+
+    // Validate role
+    if (!allowedRoles.has(roleRaw)) {
+      return next(new ErrorHandler("Invalid or missing role", 400));
+    }
+
+    // Validate projectId
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return next(new ErrorHandler("Invalid project id", 400));
+    }
+
+    // Ensure project exists
+    const project = await ProjectModel.findById(projectId).lean();
+    if (!project) {
+      return next(new ErrorHandler("Project not found", 404));
+    }
+
+    // 1) Prefer an actually ongoing LiveSession for this project's sessions
+    const liveWithSession = await LiveSessionModel.find({ ongoing: true })
+      .populate({
+        path: "sessionId",
+        select: "projectId startAtEpoch endAtEpoch",
+      })
+      .lean();
+
+    const liveForProject = liveWithSession.find((ls: any) => {
+      const sess = ls.sessionId as any;
+      return sess && String(sess.projectId) === String(projectId);
+    });
+
+    if (liveForProject && liveForProject.sessionId) {
+      const sess = liveForProject.sessionId as unknown as {
+        _id: string | mongoose.Types.ObjectId;
+        projectId: string | mongoose.Types.ObjectId;
+        startAtEpoch: number;
+        endAtEpoch: number;
+      };
+      const data = {
+        sessionId: String(sess._id),
+        status: "ongoing" as const,
+        startAtEpoch: sess.startAtEpoch,
+        endAtEpoch: sess.endAtEpoch,
+      };
+      sendResponse(res, data, "Resolved latest session (ongoing)", 200);
+    }
+
+    // 2) None ongoing via LiveSession
+    const now = Date.now();
+
+    if (roleRaw === "Participant") {
+      // Option B: No session for participants when none ongoing
+      next(new ErrorHandler("No session is currently running", 404));
+    }
+
+    // Option A for Observer/Moderator/Admin
+    // 2a) Try time-window ongoing (scheduled window contains now)
+    const windowOngoing = await SessionModel.findOne({
+      projectId,
+      startAtEpoch: { $lte: now },
+      endAtEpoch: { $gte: now },
+    })
+      .sort({ startAtEpoch: -1 })
+      .lean();
+
+    if (windowOngoing) {
+      const data = {
+        sessionId: String(windowOngoing._id),
+        status: "ongoing" as const,
+        startAtEpoch: windowOngoing.startAtEpoch,
+        endAtEpoch: windowOngoing.endAtEpoch,
+      };
+      sendResponse(res, data, "Resolved latest session (window ongoing)", 200);
+      return;
+    }
+
+    // 2b) Else nearest upcoming
+    const upcoming = await SessionModel.findOne({
+      projectId,
+      startAtEpoch: { $gt: now },
+    })
+      .sort({ startAtEpoch: 1 })
+      .lean();
+
+    if (upcoming) {
+      const data = {
+        sessionId: String(upcoming._id),
+        status: "upcoming" as const,
+        startAtEpoch: upcoming.startAtEpoch,
+        endAtEpoch: upcoming.endAtEpoch,
+      };
+      sendResponse(res, data, "Resolved upcoming session", 200);
+      return;
+    }
+
+    // 2c) None found
+    next(new ErrorHandler("No current or upcoming session", 404));
   } catch (err) {
     next(err);
   }

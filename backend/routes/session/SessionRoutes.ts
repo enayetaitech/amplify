@@ -1,8 +1,14 @@
-
-import { createSessions, updateSession, duplicateSession, deleteSession, getSessionsByProject, getSessionById } from "../../controllers/SessionController";
+import {
+  createSessions,
+  updateSession,
+  duplicateSession,
+  deleteSession,
+  getSessionsByProject,
+  getSessionById,
+  getLatestSessionForProject,
+} from "../../controllers/SessionController";
 import { catchError } from "../../middlewares/CatchErrorMiddleware";
 import express from "express";
-
 
 const router = express.Router();
 
@@ -10,16 +16,16 @@ const router = express.Router();
 router.post("/", catchError(createSessions));
 
 // GET /api/v1/sessions/project/:projectId
+router.get("/project/:projectId", catchError(getSessionsByProject));
+
+// GET /api/v1/sessions/project/:projectId/latest
 router.get(
-  "/project/:projectId",
-  catchError(getSessionsByProject)
+  "/project/:projectId/latest",
+  catchError(getLatestSessionForProject)
 );
 
 // GET /api/v1/sessions/:id
-router.get(
-  "/:id",
-  catchError(getSessionById)
-);
+router.get("/:id", catchError(getSessionById));
 
 // PATCH /api/v1/sessions/:id
 router.patch("/:id", catchError(updateSession));

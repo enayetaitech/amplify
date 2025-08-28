@@ -121,7 +121,6 @@ export const savePaymentMethod = async (
       };
       await user.save();
     }
-    console.log("last 4", paymentMethod.card);
     sendResponse(
       res,
       { last4: paymentMethod.card?.last4, user: user },
@@ -178,7 +177,6 @@ export const createSetupIntent = async (
         console.error("Error during stripe.customers.create:", innerError);
         return next(innerError);
       }
-      // console.log('customer', customer)
       // user.stripeCustomerId = customer.id;
       await user.save();
     }
@@ -188,7 +186,6 @@ export const createSetupIntent = async (
       customer: user.stripeCustomerId,
       payment_method_types: ["card"],
     });
-    console.log("user setup intent", setupIntent.client_secret);
 
     sendResponse(
       res,
@@ -218,7 +215,6 @@ export const retrievePaymentMethod = async (
     }
 
     const user = await User.findById(userId);
-    console.log("user", user);
     sendResponse(
       res,
       { paymentMethod, user },
@@ -278,7 +274,6 @@ export const chargeCustomer = async (
       { new: true }
     );
 
-    console.log("updated user", updatedUser);
     if (!updatedUser) {
       return next(new ErrorHandler("User not found", 404));
     }
@@ -295,7 +290,6 @@ export const saveBillingInfo = async (
   next: NextFunction
 ): Promise<void> => {
   const { userId, billingInfo } = req.body;
-  // console.log( billingData)
   // Validate required fields
   if (!userId) {
     return next(new ErrorHandler("User ID is required", 400));
@@ -313,7 +307,6 @@ export const saveBillingInfo = async (
     // Update the user's billingData field
     user.billingInfo = billingInfo;
     await user.save();
-    console.log("user", user);
     sendResponse(
       res,
       { billingInfo: user.billingInfo },

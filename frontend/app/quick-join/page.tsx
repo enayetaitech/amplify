@@ -24,7 +24,6 @@ export default function QuickJoin() {
     if (!jwt || !roomName) {
       alert('Paste your backend JWT and roomName'); return;
     }
-    console.log('jwt', jwt);
     const res = await fetch(`${API_BASE}/api/v1/livekit/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

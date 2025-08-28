@@ -87,12 +87,10 @@ export const addModerator = async (
     return next(new ErrorHandler("Project owner not found", 500));
   }
 
-  // console.log(req.body, project, creator)
 
   const session = await mongoose.startSession();
   session.startTransaction();
   let moderator: IModeratorDocument;
-  // console.log('let moderator', moderator)
   try {
     // 5️⃣ Create and save the new moderator document
     moderator = new ModeratorModel({
@@ -115,7 +113,7 @@ export const addModerator = async (
     // 3️⃣ commit the transaction
     await session.commitTransaction();
   } catch (err) {
-    console.log("error", err);
+    console.error("error adding moderator", err);
     await session.abortTransaction();
     throw err;
   } finally {

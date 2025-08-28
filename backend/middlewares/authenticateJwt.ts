@@ -14,7 +14,6 @@ export const authenticateJwt = (
 ) => {
   
   const token = req.cookies.accessToken;
-  console.log("token", token);
   if (!token) {
     return next(new ErrorHandler("Not authenticated", 401));
   }

@@ -12,7 +12,6 @@ async function run() {
   }
 
   await mongoose.connect(mongoUri);
-  console.log("Connected to MongoDB");
 
   const total = await SessionModel.countDocuments({});
   const missing = await SessionModel.countDocuments({
@@ -28,10 +27,7 @@ async function run() {
     $expr: { $gte: ["$startAtEpoch", "$endAtEpoch"] },
   });
 
-  console.log(`Total sessions: ${total}`);
-  console.log(`Missing epoch fields: ${missing}`);
-  console.log(`Null epoch fields: ${nullish}`);
-  console.log(`startAtEpoch >= endAtEpoch: ${badOrder}`);
+  
 
   if (missing > 0 || nullish > 0) {
     const sample = await SessionModel.find({
@@ -47,11 +43,9 @@ async function run() {
       )
       .limit(5)
       .lean();
-    console.log("Sample missing/null sessions:", sample);
   }
 
   await mongoose.disconnect();
-  console.log("Verification done.");
 }
 
 run().catch((err) => {

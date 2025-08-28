@@ -42,7 +42,6 @@ export default function Meeting() {
   // const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
   // const [participants, setParticipants] = useState<IParticipant[]>([]);
 
-// console.log('participant', participants)
 
   // const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   // const [messages, setMessages] = useState<IWaitingRoomChat[]>([]);
