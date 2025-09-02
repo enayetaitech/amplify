@@ -24,9 +24,9 @@ export default function ParticipantJoinMeeting() {
 
   async function tryGetSession(projectOrSessionId: string) {
     try {
-      const res = await api.get<{ data: { _id: string; projectId: string } }>(
-        `/api/v1/sessions/${projectOrSessionId}`
-      );
+      const res = await api.get<{
+        data: { _id: string; projectId: string | { _id: string } };
+      }>(`/api/v1/sessions/${projectOrSessionId}`);
       return {
         sessionId: res.data.data._id,
         projectId: res.data.data.projectId,
@@ -51,7 +51,9 @@ export default function ParticipantJoinMeeting() {
       let projectId: string;
       if (maybeSession) {
         // Always resolve via project to enforce Participant semantics
-        projectId = String(maybeSession.projectId);
+        type ProjectRef = string | { _id: string };
+        const pid = maybeSession.projectId as ProjectRef;
+        projectId = typeof pid === "string" ? pid : pid._id;
       } else {
         projectId = idParam;
       }
@@ -75,6 +77,11 @@ export default function ParticipantJoinMeeting() {
         email,
         role: "Participant",
       });
+
+      localStorage.setItem(
+        "liveSessionUser",
+        JSON.stringify({ name, email, role: "Participant" })
+      );
 
       router.push(`/waiting-room/participant/${sessionId}`);
     } catch (err) {
@@ -100,6 +107,8 @@ export default function ParticipantJoinMeeting() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
+
+      {/* localhost:3000/join/participant/670d9310667c144b9c271710 */}
       <button
         className="w-full py-2 bg-green-600 text-white rounded"
         onClick={handleJoin}

@@ -1,5 +1,7 @@
 "use client";
 
+import ModeratorWaitingPanel from "components/meeting/waitingRoom";
+
 // import React, { useEffect, useMemo, useRef, useState } from "react";
 // import { useParams } from "next/navigation";
 // import { useMeeting } from "context/MeetingContext";
@@ -190,6 +192,7 @@ export default function Meeting() {
               </div>
             ))
           )} */}
+          <ModeratorWaitingPanel />
         </section>
 
         <section>

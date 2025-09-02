@@ -21,7 +21,7 @@ export interface SessionsTableProps {
   sessions: ISession[];
   meta: IPaginationMeta;
   onPageChange: (newPage: number) => void;
-  onRowClick: (sessionId: string) => void;
+  // onRowClick: (sessionId: string) => void;
   onModerate: (sessionId: string) => void;
   onObserve: (sessionId: string) => void;
   onAction: (
@@ -55,7 +55,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   sessions,
   meta,
   onPageChange,
-  onRowClick,
+  // onRowClick,
   onModerate,
   onObserve,
   onAction,
@@ -111,7 +111,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
               <TableRow
                 key={s._id}
                 className="cursor-pointer hover:bg-gray-50"
-                onClick={() => onRowClick(s._id)}
+                // onClick={() => onRowClick(s._id)}
               >
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {s.title}

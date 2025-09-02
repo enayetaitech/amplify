@@ -45,7 +45,9 @@ const Sessions = () => {
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
-  const { data: project, isLoading: isProjectLoading } = useProject(projectId as string)
+  const { data: project, isLoading: isProjectLoading } = useProject(
+    projectId as string
+  );
 
   const tzPretty = useMemo(() => {
     if (!project?.defaultTimeZone) return "";
@@ -54,7 +56,7 @@ const Sessions = () => {
     const atDate = project.startDate ?? undefined;
     return formatUiTimeZone(project.defaultTimeZone, atDate);
   }, [project?.defaultTimeZone, project?.startDate]);
-  
+
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
     { data: ISession[]; meta: IPaginationMeta },
@@ -69,6 +71,52 @@ const Sessions = () => {
         )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
+  });
+
+  // Start live session then navigate
+  const startMeeting = useMutation<
+    { success?: boolean; message?: string },
+    unknown,
+    string
+  >({
+    mutationFn: async (sessionId: string) => {
+      const res = await api.post<{ success?: boolean; message?: string }>(
+        `/api/v1/liveSessions/${sessionId}/start`
+      );
+      return res.data; // e.g. { success: true, ... } OR { success: false, message: "Session already ongoing" }
+    },
+    onSuccess: (data, sessionId) => {
+      const success = data?.success;
+      const message = data?.message;
+
+      if (success === false && message === "Session already ongoing") {
+        toast.message("Session already ongoing — opening meeting");
+      } else {
+        toast.success("Session started");
+      }
+
+      // Refresh any live flags if you show them
+      queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+
+      // Go to meeting either way
+      router.push(`/meeting/${sessionId}`);
+    },
+    onError: (err, sessionId) => {
+      // If server returned non-2xx with the same message, still proceed
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.message;
+        if (msg === "Session already ongoing") {
+          toast.message("Session already ongoing — opening meeting");
+          router.push(`/meeting/${sessionId}`);
+          return;
+        }
+      }
+
+      const fallback = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Could not start the session";
+      toast.error(fallback);
+    },
   });
 
   // Mutation to delete session
@@ -130,7 +178,13 @@ const Sessions = () => {
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
-        <HeadingBlue25px>Sessions (All Times {isProjectLoading ? "Loading..." : tzPretty || project?.defaultTimeZone})</HeadingBlue25px>
+        <HeadingBlue25px>
+          Sessions (All Times{" "}
+          {isProjectLoading
+            ? "Loading..."
+            : tzPretty || project?.defaultTimeZone}
+          )
+        </HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
           text="Add Sessions"
@@ -141,6 +195,7 @@ const Sessions = () => {
           }}
         />
       </div>
+
       {isLoading ? (
         <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">
           Loading Sessions...
@@ -151,8 +206,8 @@ const Sessions = () => {
             sessions={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
-            onRowClick={(id) => router.push(`/session-details/${id}`)}
-            onModerate={(id) => router.push(`/session-details/${id}/moderate`)}
+            // onRowClick={(id) => router.push(`/session-details/${id}`)}
+            onModerate={(id) => startMeeting.mutate(id)}
             onObserve={(id) => router.push(`/session-details/${id}/observe`)}
             onAction={(action, session) => {
               switch (action) {

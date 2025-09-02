@@ -32,9 +32,9 @@ const ObserverJoinMeeting: React.FC = () => {
 
   async function tryGetSession(projectOrSessionId: string) {
     try {
-      const res = await api.get<{ data: { _id: string; projectId: string } }>(
-        `/api/v1/sessions/${projectOrSessionId}`
-      );
+      const res = await api.get<{
+        data: { _id: string; projectId: string | { _id: string } };
+      }>(`/api/v1/sessions/${projectOrSessionId}`);
       return {
         sessionId: res.data.data._id,
         projectId: res.data.data.projectId,
@@ -62,7 +62,8 @@ const ObserverJoinMeeting: React.FC = () => {
       const maybeSession = await tryGetSession(idParam);
       let projectId: string;
       if (maybeSession) {
-        projectId = String(maybeSession.projectId);
+        const pid = maybeSession.projectId;
+        projectId = typeof pid === "string" ? pid : pid._id;
       } else {
         projectId = idParam;
       }

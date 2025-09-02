@@ -1,173 +1,129 @@
 "use client";
 
-import React, {  useState } from "react";
-// import { useParams, useRouter } from "next/navigation";
-// import { useMeeting } from "context/MeetingContext";
-// import { IWaitingRoomChat } from "@shared/interface/WaitingRoomChatInterface";
-// import { IObserver, IObserverWaitingUser, IParticipant, IWaitingUser } from "@shared/interface/LiveSessionInterface";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { io, Socket } from "socket.io-client";
+import { SOCKET_URL } from "constant/socket";
+import type {
+  IObserverWaitingUser,
+  IParticipant,
+  IObserver,
+} from "@shared/interface/LiveSessionInterface";
 
-// interface JoinAck {
-//   participantsWaitingRoom: IWaitingUser[];
-//   observersWaitingRoom:   IObserverWaitingUser[];
-//   participantList:        IParticipant[];
-//   observerList:           IObserver[];
-// }
+type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
+interface WaitingUser {
+  name: string;
+  email: string;
+  role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
+  joinedAt: string;
+}
+
+interface JoinAck {
+  participantsWaitingRoom: WaitingUser[];
+  observersWaitingRoom: IObserverWaitingUser[];
+  participantList: IParticipant[];
+  observerList: IObserver[];
+}
 
 export default function ParticipantWaitingRoom() {
-  // const { sessionId } = useParams() as { sessionId: string };;
-  // const router = useRouter();
+  const { sessionId } = useParams() as { sessionId: string };
+  const router = useRouter();
   // const { socket } = useMeeting();
 
-  // const me = JSON.parse(localStorage.getItem("liveSessionUser")!) as {
-  //   name: string;
-  //   email: string;
-  //   role: string;
-  // };
+  // Load 'me' from localStorage (set by Join page)
+  const me = useMemo(() => {
+    const raw = localStorage.getItem("liveSessionUser");
+    if (!raw) {
+      // If missing, bounce back to join
+      router.replace(`/join/participant/${sessionId}`);
+      throw new Error("Missing Live Session User");
+    }
+    return JSON.parse(raw) as { name: string; email: string; role: UserRole };
+  }, [router, sessionId]);
 
-      // load & memoize me once so it’s stable across renders
-    // const [me] = useState(() => {
-    //   const raw = localStorage.getItem("liveSessionUser");
-    //  if (!raw) throw new Error("No liveSessionUser in localStorage");
-    //  return JSON.parse(raw) as { name: string; email: string; role: string };
-    // });
-
-  // const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
+  const [waiting, setWaiting] = useState<WaitingUser[]>([]);
+  const socketRef = useRef<Socket | null>(null);
+  const joinedRef = useRef(false);
 
   // chat state
-  const [chatInput, setChatInput] = useState("");
-  // const [messages, setMessages] = useState<IWaitingRoomChat[]>([]);
+  // const [chatInput, setChatInput] = useState("");
 
-  // const hasJoinedRef = useRef(false);
+  useEffect(() => {
+    const s = io(SOCKET_URL, {
+      path: "/socket.io",
+      withCredentials: true,
+      query: {
+        sessionId,
+        role: me.role,
+        name: me.name,
+        email: me.email,
+      },
+    });
+    socketRef.current = s;
 
-  // useEffect(() => {
-  //   if (!socket) return;
+    s.on("connect", () => {
+      if (joinedRef.current) return;
+      joinedRef.current = true;
 
-  //   // guard so we only ever emit once
-  //   if (!hasJoinedRef.current) {
-  //     hasJoinedRef.current = true;
+      s.emit("join-room", {}, (rooms: JoinAck) => {
+        // exclude self from the UI list
+        const others = (rooms.participantsWaitingRoom || []).filter(
+          (u) => u.email !== me.email
+        );
+        setWaiting(others);
+      });
+    });
 
-  //     socket.emit(
-  //       "join-room",
-  //       { sessionId, ...me },
-  //      (rooms: JoinAck) =>  {
-  //         // initialize waiting-room list
-  //         setWaiting(
-  //           rooms.participantsWaitingRoom.filter((u) => u.email !== me.email)
-  //         );
+    s.on(
+      "waiting:list",
+      (payload: { participantsWaitingRoom: WaitingUser[] }) => {
+        setWaiting(
+          (payload.participantsWaitingRoom || []).filter(
+            (u) => u.email !== me.email
+          )
+        );
+      }
+    );
 
-  //         // if we're already in the active participantList, go straight in:
-  //         if (rooms.participantList.some((p) => p.email === me.email)) {
-  //           router.push(`/meeting/${sessionId}`);
-  //         }
-  //       }
-  //     );
-  //   }
+    s.on("waiting:admitted", () => {
+      // Navigate to the meeting page (camera/mic off by default in later milestones)
+      router.push(`/meeting/${sessionId}`);
+    });
 
-  //   socket.on("participantWaitingRoomUpdate", (list) => {
-  //     const filtered = list.filter((u: IWaitingUser) => u.email !== me.email);
+    s.on("waiting:removed", () => {
+      router.push(`/remove-participant`); // implement simple “removed” page later
+    });
 
-  //     setWaiting(filtered);
-  //     if (!list.some((p: IWaitingUser) => p.email === me.email)) {
-  //       router.push("/remove-participant");
-  //     }
-  //   });
-
-  //   socket.on("participantListUpdate", (list: IParticipant[]) => {
-  //     if (list.find((p) => p.email === me.email)) {
-  //       router.push(`/meeting/${sessionId}`);
-  //     }
-  //   });
-
-  //   // chat recv
-  //   socket.on(
-  //     "participant-waiting-room:receive-message",
-  //     (msg: IWaitingRoomChat & { timestamp: string }) => {
-  //       const withDate: IWaitingRoomChat = {
-  //         ...msg,
-  //         timestamp: new Date(msg.timestamp),
-  //       };
-  //       if (withDate.email === me.email) {
-  //         setMessages((prev) => [...prev, withDate]);
-  //       }
-  //     }
-  //   );
-
-  //   return () => {
-  //     socket.off("participantWaitingRoomUpdate");
-  //     socket.off("participantListUpdate");
-  //     socket.off("participant-waiting-room:receive-message");
-  //   };
-  // }, [sessionId, socket,router, me ]);
-
-  // const sendMessage = () => {
-  //   if (!chatInput.trim()) return;
-  //   const payload = {
-  //     sessionId,
-  //     email: me.email,
-  //     senderName: me.name,
-  //     role: "Participant" as const,
-  //     content: chatInput.trim(),
-  //   };
-  //   socket?.emit("participant-waiting-room:send-message", payload);
-  //   setChatInput("");
-  // };
+    return () => {
+      s.disconnect();
+    };
+  }, [me.email, me.name, me.role, router, sessionId]);
 
   return (
-    <div className="max-w-lg mx-auto p-4 space-y-6">
-      <h2 className="text-2xl font-semibold">Waiting Room</h2>
-
-      <div className="border p-4 rounded space-y-2">
-        <h3 className="font-medium">People waiting:</h3>
-        {/* {waiting.map((u) => (
-          <div key={`${u.email}-${u.joinedAt}`} className="text-gray-700">
-            {u.name} <span className="text-sm text-gray-500">({u.email})</span>
-          </div>
-        ))} */}
-      </div>
-
-      <div className="border p-4 rounded space-y-2 h-64 flex flex-col">
-        <h3 className="font-medium">Chat with moderator</h3>
-        <div className="flex-1 overflow-y-auto space-y-1">
-          {/* {messages.map((m) => (
-            <div
-              key={`${m.email}-${m.timestamp.toISOString()}`}
-              className={`flex ${
-                m.role === "Participant" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <span
-                className={`px-3 py-1 rounded ${
-                  m.role === "Participant"
-                    ? "bg-green-200 text-green-800"
-                    : "bg-gray-200 text-gray-800"
-                }`}
-              >
-                {m.content}
-              </span>
-            </div>
-          ))} */}
-        </div>
-        <div className="flex space-x-2">
-          <input
-            className="flex-1 border rounded px-2"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Type a message…"
-            // onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-          <button
-            className="px-4 py-1 bg-blue-600 text-white rounded"
-            // onClick={sendMessage}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-
-      <p className="text-sm text-gray-500">
-        Waiting for the moderator to admit you…
+    <div className="max-w-2xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Waiting Room</h1>
+      <p className="text-sm text-muted-foreground">
+        Hi {me.name}, you’ll enter the meeting once the moderator admits you.
       </p>
+
+      <div className="rounded-xl border p-4">
+        <h2 className="font-medium mb-2">Other participants waiting</h2>
+        {waiting.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You’re the first here.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {waiting.map((u) => (
+              <li key={u.email} className="flex items-center justify-between">
+                <span>{u.name}</span>
+                <span className="text-xs text-muted-foreground">{u.email}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
