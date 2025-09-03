@@ -1,12 +1,18 @@
 // src/processors/livekit/livekitService.ts
 import config from "../../config/index";
 
-import { AccessToken, TrackSource, VideoGrant } from "livekit-server-sdk";
+import { AccessToken, RoomServiceClient, TrackSource, TrackType, VideoGrant } from "livekit-server-sdk";
 
 export type LivekitRole = 'Admin' | 'Moderator' | 'Participant' | 'Observer';
 
 const apiKey = config.livekit_api_key!;
 const apiSecret = config.livekit_api_secret!;
+
+export const roomService = new RoomServiceClient(
+  config.livekit_api_url!, // LIVEKIT_HOST
+  apiKey,
+  apiSecret
+);
 
 export async function issueRoomToken(params: {
   identity: string;          // user id
@@ -41,6 +47,54 @@ export async function issueRoomToken(params: {
   at.addGrant(grant);
   return await at.toJwt();
 }
+
+
+/** NEW: server-side moderation helper – mute a participant's microphone */
+export async function serverMuteMicrophone(params: {
+  roomName: string;      // in your app this is the sessionId used when issuing the LK token
+  identity: string;      // use participantIdentity(sessionId, email)
+}): Promise<boolean> {
+  const { roomName, identity } = params;
+
+  const participants = await roomService.listParticipants(roomName);
+  const p = participants.find((pi) => pi.identity === identity);
+  if (!p) return false;
+
+  // find an audio pub (mic) and mute it
+  const audioPub =
+    (p.tracks || []).find(
+      (t: any) => t?.source === TrackSource.MICROPHONE || t?.type === TrackType.AUDIO
+    ) || (p.tracks || [])[0];
+
+  if (!audioPub?.sid) return false;
+
+  await roomService.mutePublishedTrack(roomName, identity, audioPub.sid, true);
+  return true;
+}
+
+/** NEW: server-side moderation helper – turn off (mute) a participant's camera */
+export async function serverDisableCamera(params: {
+  roomName: string;
+  identity: string;
+}): Promise<boolean> {
+  const { roomName, identity } = params;
+
+  const participants = await roomService.listParticipants(roomName);
+  const p = participants.find((pi) => pi.identity === identity);
+  if (!p) return false;
+
+  // find a video pub (camera) and mute it
+  const videoPub =
+    (p.tracks || []).find(
+      (t: any) => t?.source === TrackSource.CAMERA || t?.type === TrackType.VIDEO
+    ) || (p.tracks || [])[0];
+
+  if (!videoPub?.sid) return false;
+
+  await roomService.mutePublishedTrack(roomName, identity, videoPub.sid, true);
+  return true;
+}
+
 
 
 export async function ensureRoom(roomName: string) {

@@ -5,13 +5,15 @@ import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 
 import { listState, admitByEmail, removeFromWaitingByEmail, admitAll } from "../processors/waiting/waitingService";
-import { createAdmitToken } from "../processors/livekit/admitTokenService";
-
+import { createAdmitToken, participantIdentity } from "../processors/livekit/admitTokenService";
+import { TrackSource, TrackType } from "@livekit/protocol";
+import { serverDisableCamera, serverMuteMicrophone } from "../processors/livekit/livekitService";
 
 
 // In-memory map to find a participant socket by email within a session
 // sessionId -> (email -> socketId)
 const emailIndex = new Map<string, Map<string, string>>();
+const identityIndex = new Map<string, Map<string, string>>();
 
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
@@ -51,6 +53,10 @@ export function attachSocket(server: HTTPServer) {
       emailIndex.get(sessionId)!.set(email.toLowerCase(), socket.id);
     }
 
+     // Make sure each socket is in a session room for targeted broadcasts.
+     if (sessionId) {
+      socket.join(sessionId);
+    }
     // Initial payload (lists)
     socket.on("join-room", async (_payload, ack?: (rooms: JoinAck) => void) => {
       const state = await listState(sessionId);
@@ -61,6 +67,21 @@ export function attachSocket(server: HTTPServer) {
         observersWaitingRoom: state.observersWaitingRoom,
       });
     });
+
+    // Client will tell us their LiveKit identity after joining the room.
+socket.on("meeting:register-identity", (payload: { identity: string; email?: string }) => {
+  try {
+    if (!payload?.identity) return;
+    if (!identityIndex.has(sessionId)) identityIndex.set(sessionId, new Map());
+    identityIndex.get(sessionId)!.set(payload.identity.toLowerCase(), socket.id);
+
+    // Optional: if client also sends email, refresh the emailIndex mapping
+    if (payload.email) {
+      if (!emailIndex.has(sessionId)) emailIndex.set(sessionId, new Map());
+      emailIndex.get(sessionId)!.set(payload.email.toLowerCase(), socket.id);
+    }
+  } catch {}
+});
 
     // ===== Moderator actions =====
     socket.on("waiting:admit", async ({ email }: { email: string }) => {
@@ -136,10 +157,101 @@ const admitToken = createAdmitToken({
       
     });
 
+    /**
+     * Moderator/Admin → force-mute a participant's microphone.
+     * Payload: { targetEmail: string }
+     * Ack: { ok: boolean, error?: string }
+     */
+socket.on(
+  "meeting:mute-mic",
+  async (
+    payload: { targetEmail?: string; targetIdentity?: string },
+    ack?: (resp: { ok: boolean; error?: string }) => void
+  ) => {
+    try {
+      if (!(role === "Admin" || role === "Moderator")) {
+        return ack?.({ ok: false, error: "forbidden" });
+      }
+      if (!payload?.targetEmail && !payload?.targetIdentity) {
+        return ack?.({ ok: false, error: "bad_request" });
+      }
+
+      // identity: prefer explicit identity; else compute from email
+      const identity =
+        payload.targetIdentity ||
+        participantIdentity(sessionId, payload.targetEmail!);
+
+      const ok = await serverMuteMicrophone({ roomName: sessionId, identity });
+      if (!ok) return ack?.({ ok: false, error: "mute_failed_or_not_found" });
+
+      // nudge the client (by email if we have it; otherwise broadcast and let client filter by identity if you emit that too)
+      if (payload.targetEmail) {
+        const targetId = emailIndex.get(sessionId)?.get(payload.targetEmail.toLowerCase());
+        if (targetId) io.to(targetId).emit("meeting:force-mute", { email: payload.targetEmail });
+      } else if (payload.targetIdentity) {
+        const targetId = identityIndex.get(sessionId)?.get(payload.targetIdentity.toLowerCase());
+        if (targetId) io.to(targetId).emit("meeting:force-mute", {});
+      }
+
+      return ack?.({ ok: true });
+    } catch (e: any) {
+      return ack?.({ ok: false, error: e?.message || "internal_error" });
+    }
+  }
+);
+
+/**
+ * Moderator/Admin → force-turn-off a participant's camera.
+ * Payload: { targetEmail?: string; targetIdentity?: string }
+ * Ack: { ok: boolean, error?: string }
+ */
+socket.on(
+  "meeting:camera-off",
+  async (
+    payload: { targetEmail?: string; targetIdentity?: string },
+    ack?: (resp: { ok: boolean; error?: string }) => void
+  ) => {
+    try {
+      if (!(role === "Admin" || role === "Moderator")) {
+        return ack?.({ ok: false, error: "forbidden" });
+      }
+      if (!payload?.targetEmail && !payload?.targetIdentity) {
+        return ack?.({ ok: false, error: "bad_request" });
+      }
+
+      // Resolve identity the same way as mic
+      const identity =
+        payload.targetIdentity ||
+        participantIdentity(sessionId, payload.targetEmail!);
+
+      const ok = await serverDisableCamera({ roomName: sessionId, identity });
+      if (!ok) return ack?.({ ok: false, error: "camera_off_failed_or_not_found" });
+
+      // Nudge client (email preferred; fallback to identity broadcast)
+      if (payload.targetEmail) {
+        const targetId = emailIndex.get(sessionId)?.get(payload.targetEmail.toLowerCase());
+        if (targetId) io.to(targetId).emit("meeting:force-camera-off", { email: payload.targetEmail });
+      } else if (payload.targetIdentity) {
+        const targetId = identityIndex.get(sessionId)?.get(payload.targetIdentity.toLowerCase());
+        if (targetId) io.to(targetId).emit("meeting:force-camera-off", {});
+      }
+
+      return ack?.({ ok: true });
+    } catch (e: any) {
+      return ack?.({ ok: false, error: e?.message || "internal_error" });
+    }
+  }
+);
     socket.on("disconnect", () => {
       if (email && emailIndex.get(sessionId)) {
         emailIndex.get(sessionId)!.delete(email.toLowerCase());
       }
+      const idMap = identityIndex.get(sessionId);
+  if (idMap) {
+    for (const [idLower, sockId] of idMap.entries()) {
+      if (sockId === socket.id) idMap.delete(idLower);
+    }
+  }
     });
   });
 
