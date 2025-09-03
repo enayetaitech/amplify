@@ -1,6 +1,6 @@
 // src/processors/livekit/livekitService.ts
+import config from "../../config/index";
 
-import config from "config";
 import { AccessToken, TrackSource, VideoGrant } from "livekit-server-sdk";
 
 export type LivekitRole = 'Admin' | 'Moderator' | 'Participant' | 'Observer';

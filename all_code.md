@@ -78,6 +78,7 @@ export default {
 
 
   session_secret: process.env.SESSION_SECRET,
+  admit_jwt_secret: process.env.ADMIT_JWT_SECRET,
   
   frontend_base_url: process.env.FRONTEND_BASE_URL,
   
@@ -106,6 +107,7 @@ export default {
   livekit_api_url: process.env.LIVEKIT_HOST,
  
 };
+
 
 ```
 
@@ -281,12 +283,19 @@ Path: backend/controllers/LivekitController.ts
 
 ```
 // src/controllers/LivekitController.ts
-import { Response, NextFunction } from 'express';
-import { sendResponse } from '../utils/responseHelpers';
-import { issueRoomToken, LivekitRole } from '../processors/livekit/livekitService';
-import { AuthRequest } from '../middlewares/authenticateJwt';
-import User from '../model/UserModel';
+import { Request, Response, NextFunction } from "express";
+import { sendResponse } from "../utils/responseHelpers";
+import {
+  issueRoomToken,
+  LivekitRole,
+} from "../processors/livekit/livekitService";
+import { AuthRequest } from "../middlewares/authenticateJwt";
+import User from "../model/UserModel";
 import ErrorHandler from "../utils/ErrorHandler";
+import {
+  participantIdentity,
+  verifyAdmitToken,
+} from "../processors/livekit/admitTokenService";
 
 export const getLivekitToken = async (
   req: AuthRequest,
@@ -295,13 +304,15 @@ export const getLivekitToken = async (
 ): Promise<void> => {
   const payload = req.user;
   if (!payload) {
-    
-    return next(new ErrorHandler('Not authenticated', 401));
+    return next(new ErrorHandler("Not authenticated", 401));
   }
 
-  const { roomName, role } = req.body as { roomName?: string; role?: LivekitRole };
+  const { roomName, role } = req.body as {
+    roomName?: string;
+    role?: LivekitRole;
+  };
   if (!roomName || !role) {
-    return next(new ErrorHandler('roomName and role are required', 400));
+    return next(new ErrorHandler("roomName and role are required", 400));
   }
 
   const me = await User.findById(payload.userId);
@@ -314,8 +325,35 @@ export const getLivekitToken = async (
     roomName,
   });
 
-  sendResponse(res, { token }, 'LiveKit token issued');
+  sendResponse(res, { token }, "LiveKit token issued");
 };
+
+export const exchangeAdmitForLivekitToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { admitToken } = req.body as { admitToken?: string };
+  if (!admitToken) return next(new ErrorHandler("admitToken required", 400));
+
+  try {
+    const { sessionId, email, name } = verifyAdmitToken(admitToken);
+
+    const token = await issueRoomToken({
+      identity: participantIdentity(sessionId, email),
+      name,
+      role: "Participant",
+      roomName: sessionId,
+    });
+
+    sendResponse(res, { token }, "LiveKit token issued");
+  } catch (err: any) {
+    return next(
+      new ErrorHandler(err?.message || "Invalid/expired admitToken", 401)
+    );
+  }
+};
+
 
 ```
 
@@ -5263,38 +5301,78 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 ```
+Path: backend/processors/livekit/admitTokenService.ts
 
+```
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import config from "../../config";
+
+const SECRET = config.admit_jwt_secret!; // add to your env/config
+const DEFAULT_TTL_SECONDS = 120;
+
+/** Minimal one-time replay cache (replace with Redis in prod) */
+const usedJti = new Map<string, number>(); // jti -> expiresAt(ms)
+setInterval(() => {
+  const now = Date.now();
+  for (const [jti, exp] of usedJti) if (exp <= now) usedJti.delete(jti);
+}, 30_000).unref();
+
+export function createAdmitToken(params: {
+  sessionId: string;
+  email: string;
+  name: string;
+  ttlSeconds?: number;
+}) {
+  const { sessionId, email, name, ttlSeconds = DEFAULT_TTL_SECONDS } = params;
+  const jti = crypto.randomUUID();
+
+  return jwt.sign(
+    { sessionId, email, name, role: "Participant", jti },
+    SECRET,
+    { expiresIn: ttlSeconds }
+  );
+}
+
+export function verifyAdmitToken(token: string): {
+  sessionId: string; email: string; name: string; role: "Participant"; jti?: string;
+} {
+  const payload = jwt.verify(token, SECRET) as any;
+
+  if (!payload?.sessionId || !payload?.email || payload?.role !== "Participant") {
+    throw new Error("Malformed admit token");
+  }
+
+  // one-time use guard
+  if (payload.jti) {
+    if (usedJti.has(payload.jti)) {
+      throw new Error("Admit token already used");
+    }
+    usedJti.set(payload.jti, (payload.exp ?? 0) * 1000);
+  }
+
+  return payload;
+}
+
+/** stable identity without exposing email */
+export function participantIdentity(sessionId: string, email: string) {
+  const hash = crypto.createHash("sha256").update(email).digest("hex").slice(0, 24);
+  return `p:${sessionId}:${hash}`;
+}
+
+```
 Path: backend/processors/livekit/livekitService.ts
 
 ```
 // src/processors/livekit/livekitService.ts
-import { AccessToken, EgressClient, EncodedFileOutput, EncodingOptionsPreset, RoomServiceClient, S3Upload, SegmentedFileOutput, VideoGrant, WebhookReceiver } from 'livekit-server-sdk';
-import config from '../../config';
+import config from "../../config/index";
 
+import { AccessToken, TrackSource, VideoGrant } from "livekit-server-sdk";
 
-const apiUrl   =  config.livekit_api_url!;   // HTTPS
-const apiKey   =  config.livekit_api_key!;
-const apiSecret=  config.livekit_api_secret!;
-
-if (!apiUrl || !apiKey || !apiSecret) {
-  throw new Error('LIVEKIT_API_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET must be set');
-}
 export type LivekitRole = 'Admin' | 'Moderator' | 'Participant' | 'Observer';
 
-export const roomService = new RoomServiceClient(apiUrl, apiKey, apiSecret);
-export const egressClient = new EgressClient(apiUrl, apiKey, apiSecret);
-export const webhookReceiver = new WebhookReceiver(apiKey, apiSecret);
-
-const s3Common = {
-  accessKey: config.s3_access_key!,
-  secretAccessKey: config.s3_secret_access_key!,
-  bucket: config.s3_bucket_name!,
-  region: config.s3_bucket_region!,
-}
-
-const cdnBase = ((config.hls_base_url || '').trim()).replace(/\/?$/, '/');
-
-
+const apiKey = config.livekit_api_key!;
+const apiSecret = config.livekit_api_secret!;
 
 export async function issueRoomToken(params: {
   identity: string;          // user id
@@ -5303,20 +5381,28 @@ export async function issueRoomToken(params: {
   roomName: string;
 }) {
   const { identity, name, role, roomName } = params;
-  
-  const at = new AccessToken(apiKey, apiSecret, { identity, name });
-  const grant: VideoGrant = { room: roomName, roomJoin: true, canSubscribe: true,
-    canPublishData: true,   canPublish: role !== 'Observer'};
 
-  if (role === 'Observer') {
-    grant.canSubscribe = true;
-    grant.canPublish = false;
-    grant.canPublishData = true;
-  } else {
-    grant.canSubscribe = true;
-    grant.canPublish = true;
-    grant.canPublishData = true;
-  }
+  // Include role as metadata so sockets can authorize easily.
+  const at = new AccessToken(apiKey, apiSecret, { identity, name, metadata: JSON.stringify({ role }) });
+
+  // Base grant applies to everyone who joins the room
+  const grant: VideoGrant = {
+    room: roomName,
+    roomJoin: true,
+    canSubscribe: true,
+    canPublishData: true,
+    canPublish: role !== 'Observer',
+    // 👇 IMPORTANT: lock participant screenshare by default
+    // Observers: []
+    // Participants: MIC + CAMERA only
+    // Admin/Moderator: MIC + CAMERA + SCREEN_SHARE (+ audio)
+    canPublishSources:
+      role === 'Observer'
+        ? []
+        : role === 'Participant'
+        ? [TrackSource.MICROPHONE, TrackSource.CAMERA]
+        : [TrackSource.MICROPHONE, TrackSource.CAMERA, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO],
+  };
 
   at.addGrant(grant);
   return await at.toJwt();
@@ -5324,71 +5410,30 @@ export async function issueRoomToken(params: {
 
 
 export async function ensureRoom(roomName: string) {
-  try {
-    await roomService.createRoom({
-      name: roomName,
-      emptyTimeout: 60 * 60,       // auto-close after 1h idle (tweak as you like)
-      maxParticipants: 500,        // match your expected max
-    });
-  } catch (err: any) {
-    // LiveKit throws if the room already exists — safe to ignore that case
-    if (!String(err?.message || '').toLowerCase().includes('already exists')) {
-      throw err;
-    }
-  }
+ console.log(roomName)
 }
 /** stubs to wire into start/end session; we’ll fill these next */
 export async function startHlsEgress(roomName: string): Promise<{
   egressId: string; playbackUrl: string | null; playlistName: string;
 }> {
-  const s3 = new S3Upload(s3Common);
-
-  const segments = new SegmentedFileOutput({
-    filenamePrefix: roomName,
-    playlistName: 'index.m3u8',
-    livePlaylistName: 'live.m3u8',
-    segmentDuration: 2,
-    output: { case: 's3', value: s3 },
-  });
-
-  const info = await egressClient.startRoomCompositeEgress(
-    roomName,
-    { segments },                                      
-    { layout: 'grid', encodingOptions: EncodingOptionsPreset.H264_720P_30 } 
-  );
-
-  const playbackUrl = cdnBase ? `${cdnBase}${roomName}/live.m3u8` : null;
+ 
 
   
-
-  return { egressId: info.egressId, playbackUrl, playlistName: 'live.m3u8' };
+  return { egressId: '', playbackUrl: "hbjh", playlistName: 'live.m3u8' };
 }
 
 export async function stopHlsEgress(egressId?: string | null) {
-  if (egressId) await egressClient.stopEgress(egressId);
+
 }
 
 export async function startFileEgress(roomName: string): Promise<{ egressId: string }> {
-  const s3 = new S3Upload(s3Common);
-
-  const file = new EncodedFileOutput({
-    filepath: `${roomName}/{time}.mp4`,
-    output: { case: 's3', value: s3 },
-  });
-
-  const info = await egressClient.startRoomCompositeEgress(
-    roomName,
-    file,
-    { layout: 'grid', encodingOptions: EncodingOptionsPreset.H264_720P_30 }
-  );
-
   
 
-  return { egressId: info.egressId };
+  return { egressId: '' };
 }
 
 export async function stopFileEgress(egressId?: string | null) {
-  if (egressId) await egressClient.stopEgress(egressId);
+  
 }
 ```
 
@@ -6235,7 +6280,7 @@ Path: backend/routes/livekit/livekit.routes.ts
 import express from 'express';
 import { authenticateJwt } from '../../middlewares/authenticateJwt';
 import { catchError } from '../../middlewares/CatchErrorMiddleware';
-import { getLivekitToken } from '../../controllers/LivekitController';
+import { exchangeAdmitForLivekitToken, getLivekitToken } from '../../controllers/LivekitController';
 import { getObserverHls } from '../../controllers/LiveReadController';
 
 const router = express.Router();
@@ -6243,10 +6288,15 @@ const router = express.Router();
 // POST /api/v1/livekit/token
 router.post('/token', authenticateJwt, catchError(getLivekitToken));
 
+// POST /api/v1/livekit/exchange
+router.post('/exchange', catchError(exchangeAdmitForLivekitToken));
+
+
 // POST /api/v1/livekit/:sessionId/hls
 router.get('/:sessionId/hls', getObserverHls);
 
 export default router;
+
 
 ```
 
@@ -7118,6 +7168,7 @@ import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 
 import { listState, admitByEmail, removeFromWaitingByEmail, admitAll } from "../processors/waiting/waitingService";
+import { createAdmitToken } from "../processors/livekit/admitTokenService";
 
 
 
@@ -7178,13 +7229,32 @@ export function attachSocket(server: HTTPServer) {
     socket.on("waiting:admit", async ({ email }: { email: string }) => {
       if (!["Moderator", "Admin"].includes(role)) return;
       const state = await admitByEmail(sessionId, email);
-      io.to(rooms.waiting).emit("waiting:list", {
-        participantsWaitingRoom: state.participantsWaitingRoom,
-        observersWaitingRoom: state.observersWaitingRoom,
-      });
 
-      const targetId = emailIndex.get(sessionId)?.get(email.toLowerCase());
-      if (targetId) io.to(targetId).emit("waiting:admitted", { sessionId });
+      // 1) issue short-lived admitToken for THIS participant
+  const displayName =
+  state.participantList?.find(p => p.email?.toLowerCase() === email.toLowerCase())?.name
+  || email; // fallback if name not present
+
+const admitToken = createAdmitToken({
+  sessionId,
+  email,
+  name: displayName,
+  ttlSeconds: 120,
+});
+
+      // 2) find that participant's socket & notify only them
+  const targetId = emailIndex.get(sessionId)?.get(email.toLowerCase());
+  if (targetId) {
+    // new event for participants to listen to
+    io.to(targetId).emit("participant:admitted", { admitToken });
+  }
+
+ // 3) update moderator panels as you already do
+ io.to(rooms.waiting).emit("waiting:list", {
+  participantsWaitingRoom: state.participantsWaitingRoom,
+  observersWaitingRoom: state.observersWaitingRoom,
+});
+
     });
 
     socket.on("waiting:remove", async ({ email }: { email: string }) => {
@@ -7202,19 +7272,31 @@ export function attachSocket(server: HTTPServer) {
     socket.on("waiting:admitAll", async () => {
       if (!["Moderator", "Admin"].includes(role)) return;
       const state = await admitAll(sessionId);
+
+      // for each known socket in this session, try to send an admitToken
+  const idx = emailIndex.get(sessionId);
+  if (idx) {
+    for (const [eml, sockId] of idx.entries()) {
+      const displayName =
+        state.participantList?.find(p => p.email?.toLowerCase() === eml)?.name
+        || eml;
+
+      const admitToken = createAdmitToken({
+        sessionId,
+        email: eml,
+        name: displayName,
+        ttlSeconds: 120,
+      });
+
+      io.to(sockId).emit("participant:admitted", { admitToken });
+    }
+  }
       io.to(rooms.waiting).emit("waiting:list", {
         participantsWaitingRoom: state.participantsWaitingRoom,
         observersWaitingRoom: state.observersWaitingRoom,
       });
 
-      // Notify all admitted participants currently connected
-      const idx = emailIndex.get(sessionId);
-      if (idx) {
-        for (const [eml, sockId] of idx.entries()) {
-          // fire-and-forget; if they weren’t waiting it’s harmless
-          io.to(sockId).emit("waiting:admitted", { sessionId });
-        }
-      }
+      
     });
 
     socket.on("disconnect", () => {
@@ -7226,6 +7308,7 @@ export function attachSocket(server: HTTPServer) {
 
   return io;
 }
+
 
 
 ```
@@ -8047,49 +8130,64 @@ export default function ParticipantJoinMeeting() {
   }
 
   const handleJoin = async () => {
-    if (!name || !email) {
-      toast.error("Name and email are required");
-      return;
-    }
+    const nameTrimmed = name.trim();
+  const emailNormalized = email.trim().toLowerCase();
+
+  if (!nameTrimmed || !emailNormalized) {
+    toast.error("Name and email are required");
+    return;
+  }
     setJoining(true);
     try {
       // Determine if the route param is a sessionId or a projectId
       const maybeSession = await tryGetSession(idParam);
+
       let projectId: string;
+
       if (maybeSession) {
         // Always resolve via project to enforce Participant semantics
         type ProjectRef = string | { _id: string };
+
         const pid = maybeSession.projectId as ProjectRef;
+
         projectId = typeof pid === "string" ? pid : pid._id;
       } else {
         projectId = idParam;
       }
 
-      // Resolve latest session for participant
-      let sessionId: string;
-      try {
-        sessionId = await resolveProjectToSession(projectId);
-      } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-          toast.error("No session is currently running");
-          return;
-        }
-        throw err;
+      // 2) Resolve the latest session for participants
+    let sessionId: string;
+    try {
+      const res = await api.get<{ data: { sessionId: string } }>(
+        `/api/v1/sessions/project/${projectId}/latest`,
+        { params: { role: "Participant" } }
+      );
+      sessionId = res.data.data.sessionId;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        toast.error("No session is currently running");
+        return;
       }
+      throw err;
+    }
 
-      // Enqueue into waiting room
+      // 3) Enqueue into the waiting room (no auth required)
       await api.post(`/api/v1/waiting-room/enqueue`, {
         sessionId,
-        name,
-        email,
+        name: nameTrimmed,
+        email: emailNormalized,
         role: "Participant",
+        // optional, but useful for reporting:
+        device: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       });
 
-      localStorage.setItem(
-        "liveSessionUser",
-        JSON.stringify({ name, email, role: "Participant" })
-      );
+    // 4) Persist for the waiting-room page (which opens the socket)
+    localStorage.setItem(
+      "liveSessionUser",
+      JSON.stringify({ name: nameTrimmed, email: emailNormalized, role: "Participant" })
+    );
 
+    // 5) Go to the participant waiting room
       router.push(`/waiting-room/participant/${sessionId}`);
     } catch (err) {
       const msg = axios.isAxiosError(err) ? err.message : "Failed to join";
@@ -8176,6 +8274,8 @@ import type {
   IParticipant,
   IObserver,
 } from "@shared/interface/LiveSessionInterface";
+import api from "lib/api";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 
 type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
@@ -8204,7 +8304,7 @@ export default function ParticipantWaitingRoom() {
     if (!raw) {
       // If missing, bounce back to join
       router.replace(`/join/participant/${sessionId}`);
-      throw new Error("Missing Live Session User");
+      return { name: "", email: "", role: "Participant" as UserRole };
     }
     return JSON.parse(raw) as { name: string; email: string; role: UserRole };
   }, [router, sessionId]);
@@ -8217,6 +8317,8 @@ export default function ParticipantWaitingRoom() {
   // const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
+    if (!sessionId || !me.email) return;
+
     const s = io(SOCKET_URL, {
       path: "/socket.io",
       withCredentials: true,
@@ -8227,6 +8329,7 @@ export default function ParticipantWaitingRoom() {
         email: me.email,
       },
     });
+
     socketRef.current = s;
 
     s.on("connect", () => {
@@ -8253,9 +8356,22 @@ export default function ParticipantWaitingRoom() {
       }
     );
 
-    s.on("waiting:admitted", () => {
-      // Navigate to the meeting page (camera/mic off by default in later milestones)
-      router.push(`/meeting/${sessionId}`);
+     s.on("participant:admitted", async ({ admitToken }: { admitToken: string }) => {
+      try {
+        const resp = await api.post<ApiResponse<{ token: string }>>(
+          "/api/v1/livekit/exchange",
+          { admitToken } // public route – no auth header needed
+        );
+        const lkToken = resp.data.data.token;
+
+        // Store for the meeting page to read (short-lived is fine in sessionStorage)
+        sessionStorage.setItem(`lk:${sessionId}`, lkToken);
+
+        // Go to the actual meeting page
+        router.push(`/meeting/${sessionId}`);
+      } catch (err) {
+        console.error("Failed to exchange admit token", err);
+      }
     });
 
     s.on("waiting:removed", () => {
@@ -8263,6 +8379,9 @@ export default function ParticipantWaitingRoom() {
     });
 
     return () => {
+      s.off("waiting:list");
+      s.off("participant:admitted");
+      s.off("waiting:removed");
       s.disconnect();
     };
   }, [me.email, me.name, me.role, router, sessionId]);
@@ -8294,6 +8413,7 @@ export default function ParticipantWaitingRoom() {
     </div>
   );
 }
+
 
 ```
 
@@ -10359,6 +10479,32 @@ export default function RootLayout({
 }
 
 ```
+Path: frontend/app/meeting/[id]/meeting.css
+
+```
+/* Scope to your meeting area so it doesn't leak app-wide */
+.lk-scope .lk-nameplate {
+  /* semi-transparent dark strip behind the label */
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Make label text + icons white */
+.lk-scope .lk-participant-name,
+.lk-scope .lk-participant-metadata,
+.lk-scope .lk-nameplate svg {
+  color: #fff !important;
+  fill: #fff !important;
+}
+
+/* Keep screen-share labels hidden (from earlier) */
+.lk-scope [data-lk-source="screen_share"] .lk-participant-name,
+.lk-scope [data-lk-source="screen_share"] .lk-participant-metadata {
+  display: none !important;
+}
+
+```
+
+
 
 Path: frontend/app/meeting/[id]/page.tsx
 
@@ -10366,293 +10512,205 @@ Path: frontend/app/meeting/[id]/page.tsx
 "use client";
 
 import ModeratorWaitingPanel from "components/meeting/waitingRoom";
-
-// import React, { useEffect, useMemo, useRef, useState } from "react";
-// import { useParams } from "next/navigation";
-// import { useMeeting } from "context/MeetingContext";
-// import { useGlobalContext } from "context/GlobalContext";
-// import { IWaitingRoomChat } from "@shared/interface/WaitingRoomChatInterface";
-// import { IObserver, IObserverWaitingUser, IParticipant, IWaitingUser } from "@shared/interface/LiveSessionInterface";
-
-// interface JoinAck {
-// participantsWaitingRoom: IWaitingUser[];
-//   observersWaitingRoom: IObserverWaitingUser[];
-//   participantList: IParticipant[];
-//   observerList: IObserver[];
-// }
-
-export default function Meeting() {
-  // const { id: sessionId } = useParams();
-  // const { user } = useGlobalContext();
-  // const { socket } = useMeeting();
-
-  // const hasJoined = useRef(false);
-
-    // derive “me” either from AuthContext (moderator) or localStorage (participant)
-  // const me = user
-  //   ? { name: user.firstName, email: user.email, role: user.role as IParticipant["role"] }
-  //   : JSON.parse(localStorage.getItem("liveSessionUser")!) as IWaitingUser;
-  // memoize “me” so it doesn’t change each render
-  // const me = useMemo(() => {
-  //   if (user) {
-  //     return {
-  //       name: user.firstName,
-  //       email: user.email,
-  //       role: user.role as IParticipant["role"],
-  //     };
-  //   }
-  //   const raw = localStorage.getItem("liveSessionUser");
-  //   if (!raw) throw new Error("Missing liveSessionUser in localStorage");
-  //   return JSON.parse(raw) as IWaitingUser;
-  // }, [user]);
-
-  // const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
-  // const [participants, setParticipants] = useState<IParticipant[]>([]);
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  LiveKitRoom,
+  GridLayout,
+  ParticipantTile,
+  RoomAudioRenderer,
+  useTracks,
+  useRoomContext,
+  ControlBar,
+} from "@livekit/components-react";
+import { Track, RoomEvent } from "livekit-client";
+import api from "lib/api";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
+import "@livekit/components-styles";
+import "./meeting.css";
+import { useGlobalContext } from "context/GlobalContext";
 
 
-  // const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
-  // const [messages, setMessages] = useState<IWaitingRoomChat[]>([]);
-  // const [chatInput, setChatInput] = useState("");
+type UiRole = "admin" | "moderator" | "participant" | "observer";
+type ServerRole = "Admin" | "Moderator" | "Participant" | "Observer";
+/** Enables cam (muted mic) once connected for admin/moderator */
+function AutoPublishOnConnect({ role }: { role: UiRole }) {
+  const room = useRoomContext();
 
-  // useEffect(() => {
-  //   if (!socket || hasJoined.current) return;
+  useEffect(() => {
+    if (!room) return;
 
-  //   hasJoined.current = true;
+    const enableNow = async () => {
+      if (role === "admin" || role === "moderator") {
+        await room.localParticipant.setCameraEnabled(true);
+        await room.localParticipant.setMicrophoneEnabled(false);
+      }
+    };
 
-  //   socket.emit(
-  //     "join-room",
-  //     { sessionId, ...me },
-  //   (rooms: JoinAck) => {
-  //         // waiting room (exclude yourself)
-  //       setWaiting(rooms.participantsWaitingRoom.filter((u) => u.email !== me.email));
-  //       // active participants
-  //       setParticipants(rooms.participantList);
-  //     }
-  //   );
-  // }, [sessionId, socket, me]);
+    if (room.state === "connected") {
+      void enableNow();
+      return; // ensure the effect returns void here
+    }
 
-  // useEffect(() => {
-  //   if (!socket ) return;
+    const onConnected = () => {
+      room.off(RoomEvent.Connected, onConnected);
+      void enableNow();
+    };
+    room.on(RoomEvent.Connected, onConnected);
 
-  //   // log and update waiting list
-  //   socket.on("participantWaitingRoomUpdate", (list: IWaitingUser[]) => {
-  //     setWaiting(list.filter((u) => u.email !== me.email));
-  //   });
+    // ✅ cleanup returns void
+    return () => {
+      room.off(RoomEvent.Connected, onConnected);
+    };
+  }, [room, role]);
 
-  //    socket.on("participantListUpdate", (list: IParticipant[]) => {
-  //     setParticipants(list);
-  //   });
+  return null;
+}
 
-  //   // receive all waiting-room chat
-  //   socket.on(
-  //     "participant-waiting-room:receive-message",
-  //     (msg: IWaitingRoomChat & { timestamp: string }) => {
-  //       const withDate: IWaitingRoomChat = {
-  //         ...msg,
-  //         timestamp: new Date(msg.timestamp),
-  //       };
-  //       setMessages((prev) => [...prev, withDate]);
-  //     }
-  //   );
-
-  //   return () => {
-  //     socket.off("participantWaitingRoomUpdate");
-  //     socket.off("participantListUpdate");
-  //     socket.off("participant-waiting-room:receive-message");
-  //   };
-  // }, [sessionId, socket, me]);
-
-  // if(!user){
-  //   return(
-  //     <div className="p-4 text-center text-gray-500">Loading...</div>
-  //   )
-  // }
-
-  // const sendMessage = () => {
-  //   if (!selectedEmail || !chatInput.trim()) return;
-
-  //   socket?.emit("participant-waiting-room:send-message", {
-  //     sessionId,
-  //     email: selectedEmail,
-  //     senderName: user?.firstName,
-  //     role: "Moderator" as const,
-  //     content: chatInput.trim(),
-  //   });
-
-  //   setChatInput("");
-  // };
-
-  // const accept = (email: string) => {
-  //   console.log('email', email)
-  //   if (!socket) return;
-  //   console.log('email', email)
-
-  //   socket.emit(
-  //     "acceptFromWaitingRoom",
-  //     { sessionId, email },
-  //     (res: {
-  //       success: boolean;
-  //       participantsWaitingRoom: IWaitingUser[];
-  //       observersWaitingRoom: IObserverWaitingUser[];
-  //       participantList: IParticipant[];
-  //       observerList: IObserver[];
-  //     }) => {
-  //       if (res.success) {
-  //         setWaiting(res.participantsWaitingRoom);
-  //         setParticipants(res.participantList);
-  //       }
-  //     }
-  //   );
-  // };
-
-  // const remove = (email: string) => {
-  //   socket?.emit(
-  //     "removeFromWaitingRoom",
-  //     { sessionId, email },
-  //     (res: { success: boolean; waitingRoom?: IWaitingUser[] }) => {
-  //       const { success, waitingRoom } = res;
-  //       if (success && waitingRoom) {
-  //         setWaiting(waitingRoom);
-  //       }
-  //     }
-  //   );
-  // };
-
-  // only show messages for the selected participant
-  // const thread = messages
-  //   .filter((m) => m.email === selectedEmail )
-  //   .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+/** Video grid that safely uses useTracks inside LiveKitRoom context */
+function VideoGrid() {
+  const trackRefs = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: true },
+    { source: Track.Source.ScreenShare, withPlaceholder: true },
+  ]);
 
   return (
-    <div className="p-4 space-y-8 lg:flex lg:space-x-8 lg:space-y-0">
-      <div className="flex-1">
-        <section>
-          <h3 className="text-lg font-semibold mb-2">Waiting Room</h3>
-          {/* {waiting.length === 0 ? (
-            <p className="text-gray-500">No one waiting</p>
-          ) : (
-            waiting.map((u) => (
-              <div
-                key={`${u.email}-${u.joinedAt}`}
-                className="flex justify-between items-center border-b py-2"
-              >
-                <span>
-                  {u.name}{" "}
-                  <em className="text-gray-500 text-sm">({u.email})</em>
-                </span>
-                <div className="space-x-2">
-                  <button
-                    className="px-3 py-1 bg-blue-600 text-white rounded"
-                    // onClick={() => accept(u.email)}
-                  >
-                    Accept
-                  </button>
-                  <button
-                    className="px-3 py-1 bg-red-600 text-white rounded"
-                    // onClick={() => remove(u.email)}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))
-          )} */}
-          <ModeratorWaitingPanel />
-        </section>
-
-        <section>
-          <h3 className="text-lg font-semibold mb-2">
-            In-Meeting Participants
-          </h3>
-          {/* {participants?.length === 0 ? (
-            <p className="text-gray-500">No participants yet</p>
-          ) : (
-            participants?.map((u) => (
-              <div key={u.email} className="py-1">
-                {u.name} <em className="text-gray-500 text-sm">({u.email})</em>
-              </div>
-            ))
-          )} */}
-        </section>
-      </div>
-      {/* Chat Panel */}
-      <div className="flex-1 border p-4 rounded flex flex-col">
-        <h3 className="text-lg font-semibold mb-2">Chat</h3>
-
-        {/* Participant selector */}
-        <div className="mb-4 flex space-x-2 overflow-x-auto">
-          {/* {waiting.map((u) => (
-            <button
-              key={u.email}
-              className={`px-3 py-1 rounded ${
-                u.email === selectedEmail
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
-              onClick={() => {
-                setSelectedEmail(u.email);
-                // setMessages([]); // or fetch history from API if you persist
-              }}
-            >
-              {u.name}
-            </button>
-          ))} */}
-        </div>
-
-        {/* Chat window */}
-        <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-          {/* {(!selectedEmail || thread.length === 0) && (
-            <p className="text-gray-500">
-              {selectedEmail
-                ? "No messages yet."
-                : "Select a participant to chat with."}
-            </p>
-          )}
-          {thread.map((m) => (
-            <div
-              key={m.timestamp.toISOString()}
-              className={`flex ${
-                m.role === "Moderator" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <span
-                className={`px-3 py-1 rounded ${
-                  m.role === "Moderator"
-                    ? "bg-blue-200 text-blue-800"
-                    : "bg-gray-200 text-gray-800"
-                }`}
-              >
-                {m.content}
-              </span>
-            </div>
-          ))} */}
-        </div>
-
-        {/* Input */}
-        {/* <div className="flex space-x-2">
-          <input
-            className="flex-1 border rounded px-2"
-            placeholder={
-              selectedEmail ? "Type a message…" : "Select a participant above"
-            }
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            // onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            disabled={!selectedEmail}
-          />
-          <button
-            className="px-4 py-1 bg-green-600 text-white rounded"
-            // onClick={sendMessage}
-            disabled={!selectedEmail || !chatInput.trim()}
-          >
-            Send
-          </button>
-        </div> */}
-      </div>
+    <div className="flex-1 min-h-0">
+      <GridLayout tracks={trackRefs}>
+        {/* IMPORTANT: exactly ONE child element; no map() here */}
+        <ParticipantTile />
+      </GridLayout>
     </div>
   );
 }
 
+async function fetchLiveKitToken(sessionId: string, role: ServerRole) {
+  const res = await api.post<ApiResponse<{ token: string }>>(
+    "/api/v1/livekit/token",
+    {
+      roomName: sessionId,
+      role, // NOTE: capitalized per backend type
+    }
+  );
+
+  // Your codebase typically nests data under data.data
+  return res.data.data.token;
+}
+
+export default function Meeting() {
+  const router = useRouter();
+
+  const { id: sessionId } = useParams();
+
+   // 1) derive role
+  const { user } = useGlobalContext(); // dashboard user, if logged in
+
+  const role: UiRole = useMemo(() => {
+    // dashboard users
+    if (user?.role === "Admin") return "admin";
+    if (user?.role === "Moderator") return "moderator";
+    if (user?.role === "Observer") return "observer";
+
+    // participant from join flow
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("liveSessionUser");
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u?.role === "Participant") return "participant";
+      }
+    }
+    // default to participant (or you can redirect)
+    return "participant";
+  }, [user]);
+
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  // 1) fetch your existing start/join token (reuse your current API)
+  useEffect(() => {
+   
+
+    if (!sessionId) return;
+
+    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
+    if (!url) {
+      console.error("Missing NEXT_PUBLIC_LIVEKIT_URL");
+      return;
+    }
+
+      // 2) participant branch: use token from waiting-room exchange
+      if (role === "participant") {
+        const saved = typeof window !== "undefined"
+          ? sessionStorage.getItem(`lk:${sessionId as string}`)
+          : null;
+  
+        if (!saved) {
+          // they came straight to the meeting (new tab/incognito) → send back
+          router.replace(`/waiting-room/participant/${sessionId}`);
+          return;
+        }
+        setToken(saved);
+        setWsUrl(url);
+        return; // ⛔ do NOT call /token
+      }
+
+      // 3) dashboard roles: call cookie-auth /token
+      const serverRole: ServerRole =
+      role === "admin" ? "Admin" :
+      role === "moderator" ? "Moderator" : "Observer";
+
+    (async () => {
+      const lkToken = await fetchLiveKitToken(sessionId as string, serverRole); // your axios helper to /token
+      if (!lkToken) {
+        // if 401, send to login/dashboard as appropriate
+        console.error("Failed to get LiveKit token");
+        return;
+      }
+      setToken(lkToken);
+      setWsUrl(url);
+    })();
+   
+  }, [sessionId, role, router]);
+
+  return (
+    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      {/* LEFT: your moderator/participant sidebar */}
+      <aside className="col-span-3 border rounded p-3 overflow-y-auto">
+        <h3 className="font-semibold mb-2">Controls & Waiting Room</h3>
+        <ModeratorWaitingPanel />
+        {/* your admit/remove/move/mute/screen-share/whiteboard/stream controls go here */}
+      </aside>
+
+      {/* MIDDLE: LiveKit room */}
+      <main className="col-span-6 border rounded p-3 flex flex-col min-h-0">
+        {!token || !wsUrl ? (
+          <div className="m-auto text-gray-500">Connecting…</div>
+        ) : (
+          <LiveKitRoom token={token} serverUrl={wsUrl}>
+            <div className="flex flex-col h-full lk-scope">
+              <AutoPublishOnConnect role={role} />
+              <RoomAudioRenderer />
+              <VideoGrid />
+              <div className="pt-2">
+                <ControlBar variation="minimal" />
+              </div>
+            </div>
+          </LiveKitRoom>
+        )}
+      </main>
+
+      {/* RIGHT: observer chat/media hub — hide for participants */}
+      {role !== "participant" ? (
+        <aside className="col-span-3 border rounded p-3 overflow-y-auto">
+          <h3 className="font-semibold mb-2">Observers</h3>
+          {/* observer group chat, names, counts, media hub */}
+        </aside>
+      ) : (
+        <div className="col-span-3" />
+      )}
+    </div>
+  );
+}
 
 ```
 

@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 
 import { listState, admitByEmail, removeFromWaitingByEmail, admitAll } from "../processors/waiting/waitingService";
+import { createAdmitToken } from "../processors/livekit/admitTokenService";
 
 
 
@@ -65,13 +66,32 @@ export function attachSocket(server: HTTPServer) {
     socket.on("waiting:admit", async ({ email }: { email: string }) => {
       if (!["Moderator", "Admin"].includes(role)) return;
       const state = await admitByEmail(sessionId, email);
-      io.to(rooms.waiting).emit("waiting:list", {
-        participantsWaitingRoom: state.participantsWaitingRoom,
-        observersWaitingRoom: state.observersWaitingRoom,
-      });
 
-      const targetId = emailIndex.get(sessionId)?.get(email.toLowerCase());
-      if (targetId) io.to(targetId).emit("waiting:admitted", { sessionId });
+      // 1) issue short-lived admitToken for THIS participant
+  const displayName =
+  state.participantList?.find(p => p.email?.toLowerCase() === email.toLowerCase())?.name
+  || email; // fallback if name not present
+
+const admitToken = createAdmitToken({
+  sessionId,
+  email,
+  name: displayName,
+  ttlSeconds: 120,
+});
+
+      // 2) find that participant's socket & notify only them
+  const targetId = emailIndex.get(sessionId)?.get(email.toLowerCase());
+  if (targetId) {
+    // new event for participants to listen to
+    io.to(targetId).emit("participant:admitted", { admitToken });
+  }
+
+ // 3) update moderator panels as you already do
+ io.to(rooms.waiting).emit("waiting:list", {
+  participantsWaitingRoom: state.participantsWaitingRoom,
+  observersWaitingRoom: state.observersWaitingRoom,
+});
+
     });
 
     socket.on("waiting:remove", async ({ email }: { email: string }) => {
@@ -89,19 +109,31 @@ export function attachSocket(server: HTTPServer) {
     socket.on("waiting:admitAll", async () => {
       if (!["Moderator", "Admin"].includes(role)) return;
       const state = await admitAll(sessionId);
+
+      // for each known socket in this session, try to send an admitToken
+  const idx = emailIndex.get(sessionId);
+  if (idx) {
+    for (const [eml, sockId] of idx.entries()) {
+      const displayName =
+        state.participantList?.find(p => p.email?.toLowerCase() === eml)?.name
+        || eml;
+
+      const admitToken = createAdmitToken({
+        sessionId,
+        email: eml,
+        name: displayName,
+        ttlSeconds: 120,
+      });
+
+      io.to(sockId).emit("participant:admitted", { admitToken });
+    }
+  }
       io.to(rooms.waiting).emit("waiting:list", {
         participantsWaitingRoom: state.participantsWaitingRoom,
         observersWaitingRoom: state.observersWaitingRoom,
       });
 
-      // Notify all admitted participants currently connected
-      const idx = emailIndex.get(sessionId);
-      if (idx) {
-        for (const [eml, sockId] of idx.entries()) {
-          // fire-and-forget; if they weren’t waiting it’s harmless
-          io.to(sockId).emit("waiting:admitted", { sessionId });
-        }
-      }
+      
     });
 
     socket.on("disconnect", () => {

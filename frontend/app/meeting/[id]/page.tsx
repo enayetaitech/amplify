@@ -1,289 +1,202 @@
 "use client";
 
 import ModeratorWaitingPanel from "components/meeting/waitingRoom";
-
-// import React, { useEffect, useMemo, useRef, useState } from "react";
-// import { useParams } from "next/navigation";
-// import { useMeeting } from "context/MeetingContext";
-// import { useGlobalContext } from "context/GlobalContext";
-// import { IWaitingRoomChat } from "@shared/interface/WaitingRoomChatInterface";
-// import { IObserver, IObserverWaitingUser, IParticipant, IWaitingUser } from "@shared/interface/LiveSessionInterface";
-
-// interface JoinAck {
-// participantsWaitingRoom: IWaitingUser[];
-//   observersWaitingRoom: IObserverWaitingUser[];
-//   participantList: IParticipant[];
-//   observerList: IObserver[];
-// }
-
-export default function Meeting() {
-  // const { id: sessionId } = useParams();
-  // const { user } = useGlobalContext();
-  // const { socket } = useMeeting();
-
-  // const hasJoined = useRef(false);
-
-    // derive “me” either from AuthContext (moderator) or localStorage (participant)
-  // const me = user
-  //   ? { name: user.firstName, email: user.email, role: user.role as IParticipant["role"] }
-  //   : JSON.parse(localStorage.getItem("liveSessionUser")!) as IWaitingUser;
-  // memoize “me” so it doesn’t change each render
-  // const me = useMemo(() => {
-  //   if (user) {
-  //     return {
-  //       name: user.firstName,
-  //       email: user.email,
-  //       role: user.role as IParticipant["role"],
-  //     };
-  //   }
-  //   const raw = localStorage.getItem("liveSessionUser");
-  //   if (!raw) throw new Error("Missing liveSessionUser in localStorage");
-  //   return JSON.parse(raw) as IWaitingUser;
-  // }, [user]);
-
-  // const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
-  // const [participants, setParticipants] = useState<IParticipant[]>([]);
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  LiveKitRoom,
+  GridLayout,
+  ParticipantTile,
+  RoomAudioRenderer,
+  useTracks,
+  useRoomContext,
+  ControlBar,
+} from "@livekit/components-react";
+import { Track, RoomEvent } from "livekit-client";
+import api from "lib/api";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
+import "@livekit/components-styles";
+import "./meeting.css";
+import { useGlobalContext } from "context/GlobalContext";
 
 
-  // const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
-  // const [messages, setMessages] = useState<IWaitingRoomChat[]>([]);
-  // const [chatInput, setChatInput] = useState("");
+type UiRole = "admin" | "moderator" | "participant" | "observer";
+type ServerRole = "Admin" | "Moderator" | "Participant" | "Observer";
+/** Enables cam (muted mic) once connected for admin/moderator */
+function AutoPublishOnConnect({ role }: { role: UiRole }) {
+  const room = useRoomContext();
 
-  // useEffect(() => {
-  //   if (!socket || hasJoined.current) return;
+  useEffect(() => {
+    if (!room) return;
 
-  //   hasJoined.current = true;
+    const enableNow = async () => {
+      if (role === "admin" || role === "moderator") {
+        await room.localParticipant.setCameraEnabled(true);
+        await room.localParticipant.setMicrophoneEnabled(false);
+      }
+    };
 
-  //   socket.emit(
-  //     "join-room",
-  //     { sessionId, ...me },
-  //   (rooms: JoinAck) => {
-  //         // waiting room (exclude yourself)
-  //       setWaiting(rooms.participantsWaitingRoom.filter((u) => u.email !== me.email));
-  //       // active participants
-  //       setParticipants(rooms.participantList);
-  //     }
-  //   );
-  // }, [sessionId, socket, me]);
+    if (room.state === "connected") {
+      void enableNow();
+      return; // ensure the effect returns void here
+    }
 
-  // useEffect(() => {
-  //   if (!socket ) return;
+    const onConnected = () => {
+      room.off(RoomEvent.Connected, onConnected);
+      void enableNow();
+    };
+    room.on(RoomEvent.Connected, onConnected);
 
-  //   // log and update waiting list
-  //   socket.on("participantWaitingRoomUpdate", (list: IWaitingUser[]) => {
-  //     setWaiting(list.filter((u) => u.email !== me.email));
-  //   });
+    // ✅ cleanup returns void
+    return () => {
+      room.off(RoomEvent.Connected, onConnected);
+    };
+  }, [room, role]);
 
-  //    socket.on("participantListUpdate", (list: IParticipant[]) => {
-  //     setParticipants(list);
-  //   });
+  return null;
+}
 
-  //   // receive all waiting-room chat
-  //   socket.on(
-  //     "participant-waiting-room:receive-message",
-  //     (msg: IWaitingRoomChat & { timestamp: string }) => {
-  //       const withDate: IWaitingRoomChat = {
-  //         ...msg,
-  //         timestamp: new Date(msg.timestamp),
-  //       };
-  //       setMessages((prev) => [...prev, withDate]);
-  //     }
-  //   );
-
-  //   return () => {
-  //     socket.off("participantWaitingRoomUpdate");
-  //     socket.off("participantListUpdate");
-  //     socket.off("participant-waiting-room:receive-message");
-  //   };
-  // }, [sessionId, socket, me]);
-
-  // if(!user){
-  //   return(
-  //     <div className="p-4 text-center text-gray-500">Loading...</div>
-  //   )
-  // }
-
-  // const sendMessage = () => {
-  //   if (!selectedEmail || !chatInput.trim()) return;
-
-  //   socket?.emit("participant-waiting-room:send-message", {
-  //     sessionId,
-  //     email: selectedEmail,
-  //     senderName: user?.firstName,
-  //     role: "Moderator" as const,
-  //     content: chatInput.trim(),
-  //   });
-
-  //   setChatInput("");
-  // };
-
-  // const accept = (email: string) => {
-  //   console.log('email', email)
-  //   if (!socket) return;
-  //   console.log('email', email)
-
-  //   socket.emit(
-  //     "acceptFromWaitingRoom",
-  //     { sessionId, email },
-  //     (res: {
-  //       success: boolean;
-  //       participantsWaitingRoom: IWaitingUser[];
-  //       observersWaitingRoom: IObserverWaitingUser[];
-  //       participantList: IParticipant[];
-  //       observerList: IObserver[];
-  //     }) => {
-  //       if (res.success) {
-  //         setWaiting(res.participantsWaitingRoom);
-  //         setParticipants(res.participantList);
-  //       }
-  //     }
-  //   );
-  // };
-
-  // const remove = (email: string) => {
-  //   socket?.emit(
-  //     "removeFromWaitingRoom",
-  //     { sessionId, email },
-  //     (res: { success: boolean; waitingRoom?: IWaitingUser[] }) => {
-  //       const { success, waitingRoom } = res;
-  //       if (success && waitingRoom) {
-  //         setWaiting(waitingRoom);
-  //       }
-  //     }
-  //   );
-  // };
-
-  // only show messages for the selected participant
-  // const thread = messages
-  //   .filter((m) => m.email === selectedEmail )
-  //   .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+/** Video grid that safely uses useTracks inside LiveKitRoom context */
+function VideoGrid() {
+  const trackRefs = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: true },
+    { source: Track.Source.ScreenShare, withPlaceholder: true },
+  ]);
 
   return (
-    <div className="p-4 space-y-8 lg:flex lg:space-x-8 lg:space-y-0">
-      <div className="flex-1">
-        <section>
-          <h3 className="text-lg font-semibold mb-2">Waiting Room</h3>
-          {/* {waiting.length === 0 ? (
-            <p className="text-gray-500">No one waiting</p>
-          ) : (
-            waiting.map((u) => (
-              <div
-                key={`${u.email}-${u.joinedAt}`}
-                className="flex justify-between items-center border-b py-2"
-              >
-                <span>
-                  {u.name}{" "}
-                  <em className="text-gray-500 text-sm">({u.email})</em>
-                </span>
-                <div className="space-x-2">
-                  <button
-                    className="px-3 py-1 bg-blue-600 text-white rounded"
-                    // onClick={() => accept(u.email)}
-                  >
-                    Accept
-                  </button>
-                  <button
-                    className="px-3 py-1 bg-red-600 text-white rounded"
-                    // onClick={() => remove(u.email)}
-                  >
-                    Remove
-                  </button>
-                </div>
+    <div className="flex-1 min-h-0">
+      <GridLayout tracks={trackRefs}>
+        {/* IMPORTANT: exactly ONE child element; no map() here */}
+        <ParticipantTile />
+      </GridLayout>
+    </div>
+  );
+}
+
+async function fetchLiveKitToken(sessionId: string, role: ServerRole) {
+  const res = await api.post<ApiResponse<{ token: string }>>(
+    "/api/v1/livekit/token",
+    {
+      roomName: sessionId,
+      role, // NOTE: capitalized per backend type
+    }
+  );
+
+  // Your codebase typically nests data under data.data
+  return res.data.data.token;
+}
+
+export default function Meeting() {
+  const router = useRouter();
+
+  const { id: sessionId } = useParams();
+
+   // 1) derive role
+  const { user } = useGlobalContext(); // dashboard user, if logged in
+
+  const role: UiRole = useMemo(() => {
+    // dashboard users
+    if (user?.role === "Admin") return "admin";
+    if (user?.role === "Moderator") return "moderator";
+    if (user?.role === "Observer") return "observer";
+
+    // participant from join flow
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("liveSessionUser");
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u?.role === "Participant") return "participant";
+      }
+    }
+    // default to participant (or you can redirect)
+    return "participant";
+  }, [user]);
+
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  // 1) fetch your existing start/join token (reuse your current API)
+  useEffect(() => {
+   
+
+    if (!sessionId) return;
+
+    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
+    if (!url) {
+      console.error("Missing NEXT_PUBLIC_LIVEKIT_URL");
+      return;
+    }
+
+      // 2) participant branch: use token from waiting-room exchange
+      if (role === "participant") {
+        const saved = typeof window !== "undefined"
+          ? sessionStorage.getItem(`lk:${sessionId as string}`)
+          : null;
+  
+        if (!saved) {
+          // they came straight to the meeting (new tab/incognito) → send back
+          router.replace(`/waiting-room/participant/${sessionId}`);
+          return;
+        }
+        setToken(saved);
+        setWsUrl(url);
+        return; // ⛔ do NOT call /token
+      }
+
+      // 3) dashboard roles: call cookie-auth /token
+      const serverRole: ServerRole =
+      role === "admin" ? "Admin" :
+      role === "moderator" ? "Moderator" : "Observer";
+
+    (async () => {
+      const lkToken = await fetchLiveKitToken(sessionId as string, serverRole); // your axios helper to /token
+      if (!lkToken) {
+        // if 401, send to login/dashboard as appropriate
+        console.error("Failed to get LiveKit token");
+        return;
+      }
+      setToken(lkToken);
+      setWsUrl(url);
+    })();
+   
+  }, [sessionId, role, router]);
+
+  return (
+    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      {/* LEFT: your moderator/participant sidebar */}
+      <aside className="col-span-3 border rounded p-3 overflow-y-auto">
+        <h3 className="font-semibold mb-2">Controls & Waiting Room</h3>
+        <ModeratorWaitingPanel />
+        {/* your admit/remove/move/mute/screen-share/whiteboard/stream controls go here */}
+      </aside>
+
+      {/* MIDDLE: LiveKit room */}
+      <main className="col-span-6 border rounded p-3 flex flex-col min-h-0">
+        {!token || !wsUrl ? (
+          <div className="m-auto text-gray-500">Connecting…</div>
+        ) : (
+          <LiveKitRoom token={token} serverUrl={wsUrl}>
+            <div className="flex flex-col h-full lk-scope">
+              <AutoPublishOnConnect role={role} />
+              <RoomAudioRenderer />
+              <VideoGrid />
+              <div className="pt-2">
+                <ControlBar variation="minimal" />
               </div>
-            ))
-          )} */}
-          <ModeratorWaitingPanel />
-        </section>
-
-        <section>
-          <h3 className="text-lg font-semibold mb-2">
-            In-Meeting Participants
-          </h3>
-          {/* {participants?.length === 0 ? (
-            <p className="text-gray-500">No participants yet</p>
-          ) : (
-            participants?.map((u) => (
-              <div key={u.email} className="py-1">
-                {u.name} <em className="text-gray-500 text-sm">({u.email})</em>
-              </div>
-            ))
-          )} */}
-        </section>
-      </div>
-      {/* Chat Panel */}
-      <div className="flex-1 border p-4 rounded flex flex-col">
-        <h3 className="text-lg font-semibold mb-2">Chat</h3>
-
-        {/* Participant selector */}
-        <div className="mb-4 flex space-x-2 overflow-x-auto">
-          {/* {waiting.map((u) => (
-            <button
-              key={u.email}
-              className={`px-3 py-1 rounded ${
-                u.email === selectedEmail
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
-              onClick={() => {
-                setSelectedEmail(u.email);
-                // setMessages([]); // or fetch history from API if you persist
-              }}
-            >
-              {u.name}
-            </button>
-          ))} */}
-        </div>
-
-        {/* Chat window */}
-        <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-          {/* {(!selectedEmail || thread.length === 0) && (
-            <p className="text-gray-500">
-              {selectedEmail
-                ? "No messages yet."
-                : "Select a participant to chat with."}
-            </p>
-          )}
-          {thread.map((m) => (
-            <div
-              key={m.timestamp.toISOString()}
-              className={`flex ${
-                m.role === "Moderator" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <span
-                className={`px-3 py-1 rounded ${
-                  m.role === "Moderator"
-                    ? "bg-blue-200 text-blue-800"
-                    : "bg-gray-200 text-gray-800"
-                }`}
-              >
-                {m.content}
-              </span>
             </div>
-          ))} */}
-        </div>
+          </LiveKitRoom>
+        )}
+      </main>
 
-        {/* Input */}
-        {/* <div className="flex space-x-2">
-          <input
-            className="flex-1 border rounded px-2"
-            placeholder={
-              selectedEmail ? "Type a message…" : "Select a participant above"
-            }
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            // onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            disabled={!selectedEmail}
-          />
-          <button
-            className="px-4 py-1 bg-green-600 text-white rounded"
-            // onClick={sendMessage}
-            disabled={!selectedEmail || !chatInput.trim()}
-          >
-            Send
-          </button>
-        </div> */}
-      </div>
+      {/* RIGHT: observer chat/media hub — hide for participants */}
+      {role !== "participant" ? (
+        <aside className="col-span-3 border rounded p-3 overflow-y-auto">
+          <h3 className="font-semibold mb-2">Observers</h3>
+          {/* observer group chat, names, counts, media hub */}
+        </aside>
+      ) : (
+        <div className="col-span-3" />
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ export default {
 
 
   session_secret: process.env.SESSION_SECRET,
+  admit_jwt_secret: process.env.ADMIT_JWT_SECRET,
   
   frontend_base_url: process.env.FRONTEND_BASE_URL,
   

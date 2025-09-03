@@ -9,6 +9,8 @@ import type {
   IParticipant,
   IObserver,
 } from "@shared/interface/LiveSessionInterface";
+import api from "lib/api";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 
 type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
@@ -37,7 +39,7 @@ export default function ParticipantWaitingRoom() {
     if (!raw) {
       // If missing, bounce back to join
       router.replace(`/join/participant/${sessionId}`);
-      throw new Error("Missing Live Session User");
+      return { name: "", email: "", role: "Participant" as UserRole };
     }
     return JSON.parse(raw) as { name: string; email: string; role: UserRole };
   }, [router, sessionId]);
@@ -50,6 +52,8 @@ export default function ParticipantWaitingRoom() {
   // const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
+    if (!sessionId || !me.email) return;
+
     const s = io(SOCKET_URL, {
       path: "/socket.io",
       withCredentials: true,
@@ -60,6 +64,7 @@ export default function ParticipantWaitingRoom() {
         email: me.email,
       },
     });
+
     socketRef.current = s;
 
     s.on("connect", () => {
@@ -86,9 +91,22 @@ export default function ParticipantWaitingRoom() {
       }
     );
 
-    s.on("waiting:admitted", () => {
-      // Navigate to the meeting page (camera/mic off by default in later milestones)
-      router.push(`/meeting/${sessionId}`);
+     s.on("participant:admitted", async ({ admitToken }: { admitToken: string }) => {
+      try {
+        const resp = await api.post<ApiResponse<{ token: string }>>(
+          "/api/v1/livekit/exchange",
+          { admitToken } // public route – no auth header needed
+        );
+        const lkToken = resp.data.data.token;
+
+        // Store for the meeting page to read (short-lived is fine in sessionStorage)
+        sessionStorage.setItem(`lk:${sessionId}`, lkToken);
+
+        // Go to the actual meeting page
+        router.push(`/meeting/${sessionId}`);
+      } catch (err) {
+        console.error("Failed to exchange admit token", err);
+      }
     });
 
     s.on("waiting:removed", () => {
@@ -96,6 +114,9 @@ export default function ParticipantWaitingRoom() {
     });
 
     return () => {
+      s.off("waiting:list");
+      s.off("participant:admitted");
+      s.off("waiting:removed");
       s.disconnect();
     };
   }, [me.email, me.name, me.role, router, sessionId]);
