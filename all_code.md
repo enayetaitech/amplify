@@ -3926,6 +3926,40 @@ const errorMiddleware = (
 export default errorMiddleware;
 
 ```
+Path: backend/model/BreakoutRoom.ts
+
+```
+// backend/model/BreakoutRoom.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+export interface BreakoutRoomDoc extends Document<Types.ObjectId> {
+  sessionId: Types.ObjectId;
+  index: number;
+  livekitRoom: string;
+  createdAt: Date;
+  closesAt?: Date;
+  closedAt?: Date;
+  recording?: { egressId?: string; startedAt?: Date; stoppedAt?: Date };
+  hls?: { playbackUrl?: string; startedAt?: Date; stoppedAt?: Date };
+}
+
+const BreakoutRoomSchema = new Schema<BreakoutRoomDoc>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    index: { type: Number, required: true },
+    livekitRoom: { type: String, required: true },
+    closesAt: Date,
+    closedAt: Date,
+    recording: { egressId: String, startedAt: Date, stoppedAt: Date },
+    hls: { playbackUrl: String, startedAt: Date, stoppedAt: Date },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } }
+);
+BreakoutRoomSchema.index({ sessionId: 1, index: 1 }, { unique: true });
+
+export default model<BreakoutRoomDoc>("BreakoutRoom", BreakoutRoomSchema);
+
+```
 
 Path: backend/model/ChatModel.ts
 
@@ -3957,6 +3991,92 @@ export default ChatMessageModel;
 
 ```
 
+Path: backend/model/ChatMessage.ts
+
+```
+// backend/model/ChatMessage.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+export type ChatScope = "waiting" | "main" | "breakout" | "observer";
+export type ChatType  = "group" | "dm";
+export type ChatRole  = "Moderator" | "Participant" | "Observer";
+
+type IdentityRef = {
+  /** LiveKit identity (string) — always present so we can route even if no userId exists */
+  identity: string;
+  /** Optional DB user for Mods/Admins/Observers (Participants won't have this) */
+  userId?: Types.ObjectId;
+  /** For transcript UX */
+  name?: string;
+  email?: string;
+  role: ChatRole;
+};
+
+export interface ChatMessageDoc extends Document<Types.ObjectId> {
+  sessionId: Types.ObjectId;
+  scope: ChatScope;
+  breakoutIndex?: number;        // only for scope='breakout'
+  type: ChatType;                // 'group' or 'dm'
+
+  from: IdentityRef;
+  /** Present only for 'dm' messages; when DM to a Participant, userId may be undefined */
+  to?: Omit<IdentityRef, "name" | "email" | "role"> & { role: ChatRole };
+
+  text: string;
+  attachments?: { storageKey: string; displayName: string; size: number }[];
+  ts: Date;
+}
+
+const IdentityRefSchema = new Schema<IdentityRef>(
+  {
+    identity: { type: String, required: true, index: false },
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    name: String,
+    email: String,
+    role: { type: String, enum: ["Moderator", "Participant", "Observer"], required: true },
+  },
+  { _id: false }
+);
+
+const ChatMessageSchema = new Schema<ChatMessageDoc>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true, index: true },
+    scope: { type: String, enum: ["waiting", "main", "breakout", "observer"], required: true },
+    breakoutIndex: Number,
+    type: { type: String, enum: ["group", "dm"], required: true },
+
+    from: { type: IdentityRefSchema, required: true },
+    to: {
+      type: new Schema(
+        {
+          identity: { type: String, required: function (this: any) { return this?.type === "dm"; } },
+          userId: { type: Schema.Types.ObjectId, ref: "User" },
+          role: { type: String, enum: ["Moderator", "Participant", "Observer"], required: function (this: any) { return this?.type === "dm"; } },
+        },
+        { _id: false }
+      ),
+      required: function (this: any) { return this?.type === "dm"; },
+    },
+
+    text: { type: String, required: true },
+    attachments: [{ storageKey: String, displayName: String, size: Number }],
+    ts: { type: Date, default: () => new Date() },
+  },
+  { timestamps: false }
+);
+
+// Primary timeline read
+ChatMessageSchema.index({ sessionId: 1, scope: 1, ts: 1 });
+// DM lookups by identities
+ChatMessageSchema.index({ sessionId: 1, "from.identity": 1, ts: 1 });
+ChatMessageSchema.index({ sessionId: 1, "to.identity": 1, ts: 1 });
+// Breakout filtering
+ChatMessageSchema.index({ sessionId: 1, scope: 1, breakoutIndex: 1, ts: 1 });
+
+export default model<ChatMessageDoc>("ChatMessage", ChatMessageSchema);
+
+```
+
 Path: backend/model/GroupMessage.ts
 
 ```
@@ -3984,6 +4104,38 @@ export const GroupMessageModel: Model<IGroupMessageDoc> =
 
 export default GroupMessageModel;
 
+```
+
+Path: backend/model/JoinLink.ts
+
+```
+import { Schema, model, Document, Types } from "mongoose";
+
+export interface JoinLinkDoc extends Document<Types.ObjectId> {
+  projectId: Types.ObjectId;
+  type: "participant" | "observer";
+  slug: string;              // unique per {projectId,type}
+  passwordHash?: string;     // required for 'observer'
+  createdBy: Types.ObjectId; // User
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const JoinLinkSchema = new Schema<JoinLinkDoc>(
+  {
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+    type: { type: String, enum: ["participant", "observer"], required: true },
+    slug: { type: String, required: true, trim: true },
+    passwordHash: { type: String },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  },
+  { timestamps: true }
+);
+
+JoinLinkSchema.index({ projectId: 1, type: 1 }, { unique: true });
+JoinLinkSchema.index({ slug: 1 }, { unique: true });
+
+export default model<JoinLinkDoc>("JoinLink", JoinLinkSchema);
 ```
 
 Path: backend/model/LiveSessionModel.ts
@@ -4080,6 +4232,43 @@ const LiveSessionSchema = new Schema<ILiveSessionDocument>(
 export const LiveSessionModel: Model<ILiveSessionDocument> =
   mongoose.model<ILiveSessionDocument>("LiveSession", LiveSessionSchema);
 
+```
+
+Path: backend/model/LiveUsageLog.ts
+
+```
+// backend/model/LiveUsageLog.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+export interface LiveUsageLogDoc extends Document<Types.ObjectId> {
+  sessionId: Types.ObjectId;
+  projectId: Types.ObjectId;
+  startedBy: Types.ObjectId;
+  startedAt: Date;
+  endedAt?: Date;
+  minutesTotal?: number;
+  participantsPeak?: number;
+  observersPeak?: number;
+  creditsUsed?: number;
+}
+
+const LiveUsageLogSchema = new Schema<LiveUsageLogDoc>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+    startedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    startedAt: { type: Date, default: () => new Date(), index: true },
+    endedAt: Date,
+    minutesTotal: Number,
+    participantsPeak: Number,
+    observersPeak: Number,
+    creditsUsed: Number,
+  },
+  { timestamps: false }
+);
+LiveUsageLogSchema.index({ sessionId: 1 });
+
+export default model<LiveUsageLogDoc>("LiveUsageLog", LiveUsageLogSchema);
 ```
 
 Path: backend/model/ModeratorModel.ts
@@ -4293,6 +4482,44 @@ export const ParticipantWaitingRoomChatModel: Model<IParticipantWaitingRoomChatD
 
 ```
 
+Path: backend/model/WaitingRoomEntry.ts
+
+```
+// backend/model/WaitingRoomEntry.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+export interface WaitingRoomEntryDoc extends Document<Types.ObjectId> {
+  sessionId: Types.ObjectId;
+  name: string;
+  email: string;
+  userId?: Types.ObjectId;
+  ip?: string;
+  ua?: string;
+  status: "waiting" | "admitted" | "removed" | "left";
+  removedReason?: string;
+  joinedAt: Date;
+}
+
+const WaitingRoomEntrySchema = new Schema<WaitingRoomEntryDoc>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, trim: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    ip: String,
+    ua: String,
+    status: { type: String, enum: ["waiting", "admitted", "removed", "left"], default: "waiting" },
+    removedReason: String,
+    joinedAt: { type: Date, default: () => new Date() },
+  },
+  { timestamps: true }
+);
+WaitingRoomEntrySchema.index({ sessionId: 1, status: 1, joinedAt: -1 });
+
+export default model<WaitingRoomEntryDoc>("WaitingRoomEntry", WaitingRoomEntrySchema);
+
+```
+
 Path: backend/model/PollModel.ts
 
 ```
@@ -4385,6 +4612,104 @@ const PollSchema = new Schema<PollDocument>(
 
 export const PollModel = model<PollDocument>("Poll", PollSchema);
 
+```
+
+Path: backend/model/PollResponse.ts
+
+```
+// backend/model/PollResponse.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+type Scalar = string | number | boolean | null;
+
+export interface PollAnswer {
+  questionId: Types.ObjectId;          // which question this answer belongs to
+  optionId?: Types.ObjectId;           // selected option (for MCQ), optional
+  value?: Scalar | Scalar[];           // free text / numeric / boolean / multi
+}
+
+export interface PollResponseDoc extends Document<Types.ObjectId> {
+  pollId: Types.ObjectId;
+  sessionId: Types.ObjectId;
+  responder: { userId?: Types.ObjectId; name?: string; email?: string };
+  answers: PollAnswer[];
+  submittedAt: Date;
+}
+
+const PollAnswerSchema = new Schema<PollAnswer>(
+  {
+    questionId: { type: Schema.Types.ObjectId, required: true, ref: "PollQuestion" },
+    optionId: { type: Schema.Types.ObjectId, ref: "PollOption" },
+    value: { type: Schema.Types.Mixed }, // allows string/number/bool/array
+  },
+  { _id: false }
+);
+
+const PollResponseSchema = new Schema<PollResponseDoc>(
+  {
+    pollId: { type: Schema.Types.ObjectId, ref: "Poll", required: true },
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    responder: {
+      userId: { type: Schema.Types.ObjectId, ref: "User" },
+      name: String,
+      email: String,
+    },
+    answers: { type: [PollAnswerSchema], default: [] },
+    submittedAt: { type: Date, default: Date.now, index: true },
+  },
+  { timestamps: false }
+);
+
+PollResponseSchema.index({ pollId: 1, sessionId: 1 });
+
+export default model<PollResponseDoc>("PollResponse", PollResponseSchema);
+
+```
+
+Path: backend/model/Presence.ts
+
+```
+// backend/model/Presence.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+export interface PresenceDoc extends Document<Types.ObjectId> {
+  sessionId: Types.ObjectId;
+  projectId: Types.ObjectId;
+  role: "Admin" | "Moderator" | "Participant" | "Observer";
+  userId?: Types.ObjectId;
+  name?: string;
+  email?: string;
+  device?: { os?: string; browser?: string };
+  ip?: string;
+  geo?: { country?: string; city?: string; lat?: number; lon?: number };
+  roomType: "main" | "breakout";
+  breakoutIndex?: number;
+  joinedAt: Date;
+  leftAt?: Date;
+}
+
+const PresenceSchema = new Schema<PresenceDoc>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+    role: { type: String, enum: ["Admin", "Moderator", "Participant", "Observer"], required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    name: String,
+    email: String,
+    device: { os: String, browser: String },
+    ip: String,
+    geo: { country: String, city: String, lat: Number, lon: Number },
+    roomType: { type: String, enum: ["main", "breakout"], required: true },
+    breakoutIndex: Number,
+    joinedAt: { type: Date, default: () => new Date() },
+    leftAt: Date,
+  },
+  { timestamps: true }
+);
+PresenceSchema.index({ sessionId: 1, role: 1, roomType: 1 });
+PresenceSchema.index({ sessionId: 1, joinedAt: -1 });
+
+export default model<PresenceDoc>("Presence", PresenceSchema);
 ```
 
 Path: backend/model/ProjectFormModel.ts
@@ -4523,6 +4848,80 @@ const projectSchema = new Schema<IProjectDocument>(
 );
 
 export default model<IProjectDocument>("Project", projectSchema);
+
+```
+Path: backend/model/ScreenShareGrant.ts
+
+```
+// backend/model/ScreenShareGrant.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+export type GrantMode = "single" | "all";
+export type GrantRole = "Admin" | "Moderator" | "Participant" | "Observer";
+
+export interface ScreenShareGrantDoc extends Document<Types.ObjectId> {
+  sessionId: Types.ObjectId;
+
+  // "all" = everyone can share; "single" = one specific identity
+  mode: GrantMode;
+
+  // When mode = "single", we target by LiveKit identity (since participants are ephemeral)
+  target?: {
+    identity: string;          // LiveKit identity (string) — REQUIRED when mode="single"
+    role?: GrantRole;          // optional: useful in logs
+    name?: string;             // optional display
+    email?: string;            // optional display
+    userId?: Types.ObjectId;   // optional if target is a real user (mod/admin/observer)
+  };
+
+  // Who granted the permission (mods/admins usually have a DB user)
+  granter: {
+    userId?: Types.ObjectId;
+    identity: string;          // LiveKit identity of the granter
+    role: Exclude<GrantRole, "Participant" | "Observer">; // Admin|Moderator
+    name?: string;
+    email?: string;
+  };
+
+  grantedAt: Date;
+  revokedAt?: Date;
+}
+
+const ScreenShareGrantSchema = new Schema<ScreenShareGrantDoc>(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+
+    mode: { type: String, enum: ["single", "all"], required: true },
+
+    target: {
+      identity: { type: String, required: function () { return this.mode === "single"; } },
+      role: { type: String, enum: ["Admin", "Moderator", "Participant", "Observer"] },
+      name: String,
+      email: String,
+      userId: { type: Schema.Types.ObjectId, ref: "User" },
+    },
+
+    granter: {
+      userId: { type: Schema.Types.ObjectId, ref: "User" },
+      identity: { type: String, required: true },
+      role: { type: String, enum: ["Admin", "Moderator"], required: true },
+      name: String,
+      email: String,
+    },
+
+    grantedAt: { type: Date, default: () => new Date() },
+    revokedAt: Date,
+  },
+  { timestamps: false }
+);
+
+// Fast lookups:
+// - active "all" grants for a session
+ScreenShareGrantSchema.index({ sessionId: 1, mode: 1, revokedAt: 1, grantedAt: -1 });
+// - active "single" grant for a specific identity
+ScreenShareGrantSchema.index({ sessionId: 1, "target.identity": 1, revokedAt: 1, grantedAt: -1 });
+
+export default model<ScreenShareGrantDoc>("ScreenShareGrant", ScreenShareGrantSchema);
 
 ```
 
@@ -4776,6 +5175,81 @@ const User: Model<IUserDocument> = mongoose.model<IUserDocument>(
 );
 
 export default User;
+
+```
+
+Path: backend/model/WhiteboardSnapshot.ts
+
+```
+// backend/model/WhiteboardSnapshot.ts
+import { Schema, model, Document, Types } from "mongoose";
+
+export interface WhiteboardSnapshotDoc extends Document<Types.ObjectId> {
+  wbSessionId: string; // matches WhiteboardStroke.sessionId
+  pngKey: string;
+  width: number;
+  height: number;
+  takenBy: Types.ObjectId;
+  ts: Date;
+}
+
+const WhiteboardSnapshotSchema = new Schema<WhiteboardSnapshotDoc>(
+  {
+    wbSessionId: { type: String, required: true, index: true },
+    pngKey: { type: String, required: true },
+    width: { type: Number, required: true },
+    height: { type: Number, required: true },
+    takenBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    ts: { type: Date, default: () => new Date() },
+  },
+  { timestamps: false }
+);
+
+export default model<WhiteboardSnapshotDoc>("WhiteboardSnapshot", WhiteboardSnapshotSchema);
+
+```
+
+Path: backend/model/WhiteboardStroke.ts
+
+```
+// backend/model/WhiteboardStroke.ts
+import { Schema, model, Document } from "mongoose";
+
+export interface WhiteboardStrokeDoc extends Document {
+  roomName: string;
+  sessionId: string; // whiteboard sessionId (string), not DB ObjectId
+  seq: number;
+  author: { identity: string; name?: string; role: string };
+  tool: string;
+  shape: "free" | "line" | "rect" | "circle" | "text";
+  color: string;
+  size: number;
+  points: { x: number; y: number }[];
+  text?: string;
+  ts: Date;
+  revoked?: boolean;
+}
+
+const WhiteboardStrokeSchema = new Schema<WhiteboardStrokeDoc>(
+  {
+    roomName: { type: String, required: true, index: true },
+    sessionId: { type: String, required: true, index: true },
+    seq: { type: Number, required: true, index: true },
+    author: { identity: String, name: String, role: String },
+    tool: String,
+    shape: { type: String, enum: ["free", "line", "rect", "circle", "text"], default: "free" },
+    color: String,
+    size: Number,
+    points: [{ x: Number, y: Number }],
+    text: String,
+    ts: { type: Date, default: () => new Date(), index: true },
+    revoked: { type: Boolean, default: false },
+  },
+  { timestamps: false }
+);
+WhiteboardStrokeSchema.index({ roomName: 1, sessionId: 1, seq: 1 }, { unique: true });
+
+export default model<WhiteboardStrokeDoc>("WhiteboardStroke", WhiteboardStrokeSchema);
 
 ```
 
@@ -5615,6 +6089,98 @@ export const sanitizeUser = (user: IUserDocument) => {
   return sanitizedUser;
 };
 
+```
+
+Path: backend/processors/waiting/waitingService.ts
+
+```
+// backend/processors/waiting/waitingService.ts
+import { LiveSessionModel } from "../../model/LiveSessionModel";
+
+/** Load lists for UI panels */
+export async function listState(sessionId: string) {
+  const live = await LiveSessionModel.findOne({ sessionId }).lean();
+  if (!live) throw new Error("LiveSession not found");
+
+  return {
+    participantsWaitingRoom: live.participantWaitingRoom ?? [],
+    observersWaitingRoom: live.observerWaitingRoom ?? [],
+    participantList: live.participantsList ?? [],
+    observerList: live.observerList ?? [],
+  };
+}
+
+/** Admit a single participant (by email) from waiting → active */
+export async function admitByEmail(sessionId: string, email: string) {
+  const live = await LiveSessionModel.findOne({ sessionId });
+  
+  if (!live) throw new Error("LiveSession not found");
+
+  const i = live.participantWaitingRoom.findIndex((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (i >= 0) {
+    const user = live.participantWaitingRoom[i];
+    // remove from waiting
+    live.participantWaitingRoom.splice(i, 1);
+    // add to active list
+    live.participantsList.push({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      joinedAt: new Date(),
+    });
+    await live.save();
+  }
+  return {
+    participantsWaitingRoom: live.participantWaitingRoom,
+    observersWaitingRoom: live.observerWaitingRoom,
+    participantList: live.participantsList,
+    observerList: live.observerList,
+  };
+}
+
+/** Remove from waiting room (do not admit) */
+export async function removeFromWaitingByEmail(sessionId: string, email: string) {
+  const live = await LiveSessionModel.findOne({ sessionId });
+  if (!live) throw new Error("LiveSession not found");
+
+  live.participantWaitingRoom = live.participantWaitingRoom.filter(
+    (u) => u.email.toLowerCase() !== email.toLowerCase()
+  ) as any;
+
+  await live.save();
+  return {
+    participantsWaitingRoom: live.participantWaitingRoom,
+    observersWaitingRoom: live.observerWaitingRoom,
+    participantList: live.participantsList,
+    observerList: live.observerList,
+  };
+}
+
+/** Admit all participants currently waiting */
+export async function admitAll(sessionId: string) {
+  const live = await LiveSessionModel.findOne({ sessionId });
+  if (!live) throw new Error("LiveSession not found");
+
+  const now = new Date();
+  const toAdmit = [...live.participantWaitingRoom];
+  live.participantWaitingRoom = [];
+  for (const user of toAdmit) {
+    live.participantsList.push({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      joinedAt: now,
+    });
+  }
+  await live.save();
+
+  return {
+    participantsWaitingRoom: live.participantWaitingRoom,
+    observersWaitingRoom: live.observerWaitingRoom,
+    participantList: live.participantsList,
+    observerList: live.observerList,
+  };
+}
 ```
 
 Path: backend/routes/index.ts
@@ -6483,7 +7049,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser"; 
 import { deviceInfoMiddleware } from "./middlewares/deviceInfo";
 import http from "http";
-
+import { attachSocket } from "./socket/index";
 
 const app = express();
 console.log("Starting server...",config.frontend_base_url);
@@ -6531,6 +7097,7 @@ app.use(errorMiddleware);
 const server = http.createServer(app);
 
 // Initialize Socket.IO on that server
+attachSocket(server);
 
 // Connect to the database and start the server
 const PORT = config.port || 8008;
@@ -6538,6 +7105,128 @@ server.listen(PORT, async () => {
   await connectDB();
   console.log(`Server is running on port ${PORT}`);
 });
+
+```
+
+Path: backend/socket/index.ts
+
+```
+// backend/socket/index.ts
+import type { Server as HTTPServer } from "http";
+import { Server, Socket } from "socket.io";
+import jwt from "jsonwebtoken";
+import { Types } from "mongoose";
+
+import { listState, admitByEmail, removeFromWaitingByEmail, admitAll } from "../processors/waiting/waitingService";
+
+
+
+// In-memory map to find a participant socket by email within a session
+// sessionId -> (email -> socketId)
+const emailIndex = new Map<string, Map<string, string>>();
+
+type Role = "Participant" | "Observer" | "Moderator" | "Admin";
+type JoinAck = Awaited<ReturnType<typeof listState>>;
+
+
+export function attachSocket(server: HTTPServer) {
+  const io = new Server(server, {
+    path: "/socket.io",
+    cors: { origin: true, credentials: true },
+  });
+
+  io.on("connection", (socket: Socket) => {
+    // Expect query: ?sessionId=...&role=...&name=...&email=...
+    const q = socket.handshake.query;
+    const sessionId = String(q.sessionId || "");
+    const role = (String(q.role || "Participant") as Role);
+    const name = (q.name as string) || "";
+    const email = (q.email as string) || "";
+
+    if (!sessionId || !role) {
+      socket.emit("error:auth", "Missing sessionId or role");
+      return socket.disconnect(true);
+    }
+
+    const rooms = {
+      waiting: `waiting::${sessionId}`,
+      meeting: `meeting::${sessionId}`,   // future milestones
+      observer: `observer::${sessionId}`, // future milestones
+    };
+
+    // Join waiting room by default; participant/observer wait here
+    socket.join(rooms.waiting);
+
+    // Track email -> socket (only if email present)
+    if (email) {
+      if (!emailIndex.has(sessionId)) emailIndex.set(sessionId, new Map());
+      emailIndex.get(sessionId)!.set(email.toLowerCase(), socket.id);
+    }
+
+    // Initial payload (lists)
+    socket.on("join-room", async (_payload, ack?: (rooms: JoinAck) => void) => {
+      const state = await listState(sessionId);
+      if (ack) ack(state);
+      // Also broadcast updated waiting list to all moderators’ panels
+      io.to(rooms.waiting).emit("waiting:list", {
+        participantsWaitingRoom: state.participantsWaitingRoom,
+        observersWaitingRoom: state.observersWaitingRoom,
+      });
+    });
+
+    // ===== Moderator actions =====
+    socket.on("waiting:admit", async ({ email }: { email: string }) => {
+      if (!["Moderator", "Admin"].includes(role)) return;
+      const state = await admitByEmail(sessionId, email);
+      io.to(rooms.waiting).emit("waiting:list", {
+        participantsWaitingRoom: state.participantsWaitingRoom,
+        observersWaitingRoom: state.observersWaitingRoom,
+      });
+
+      const targetId = emailIndex.get(sessionId)?.get(email.toLowerCase());
+      if (targetId) io.to(targetId).emit("waiting:admitted", { sessionId });
+    });
+
+    socket.on("waiting:remove", async ({ email }: { email: string }) => {
+      if (!["Moderator", "Admin"].includes(role)) return;
+      const state = await removeFromWaitingByEmail(sessionId, email);
+      io.to(rooms.waiting).emit("waiting:list", {
+        participantsWaitingRoom: state.participantsWaitingRoom,
+        observersWaitingRoom: state.observersWaitingRoom,
+      });
+
+      const targetId = emailIndex.get(sessionId)?.get(email.toLowerCase());
+      if (targetId) io.to(targetId).emit("waiting:removed", { reason: "Removed by moderator" });
+    });
+
+    socket.on("waiting:admitAll", async () => {
+      if (!["Moderator", "Admin"].includes(role)) return;
+      const state = await admitAll(sessionId);
+      io.to(rooms.waiting).emit("waiting:list", {
+        participantsWaitingRoom: state.participantsWaitingRoom,
+        observersWaitingRoom: state.observersWaitingRoom,
+      });
+
+      // Notify all admitted participants currently connected
+      const idx = emailIndex.get(sessionId);
+      if (idx) {
+        for (const [eml, sockId] of idx.entries()) {
+          // fire-and-forget; if they weren’t waiting it’s harmless
+          io.to(sockId).emit("waiting:admitted", { sessionId });
+        }
+      }
+    });
+
+    socket.on("disconnect", () => {
+      if (email && emailIndex.get(sessionId)) {
+        emailIndex.get(sessionId)!.delete(email.toLowerCase());
+      }
+    });
+  });
+
+  return io;
+}
+
 
 ```
 
@@ -7172,9 +7861,9 @@ const ObserverJoinMeeting: React.FC = () => {
 
   async function tryGetSession(projectOrSessionId: string) {
     try {
-      const res = await api.get<{ data: { _id: string; projectId: string } }>(
-        `/api/v1/sessions/${projectOrSessionId}`
-      );
+      const res = await api.get<{
+        data: { _id: string; projectId: string | { _id: string } };
+      }>(`/api/v1/sessions/${projectOrSessionId}`);
       return {
         sessionId: res.data.data._id,
         projectId: res.data.data.projectId,
@@ -7202,7 +7891,8 @@ const ObserverJoinMeeting: React.FC = () => {
       const maybeSession = await tryGetSession(idParam);
       let projectId: string;
       if (maybeSession) {
-        projectId = String(maybeSession.projectId);
+        const pid = maybeSession.projectId;
+        projectId = typeof pid === "string" ? pid : pid._id;
       } else {
         projectId = idParam;
       }
@@ -7309,6 +7999,7 @@ const ObserverJoinMeeting: React.FC = () => {
 
 export default ObserverJoinMeeting;
 
+
 ```
 
 Path: frontend/app/(before-meeting)/join/participant/[sessionId]/page.tsx
@@ -7340,9 +8031,9 @@ export default function ParticipantJoinMeeting() {
 
   async function tryGetSession(projectOrSessionId: string) {
     try {
-      const res = await api.get<{ data: { _id: string; projectId: string } }>(
-        `/api/v1/sessions/${projectOrSessionId}`
-      );
+      const res = await api.get<{
+        data: { _id: string; projectId: string | { _id: string } };
+      }>(`/api/v1/sessions/${projectOrSessionId}`);
       return {
         sessionId: res.data.data._id,
         projectId: res.data.data.projectId,
@@ -7367,7 +8058,9 @@ export default function ParticipantJoinMeeting() {
       let projectId: string;
       if (maybeSession) {
         // Always resolve via project to enforce Participant semantics
-        projectId = String(maybeSession.projectId);
+        type ProjectRef = string | { _id: string };
+        const pid = maybeSession.projectId as ProjectRef;
+        projectId = typeof pid === "string" ? pid : pid._id;
       } else {
         projectId = idParam;
       }
@@ -7391,6 +8084,11 @@ export default function ParticipantJoinMeeting() {
         email,
         role: "Participant",
       });
+
+      localStorage.setItem(
+        "liveSessionUser",
+        JSON.stringify({ name, email, role: "Participant" })
+      );
 
       router.push(`/waiting-room/participant/${sessionId}`);
     } catch (err) {
@@ -7416,6 +8114,8 @@ export default function ParticipantJoinMeeting() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
+
+      {/* localhost:3000/join/participant/670d9310667c144b9c271710 */}
       <button
         className="w-full py-2 bg-green-600 text-white rounded"
         onClick={handleJoin}
@@ -7438,9 +8138,9 @@ const RemoveParticipant = () => {
   return (
     <div className="max-w-md mx-auto p-6 text-center">
     <h2 className="text-2xl font-semibold mb-4">You’ve been removed</h2>
-    <p className="text-gray-600">
-      The moderator has removed you from the meeting. 
-    </p>
+    <p className="text-sm text-muted-foreground mb-6">
+        The moderator removed you from the session. If this was a mistake, you can try joining again using your project link.
+      </p>
   </div>
   )
 }
@@ -7467,174 +8167,130 @@ Path: frontend/app/(before-meeting)/waiting-room/participant/[sessionId]/page.ts
 ```
 "use client";
 
-import React, {  useState } from "react";
-// import { useParams, useRouter } from "next/navigation";
-// import { useMeeting } from "context/MeetingContext";
-// import { IWaitingRoomChat } from "@shared/interface/WaitingRoomChatInterface";
-// import { IObserver, IObserverWaitingUser, IParticipant, IWaitingUser } from "@shared/interface/LiveSessionInterface";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { io, Socket } from "socket.io-client";
+import { SOCKET_URL } from "constant/socket";
+import type {
+  IObserverWaitingUser,
+  IParticipant,
+  IObserver,
+} from "@shared/interface/LiveSessionInterface";
 
-// interface JoinAck {
-//   participantsWaitingRoom: IWaitingUser[];
-//   observersWaitingRoom:   IObserverWaitingUser[];
-//   participantList:        IParticipant[];
-//   observerList:           IObserver[];
-// }
+type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
+interface WaitingUser {
+  name: string;
+  email: string;
+  role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
+  joinedAt: string;
+}
+
+interface JoinAck {
+  participantsWaitingRoom: WaitingUser[];
+  observersWaitingRoom: IObserverWaitingUser[];
+  participantList: IParticipant[];
+  observerList: IObserver[];
+}
 
 export default function ParticipantWaitingRoom() {
-  // const { sessionId } = useParams() as { sessionId: string };;
-  // const router = useRouter();
+  const { sessionId } = useParams() as { sessionId: string };
+  const router = useRouter();
   // const { socket } = useMeeting();
 
-  // const me = JSON.parse(localStorage.getItem("liveSessionUser")!) as {
-  //   name: string;
-  //   email: string;
-  //   role: string;
-  // };
+  // Load 'me' from localStorage (set by Join page)
+  const me = useMemo(() => {
+    const raw = localStorage.getItem("liveSessionUser");
+    if (!raw) {
+      // If missing, bounce back to join
+      router.replace(`/join/participant/${sessionId}`);
+      throw new Error("Missing Live Session User");
+    }
+    return JSON.parse(raw) as { name: string; email: string; role: UserRole };
+  }, [router, sessionId]);
 
-      // load & memoize me once so it’s stable across renders
-    // const [me] = useState(() => {
-    //   const raw = localStorage.getItem("liveSessionUser");
-    //  if (!raw) throw new Error("No liveSessionUser in localStorage");
-    //  return JSON.parse(raw) as { name: string; email: string; role: string };
-    // });
-
-  // const [waiting, setWaiting] = useState<IWaitingUser[]>([]);
+  const [waiting, setWaiting] = useState<WaitingUser[]>([]);
+  const socketRef = useRef<Socket | null>(null);
+  const joinedRef = useRef(false);
 
   // chat state
-  const [chatInput, setChatInput] = useState("");
-  // const [messages, setMessages] = useState<IWaitingRoomChat[]>([]);
+  // const [chatInput, setChatInput] = useState("");
 
-  // const hasJoinedRef = useRef(false);
+  useEffect(() => {
+    const s = io(SOCKET_URL, {
+      path: "/socket.io",
+      withCredentials: true,
+      query: {
+        sessionId,
+        role: me.role,
+        name: me.name,
+        email: me.email,
+      },
+    });
+    socketRef.current = s;
 
-  // useEffect(() => {
-  //   if (!socket) return;
+    s.on("connect", () => {
+      if (joinedRef.current) return;
+      joinedRef.current = true;
 
-  //   // guard so we only ever emit once
-  //   if (!hasJoinedRef.current) {
-  //     hasJoinedRef.current = true;
+      s.emit("join-room", {}, (rooms: JoinAck) => {
+        // exclude self from the UI list
+        const others = (rooms.participantsWaitingRoom || []).filter(
+          (u) => u.email !== me.email
+        );
+        setWaiting(others);
+      });
+    });
 
-  //     socket.emit(
-  //       "join-room",
-  //       { sessionId, ...me },
-  //      (rooms: JoinAck) =>  {
-  //         // initialize waiting-room list
-  //         setWaiting(
-  //           rooms.participantsWaitingRoom.filter((u) => u.email !== me.email)
-  //         );
+    s.on(
+      "waiting:list",
+      (payload: { participantsWaitingRoom: WaitingUser[] }) => {
+        setWaiting(
+          (payload.participantsWaitingRoom || []).filter(
+            (u) => u.email !== me.email
+          )
+        );
+      }
+    );
 
-  //         // if we're already in the active participantList, go straight in:
-  //         if (rooms.participantList.some((p) => p.email === me.email)) {
-  //           router.push(`/meeting/${sessionId}`);
-  //         }
-  //       }
-  //     );
-  //   }
+    s.on("waiting:admitted", () => {
+      // Navigate to the meeting page (camera/mic off by default in later milestones)
+      router.push(`/meeting/${sessionId}`);
+    });
 
-  //   socket.on("participantWaitingRoomUpdate", (list) => {
-  //     const filtered = list.filter((u: IWaitingUser) => u.email !== me.email);
+    s.on("waiting:removed", () => {
+      router.push(`/remove-participant`); // implement simple “removed” page later
+    });
 
-  //     setWaiting(filtered);
-  //     if (!list.some((p: IWaitingUser) => p.email === me.email)) {
-  //       router.push("/remove-participant");
-  //     }
-  //   });
-
-  //   socket.on("participantListUpdate", (list: IParticipant[]) => {
-  //     if (list.find((p) => p.email === me.email)) {
-  //       router.push(`/meeting/${sessionId}`);
-  //     }
-  //   });
-
-  //   // chat recv
-  //   socket.on(
-  //     "participant-waiting-room:receive-message",
-  //     (msg: IWaitingRoomChat & { timestamp: string }) => {
-  //       const withDate: IWaitingRoomChat = {
-  //         ...msg,
-  //         timestamp: new Date(msg.timestamp),
-  //       };
-  //       if (withDate.email === me.email) {
-  //         setMessages((prev) => [...prev, withDate]);
-  //       }
-  //     }
-  //   );
-
-  //   return () => {
-  //     socket.off("participantWaitingRoomUpdate");
-  //     socket.off("participantListUpdate");
-  //     socket.off("participant-waiting-room:receive-message");
-  //   };
-  // }, [sessionId, socket,router, me ]);
-
-  // const sendMessage = () => {
-  //   if (!chatInput.trim()) return;
-  //   const payload = {
-  //     sessionId,
-  //     email: me.email,
-  //     senderName: me.name,
-  //     role: "Participant" as const,
-  //     content: chatInput.trim(),
-  //   };
-  //   socket?.emit("participant-waiting-room:send-message", payload);
-  //   setChatInput("");
-  // };
+    return () => {
+      s.disconnect();
+    };
+  }, [me.email, me.name, me.role, router, sessionId]);
 
   return (
-    <div className="max-w-lg mx-auto p-4 space-y-6">
-      <h2 className="text-2xl font-semibold">Waiting Room</h2>
-
-      <div className="border p-4 rounded space-y-2">
-        <h3 className="font-medium">People waiting:</h3>
-        {/* {waiting.map((u) => (
-          <div key={`${u.email}-${u.joinedAt}`} className="text-gray-700">
-            {u.name} <span className="text-sm text-gray-500">({u.email})</span>
-          </div>
-        ))} */}
-      </div>
-
-      <div className="border p-4 rounded space-y-2 h-64 flex flex-col">
-        <h3 className="font-medium">Chat with moderator</h3>
-        <div className="flex-1 overflow-y-auto space-y-1">
-          {/* {messages.map((m) => (
-            <div
-              key={`${m.email}-${m.timestamp.toISOString()}`}
-              className={`flex ${
-                m.role === "Participant" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <span
-                className={`px-3 py-1 rounded ${
-                  m.role === "Participant"
-                    ? "bg-green-200 text-green-800"
-                    : "bg-gray-200 text-gray-800"
-                }`}
-              >
-                {m.content}
-              </span>
-            </div>
-          ))} */}
-        </div>
-        <div className="flex space-x-2">
-          <input
-            className="flex-1 border rounded px-2"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Type a message…"
-            // onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-          <button
-            className="px-4 py-1 bg-blue-600 text-white rounded"
-            // onClick={sendMessage}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-
-      <p className="text-sm text-gray-500">
-        Waiting for the moderator to admit you…
+    <div className="max-w-2xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Waiting Room</h1>
+      <p className="text-sm text-muted-foreground">
+        Hi {me.name}, you’ll enter the meeting once the moderator admits you.
       </p>
+
+      <div className="rounded-xl border p-4">
+        <h2 className="font-medium mb-2">Other participants waiting</h2>
+        {waiting.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You’re the first here.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {waiting.map((u) => (
+              <li key={u.email} className="flex items-center justify-between">
+                <span>{u.name}</span>
+                <span className="text-xs text-muted-foreground">{u.email}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -9143,7 +9799,9 @@ const Sessions = () => {
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
-  const { data: project, isLoading: isProjectLoading } = useProject(projectId as string)
+  const { data: project, isLoading: isProjectLoading } = useProject(
+    projectId as string
+  );
 
   const tzPretty = useMemo(() => {
     if (!project?.defaultTimeZone) return "";
@@ -9152,7 +9810,7 @@ const Sessions = () => {
     const atDate = project.startDate ?? undefined;
     return formatUiTimeZone(project.defaultTimeZone, atDate);
   }, [project?.defaultTimeZone, project?.startDate]);
-  
+
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
     { data: ISession[]; meta: IPaginationMeta },
@@ -9167,6 +9825,52 @@ const Sessions = () => {
         )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
+  });
+
+  // Start live session then navigate
+  const startMeeting = useMutation<
+    { success?: boolean; message?: string },
+    unknown,
+    string
+  >({
+    mutationFn: async (sessionId: string) => {
+      const res = await api.post<{ success?: boolean; message?: string }>(
+        `/api/v1/liveSessions/${sessionId}/start`
+      );
+      return res.data; // e.g. { success: true, ... } OR { success: false, message: "Session already ongoing" }
+    },
+    onSuccess: (data, sessionId) => {
+      const success = data?.success;
+      const message = data?.message;
+
+      if (success === false && message === "Session already ongoing") {
+        toast.message("Session already ongoing — opening meeting");
+      } else {
+        toast.success("Session started");
+      }
+
+      // Refresh any live flags if you show them
+      queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+
+      // Go to meeting either way
+      router.push(`/meeting/${sessionId}`);
+    },
+    onError: (err, sessionId) => {
+      // If server returned non-2xx with the same message, still proceed
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.message;
+        if (msg === "Session already ongoing") {
+          toast.message("Session already ongoing — opening meeting");
+          router.push(`/meeting/${sessionId}`);
+          return;
+        }
+      }
+
+      const fallback = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Could not start the session";
+      toast.error(fallback);
+    },
   });
 
   // Mutation to delete session
@@ -9228,7 +9932,13 @@ const Sessions = () => {
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
-        <HeadingBlue25px>Sessions (All Times {isProjectLoading ? "Loading..." : tzPretty || project?.defaultTimeZone})</HeadingBlue25px>
+        <HeadingBlue25px>
+          Sessions (All Times{" "}
+          {isProjectLoading
+            ? "Loading..."
+            : tzPretty || project?.defaultTimeZone}
+          )
+        </HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
           text="Add Sessions"
@@ -9239,6 +9949,7 @@ const Sessions = () => {
           }}
         />
       </div>
+
       {isLoading ? (
         <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">
           Loading Sessions...
@@ -9249,8 +9960,8 @@ const Sessions = () => {
             sessions={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
-            onRowClick={(id) => router.push(`/session-details/${id}`)}
-            onModerate={(id) => router.push(`/session-details/${id}/moderate`)}
+            // onRowClick={(id) => router.push(`/session-details/${id}`)}
+            onModerate={(id) => startMeeting.mutate(id)}
             onObserve={(id) => router.push(`/session-details/${id}/observe`)}
             onAction={(action, session) => {
               switch (action) {
@@ -9309,6 +10020,7 @@ const Sessions = () => {
 };
 
 export default Sessions;
+
 
 ```
 
@@ -9653,6 +10365,8 @@ Path: frontend/app/meeting/[id]/page.tsx
 ```
 "use client";
 
+import ModeratorWaitingPanel from "components/meeting/waitingRoom";
+
 // import React, { useEffect, useMemo, useRef, useState } from "react";
 // import { useParams } from "next/navigation";
 // import { useMeeting } from "context/MeetingContext";
@@ -9843,6 +10557,7 @@ export default function Meeting() {
               </div>
             ))
           )} */}
+          <ModeratorWaitingPanel />
         </section>
 
         <section>
@@ -9937,6 +10652,7 @@ export default function Meeting() {
     </div>
   );
 }
+
 
 ```
 
@@ -11632,6 +12348,131 @@ const LogoutModalComponent: React.FC<LogoutModalProps> = ({
 }
 
 export default LogoutModalComponent
+
+```
+
+Path: frontend/components/meeting/waitingRoom.tsx
+
+```
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { io, Socket } from "socket.io-client";
+import { SOCKET_URL } from "constant/socket";
+
+type WaitingUser = {
+  name: string;
+  email: string;
+  joinedAt: string;
+  role: "Participant" | "Moderator" | "Admin";
+};
+type WaitingListPayload = { participantsWaitingRoom: WaitingUser[] };
+
+export default function ModeratorWaitingPanel() {
+  const { sessionId: sid, id } = useParams() as {
+    sessionId?: string;
+    id?: string;
+  };
+  const sessionId = sid ?? id;
+  const [waiting, setWaiting] = useState<WaitingUser[]>([]);
+  const socketRef = useRef<Socket | null>(null);
+  const joinedRef = useRef(false);
+  
+  console.log("sessionId", sessionId);
+
+  // For demo: “me” as Moderator (in prod, JWT-protected page)
+  const me = useMemo(
+    () => ({ role: "Moderator", name: "Moderator", email: "mod@example.com" }),
+    []
+  );
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const s = io(SOCKET_URL, {
+      path: "/socket.io",
+      withCredentials: true,
+      query: {
+        sessionId: sessionId as string,
+        role: me.role,
+        name: me.name,
+        email: me.email,
+      },
+    });
+    socketRef.current = s;
+
+    s.on("connect", () => {
+      if (joinedRef.current) return;
+      joinedRef.current = true;
+      s.emit("join-room", {}, (rooms: WaitingListPayload) => {
+        setWaiting(rooms.participantsWaitingRoom || []);
+      });
+    });
+
+    s.on(
+      "waiting:list",
+      (payload: { participantsWaitingRoom: WaitingUser[] }) => {
+        setWaiting(payload.participantsWaitingRoom || []);
+      }
+    );
+
+    return () => {
+      s.disconnect();
+    };
+  }, [me.email, me.name, me.role, sessionId]);
+
+  const admit = (email: string) =>
+    socketRef.current?.emit("waiting:admit", { email });
+  const remove = (email: string) =>
+    socketRef.current?.emit("waiting:remove", { email });
+  const admitAll = () => socketRef.current?.emit("waiting:admitAll");
+
+  return (
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Moderator – Waiting Room</h1>
+        <button className="border rounded-lg px-3 py-2" onClick={admitAll}>
+          Admit all
+        </button>
+      </div>
+
+      <div className="rounded-xl border divide-y">
+        {waiting.length === 0 ? (
+          <div className="p-4 text-sm text-muted-foreground">
+            No one is waiting.
+          </div>
+        ) : (
+          waiting.map((u) => (
+            <div
+              key={u.email}
+              className="p-4 flex items-center justify-between"
+            >
+              <div>
+                <div className="font-medium">{u.name}</div>
+                <div className="text-xs text-muted-foreground">{u.email}</div>
+              </div>
+              <div className="space-x-2">
+                <button
+                  className="border rounded-lg px-3 py-2"
+                  onClick={() => admit(u.email)}
+                >
+                  Admit
+                </button>
+                <button
+                  className="border rounded-lg px-3 py-2"
+                  onClick={() => remove(u.email)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 ```
 
@@ -19494,7 +20335,7 @@ export interface SessionsTableProps {
   sessions: ISession[];
   meta: IPaginationMeta;
   onPageChange: (newPage: number) => void;
-  onRowClick: (sessionId: string) => void;
+  // onRowClick: (sessionId: string) => void;
   onModerate: (sessionId: string) => void;
   onObserve: (sessionId: string) => void;
   onAction: (
@@ -19528,7 +20369,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   sessions,
   meta,
   onPageChange,
-  onRowClick,
+  // onRowClick,
   onModerate,
   onObserve,
   onAction,
@@ -19584,7 +20425,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
               <TableRow
                 key={s._id}
                 className="cursor-pointer hover:bg-gray-50"
-                onClick={() => onRowClick(s._id)}
+                // onClick={() => onRowClick(s._id)}
               >
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {s.title}
@@ -22316,6 +23157,13 @@ export const recruitingFields: FieldConfig[] = [
   },
 ];
 
+```
+
+Path: frontend/constant/index.ts
+
+```
+export const SOCKET_URL =
+    process.env.NEXT_PUBLIC_BACKEND_BASE_URL ?? "http://localhost:8008";
 ```
 
 Path: frontend/constant/projectSections.ts
@@ -26184,3 +27032,83 @@ class ErrorHandler extends Error {
 export default ErrorHandler;
 
 ```
+
+
+# Epic: Live Meetings + Observers + Whiteboard + Polls
+
+Link to PRs: …
+Owner: …
+Target release: …
+
+## Milestone 1 — Live skeleton & waiting room
+- [ ] Backend: Wire existing routes  
+  - [ ] POST `/api/v1/liveSessions/:sessionId/start` → `startLiveSession` (mod/admin only)  
+  - [ ] POST `/api/v1/liveSessions/:sessionId/end` → `endLiveSession`  
+  - [ ] POST `/api/v1/livekit/token` → `getLivekitToken` (reuse)  
+  - [ ] GET  `/api/v1/livekit/:sessionId/hls` → `getObserverHls` (reuse)
+- [ ] Socket hub bootstrap with namespace and auth
+- [ ] Models: `JoinLink`, `WaitingRoomEntry`
+- [ ] UI: participant join page → waiting room
+- [ ] UI: moderator waiting panel (admit / remove / admit-all)
+- [ ] QA: happy path join/admit/remove; 20 concurrent users
+
+## Milestone 2 — Meeting controls & permissions
+- [ ] LiveKit connect on admit (start cam/mic **off**)
+- [ ] Mute/unmute (server can mute; cannot force unmute)
+- [ ] Disable/enable camera (server can disable; cannot force enable)
+- [ ] Screen share: request/allow/revoke; allow for ALL toggle
+- [ ] Model: `ScreenShareGrant`
+- [ ] QA: revoke when sharing; client auto-stops
+
+## Milestone 3 — HLS streaming & observers
+- [ ] Start/Stop HLS egress on moderator command
+- [ ] Persist `hlsPlaybackUrl` to `LiveSessionModel`
+- [ ] Observer join (dashboard + link/password)
+- [ ] Observer waiting room + streaming page (no cam/mic prompts)
+- [ ] QA: observer can switch to live stream when started
+
+## Milestone 4 — Chat (group + DM) across scopes
+- [ ] Socket events: group & 1:1 (only with Moderator)
+- [ ] Models: `ChatMessage`
+- [ ] Scopes: waiting / main / breakout / observer
+- [ ] UI surfaces for each scope
+- [ ] QA: transcripts persist with timestamps
+
+## Milestone 5 — Whiteboard
+- [ ] Reuse whiteboard open/close/history endpoints
+- [ ] Models: `WhiteboardSession`, `WhiteboardStroke`, `WhiteboardSnapshot`
+- [ ] Socket: `wb:state`, `wb:stroke`, `wb:clear`, snapshot save
+- [ ] UI: overlay hydration + snapshot download/upload to S3
+- [ ] QA: latency & replay from history
+
+## Milestone 6 — Breakouts
+- [ ] Create N breakouts with timer; join/assign/move back
+- [ ] Auto start recording + HLS for each breakout
+- [ ] Model: `BreakoutRoom`
+- [ ] Observer: switch stream between Main/Breakouts
+- [ ] QA: timer brings everyone back; close room manually
+
+## Milestone 7 — Polls
+- [ ] Reuse Poll CRUD; add `launch` & `submit`
+- [ ] Model: `PollResponse`
+- [ ] Moderator: live response counts + per-response view
+- [ ] Participant: modal auto-shows on launch
+- [ ] QA: edge cases (duplicates, late submit, reconnect)
+
+## Milestone 8 — Media hub
+- [ ] Reuse Observer Document APIs in streaming page (upload/download/delete, pagination)
+- [ ] Permissions: Admin/Moderator/Observer only
+- [ ] QA: file appears in dashboard’s Observable Documents
+
+## Milestone 9 — Reporting & credits
+- [ ] Models: `Presence`, `LiveUsageLog`
+- [ ] LiveKit webhooks → presence (join/leave, room type), usage, egress
+- [ ] Report API: `/api/reports/session/:sessionId`
+- [ ] Export CSV/JSON
+- [ ] Credits calculation finalized and persisted
+
+## Milestone 10 — Hardening
+- [ ] AuthZ on all socket events; role checks
+- [ ] Rate limits; retries; idempotency on admits/removes
+- [ ] Index review for all new collections
+- [ ] Load test: 100 concurrent participants + 50 observers
