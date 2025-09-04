@@ -25,6 +25,7 @@ import EditSessionModal, {
 import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { useProject } from "hooks/useProject";
 import { formatUiTimeZone } from "utils/timezones";
+import { IUser } from "@shared/interface/UserInterface";
 
 interface EditSessionInput {
   id: string;
@@ -49,6 +50,8 @@ const Sessions = () => {
     projectId as string
   );
 
+  console.log('project', project);
+
   const tzPretty = useMemo(() => {
     if (!project?.defaultTimeZone) return "";
     // Use the project's startDate if you want the offset for that exact date (DST-correct),
@@ -56,6 +59,19 @@ const Sessions = () => {
     const atDate = project.startDate ?? undefined;
     return formatUiTimeZone(project.defaultTimeZone, atDate);
   }, [project?.defaultTimeZone, project?.startDate]);
+
+    // ✅ read logged-in user (already set elsewhere via /api/v1/users/me)
+    const me: IUser | null =
+    typeof window !== "undefined"
+      ? (() => {
+          try {
+            const raw = localStorage.getItem("user");
+            return raw ? JSON.parse(raw) : null;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
 
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
@@ -118,6 +134,53 @@ const Sessions = () => {
       toast.error(fallback);
     },
   });
+
+  // Handle moderate session 
+
+  const handleModerateClick = async (sessionId: string) => {
+    const name = me?.firstName + " " + me?.lastName;
+    const email = me?.email;
+    
+    try {
+      // Try one-time enqueue as Observer (uses your existing /enqueue controller)
+      const resp = await api.post<{
+        data: { action: "stream" | "waiting_room"; sessionId: string };
+      }>("/api/v1/waiting-room/enqueue", {
+        sessionId,
+        name,
+        email,
+        role: "Observer",
+       passcode: project?.projectPasscode,
+      });
+
+      const action = resp.data?.data?.action;
+      if (action === "stream") {
+        router.push(`/meeting/${sessionId}?role=Observer`);
+      } else {
+        router.push(`/waiting-room/observer/${sessionId}`);
+      }
+    } catch (err) {
+      // If passcode is required or invalid, gracefully route to your existing join page
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.message || "";
+        if (
+          msg.includes("Passcode is required") ||
+          msg.includes("Invalid observer passcode")
+        ) {
+          toast.message("Observer passcode required — continue to join");
+          // Reuse your observer join page where user can enter passcode
+          router.push(`/join/observer/${sessionId}`);
+          return;
+        }
+        if (msg.includes("Session not found") || msg.includes("Project not found")) {
+          toast.error(msg);
+          return;
+        }
+      }
+      toast.error("Could not open session");
+    }
+  };
+  
 
   // Mutation to delete session
   const deleteSession = useMutation({
@@ -208,7 +271,7 @@ const Sessions = () => {
             onPageChange={setPage}
             // onRowClick={(id) => router.push(`/session-details/${id}`)}
             onModerate={(id) => startMeeting.mutate(id)}
-            onObserve={(id) => router.push(`/session-details/${id}/observe`)}
+            onObserve={handleModerateClick}
             onAction={(action, session) => {
               switch (action) {
                 case "edit":

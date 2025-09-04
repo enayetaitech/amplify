@@ -10,6 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import api from "lib/api";
 import axios from "axios";
 import { toast } from "sonner";
+import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 
 const observerJoinSchema = z.object({
   name: z.string().nonempty("Name is required"),
@@ -17,6 +18,8 @@ const observerJoinSchema = z.object({
   passcode: z.string().min(1, "Passcode is required"),
 });
 type ObserverJoinData = z.infer<typeof observerJoinSchema>;
+type LatestSessionRes = { sessionId: string; status: "ongoing" | "upcoming" };
+
 
 const ObserverJoinMeeting: React.FC = () => {
   const router = useRouter();
@@ -48,9 +51,7 @@ const ObserverJoinMeeting: React.FC = () => {
   }
 
   async function resolveProjectToSession(projectId: string) {
-    const res = await api.get<{
-      data: { sessionId: string; status: "ongoing" | "upcoming" };
-    }>(`/api/v1/sessions/project/${projectId}/latest`, {
+    const res = await api.get<ApiResponse<LatestSessionRes>>(`/api/v1/sessions/project/${projectId}/latest`, {
       params: { role: "Observer" },
     });
     return res.data.data;
@@ -69,15 +70,13 @@ const ObserverJoinMeeting: React.FC = () => {
       }
 
       // Resolve latest for observer semantics
-      let resolved;
+      let resolved: LatestSessionRes;
+
       try {
         resolved = await resolveProjectToSession(projectId);
-      } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-          toast.error("No current or upcoming session");
-          return;
-        }
-        throw err;
+      } catch  {
+          toast.error("No current or upcoming session for this project.");
+        return;
       }
 
       // Enqueue; server decides waiting room vs stream by ongoing flag
@@ -106,16 +105,6 @@ const ObserverJoinMeeting: React.FC = () => {
     }
   };
 
-  // subscribe to real‐time observer waiting‐room updates
-  // useEffect(() => {
-  //   const handleUpdate = (list: IObserverWaitingUser[]) => {
-  //     console.log('observer waiting room now has', list.length, 'members');
-  //   };
-  //   onObserverWaitingRoomUpdate(handleUpdate);
-  //   return () => {
-  //     offObserverWaitingRoomUpdate(handleUpdate);
-  //   };
-  // }, [onObserverWaitingRoomUpdate, offObserverWaitingRoomUpdate]);
 
   return (
     <div className="max-w-md mx-auto mt-12 p-6 bg-white rounded-lg shadow">

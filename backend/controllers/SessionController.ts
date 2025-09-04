@@ -306,6 +306,7 @@ export const getLatestSessionForProject = async (
         endAtEpoch: sess.endAtEpoch,
       };
       sendResponse(res, data, "Resolved latest session (ongoing)", 200);
+      return;
     }
 
     // 2) None ongoing via LiveSession
