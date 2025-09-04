@@ -95,7 +95,42 @@ export async function serverDisableCamera(params: {
   return true;
 }
 
+/** NEW: server-side moderation helper – toggle  a participant's screenshare */
+export async function serverAllowScreenshare(params: {
+  roomName: string;
+  identity: string;
+  allow: boolean; 
+}): Promise<boolean> {
+  const { roomName, identity, allow } = params;
 
+  const participants = await roomService.listParticipants(roomName);
+  const p = participants.find(pi => pi.identity === identity);
+  if (!p) return false;
+
+  // participant.permission?.canPublishSources may be undefined/empty (meaning "all"),
+  // but for Participants your grant uses an explicit list (MIC + CAMERA). Keep the pattern.  // ← see your token grant
+  const prevPerm: any = (p as any).permission || {};
+  const prevSources: TrackSource[] = prevPerm.canPublishSources ?? [];
+
+  const add = [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO];
+  const nextSources = allow
+    ? Array.from(new Set([...prevSources, ...add]))
+    : prevSources.filter(s => !add.includes(s));
+
+  await roomService.updateParticipant(roomName, identity, {
+    permission: { ...prevPerm, canPublishSources: nextSources },
+  });
+
+  // If revoking, also hard-stop any active screenshare tracks published by this participant.
+  if (!allow) {
+    for (const t of (p.tracks || [])) {
+      if (t?.sid && (t.source === TrackSource.SCREEN_SHARE || t.source === TrackSource.SCREEN_SHARE_AUDIO)) {
+        await roomService.mutePublishedTrack(roomName, identity, t.sid, true);
+      }
+    }
+  }
+  return true;
+}
 
 export async function ensureRoom(roomName: string) {
  console.log(roomName)
