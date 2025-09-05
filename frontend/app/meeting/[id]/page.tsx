@@ -24,6 +24,7 @@ import { useGlobalContext } from "context/GlobalContext";
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
 import { Button } from "../../../components/ui/button";
+import { toast } from "sonner";
 
 declare global {
   interface Window {
@@ -98,7 +99,6 @@ async function fetchLiveKitToken(sessionId: string, role: ServerRole) {
 }
 
 /** --- helpers --- */
-/** --- helpers --- */
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 
 function emailFromIdentity(identity?: string): string | null {
@@ -134,6 +134,7 @@ function ParticipantsPanel({
   socket: Socket | null;
   myEmail?: string | null;
 }) {
+  const [busy, setBusy] = useState<null | "start" | "stop">(null);
   const all = useParticipants(); // from LiveKit context
   const remotes = all.filter((p) => !p.isLocal); // don't show a mute button for self
 
@@ -148,6 +149,30 @@ function ParticipantsPanel({
         if (!ack?.ok) console.error(ack?.error || "Bulk screenshare failed");
       }
     );
+  };
+
+
+
+  const canControlStream = role === "admin" || role === "moderator";
+
+  const onStartStream = () => {
+    if (!socket) return;
+    setBusy("start");
+    socket.emit("meeting:stream:start", {}, (ack?: { ok?: boolean; error?: string }) => {
+      setBusy(null);
+      if (ack?.ok) toast.success("Streaming started");
+      else toast.error(ack?.error || "Failed to start streaming");
+    });
+  };
+
+  const onStopStream = () => {
+    if (!socket) return;
+    setBusy("stop");
+    socket.emit("meeting:stream:stop", {}, (ack?: { ok?: boolean; error?: string }) => {
+      setBusy(null);
+      if (ack?.ok) toast.success("Streaming stopped");
+      else toast.error(ack?.error || "Failed to stop streaming");
+    });
   };
 
   return (
@@ -172,6 +197,16 @@ function ParticipantsPanel({
         >
           Revoke all
         </Button>
+        {canControlStream && (
+        <div className="mb-3 flex items-center gap-2">
+          <Button onClick={onStartStream} disabled={busy === "start"}>
+            Start Stream
+          </Button>
+          <Button variant="destructive" onClick={onStopStream} disabled={busy === "stop"}>
+            Stop Stream
+          </Button>
+        </div>
+      )}
       </div>
 
       <div className="space-y-2">
@@ -454,6 +489,8 @@ function ScreenshareControl({
     </Button>
   );
 }
+
+
 export default function Meeting() {
   const router = useRouter();
 

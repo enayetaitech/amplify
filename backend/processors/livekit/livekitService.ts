@@ -1,7 +1,7 @@
 // src/processors/livekit/livekitService.ts
 import config from "../../config/index";
 
-import { AccessToken, RoomServiceClient, TrackSource, TrackType, VideoGrant } from "livekit-server-sdk";
+import { AccessToken, EgressClient, EncodedFileType, RoomServiceClient, S3Upload, SegmentedFileOutput, TrackSource, TrackType, VideoGrant } from "livekit-server-sdk";
 
 export type LivekitRole = 'Admin' | 'Moderator' | 'Participant' | 'Observer';
 
@@ -13,6 +13,11 @@ export const roomService = new RoomServiceClient(
   apiKey,
   apiSecret
 );
+
+// Egress client points to the same LiveKit host you already use.
+// If your server requires https:// instead of wss://, most deployments accept the same base.
+// You can also expose a dedicated HTTP URL in config later if needed.
+const egress = new EgressClient(config.livekit_ws_url!, apiKey, apiSecret);
 
 export async function issueRoomToken(params: {
   identity: string;          // user id
@@ -132,22 +137,110 @@ export async function serverAllowScreenshare(params: {
   return true;
 }
 
-export async function ensureRoom(roomName: string) {
- console.log(roomName)
-}
-/** stubs to wire into start/end session; we’ll fill these next */
-export async function startHlsEgress(roomName: string): Promise<{
-  egressId: string; playbackUrl: string | null; playlistName: string;
-}> {
- 
+export async function ensureRoom(
+  roomName: string,
+  opts?: {
+    metadata?: any;
+    emptyTimeout?: number;     // seconds
+    maxParticipants?: number;
+  }
+) {
+  // Older SDK signature: listRooms(names?: string[])
+  let existing = (await roomService.listRooms([roomName]))
+    .find(r => r.name === roomName);
 
-  
-  return { egressId: '', playbackUrl: "hbjh", playlistName: 'live.m3u8' };
+  // (Optional) fallback for environments where listRooms() has no filter arg
+  if (!existing) {
+    const all = await roomService.listRooms();
+    existing = all.find(r => r.name === roomName);
+  }
+
+  if (existing) return existing;
+
+  // Create if not found
+  return await roomService.createRoom({
+    name: roomName,
+    emptyTimeout: opts?.emptyTimeout ?? 60 * 60, // 1 hour
+    maxParticipants: opts?.maxParticipants ?? 300,
+    metadata: opts?.metadata ? JSON.stringify(opts.metadata) : undefined,
+  });
+}
+
+/** stubs to wire into start/end session; we’ll fill these next */
+function hlsPaths(roomName: string) {
+  const base = (config as any).hls_base_url || process.env.HLS_PUBLIC_BASE || ""; // HLS_CDN_BASE or HLS_PUBLIC_BASE
+  const prefix = process.env.HLS_PREFIX || "hls";
+
+  const dir = `${prefix}/${encodeURIComponent(roomName)}`;
+  const playlistName = "index.m3u8";
+  const livePlaylistName = "live.m3u8";
+
+  return {
+    filenamePrefix: `${dir}/segment`,
+    playlistName,
+    livePlaylistName,
+    liveUrl: base ? `${base.replace(/\/+$/,"")}/${dir}/${livePlaylistName}` : null,
+    vodUrl: base ? `${base.replace(/\/+$/,"")}/${dir}/${playlistName}` : null,
+  };
+}
+
+export async function startHlsEgress(roomName: string): Promise<{
+  egressId: string;
+  playbackUrl: string | null;
+  playlistName: string;
+}> {
+  // S3 creds from your config mapping
+  const s3AccessKey = config.s3_access_key;
+  const s3SecretKey = config.s3_secret_access_key;
+  const s3Bucket = config.s3_bucket_name;
+  const s3Region = config.s3_bucket_region;
+
+  if (!s3AccessKey || !s3SecretKey || !s3Bucket || !s3Region) {
+    throw new Error("Missing S3 configuration (S3_ACCESS_KEY, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME, S3_REGION).");
+  }
+
+  const { filenamePrefix, playlistName, livePlaylistName, liveUrl } = hlsPaths(roomName);
+
+  // ✅ Use SegmentedFileOutput + S3Upload (defaults to HLS)
+  const segments = new SegmentedFileOutput({
+    filenamePrefix,
+    playlistName,
+    livePlaylistName,
+    segmentDuration: 2,
+    output: {
+      case: "s3",
+      value: new S3Upload({
+        accessKey: s3AccessKey,
+        secret: s3SecretKey,
+        bucket: s3Bucket,
+        region: s3Region,
+        endpoint: process.env.S3_ENDPOINT || undefined,
+        forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true" || undefined,
+      }),
+    },
+  });
+
+  // ✅ layout goes in the 3rd arg; omit encodingOptions to avoid TS mismatch on your SDK
+  const info = await egress.startRoomCompositeEgress(roomName, { segments }, { layout: "grid" });
+
+  return {
+    egressId: info.egressId!,
+    playbackUrl: liveUrl,            // observers should play this .m3u8
+    playlistName: livePlaylistName,  // "live.m3u8"
+  };
 }
 
 export async function stopHlsEgress(egressId?: string | null) {
-
+  if (!egressId) return;
+  try {
+    await egress.stopEgress(egressId);
+  } catch (err) {
+    // If already stopped, keep UX smooth
+    console.warn("stopHlsEgress: stopEgress error (ignored):", (err as any)?.message || err);
+  }
 }
+
+
 
 export async function startFileEgress(roomName: string): Promise<{ egressId: string }> {
   

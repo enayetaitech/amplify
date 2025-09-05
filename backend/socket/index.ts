@@ -16,11 +16,16 @@ import {
 } from "../processors/livekit/admitTokenService";
 import { TrackSource, TrackType } from "@livekit/protocol";
 import {
+  ensureRoom,
   roomService,
   serverAllowScreenshare,
   serverDisableCamera,
   serverMuteMicrophone,
+  startHlsEgress,
+  stopHlsEgress,
 } from "../processors/livekit/livekitService";
+import { SessionModel } from "../model/SessionModel";
+import { LiveSessionModel } from "../model/LiveSessionModel";
 
 // In-memory map to find a participant socket by email within a session
 // sessionId -> (email -> socketId)
@@ -29,6 +34,12 @@ const identityIndex = new Map<string, Map<string, string>>();
 
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
+
+// helper mirrors the format you already use for tokens: project_<projectId>_session_<sessionId>
+function roomNameForSession(session: { _id: Types.ObjectId; projectId: Types.ObjectId | { _id: Types.ObjectId } }) {
+  const pid = (session.projectId as any)?._id || session.projectId;
+  return `project_${String(pid)}_session_${String(session._id)}`; 
+}
 
 export function attachSocket(server: HTTPServer) {
   const io = new Server(server, {
@@ -178,6 +189,80 @@ export function attachSocket(server: HTTPServer) {
       });
     });
 
+    // --- NEW: Start HLS stream (admin/mod only) ---
+    socket.on("meeting:stream:start", async (_payload, ack?: (r: {ok?: boolean; error?: string}) => void) => {
+      console.log('start stream', role)
+      if (!["Moderator", "Admin"].includes(role)) {
+        return ack?.({ ok: false, error: "Forbidden" });
+      }
+      try {
+        // find session + compute LiveKit roomName
+        const session = await SessionModel.findById(sessionId).lean();
+        if (!session) throw new Error("Session not found");
+
+        const roomName = roomNameForSession(session as any);
+        await ensureRoom(roomName); // idempotent: create if not exists
+
+        // start HLS egress and persist to LiveSession
+        const hls = await startHlsEgress(roomName); // returns { egressId, playbackUrl, playlistName }
+        const live = await LiveSessionModel.findOneAndUpdate(
+          { sessionId: new Types.ObjectId(sessionId) },
+          {
+            $set: {
+              ongoing: true,
+              hlsEgressId: hls.egressId ?? null,
+              hlsPlaybackUrl: hls.playbackUrl ?? null,
+              hlsPlaylistName: hls.playlistName ?? null,
+              startTime: new Date(),
+            },
+          },
+          { upsert: true, new: true }
+        );
+console.log("Playback URL", live)
+console.log('hls', hls)
+        // tell all observers in this session that streaming is live
+        io.to(rooms.observer).emit("observer:stream:started", {
+          playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
+        });
+
+        return ack?.({ ok: true });
+      } catch (e: any) {
+        console.error("meeting:stream:start failed", e);
+        return ack?.({ ok: false, error: e?.message || "Failed to start stream" });
+      }
+    });
+
+    // --- NEW: Stop HLS stream (admin/mod only) ---
+    socket.on("meeting:stream:stop", async (_payload, ack?: (r: {ok?: boolean; error?: string}) => void) => {
+      console.log('stop stream', role)
+      if (!["Moderator", "Admin"].includes(role)) {
+        return ack?.({ ok: false, error: "Forbidden" });
+      }
+      try {
+        const live = await LiveSessionModel.findOne({ sessionId: new Types.ObjectId(sessionId) });
+        if (live?.hlsEgressId) {
+          await stopHlsEgress(live.hlsEgressId); // you already use this in endMeeting
+        }
+
+        await LiveSessionModel.updateOne(
+          { sessionId: new Types.ObjectId(sessionId) },
+          {
+            $set: { ongoing: true }, // meeting may continue; only stream stops
+            $unset: { hlsEgressId: 1, hlsPlaybackUrl: 1, hlsPlaylistName: 1 },
+          }
+        );
+
+        console.log("stopped stream", live)
+        // notify observers to switch back to waiting UI in a later step
+        io.to(rooms.observer).emit("observer:stream:stopped", {});
+
+        return ack?.({ ok: true });
+      } catch (e: any) {
+        console.error("meeting:stream:stop failed", e);
+        return ack?.({ ok: false, error: e?.message || "Failed to stop stream" });
+      }
+    });
+
     /**
      * Moderator/Admin → force-mute a participant's microphone.
      * Payload: { targetEmail: string }
@@ -289,90 +374,112 @@ export function attachSocket(server: HTTPServer) {
       }
     );
 
-// -- allow/revoke for a single participant
-socket.on(
-  "meeting:screenshare:allow",
-  async (
-    payload: { targetEmail?: string; targetIdentity?: string; allow: boolean },
-    ack?: (resp: { ok: boolean; error?: string }) => void
-  ) => {
-    try {
-      if (!(role === "Admin" || role === "Moderator")) {
-        return ack?.({ ok: false, error: "forbidden" });
-      }
-      if (!payload?.allow && payload?.allow !== false) {
-        return ack?.({ ok: false, error: "bad_request" });
-      }
-      if (!payload?.targetEmail && !payload?.targetIdentity) {
-        return ack?.({ ok: false, error: "bad_request" });
-      }
-
-      const identity =
-        payload.targetIdentity ||
-        participantIdentity(sessionId, payload.targetEmail!);
-
-      const ok = await serverAllowScreenshare({
-        roomName: sessionId,
-        identity,
-        allow: payload.allow,
-      });
-      if (!ok) return ack?.({ ok: false, error: "not_found_or_failed" });
-
-      // If we revoked, nudge client to stop local capture promptly (UX).
-      if (!payload.allow) {
-        const targetId =
-          (payload.targetEmail &&
-            emailIndex.get(sessionId)?.get(payload.targetEmail.toLowerCase())) ||
-          (payload.targetIdentity &&
-            identityIndex.get(sessionId)?.get(payload.targetIdentity.toLowerCase()));
-        if (targetId) io.to(targetId).emit("meeting:force-stop-screenshare", {});
-      }
-
-      return ack?.({ ok: true });
-    } catch (e: any) {
-      return ack?.({ ok: false, error: e?.message || "internal_error" });
-    }
-  }
-);
-
-// -- allow/revoke for ALL participants in a room (one go)
-socket.on(
-  "meeting:screenshare:allow-all",
-  async (
-    payload: { allow: boolean },
-    ack?: (resp: { ok: boolean; updated: number; error?: string }) => void
-  ) => {
-    try {
-      if (!(role === "Admin" || role === "Moderator")) {
-        return ack?.({ ok: false, updated: 0, error: "forbidden" });
-      }
-      const participants = await roomService.listParticipants(sessionId);
-      let updated = 0;
-      for (const pi of participants) {
-        // Skip moderators/admins (they already can share by default).
-        const meta = (() => { try { return JSON.parse(pi.metadata || "{}"); } catch { return {}; } })();
-        const theirRole = (meta?.role as string) || "";
-        if (theirRole === "Admin" || theirRole === "Moderator") continue;
-
-        const ok = await serverAllowScreenshare({
-          roomName: sessionId,
-          identity: pi.identity!,
-          allow: payload.allow,
-        });
-        if (ok) {
-          updated++;
-          if (!payload.allow) {
-            const targetId = identityIndex.get(sessionId)?.get(pi.identity!.toLowerCase());
-            if (targetId) io.to(targetId).emit("meeting:force-stop-screenshare", {});
+    // -- allow/revoke for a single participant
+    socket.on(
+      "meeting:screenshare:allow",
+      async (
+        payload: {
+          targetEmail?: string;
+          targetIdentity?: string;
+          allow: boolean;
+        },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!(role === "Admin" || role === "Moderator")) {
+            return ack?.({ ok: false, error: "forbidden" });
           }
+          if (!payload?.allow && payload?.allow !== false) {
+            return ack?.({ ok: false, error: "bad_request" });
+          }
+          if (!payload?.targetEmail && !payload?.targetIdentity) {
+            return ack?.({ ok: false, error: "bad_request" });
+          }
+
+          const identity =
+            payload.targetIdentity ||
+            participantIdentity(sessionId, payload.targetEmail!);
+
+          const ok = await serverAllowScreenshare({
+            roomName: sessionId,
+            identity,
+            allow: payload.allow,
+          });
+          if (!ok) return ack?.({ ok: false, error: "not_found_or_failed" });
+
+          // If we revoked, nudge client to stop local capture promptly (UX).
+          if (!payload.allow) {
+            const targetId =
+              (payload.targetEmail &&
+                emailIndex
+                  .get(sessionId)
+                  ?.get(payload.targetEmail.toLowerCase())) ||
+              (payload.targetIdentity &&
+                identityIndex
+                  .get(sessionId)
+                  ?.get(payload.targetIdentity.toLowerCase()));
+            if (targetId)
+              io.to(targetId).emit("meeting:force-stop-screenshare", {});
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
         }
       }
-      return ack?.({ ok: true, updated });
-    } catch (e: any) {
-      return ack?.({ ok: false, updated: 0, error: e?.message || "internal_error" });
-    }
-  }
-);
+    );
+
+    // -- allow/revoke for ALL participants in a room (one go)
+    socket.on(
+      "meeting:screenshare:allow-all",
+      async (
+        payload: { allow: boolean },
+        ack?: (resp: { ok: boolean; updated: number; error?: string }) => void
+      ) => {
+        try {
+          if (!(role === "Admin" || role === "Moderator")) {
+            return ack?.({ ok: false, updated: 0, error: "forbidden" });
+          }
+          const participants = await roomService.listParticipants(sessionId);
+          let updated = 0;
+          for (const pi of participants) {
+            // Skip moderators/admins (they already can share by default).
+            const meta = (() => {
+              try {
+                return JSON.parse(pi.metadata || "{}");
+              } catch {
+                return {};
+              }
+            })();
+            const theirRole = (meta?.role as string) || "";
+            if (theirRole === "Admin" || theirRole === "Moderator") continue;
+
+            const ok = await serverAllowScreenshare({
+              roomName: sessionId,
+              identity: pi.identity!,
+              allow: payload.allow,
+            });
+            if (ok) {
+              updated++;
+              if (!payload.allow) {
+                const targetId = identityIndex
+                  .get(sessionId)
+                  ?.get(pi.identity!.toLowerCase());
+                if (targetId)
+                  io.to(targetId).emit("meeting:force-stop-screenshare", {});
+              }
+            }
+          }
+          return ack?.({ ok: true, updated });
+        } catch (e: any) {
+          return ack?.({
+            ok: false,
+            updated: 0,
+            error: e?.message || "internal_error",
+          });
+        }
+      }
+    );
 
     socket.on("disconnect", () => {
       if (email && emailIndex.get(sessionId)) {

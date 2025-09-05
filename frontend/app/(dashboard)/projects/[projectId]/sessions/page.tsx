@@ -50,7 +50,6 @@ const Sessions = () => {
     projectId as string
   );
 
-  console.log('project', project);
 
   const tzPretty = useMemo(() => {
     if (!project?.defaultTimeZone) return "";

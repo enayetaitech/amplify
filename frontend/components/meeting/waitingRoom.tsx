@@ -23,7 +23,6 @@ export default function ModeratorWaitingPanel() {
   const socketRef = useRef<Socket | null>(null);
   const joinedRef = useRef(false);
   
-  console.log("sessionId", sessionId);
 
   // For demo: “me” as Moderator (in prod, JWT-protected page)
   const me = useMemo(
