@@ -9,7 +9,7 @@ const apiKey = config.livekit_api_key!;
 const apiSecret = config.livekit_api_secret!;
 
 export const roomService = new RoomServiceClient(
-  config.livekit_api_url!, // LIVEKIT_HOST
+  config.livekit_ws_url!, // LIVEKIT_HOST
   apiKey,
   apiSecret
 );

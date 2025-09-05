@@ -10231,6 +10231,7 @@ import EditSessionModal, {
 import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { useProject } from "hooks/useProject";
 import { formatUiTimeZone } from "utils/timezones";
+import { IUser } from "@shared/interface/UserInterface";
 
 interface EditSessionInput {
   id: string;
@@ -10255,6 +10256,8 @@ const Sessions = () => {
     projectId as string
   );
 
+  console.log('project', project);
+
   const tzPretty = useMemo(() => {
     if (!project?.defaultTimeZone) return "";
     // Use the project's startDate if you want the offset for that exact date (DST-correct),
@@ -10262,6 +10265,19 @@ const Sessions = () => {
     const atDate = project.startDate ?? undefined;
     return formatUiTimeZone(project.defaultTimeZone, atDate);
   }, [project?.defaultTimeZone, project?.startDate]);
+
+    // ✅ read logged-in user (already set elsewhere via /api/v1/users/me)
+    const me: IUser | null =
+    typeof window !== "undefined"
+      ? (() => {
+          try {
+            const raw = localStorage.getItem("user");
+            return raw ? JSON.parse(raw) : null;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
 
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
@@ -10324,6 +10340,53 @@ const Sessions = () => {
       toast.error(fallback);
     },
   });
+
+  // Handle moderate session 
+
+  const handleModerateClick = async (sessionId: string) => {
+    const name = me?.firstName + " " + me?.lastName;
+    const email = me?.email;
+    
+    try {
+      // Try one-time enqueue as Observer (uses your existing /enqueue controller)
+      const resp = await api.post<{
+        data: { action: "stream" | "waiting_room"; sessionId: string };
+      }>("/api/v1/waiting-room/enqueue", {
+        sessionId,
+        name,
+        email,
+        role: "Observer",
+       passcode: project?.projectPasscode,
+      });
+
+      const action = resp.data?.data?.action;
+      if (action === "stream") {
+        router.push(`/meeting/${sessionId}?role=Observer`);
+      } else {
+        router.push(`/waiting-room/observer/${sessionId}`);
+      }
+    } catch (err) {
+      // If passcode is required or invalid, gracefully route to your existing join page
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.message || "";
+        if (
+          msg.includes("Passcode is required") ||
+          msg.includes("Invalid observer passcode")
+        ) {
+          toast.message("Observer passcode required — continue to join");
+          // Reuse your observer join page where user can enter passcode
+          router.push(`/join/observer/${sessionId}`);
+          return;
+        }
+        if (msg.includes("Session not found") || msg.includes("Project not found")) {
+          toast.error(msg);
+          return;
+        }
+      }
+      toast.error("Could not open session");
+    }
+  };
+  
 
   // Mutation to delete session
   const deleteSession = useMutation({
@@ -10414,7 +10477,7 @@ const Sessions = () => {
             onPageChange={setPage}
             // onRowClick={(id) => router.push(`/session-details/${id}`)}
             onModerate={(id) => startMeeting.mutate(id)}
-            onObserve={(id) => router.push(`/session-details/${id}/observe`)}
+            onObserve={handleModerateClick}
             onAction={(action, session) => {
               switch (action) {
                 case "edit":
@@ -10472,7 +10535,6 @@ const Sessions = () => {
 };
 
 export default Sessions;
-
 
 ```
 
@@ -27970,3 +28032,31 @@ Target release: …
 - [ ] Rate limits; retries; idempotency on admits/removes
 - [ ] Index review for all new collections
 - [ ] Load test: 100 concurrent participants + 50 observers
+
+
+
+Now as observer is landing in the meeting room correctly. i want to implement the streaming feature. can you please do that
+
+Now give me code for following. 
+
+when observer will hit submit button from the observer join page that time they should go to the waiting room or meeting page based on meeting started or not.
+
+can you give me all relevant backend and frontend code.
+
+make sure your code match with my existing code style.
+
+Also make sure not to make unnecessary changes. 
+
+Observer can join the meeting (meaning see the streaming, check full_livekit_code.md in your files) from observer join meeting page or from session table by clicking moderate button. 
+
+if meeting started then they should be able to see the streaming. if meeting not started they should be land in the observer waiting room and should be able to chat with other observer. if meeting started they should be able to see the streaming, see participant group chat in the side bar, chat with moderator and other observer
+
+
+only in the initial join the api call will be made otherwise socket will be used.
+
+please give me a flow plan. also tell me do i create seperate page for observer or observer should also land in the meeting page for streaming.
+
+no code. only planning.
+
+ask me any question if you have doubt
+

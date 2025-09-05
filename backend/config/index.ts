@@ -45,6 +45,6 @@ export default {
 
   livekit_api_key: process.env.LIVEKIT_API_KEY,
   livekit_api_secret: process.env.LIVEKIT_API_SECRET,
-  livekit_api_url: process.env.LIVEKIT_HOST,
+  livekit_ws_url: process.env.LIVEKIT_WS_URL,
  
 };
