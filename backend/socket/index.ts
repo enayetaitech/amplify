@@ -69,6 +69,10 @@ export function attachSocket(server: HTTPServer) {
     // Join waiting room by default; participant/observer wait here
     socket.join(rooms.waiting);
 
+    if (["Observer", "Moderator", "Admin"].includes(role)) {
+      socket.join(rooms.observer);
+    }
+
     // Track email -> socket (only if email present)
     if (email) {
       if (!emailIndex.has(sessionId)) emailIndex.set(sessionId, new Map());
@@ -201,19 +205,24 @@ export function attachSocket(server: HTTPServer) {
         if (!session) throw new Error("Session not found");
 
         const roomName = roomNameForSession(session as any);
-        await ensureRoom(roomName); // idempotent: create if not exists
+        await ensureRoom(roomName); 
 
+        const existing = await LiveSessionModel.findOne({ sessionId: new Types.ObjectId(sessionId) }).lean();
+
+        if (existing?.streaming) return ack?.({ ok: false, error: "Already streaming" });
+    
         // start HLS egress and persist to LiveSession
         const hls = await startHlsEgress(roomName); // returns { egressId, playbackUrl, playlistName }
         const live = await LiveSessionModel.findOneAndUpdate(
           { sessionId: new Types.ObjectId(sessionId) },
           {
             $set: {
-              ongoing: true,
+              streaming: true,
+          hlsStartedAt: new Date(),
               hlsEgressId: hls.egressId ?? null,
               hlsPlaybackUrl: hls.playbackUrl ?? null,
               hlsPlaylistName: hls.playlistName ?? null,
-              startTime: new Date(),
+              
             },
           },
           { upsert: true, new: true }
@@ -247,7 +256,10 @@ console.log('hls', hls)
         await LiveSessionModel.updateOne(
           { sessionId: new Types.ObjectId(sessionId) },
           {
-            $set: { ongoing: true }, // meeting may continue; only stream stops
+            $set: { 
+              streaming: false,
+              hlsStoppedAt: new Date(),
+             }, // meeting may continue; only stream stops
             $unset: { hlsEgressId: 1, hlsPlaybackUrl: 1, hlsPlaylistName: 1 },
           }
         );

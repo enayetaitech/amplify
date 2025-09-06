@@ -35,7 +35,7 @@ export default {
   s3_bucket_name: process.env.S3_BUCKET_NAME,
   s3_bucket_region: process.env.S3_REGION,
 
-  hls_base_url: process.env.HLS_CDN_BASE,
+  hls_base_url: process.env.HLS_PUBLIC_BASE,
   
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
 
