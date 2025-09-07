@@ -83,7 +83,10 @@ const Sessions = () => {
       const res = await api.post<{ success?: boolean; message?: string }>(
         `/api/v1/liveSessions/${sessionId}/start`
       );
-      return res.data; // e.g. { success: true, ... } OR { success: false, message: "Session already ongoing" }
+      console.log('res.data', res.data)
+      return res.data;
+      
+      // e.g. { success: true, ... } OR { success: false, message: "Session already ongoing" }
     },
     onSuccess: (data, sessionId) => {
       const success = data?.success;

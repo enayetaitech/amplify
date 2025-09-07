@@ -1,5 +1,6 @@
 // src/processors/live/meetingProcessor.ts
 
+import { EgressClient, EncodedFileOutput, S3Upload } from "livekit-server-sdk";
 import config from "../../config/index";
 import { LiveSessionModel } from "../../model/LiveSessionModel";
 import { SessionModel } from "../../model/SessionModel";
@@ -9,8 +10,11 @@ import {
   startFileEgress,
   stopFileEgress,
   ensureRoom,
+  hlsPaths,
 } from "./livekitService";
 import mongoose from "mongoose";
+
+const egress = new EgressClient(config.livekit_api_url!, config.livekit_api_key!, config.livekit_api_secret!);
 
 type ObjectIdLike = string | mongoose.Types.ObjectId;
 
@@ -21,13 +25,15 @@ function makeRoomName(session: any) {
 
 export async function startMeeting(
   sessionId: ObjectIdLike,
-  startedBy: ObjectIdLike
+  startedBy: ObjectIdLike,
+  userRole: string
 ) {
   const session = await SessionModel.findById(sessionId);
 
   if (!session) throw new Error("Session not found");
 
   let live = await LiveSessionModel.findOne({ sessionId: session._id });
+
   if (!live) {
     live = await LiveSessionModel.create({ sessionId: session._id });
   }
@@ -37,22 +43,42 @@ export async function startMeeting(
 
   const roomName = makeRoomName(session);
 
-  await ensureRoom(roomName);
+  const createdRoom = await ensureRoom(roomName);
 
+  console.log("Created room", createdRoom);
 
-  const hls = await startHlsEgress(roomName); // { egressId, playbackUrl, playlistName }
-  const rec = await startFileEgress(roomName);
+  let egressInfo = null;
+
+try {
+  egressInfo = await startHlsEgress(roomName);
+} catch (e) {
+  console.error(
+    "HLS start error:",
+    e 
+  );
+}
+
+const { liveUrl, vodUrl} = hlsPaths(roomName);
+
+console.log('liveUrl', liveUrl)
+console.log('vodUrl', vodUrl)
 
   live.ongoing = true;
   live.startTime = new Date();
   live.startedBy = startedBy as any;
 
-  live.hlsPlaybackUrl = hls.playbackUrl ?? null;
-  live.hlsEgressId = hls.egressId ?? null;
-  live.hlsPlaylistName = hls.playlistName ?? null;
-  live.fileEgressId = rec.egressId ?? null;
+  live.hlsPlaybackUrl = liveUrl ?? null;
+  live.hlsEgressId = egressInfo?.egressId ?? null;
+  live.hlsPlaylistName = vodUrl ?? null;
+  live.fileEgressId =  null;
 
   await live.save();
+
+  console.log('room name', roomName)
+  console.log('hlsPlaybackUrl', live.hlsPlaybackUrl)
+  console.log('hlsEgressId', live.hlsEgressId)
+  console.log('hlsPlaylistName', live.hlsPlaylistName)
+  console.log('fileEgressId', live.fileEgressId)
 
   return {
     sessionId: String(session._id),

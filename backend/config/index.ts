@@ -34,8 +34,11 @@ export default {
   s3_secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
   s3_bucket_name: process.env.S3_BUCKET_NAME,
   s3_bucket_region: process.env.S3_REGION,
+  s3_endpoint: process.env.S3_ENDPOINT,
+  s3_force_path_style: process.env.S3_FORCE_PATH_STYLE,
 
-  hls_base_url: process.env.HLS_CDN_BASE,
+  hls_base_url: process.env.HLS_PUBLIC_BASE,
+  hls_prefix: process.env.HLS_PREFIX,
   
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
 
@@ -45,6 +48,7 @@ export default {
 
   livekit_api_key: process.env.LIVEKIT_API_KEY,
   livekit_api_secret: process.env.LIVEKIT_API_SECRET,
-  livekit_api_url: process.env.LIVEKIT_HOST,
+  livekit_api_url: process.env.LIVEKIT_API_URL,
+  livekit_ws_url: process.env.LIVEKIT_WS_URL,
  
 };

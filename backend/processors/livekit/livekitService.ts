@@ -1,9 +1,11 @@
 // src/processors/livekit/livekitService.ts
 import config from "../../config/index";
 
-import { AccessToken, RoomServiceClient, TrackSource, TrackType, VideoGrant } from "livekit-server-sdk";
+import { AccessToken, EgressClient, RoomServiceClient, S3Upload, SegmentedFileOutput, TrackSource, TrackType, VideoGrant } from "livekit-server-sdk";
 
 export type LivekitRole = 'Admin' | 'Moderator' | 'Participant' | 'Observer';
+// Track active HLS egress per room so we can stop on End
+const activeEgressByRoom = new Map();
 
 const apiKey = config.livekit_api_key!;
 const apiSecret = config.livekit_api_secret!;
@@ -13,6 +15,8 @@ export const roomService = new RoomServiceClient(
   apiKey,
   apiSecret
 );
+
+const egress = new EgressClient(config.livekit_api_url!, config.livekit_api_key!, config.livekit_api_secret!);
 
 export async function issueRoomToken(params: {
   identity: string;          // user id
@@ -133,16 +137,64 @@ export async function serverAllowScreenshare(params: {
 }
 
 export async function ensureRoom(roomName: string) {
- console.log(roomName)
+ try {
+  const room = await roomService.createRoom({
+    name: roomName,
+    emptyTimeout: 60 * 60,
+    maxParticipants: 500,
+  })
+  return room;
+ } catch (_) {
+  
+ }
 }
+
+const HLS_PUBLIC_BASE = config.hls_base_url;
+const HLS_PREFIX =  "hls";
+
+export function hlsPaths(roomName: string) {
+  const dir = `${HLS_PREFIX}/${encodeURIComponent(roomName)}`;
+
+  return {
+    filenamePrefix: `${dir}/segment`,
+    playlistName: "index.m3u8",
+    livePlaylistName: "live.m3u8",
+    liveUrl: HLS_PUBLIC_BASE ? `${HLS_PUBLIC_BASE}/${dir}/live.m3u8` : null,
+    vodUrl: HLS_PUBLIC_BASE ? `${HLS_PUBLIC_BASE}/${dir}/index.m3u8` : null,
+  };
+}
+
 /** stubs to wire into start/end session; we’ll fill these next */
 export async function startHlsEgress(roomName: string): Promise<{
   egressId: string; playbackUrl: string | null; playlistName: string;
 }> {
- 
+  const { filenamePrefix, playlistName, livePlaylistName } = hlsPaths(roomName);
 
-  
-  return { egressId: '', playbackUrl: "hbjh", playlistName: 'live.m3u8' };
+const segments = new SegmentedFileOutput({
+  filenamePrefix,
+    playlistName,
+    livePlaylistName,
+    segmentDuration: 2,
+    output: {
+      case: 's3',
+      value: new S3Upload({
+        accessKey: config.s3_access_key,
+        secret: config.s3_secret_access_key,
+        bucket: config.s3_bucket_name,
+        region: config.s3_bucket_region,
+        endpoint: config.s3_endpoint || undefined,
+        forcePathStyle: config.s3_force_path_style === 'true' || undefined,
+      })
+    }
+})
+
+const info = await egress.startRoomCompositeEgress(
+  roomName, {segments}, {layout: 'grid'}  // pick 'speaker' / 'single-speaker' / 'grid-light' if you prefer
+)
+
+console.log('egress info', info)
+
+return { egressId: info.egressId, playbackUrl: info.segmentResults[0].livePlaylistName, playlistName: info.segmentResults[0].playlistName };
 }
 
 export async function stopHlsEgress(egressId?: string | null) {
