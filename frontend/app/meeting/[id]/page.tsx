@@ -2,7 +2,7 @@
 
 import ModeratorWaitingPanel from "components/meeting/waitingRoom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   LiveKitRoom,
   GridLayout,
@@ -34,6 +34,12 @@ declare global {
 
 type UiRole = "admin" | "moderator" | "participant" | "observer";
 type ServerRole = "Admin" | "Moderator" | "Participant" | "Observer";
+const ROLE_MAP: Record<UiRole, ServerRole> = {
+  admin: "Admin",
+  moderator: "Moderator",
+  participant: "Participant",
+  observer: "Observer",
+};
 /** Enables cam (muted mic) once connected for admin/moderator */
 function AutoPublishOnConnect({ role }: { role: UiRole }) {
   const room = useRoomContext();
@@ -151,28 +157,34 @@ function ParticipantsPanel({
     );
   };
 
-
-
   const canControlStream = role === "admin" || role === "moderator";
 
   const onStartStream = () => {
     if (!socket) return;
     setBusy("start");
-    socket.emit("meeting:stream:start", {}, (ack?: { ok?: boolean; error?: string }) => {
-      setBusy(null);
-      if (ack?.ok) toast.success("Streaming started");
-      else toast.error(ack?.error || "Failed to start streaming");
-    });
+    socket.emit(
+      "meeting:stream:start",
+      {},
+      (ack?: { ok?: boolean; error?: string }) => {
+        setBusy(null);
+        if (ack?.ok) toast.success("Streaming started");
+        else toast.error(ack?.error || "Failed to start streaming");
+      }
+    );
   };
 
   const onStopStream = () => {
     if (!socket) return;
     setBusy("stop");
-    socket.emit("meeting:stream:stop", {}, (ack?: { ok?: boolean; error?: string }) => {
-      setBusy(null);
-      if (ack?.ok) toast.success("Streaming stopped");
-      else toast.error(ack?.error || "Failed to stop streaming");
-    });
+    socket.emit(
+      "meeting:stream:stop",
+      {},
+      (ack?: { ok?: boolean; error?: string }) => {
+        setBusy(null);
+        if (ack?.ok) toast.success("Streaming stopped");
+        else toast.error(ack?.error || "Failed to stop streaming");
+      }
+    );
   };
 
   return (
@@ -198,15 +210,19 @@ function ParticipantsPanel({
           Revoke all
         </Button>
         {canControlStream && (
-        <div className="mb-3 flex items-center gap-2">
-          <Button onClick={onStartStream} disabled={busy === "start"}>
-            Start Stream
-          </Button>
-          <Button variant="destructive" onClick={onStopStream} disabled={busy === "stop"}>
-            Stop Stream
-          </Button>
-        </div>
-      )}
+          <div className="mb-3 flex items-center gap-2">
+            <Button onClick={onStartStream} disabled={busy === "start"}>
+              Start Stream
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onStopStream}
+              disabled={busy === "stop"}
+            >
+              Stop Stream
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -223,8 +239,8 @@ function ParticipantsPanel({
           const label = name || email || identity;
 
           const isMe = !!myEmail && email === myEmail.toLowerCase();
-          const canAct = !isMe && !!socket; 
-          const canMute = !isMe && !!socket; 
+          const canAct = !isMe && !!socket;
+          const canMute = !isMe && !!socket;
           const targetPayload = email
             ? { targetEmail: email }
             : { targetIdentity: identity };
@@ -418,7 +434,7 @@ function ScreenshareControl({
 }) {
   const room = useRoomContext();
   const [allowed, setAllowed] = useState<boolean>(false);
-  const [sharing] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   // compute allowance: moderators/admins always; participants only if canPublishSources includes SCREEN_SHARE(_AUDIO)
   useEffect(() => {
@@ -472,11 +488,39 @@ function ScreenshareControl({
     };
   }, [room]);
 
-  if (!allowed) return null;
+  useEffect(() => {
+    const lp = room.localParticipant;
+    if (!lp) return;
+
+    const compute = () => {
+      const hasShare =
+        lp
+          .getTrackPublications()
+          .some((pub) => pub.source === Track.Source.ScreenShare) ||
+        lp
+          .getTrackPublications()
+          .some((pub) => pub.source === Track.Source.ScreenShareAudio);
+      setSharing(hasShare);
+    };
+
+    compute();
+
+    const onPub = () => compute();
+    const onUnpub = () => compute();
+
+    room.on(RoomEvent.LocalTrackPublished, onPub);
+    room.on(RoomEvent.LocalTrackUnpublished, onUnpub);
+    return () => {
+      room.off(RoomEvent.LocalTrackPublished, onPub);
+      room.off(RoomEvent.LocalTrackUnpublished, onUnpub);
+    };
+  }, [room]);
 
   const toggle = async () => {
     await room.localParticipant.setScreenShareEnabled(!sharing);
   };
+
+  if (!allowed) return null;
 
   return (
     <Button
@@ -490,9 +534,9 @@ function ScreenshareControl({
   );
 }
 
-
 export default function Meeting() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { id: sessionId } = useParams();
 
@@ -505,6 +549,12 @@ export default function Meeting() {
     if (user?.role === "Moderator") return "moderator";
     if (user?.role === "Observer") return "observer";
 
+    // honor query param role when provided (e.g., from observer join flow)
+    const qp = searchParams?.get("role");
+    if (qp === "Observer") return "observer";
+    if (qp === "Moderator") return "moderator";
+    if (qp === "Admin") return "admin";
+
     // participant from join flow
     if (typeof window !== "undefined") {
       const raw = localStorage.getItem("liveSessionUser");
@@ -515,7 +565,9 @@ export default function Meeting() {
     }
     // default to participant (or you can redirect)
     return "participant";
-  }, [user]);
+  }, [user, searchParams]);
+
+  const serverRole: ServerRole = useMemo(() => ROLE_MAP[role], [role]);
 
   // current user's name/email (dashboard or join flow)
   const my = useMemo(() => {
@@ -576,13 +628,6 @@ export default function Meeting() {
     }
 
     // 3) dashboard roles: call cookie-auth /token
-    const serverRole: ServerRole =
-      role === "admin"
-        ? "Admin"
-        : role === "moderator"
-        ? "Moderator"
-        : "Observer";
-
     (async () => {
       const lkToken = await fetchLiveKitToken(sessionId as string, serverRole); // your axios helper to /token
       if (!lkToken) {
@@ -593,7 +638,7 @@ export default function Meeting() {
       setToken(lkToken);
       setWsUrl(url);
     })();
-  }, [sessionId, role, router]);
+  }, [sessionId, role, serverRole, router]);
 
   // Connect socket (once we know session + my email)
   useEffect(() => {
@@ -604,10 +649,7 @@ export default function Meeting() {
       withCredentials: true,
       query: {
         sessionId: String(sessionId),
-        role:
-          (user?.role as ServerRole) ||
-          (my?.role as ServerRole) ||
-          (role === "participant" ? "Participant" : "Observer"),
+        role: serverRole,
         name: my?.name || "",
         email: my?.email || "",
       },
@@ -640,17 +682,8 @@ export default function Meeting() {
       s.off("meeting:force-camera-off");
       s.disconnect();
     };
-  }, [sessionId, my?.email, my?.name, my?.role, role, user?.role]);
+  }, [sessionId, my?.email, my?.name, serverRole]);
 
-  if (!token || !wsUrl) {
-    return (
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
-        <div className="col-span-12 m-auto text-gray-500">Connecting…</div>
-      </div>
-    );
-  }
-
-  // show loader until we have token & wsUrl
   if (!token || !wsUrl) {
     return (
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">

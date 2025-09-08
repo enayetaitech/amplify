@@ -134,9 +134,9 @@ const Sessions = () => {
     },
   });
 
-  // Handle moderate session 
+  // Handle observe session 
 
-  const handleModerateClick = async (sessionId: string) => {
+  const handleObserveClick = async (sessionId: string) => {
     const name = me?.firstName + " " + me?.lastName;
     const email = me?.email;
     
@@ -270,7 +270,7 @@ const Sessions = () => {
             onPageChange={setPage}
             // onRowClick={(id) => router.push(`/session-details/${id}`)}
             onModerate={(id) => startMeeting.mutate(id)}
-            onObserve={handleModerateClick}
+            onObserve={handleObserveClick}
             onAction={(action, session) => {
               switch (action) {
                 case "edit":

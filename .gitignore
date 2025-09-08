@@ -1,3 +1,5 @@
 frontend/.git
 .githooks/objects/
 /backend/dist/
+
+.cursor
