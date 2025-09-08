@@ -63,10 +63,9 @@ export default function BreakoutsPanel({
 
   const roomsList = useMemo(() => {
     const main = { value: "__main__", label: "Main" };
-    const bos = breakouts.map((b) => ({
-      value: b.livekitRoom,
-      label: `Breakout #${b.index}`,
-    }));
+    const bos = breakouts
+      .filter((b) => !b.closedAt)
+      .map((b) => ({ value: b.livekitRoom, label: `Breakout #${b.index}` }));
     return [main, ...bos];
   }, [breakouts]);
 
@@ -125,6 +124,21 @@ export default function BreakoutsPanel({
       }>(`/api/v1/livekit/${sessionId}/breakouts`);
       const d = res.data?.data;
       toast.success(`Breakout #${d?.index} created`);
+      if (d?.index && d?.roomName) {
+        setBreakouts((prev) => {
+          const next = [
+            ...prev,
+            {
+              sessionId,
+              index: d.index,
+              livekitRoom: d.roomName,
+              hls: d.playbackUrl ? { playbackUrl: d.playbackUrl } : undefined,
+            } as BreakoutItem,
+          ];
+          next.sort((a, b) => a.index - b.index);
+          return next;
+        });
+      }
     } catch {
       toast.error("Failed to create breakout");
     } finally {
@@ -145,6 +159,8 @@ export default function BreakoutsPanel({
   const close = async (idx: number) => {
     try {
       await api.post(`/api/v1/livekit/${sessionId}/breakouts/${idx}/close`);
+      // Optimistically remove from UI immediately
+      setBreakouts((prev) => prev.filter((b) => b.index !== idx));
     } catch {
       toast.error("Failed to close breakout");
     }
@@ -263,48 +279,50 @@ export default function BreakoutsPanel({
       {/* Active list */}
       <div className="border-t pt-3">
         <div className="font-semibold mb-2">Active breakouts</div>
-        {breakouts.length === 0 && (
+        {breakouts.filter((b) => !b.closedAt).length === 0 && (
           <div className="text-sm text-gray-500">None</div>
         )}
         <div className="space-y-2">
-          {breakouts.map((b) => (
-            <div
-              key={b.index}
-              className="flex items-center justify-between gap-2 border rounded p-2"
-            >
-              <div>
-                <div className="font-medium">Breakout #{b.index}</div>
-                {b.closesAt ? (
-                  <div className="text-xs text-gray-500">
-                    Closes at {new Date(b.closesAt).toLocaleTimeString()}
-                  </div>
-                ) : null}
-                {b.hls?.playbackUrl ? (
-                  <div className="text-xs">
-                    <a
-                      className="underline"
-                      href={b.hls.playbackUrl}
-                      target="_blank"
-                    >
-                      Open HLS
-                    </a>
-                  </div>
-                ) : null}
+          {breakouts
+            .filter((b) => !b.closedAt)
+            .map((b) => (
+              <div
+                key={b.index}
+                className="flex items-center justify-between gap-2 border rounded p-2"
+              >
+                <div>
+                  <div className="font-medium">Breakout #{b.index}</div>
+                  {b.closesAt ? (
+                    <div className="text-xs text-gray-500">
+                      Closes at {new Date(b.closesAt).toLocaleTimeString()}
+                    </div>
+                  ) : null}
+                  {b.hls?.playbackUrl ? (
+                    <div className="text-xs">
+                      <a
+                        className="underline"
+                        href={b.hls.playbackUrl}
+                        target="_blank"
+                      >
+                        Open HLS
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={() => extend(b.index, 5)}>
+                    +5 min
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => close(b.index)}
+                  >
+                    Close
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => extend(b.index, 5)}>
-                  +5 min
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => close(b.index)}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
     </div>

@@ -73,6 +73,7 @@ export const listBreakouts = async (
   }
   const items = await BreakoutRoom.find({
     sessionId: new Types.ObjectId(sessionId),
+    $or: [{ closedAt: { $exists: false } }, { closedAt: null }],
   })
     .sort({ index: 1 })
     .lean();
