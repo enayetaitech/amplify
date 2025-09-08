@@ -9,7 +9,12 @@ export interface BreakoutRoomDoc extends Document<Types.ObjectId> {
   closesAt?: Date;
   closedAt?: Date;
   recording?: { egressId?: string; startedAt?: Date; stoppedAt?: Date };
-  hls?: { playbackUrl?: string; startedAt?: Date; stoppedAt?: Date };
+  hls?: {
+    egressId?: string;
+    playbackUrl?: string;
+    startedAt?: Date;
+    stoppedAt?: Date;
+  };
 }
 
 const BreakoutRoomSchema = new Schema<BreakoutRoomDoc>(
@@ -20,7 +25,12 @@ const BreakoutRoomSchema = new Schema<BreakoutRoomDoc>(
     closesAt: Date,
     closedAt: Date,
     recording: { egressId: String, startedAt: Date, stoppedAt: Date },
-    hls: { playbackUrl: String, startedAt: Date, stoppedAt: Date },
+    hls: {
+      egressId: String,
+      playbackUrl: String,
+      startedAt: Date,
+      stoppedAt: Date,
+    },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

@@ -28,6 +28,7 @@ import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
 import { Button } from "../../../components/ui/button";
 import { toast } from "sonner";
+import BreakoutsPanel from "components/meeting/BreakoutsPanel";
 
 declare global {
   interface Window {
@@ -799,9 +800,7 @@ export default function Meeting() {
               featureFlags.breakoutsEnabled && (
                 <div className="mt-4">
                   <h4 className="font-semibold mb-2">Breakouts</h4>
-                  {/* You can render your BreakoutsPanel component here when available */}
-                  {/* <BreakoutsPanel parentRoom={String(sessionId)} role={role} /> */}
-                  <Button size="sm">Create Breakout</Button>
+                  <BreakoutsPanel sessionId={String(sessionId)} role={role} />
                 </div>
               )}
           </aside>

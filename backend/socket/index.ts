@@ -117,6 +117,8 @@ export function attachSocket(server: HTTPServer) {
               .get(sessionId)!
               .set(payload.email.toLowerCase(), socket.id);
           }
+          // Notify moderators/admin panels that the live participants list may have changed
+          io.to(sessionId).emit("meeting:participants-changed", {});
         } catch {}
       }
     );
@@ -522,6 +524,8 @@ export function attachSocket(server: HTTPServer) {
           if (sockId === socket.id) idMap.delete(idLower);
         }
       }
+      // Notify panels to refresh participant lists (may affect move UI)
+      io.to(sessionId).emit("meeting:participants-changed", {});
     });
   });
 
