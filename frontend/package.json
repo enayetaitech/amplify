@@ -39,6 +39,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "livekit-client": "^2.15.5",
+    "hls.js": "^1.6.10",
     "lucide-react": "^0.487.0",
     "luxon": "^3.7.1",
     "next": "15.2.4",

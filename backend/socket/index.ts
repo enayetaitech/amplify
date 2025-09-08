@@ -36,9 +36,12 @@ type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
 
 // helper mirrors the format you already use for tokens: project_<projectId>_session_<sessionId>
-function roomNameForSession(session: { _id: Types.ObjectId; projectId: Types.ObjectId | { _id: Types.ObjectId } }) {
+function roomNameForSession(session: {
+  _id: Types.ObjectId;
+  projectId: Types.ObjectId | { _id: Types.ObjectId };
+}) {
   const pid = (session.projectId as any)?._id || session.projectId;
-  return `project_${String(pid)}_session_${String(session._id)}`; 
+  return `project_${String(pid)}_session_${String(session._id)}`;
 }
 
 export function attachSocket(server: HTTPServer) {
@@ -194,86 +197,102 @@ export function attachSocket(server: HTTPServer) {
     });
 
     // --- NEW: Start HLS stream (admin/mod only) ---
-    socket.on("meeting:stream:start", async (_payload, ack?: (r: {ok?: boolean; error?: string}) => void) => {
-      console.log('start stream', role)
-      if (!["Moderator", "Admin"].includes(role)) {
-        return ack?.({ ok: false, error: "Forbidden" });
-      }
-      try {
-        // find session + compute LiveKit roomName
-        const session = await SessionModel.findById(sessionId).lean();
-        if (!session) throw new Error("Session not found");
+    socket.on(
+      "meeting:stream:start",
+      async (_payload, ack?: (r: { ok?: boolean; error?: string }) => void) => {
+        console.log("start stream", role);
+        if (!["Moderator", "Admin"].includes(role)) {
+          return ack?.({ ok: false, error: "Forbidden" });
+        }
+        try {
+          // LiveKit room name should match what clients join with (sessionId)
+          const session = await SessionModel.findById(sessionId).lean();
+          if (!session) throw new Error("Session not found");
 
-        const roomName = roomNameForSession(session as any);
-        await ensureRoom(roomName); 
+          const roomName = String(sessionId);
+          await ensureRoom(roomName);
 
-        const existing = await LiveSessionModel.findOne({ sessionId: new Types.ObjectId(sessionId) }).lean();
+          const existing = await LiveSessionModel.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+          }).lean();
 
-        if (existing?.streaming) return ack?.({ ok: false, error: "Already streaming" });
-    
-        // start HLS egress and persist to LiveSession
-        const hls = await startHlsEgress(roomName); // returns { egressId, playbackUrl, playlistName }
-        const live = await LiveSessionModel.findOneAndUpdate(
-          { sessionId: new Types.ObjectId(sessionId) },
-          {
-            $set: {
-              streaming: true,
-          hlsStartedAt: new Date(),
-              hlsEgressId: hls.egressId ?? null,
-              hlsPlaybackUrl: hls.playbackUrl ?? null,
-              hlsPlaylistName: hls.playlistName ?? null,
-              
+          if (existing?.streaming)
+            return ack?.({ ok: false, error: "Already streaming" });
+
+          // start HLS egress and persist to LiveSession
+          const hls = await startHlsEgress(roomName); // returns { egressId, playbackUrl, playlistName }
+          const live = await LiveSessionModel.findOneAndUpdate(
+            { sessionId: new Types.ObjectId(sessionId) },
+            {
+              $set: {
+                streaming: true,
+                hlsStartedAt: new Date(),
+                hlsEgressId: hls.egressId ?? null,
+                hlsPlaybackUrl: hls.playbackUrl ?? null,
+                hlsPlaylistName: hls.playlistName ?? null,
+              },
             },
-          },
-          { upsert: true, new: true }
-        );
-console.log("Playback URL", live)
-console.log('hls', hls)
-        // tell all observers in this session that streaming is live
-        io.to(rooms.observer).emit("observer:stream:started", {
-          playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
-        });
+            { upsert: true, new: true }
+          );
+          console.log("Playback URL", live);
+          console.log("hls", hls);
+          // tell all observers in this session that streaming is live
+          io.to(rooms.observer).emit("observer:stream:started", {
+            playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
+          });
 
-        return ack?.({ ok: true });
-      } catch (e: any) {
-        console.error("meeting:stream:start failed", e);
-        return ack?.({ ok: false, error: e?.message || "Failed to start stream" });
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          console.error("meeting:stream:start failed", e);
+          return ack?.({
+            ok: false,
+            error: e?.message || "Failed to start stream",
+          });
+        }
       }
-    });
+    );
 
     // --- NEW: Stop HLS stream (admin/mod only) ---
-    socket.on("meeting:stream:stop", async (_payload, ack?: (r: {ok?: boolean; error?: string}) => void) => {
-      console.log('stop stream', role)
-      if (!["Moderator", "Admin"].includes(role)) {
-        return ack?.({ ok: false, error: "Forbidden" });
-      }
-      try {
-        const live = await LiveSessionModel.findOne({ sessionId: new Types.ObjectId(sessionId) });
-        if (live?.hlsEgressId) {
-          await stopHlsEgress(live.hlsEgressId); // you already use this in endMeeting
+    socket.on(
+      "meeting:stream:stop",
+      async (_payload, ack?: (r: { ok?: boolean; error?: string }) => void) => {
+        console.log("stop stream", role);
+        if (!["Moderator", "Admin"].includes(role)) {
+          return ack?.({ ok: false, error: "Forbidden" });
         }
-
-        await LiveSessionModel.updateOne(
-          { sessionId: new Types.ObjectId(sessionId) },
-          {
-            $set: { 
-              streaming: false,
-              hlsStoppedAt: new Date(),
-             }, // meeting may continue; only stream stops
-            $unset: { hlsEgressId: 1, hlsPlaybackUrl: 1, hlsPlaylistName: 1 },
+        try {
+          const live = await LiveSessionModel.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+          });
+          if (live?.hlsEgressId) {
+            await stopHlsEgress(live.hlsEgressId); // you already use this in endMeeting
           }
-        );
 
-        console.log("stopped stream", live)
-        // notify observers to switch back to waiting UI in a later step
-        io.to(rooms.observer).emit("observer:stream:stopped", {});
+          await LiveSessionModel.updateOne(
+            { sessionId: new Types.ObjectId(sessionId) },
+            {
+              $set: {
+                streaming: false,
+                hlsStoppedAt: new Date(),
+              }, // meeting may continue; only stream stops
+              $unset: { hlsEgressId: 1, hlsPlaybackUrl: 1, hlsPlaylistName: 1 },
+            }
+          );
 
-        return ack?.({ ok: true });
-      } catch (e: any) {
-        console.error("meeting:stream:stop failed", e);
-        return ack?.({ ok: false, error: e?.message || "Failed to stop stream" });
+          console.log("stopped stream", live);
+          // notify observers to switch back to waiting UI in a later step
+          io.to(rooms.observer).emit("observer:stream:stopped", {});
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          console.error("meeting:stream:stop failed", e);
+          return ack?.({
+            ok: false,
+            error: e?.message || "Failed to stop stream",
+          });
+        }
       }
-    });
+    );
 
     /**
      * Moderator/Admin → force-mute a participant's microphone.

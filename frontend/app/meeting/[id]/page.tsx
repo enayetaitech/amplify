@@ -15,6 +15,7 @@ import {
   ScreenShareIcon,
 } from "@livekit/components-react";
 import { Track, RoomEvent } from "livekit-client";
+import Hls from "hls.js";
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import "@livekit/components-styles";
@@ -596,11 +597,12 @@ export default function Meeting() {
 
   const [wsUrl, setWsUrl] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [hlsUrl, setHlsUrl] = useState<string | null>(null);
 
   // 🔌 single meeting socket for this page
   const socketRef = useRef<Socket | null>(null);
 
-  // 1) fetch your existing start/join token (reuse your current API)
+  // 1) fetch start/join token (participants/admin/mod) OR HLS url (observers)
   useEffect(() => {
     if (!sessionId) return;
 
@@ -610,7 +612,7 @@ export default function Meeting() {
       return;
     }
 
-    // 2) participant branch: use token from waiting-room exchange
+    // participants: use token from waiting-room exchange
     if (role === "participant") {
       const saved =
         typeof window !== "undefined"
@@ -627,11 +629,30 @@ export default function Meeting() {
       return; // ⛔ do NOT call /token
     }
 
-    // 3) dashboard roles: call cookie-auth /token
+    // observers: fetch HLS url (no LiveKit token needed)
+    if (role === "observer") {
+      (async () => {
+        try {
+          const res = await api.get<ApiResponse<{ url: string }>>(
+            `/api/v1/livekit/${sessionId as string}/hls`
+          );
+          const u = res.data?.data?.url || null;
+          if (!u) {
+            router.replace(`/waiting-room/observer/${sessionId}`);
+            return;
+          }
+          setHlsUrl(u);
+        } catch {
+          router.replace(`/waiting-room/observer/${sessionId}`);
+        }
+      })();
+      return;
+    }
+
+    // admin/moderator: call cookie-auth /token
     (async () => {
-      const lkToken = await fetchLiveKitToken(sessionId as string, serverRole); // your axios helper to /token
+      const lkToken = await fetchLiveKitToken(sessionId as string, serverRole);
       if (!lkToken) {
-        // if 401, send to login/dashboard as appropriate
         console.error("Failed to get LiveKit token");
         return;
       }
@@ -698,6 +719,22 @@ export default function Meeting() {
     };
   }, [role, router, sessionId]);
 
+  // Observer view: render HLS player when URL is available
+  if (role === "observer") {
+    if (!hlsUrl) {
+      return (
+        <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+          <div className="col-span-12 m-auto text-gray-500">
+            Loading stream…
+          </div>
+        </div>
+      );
+    }
+
+    // HLS player with warmup (like full_livekit_code.md)
+    return <ObserverHlsLayout hlsUrl={hlsUrl} />;
+  }
+
   if (!token || !wsUrl) {
     return (
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
@@ -750,5 +787,80 @@ export default function Meeting() {
         )}
       </div>
     </LiveKitRoom>
+  );
+}
+
+function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !hlsUrl) return;
+
+    let cleanup: (() => void) | null = null;
+
+    const ping = async (src: string) => {
+      for (let i = 0; i < 10; i++) {
+        try {
+          const r = await fetch(src, { method: "HEAD", cache: "no-store" });
+          if (r.ok) return true;
+        } catch {}
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      return false;
+    };
+
+    (async () => {
+      await ping(hlsUrl);
+      if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = hlsUrl;
+        try {
+          await video.play();
+        } catch {}
+        return;
+      }
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          liveDurationInfinity: true,
+          liveSyncDurationCount: 3,
+          maxLiveSyncPlaybackRate: 1.2,
+        });
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR)
+              hls.recoverMediaError();
+          }
+        });
+        try {
+          await video.play();
+        } catch {}
+        cleanup = () => hls.destroy();
+      }
+    })();
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [hlsUrl]);
+
+  return (
+    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      <div className="col-span-9 border rounded p-3 flex flex-col min-h-0">
+        <video
+          ref={videoRef}
+          controls
+          playsInline
+          autoPlay
+          crossOrigin="anonymous"
+          className="w-full h-full"
+        />
+      </div>
+      <aside className="col-span-3 border rounded p-3 overflow-y-auto">
+        <h3 className="font-semibold mb-2">Observers</h3>
+      </aside>
+    </div>
   );
 }

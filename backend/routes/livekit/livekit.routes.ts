@@ -15,6 +15,6 @@ router.post('/exchange', catchError(exchangeAdmitForLivekitToken));
 
 
 // POST /api/v1/livekit/:sessionId/hls
-router.get('/:sessionId/hls', getObserverHls);
+router.get('/:sessionId/hls', catchError(getObserverHls));
 
 export default router;
