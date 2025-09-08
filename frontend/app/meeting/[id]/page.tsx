@@ -21,6 +21,7 @@ import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import "@livekit/components-styles";
 import "./meeting.css";
 import { useGlobalContext } from "context/GlobalContext";
+import { flagsFromSearchParams } from "constant/featureFlags";
 
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
@@ -538,6 +539,10 @@ function ScreenshareControl({
 export default function Meeting() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const featureFlags = useMemo(
+    () => flagsFromSearchParams(searchParams),
+    [searchParams]
+  );
 
   const { id: sessionId } = useParams();
 
@@ -755,6 +760,8 @@ export default function Meeting() {
             socket={socketRef.current}
             myEmail={my?.email || null}
           />
+          {/* Example data attr to confirm flags available */}
+          <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
         </aside>
 
         {/* MIDDLE: LiveKit room visuals */}
@@ -781,6 +788,15 @@ export default function Meeting() {
           <aside className="col-span-3 border rounded p-3 overflow-y-auto">
             <h3 className="font-semibold mb-2">Observers</h3>
             {/* observer group chat, names, counts, media hub */}
+            {(role === "admin" || role === "moderator") &&
+              featureFlags.breakoutsEnabled && (
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2">Breakouts</h4>
+                  {/* You can render your BreakoutsPanel component here when available */}
+                  {/* <BreakoutsPanel parentRoom={String(sessionId)} role={role} /> */}
+                  <Button size="sm">Create Breakout</Button>
+                </div>
+              )}
           </aside>
         ) : (
           <div className="col-span-3" />

@@ -26,6 +26,7 @@ import ConfirmationModalComponent from "components/shared/ConfirmationModalCompo
 import { useProject } from "hooks/useProject";
 import { formatUiTimeZone } from "utils/timezones";
 import { IUser } from "@shared/interface/UserInterface";
+import { flagsFromProject, flagsToQueryString } from "constant/featureFlags";
 
 interface EditSessionInput {
   id: string;
@@ -50,7 +51,6 @@ const Sessions = () => {
     projectId as string
   );
 
-
   const tzPretty = useMemo(() => {
     if (!project?.defaultTimeZone) return "";
     // Use the project's startDate if you want the offset for that exact date (DST-correct),
@@ -59,8 +59,8 @@ const Sessions = () => {
     return formatUiTimeZone(project.defaultTimeZone, atDate);
   }, [project?.defaultTimeZone, project?.startDate]);
 
-    // ✅ read logged-in user (already set elsewhere via /api/v1/users/me)
-    const me: IUser | null =
+  // ✅ read logged-in user (already set elsewhere via /api/v1/users/me)
+  const me: IUser | null =
     typeof window !== "undefined"
       ? (() => {
           try {
@@ -113,8 +113,10 @@ const Sessions = () => {
       // Refresh any live flags if you show them
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
 
-      // Go to meeting either way
-      router.push(`/meeting/${sessionId}`);
+      // Go to meeting either way, appending feature flags
+      const ff = flagsFromProject(project as unknown);
+      const qs = flagsToQueryString(ff);
+      router.push(`/meeting/${sessionId}${qs ? `?${qs}` : ""}`);
     },
     onError: (err, sessionId) => {
       // If server returned non-2xx with the same message, still proceed
@@ -122,7 +124,9 @@ const Sessions = () => {
         const msg = err.response?.data?.message;
         if (msg === "Session already ongoing") {
           toast.message("Session already ongoing — opening meeting");
-          router.push(`/meeting/${sessionId}`);
+          const ff = flagsFromProject(project as unknown);
+          const qs = flagsToQueryString(ff);
+          router.push(`/meeting/${sessionId}${qs ? `?${qs}` : ""}`);
           return;
         }
       }
@@ -134,12 +138,12 @@ const Sessions = () => {
     },
   });
 
-  // Handle observe session 
+  // Handle observe session
 
   const handleObserveClick = async (sessionId: string) => {
     const name = me?.firstName + " " + me?.lastName;
     const email = me?.email;
-    
+
     try {
       // Try one-time enqueue as Observer (uses your existing /enqueue controller)
       const resp = await api.post<{
@@ -149,12 +153,15 @@ const Sessions = () => {
         name,
         email,
         role: "Observer",
-       passcode: project?.projectPasscode,
+        passcode: project?.projectPasscode,
       });
 
       const action = resp.data?.data?.action;
       if (action === "stream") {
-        router.push(`/meeting/${sessionId}?role=Observer`);
+        const ff = flagsFromProject(project as unknown);
+        const qs = flagsToQueryString(ff);
+        const prefix = qs ? `?${qs}&` : "?";
+        router.push(`/meeting/${sessionId}${prefix}role=Observer`);
       } else {
         router.push(`/waiting-room/observer/${sessionId}`);
       }
@@ -171,7 +178,10 @@ const Sessions = () => {
           router.push(`/join/observer/${sessionId}`);
           return;
         }
-        if (msg.includes("Session not found") || msg.includes("Project not found")) {
+        if (
+          msg.includes("Session not found") ||
+          msg.includes("Project not found")
+        ) {
           toast.error(msg);
           return;
         }
@@ -179,7 +189,6 @@ const Sessions = () => {
       toast.error("Could not open session");
     }
   };
-  
 
   // Mutation to delete session
   const deleteSession = useMutation({

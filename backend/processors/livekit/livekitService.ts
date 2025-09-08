@@ -200,14 +200,7 @@ export async function startHlsEgress(roomName: string): Promise<{
   }
 
   const { filenamePrefix, playlistName, livePlaylistName, liveUrl, vodUrl } = hlsPaths(roomName);
-  console.log("HLS config/debug", {
-    HLS_PUBLIC_BASE: (config as any).hls_base_url || process.env.HLS_PUBLIC_BASE,
-    HLS_PREFIX: process.env.HLS_PREFIX || "hls",
-    S3_ENDPOINT: process.env.S3_ENDPOINT,
-    filenamePrefix,
-    liveUrl,
-    vodUrl,
-  });
+
   // ✅ Use SegmentedFileOutput + S3Upload (defaults to HLS)
   const segments = new SegmentedFileOutput({
     filenamePrefix,
