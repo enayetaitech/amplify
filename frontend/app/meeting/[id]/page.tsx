@@ -22,6 +22,7 @@ import "@livekit/components-styles";
 import "./meeting.css";
 import { useGlobalContext } from "context/GlobalContext";
 import { flagsFromSearchParams } from "constant/featureFlags";
+import { safeLocalGet } from "utils/storage";
 
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
@@ -41,6 +42,11 @@ import {
   normalizeUiRole,
   normalizeServerRole,
 } from "constant/roles";
+type LocalJoinUser = {
+  name?: string;
+  email?: string;
+  role?: ServerRole | string;
+};
 /** Enables cam (muted mic) once connected for admin/moderator */
 function AutoPublishOnConnect({ role }: { role: UiRole }) {
   const room = useRoomContext();
@@ -566,20 +572,17 @@ export default function Meeting() {
     if (qpUi) return qpUi;
 
     // participant from join flow
-    if (typeof window !== "undefined") {
-      const raw = localStorage.getItem("liveSessionUser");
-      if (raw) {
-        const u = JSON.parse(raw);
-        const storedServer = normalizeServerRole(u?.role);
-        if (storedServer)
-          return storedServer === "Observer"
-            ? "observer"
-            : storedServer === "Moderator"
-            ? "moderator"
-            : storedServer === "Admin"
-            ? "admin"
-            : "participant";
-      }
+    const u = safeLocalGet<LocalJoinUser>("liveSessionUser");
+    if (u) {
+      const storedServer = normalizeServerRole(u?.role);
+      if (storedServer)
+        return storedServer === "Observer"
+          ? "observer"
+          : storedServer === "Moderator"
+          ? "moderator"
+          : storedServer === "Admin"
+          ? "admin"
+          : "participant";
     }
     // default to participant (or you can redirect)
     return "participant";
@@ -596,20 +599,12 @@ export default function Meeting() {
         role: (user.role as ServerRole) || "Observer",
       };
     }
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem("liveSessionUser");
-        const u = raw ? JSON.parse(raw) : {};
-        return {
-          name: u?.name || "",
-          email: (u?.email as string) || "",
-          role: (u?.role as ServerRole) || "Participant",
-        };
-      } catch {
-        // ignore
-      }
-    }
-    return { name: "", email: "", role: "Participant" as ServerRole };
+    const u = safeLocalGet<LocalJoinUser>("liveSessionUser") || {};
+    return {
+      name: u?.name || "",
+      email: (u?.email as string) || "",
+      role: (u?.role as ServerRole) || "Participant",
+    };
   }, [user]);
 
   const [wsUrl, setWsUrl] = useState<string | null>(null);

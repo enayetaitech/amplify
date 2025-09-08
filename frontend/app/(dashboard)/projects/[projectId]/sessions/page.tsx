@@ -26,7 +26,9 @@ import ConfirmationModalComponent from "components/shared/ConfirmationModalCompo
 import { useProject } from "hooks/useProject";
 import { formatUiTimeZone } from "utils/timezones";
 import { IUser } from "@shared/interface/UserInterface";
-import { flagsFromProject, flagsToQueryString } from "constant/featureFlags";
+import { flagsFromProject } from "constant/featureFlags";
+import { buildMeetingUrl } from "utils/meetingUrl";
+import { safeLocalGet } from "utils/storage";
 
 interface EditSessionInput {
   id: string;
@@ -60,17 +62,7 @@ const Sessions = () => {
   }, [project?.defaultTimeZone, project?.startDate]);
 
   // ✅ read logged-in user (already set elsewhere via /api/v1/users/me)
-  const me: IUser | null =
-    typeof window !== "undefined"
-      ? (() => {
-          try {
-            const raw = localStorage.getItem("user");
-            return raw ? JSON.parse(raw) : null;
-          } catch {
-            return null;
-          }
-        })()
-      : null;
+  const me: IUser | null = safeLocalGet<IUser>("user");
 
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
@@ -115,8 +107,7 @@ const Sessions = () => {
 
       // Go to meeting either way, appending feature flags
       const ff = flagsFromProject(project as unknown);
-      const qs = flagsToQueryString(ff);
-      router.push(`/meeting/${sessionId}${qs ? `?${qs}` : ""}`);
+      router.push(buildMeetingUrl(sessionId, ff));
     },
     onError: (err, sessionId) => {
       // If server returned non-2xx with the same message, still proceed
@@ -125,8 +116,7 @@ const Sessions = () => {
         if (msg === "Session already ongoing") {
           toast.message("Session already ongoing — opening meeting");
           const ff = flagsFromProject(project as unknown);
-          const qs = flagsToQueryString(ff);
-          router.push(`/meeting/${sessionId}${qs ? `?${qs}` : ""}`);
+          router.push(buildMeetingUrl(sessionId, ff));
           return;
         }
       }
@@ -159,9 +149,7 @@ const Sessions = () => {
       const action = resp.data?.data?.action;
       if (action === "stream") {
         const ff = flagsFromProject(project as unknown);
-        const qs = flagsToQueryString(ff);
-        const prefix = qs ? `?${qs}&` : "?";
-        router.push(`/meeting/${sessionId}${prefix}role=Observer`);
+        router.push(buildMeetingUrl(sessionId, ff, { role: "observer" }));
       } else {
         router.push(`/waiting-room/observer/${sessionId}`);
       }
