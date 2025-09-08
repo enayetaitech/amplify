@@ -34,14 +34,13 @@ declare global {
   }
 }
 
-type UiRole = "admin" | "moderator" | "participant" | "observer";
-type ServerRole = "Admin" | "Moderator" | "Participant" | "Observer";
-const ROLE_MAP: Record<UiRole, ServerRole> = {
-  admin: "Admin",
-  moderator: "Moderator",
-  participant: "Participant",
-  observer: "Observer",
-};
+import {
+  UiRole,
+  ServerRole,
+  toServerRole,
+  normalizeUiRole,
+  normalizeServerRole,
+} from "constant/roles";
 /** Enables cam (muted mic) once connected for admin/moderator */
 function AutoPublishOnConnect({ role }: { role: UiRole }) {
   const room = useRoomContext();
@@ -551,29 +550,42 @@ export default function Meeting() {
 
   const role: UiRole = useMemo(() => {
     // dashboard users
-    if (user?.role === "Admin") return "admin";
-    if (user?.role === "Moderator") return "moderator";
-    if (user?.role === "Observer") return "observer";
+    const dashboardServer = normalizeServerRole(user?.role);
+    if (dashboardServer)
+      return dashboardServer === "Observer"
+        ? "observer"
+        : dashboardServer === "Moderator"
+        ? "moderator"
+        : dashboardServer === "Admin"
+        ? "admin"
+        : "participant";
 
     // honor query param role when provided (e.g., from observer join flow)
     const qp = searchParams?.get("role");
-    if (qp === "Observer") return "observer";
-    if (qp === "Moderator") return "moderator";
-    if (qp === "Admin") return "admin";
+    const qpUi = normalizeUiRole(qp);
+    if (qpUi) return qpUi;
 
     // participant from join flow
     if (typeof window !== "undefined") {
       const raw = localStorage.getItem("liveSessionUser");
       if (raw) {
         const u = JSON.parse(raw);
-        if (u?.role === "Participant") return "participant";
+        const storedServer = normalizeServerRole(u?.role);
+        if (storedServer)
+          return storedServer === "Observer"
+            ? "observer"
+            : storedServer === "Moderator"
+            ? "moderator"
+            : storedServer === "Admin"
+            ? "admin"
+            : "participant";
       }
     }
     // default to participant (or you can redirect)
     return "participant";
   }, [user, searchParams]);
 
-  const serverRole: ServerRole = useMemo(() => ROLE_MAP[role], [role]);
+  const serverRole: ServerRole = useMemo(() => toServerRole(role), [role]);
 
   // current user's name/email (dashboard or join flow)
   const my = useMemo(() => {
