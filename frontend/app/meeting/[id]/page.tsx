@@ -640,9 +640,9 @@ export default function Meeting() {
     })();
   }, [sessionId, role, serverRole, router]);
 
-  // Connect socket (once we know session + my email)
+  // Connect socket (once we know session)
   useEffect(() => {
-    if (!sessionId || !my?.email) return;
+    if (!sessionId) return;
 
     const s = io(SOCKET_URL, {
       path: "/socket.io",
@@ -683,6 +683,20 @@ export default function Meeting() {
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole]);
+
+  // If observer and stream stops, route back to observer waiting room
+  useEffect(() => {
+    if (role !== "observer") return;
+    const s = window.__meetingSocket;
+    if (!s) return;
+    const onStopped = () => {
+      router.replace(`/waiting-room/observer/${sessionId}`);
+    };
+    s.on("observer:stream:stopped", onStopped);
+    return () => {
+      s.off("observer:stream:stopped", onStopped);
+    };
+  }, [role, router, sessionId]);
 
   if (!token || !wsUrl) {
     return (

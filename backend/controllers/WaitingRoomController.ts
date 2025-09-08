@@ -73,9 +73,9 @@ export const enqueue = async (
     // Ensure a LiveSession doc exists (create if missing)
     await createLiveSession(sessionId);
 
-    // Check ongoing state
+    // Check live flags
     const live = await LiveSessionModel.findOne({ sessionId }).lean();
-    const isOngoing = !!live?.ongoing;
+    const isStreaming = !!live?.streaming;
 
     // Enqueue user appropriately
     await enqueueUser(sessionId, { name, email, role });
@@ -84,7 +84,7 @@ export const enqueue = async (
     let action: "waiting_room" | "stream" = "waiting_room";
     if (
       (role === "Observer" || role === "Moderator" || role === "Admin") &&
-      isOngoing
+      isStreaming
     ) {
       action = "stream";
     }
