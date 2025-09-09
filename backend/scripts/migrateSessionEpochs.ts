@@ -13,7 +13,6 @@ async function run() {
   }
 
   await mongoose.connect(mongoUri);
-  console.log("Connected to MongoDB");
 
   const cursor = SessionModel.find({}).cursor();
   let processed = 0;
@@ -44,10 +43,9 @@ async function run() {
     startAtEpoch: 1,
     endAtEpoch: 1,
   });
-  console.log("Ensured index on { projectId, startAtEpoch, endAtEpoch }");
 
   await mongoose.disconnect();
-  console.log("Done.");
+ 
 }
 
 run().catch((err) => {

@@ -56,56 +56,9 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
     updateFormData({ sessions: updated });
   };
 
-  // Compute time conflicts to show inline feedback
-  const parseToUtcMs = (dateStr: string, timeStr: string): number | null => {
-    if (!dateStr || !timeStr) return null;
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const [hh, mm] = timeStr.split(":").map(Number);
-    if ([y, m, d, hh, mm].some((n) => Number.isNaN(n))) return null;
-    return Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0);
-  };
-
-  const timedRows = sessions
-    .map((s, idx) => {
-      const durationMin = Number(
-        formData.sameSession
-          ? formData.sessions[0]?.duration ?? 0
-          : s.duration ?? 0
-      );
-      const startMs = parseToUtcMs(s.date, s.startTime);
-      const endMs =
-        startMs !== null
-          ? startMs + Math.max(0, durationMin) * 60 * 1000
-          : null;
-      const label = s.title?.trim() ? s.title.trim() : `Session ${idx + 1}`;
-      return { idx, startMs, endMs, label } as const;
-    })
-    .filter((r) => r.startMs !== null && r.endMs !== null) as Array<{
-    idx: number;
-    startMs: number;
-    endMs: number;
-    label: string;
-  }>;
-
-  let conflictMessage: string | null = null;
-  if (timedRows.length > 1) {
-    const sorted = [...timedRows].sort((a, b) => a.startMs - b.startMs);
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = sorted[i - 1];
-      const curr = sorted[i];
-      if (curr.startMs < prev.endMs) {
-        conflictMessage = `Time conflict: "${prev.label}" overlaps with "${curr.label}"`;
-        break;
-      }
-    }
-  }
-
   return (
     <div className="space-y-4">
       <Label className="text-base font-semibold">Session Table</Label>
-      {conflictMessage && (
-        <div className="text-sm text-red-600">{conflictMessage}</div>
-      )}
       <div className="overflow-x-auto">
         <Card className="max-h-[400px] overflow-y-auto border-0 shadow-sm py-0 min-w-[900px]">
           <Table>
@@ -130,6 +83,7 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                       <Input
                         value={sess.title}
                         placeholder="Title"
+                        maxLength={20}
                         className="w-full"
                         disabled={isSaving}
                         onChange={makeOnChange<"title">(
@@ -143,6 +97,14 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                           "Title must be letters/numbers only, single spaces, no edge spaces.",
                           (upd) => updateSession(idx, { title: upd.title })
                         )}
+                        onBlur={(e) => {
+                          const cleaned = e.target.value
+                            .trim()
+                            .replace(/\s+/g, " ");
+                          if (cleaned !== e.target.value) {
+                            updateSession(idx, { title: cleaned });
+                          }
+                        }}
                       />
                     </TableCell>
                     <TableCell>
@@ -169,49 +131,27 @@ const AddSessionStep2: React.FC<AddSessionStep2Props> = ({
                       />
                     </TableCell>
                     <TableCell>
-                      {formData.sameSession ? (
-                        <Select
-                          value={String(formData.sessions[0]?.duration ?? "")}
-                          disabled
-                          onValueChange={() => {}}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Duration" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {durations.map(({ label, minutes }) => (
-                              <SelectItem
-                                key={minutes}
-                                value={minutes.toString()}
-                              >
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Select
-                          value={sess.duration}
-                          disabled={isSaving}
-                          onValueChange={(val) =>
-                            updateSession(idx, { duration: val })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Duration" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {durations.map(({ label, minutes }) => (
-                              <SelectItem
-                                key={minutes}
-                                value={minutes.toString()}
-                              >
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <Select
+                        value={sess.duration}
+                        disabled={isSaving}
+                        onValueChange={(val) =>
+                          updateSession(idx, { duration: val })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {durations.map(({ label, minutes }) => (
+                            <SelectItem
+                              key={minutes}
+                              value={minutes.toString()}
+                            >
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       {formData.sameModerator ? (

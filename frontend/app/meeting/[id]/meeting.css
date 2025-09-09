@@ -1,0 +1,19 @@
+/* Scope to your meeting area so it doesn't leak app-wide */
+.lk-scope .lk-nameplate {
+  /* semi-transparent dark strip behind the label */
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Make label text + icons white */
+.lk-scope .lk-participant-name,
+.lk-scope .lk-participant-metadata,
+.lk-scope .lk-nameplate svg {
+  color: #fff !important;
+  fill: #fff !important;
+}
+
+/* Keep screen-share labels hidden (from earlier) */
+.lk-scope [data-lk-source="screen_share"] .lk-participant-name,
+.lk-scope [data-lk-source="screen_share"] .lk-participant-metadata {
+  display: none !important;
+}

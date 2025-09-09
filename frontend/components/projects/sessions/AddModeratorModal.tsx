@@ -91,7 +91,7 @@ const AddModeratorModal: React.FC<AddModeratorModalProps> = ({
     },
 
     onError: (error) => {
-      console.log("error", error);
+      console.error("error", error);
       toast.error(error instanceof Error ? error.message : "Unknown error");
     },
   });

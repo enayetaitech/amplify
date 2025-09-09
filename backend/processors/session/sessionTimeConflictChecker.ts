@@ -140,10 +140,9 @@ export const toTimestampStrict = (
   timeZone: string
 ): number => {
   // Normalize date to “YYYY-MM-DD”
-  const dateISO =
-    typeof dateVal === "string"
-      ? dateVal
-      : DateTime.fromJSDate(dateVal).toISODate()!;
+  const dateISO = typeof dateVal === "string"
+  ? DateTime.fromISO(dateVal).toISODate()! 
+  : DateTime.fromJSDate(dateVal).toISODate()!;
 
   // First attempt: Luxon will flag nonexistent times as invalid
   const dt = DateTime.fromISO(`${dateISO}T${timeStr}`, { zone: timeZone });

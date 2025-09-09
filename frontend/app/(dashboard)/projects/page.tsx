@@ -51,7 +51,6 @@ const Projects: React.FC = () => {
     return <p>User not found or not authenticated.</p>;
   }
 
-  console.log("Projects", projects);
 
   if (error) {
     toast.error(error instanceof Error ? error.message : "Unknown error");

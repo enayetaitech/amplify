@@ -171,7 +171,6 @@ export const createProjectByExternalAdmin = async (
     // !This should be uncommented once the tag collection is created
     // const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
 
-    // console.log('populated project', populatedProject)
 
     // ---- Send the confirmation email below ---- //
 
@@ -283,7 +282,6 @@ export const getProjectByUserId = async (
     to,
   } = req.query;
 
-  console.log("req.query", req.query);
 
   if (!userId) {
     return next(new ErrorHandler("User ID is required", 400));
@@ -511,7 +509,6 @@ export const editProject = async (
     project.description = description;
   }
 
-  console.log("req.body", req.body);
 
   // Save the updated project.
   const updatedProject = await project.save();

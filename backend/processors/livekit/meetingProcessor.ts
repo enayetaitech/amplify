@@ -35,7 +35,7 @@ export async function startMeeting(
     throw new Error("Session already ongoing");
   }
 
-  const roomName = makeRoomName(session);
+  const roomName = String(session._id);
 
   await ensureRoom(roomName);
 

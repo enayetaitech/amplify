@@ -25,6 +25,10 @@ import EditSessionModal, {
 import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { useProject } from "hooks/useProject";
 import { formatUiTimeZone } from "utils/timezones";
+import { IUser } from "@shared/interface/UserInterface";
+import { flagsFromProject } from "constant/featureFlags";
+import { buildMeetingUrl } from "utils/meetingUrl";
+import { safeLocalGet } from "utils/storage";
 
 interface EditSessionInput {
   id: string;
@@ -45,7 +49,9 @@ const Sessions = () => {
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
-  const { data: project, isLoading: isProjectLoading } = useProject(projectId as string)
+  const { data: project, isLoading: isProjectLoading } = useProject(
+    projectId as string
+  );
 
   const tzPretty = useMemo(() => {
     if (!project?.defaultTimeZone) return "";
@@ -54,7 +60,10 @@ const Sessions = () => {
     const atDate = project.startDate ?? undefined;
     return formatUiTimeZone(project.defaultTimeZone, atDate);
   }, [project?.defaultTimeZone, project?.startDate]);
-  
+
+  // ✅ read logged-in user (already set elsewhere via /api/v1/users/me)
+  const me: IUser | null = safeLocalGet<IUser>("user");
+
   // Getting session data for session table
   const { data, isLoading, error } = useQuery<
     { data: ISession[]; meta: IPaginationMeta },
@@ -70,6 +79,104 @@ const Sessions = () => {
         .then((res) => res.data),
     placeholderData: keepPreviousData,
   });
+
+  // Start live session then navigate
+  const startMeeting = useMutation<
+    { success?: boolean; message?: string },
+    unknown,
+    string
+  >({
+    mutationFn: async (sessionId: string) => {
+      const res = await api.post<{ success?: boolean; message?: string }>(
+        `/api/v1/liveSessions/${sessionId}/start`
+      );
+      return res.data; // e.g. { success: true, ... } OR { success: false, message: "Session already ongoing" }
+    },
+    onSuccess: (data, sessionId) => {
+      const success = data?.success;
+      const message = data?.message;
+
+      if (success === false && message === "Session already ongoing") {
+        toast.message("Session already ongoing — opening meeting");
+      } else {
+        toast.success("Session started");
+      }
+
+      // Refresh any live flags if you show them
+      queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+
+      // Go to meeting either way, appending feature flags
+      const ff = flagsFromProject(project as unknown);
+      router.push(buildMeetingUrl(sessionId, ff));
+    },
+    onError: (err, sessionId) => {
+      // If server returned non-2xx with the same message, still proceed
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.message;
+        if (msg === "Session already ongoing") {
+          toast.message("Session already ongoing — opening meeting");
+          const ff = flagsFromProject(project as unknown);
+          router.push(buildMeetingUrl(sessionId, ff));
+          return;
+        }
+      }
+
+      const fallback = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "Could not start the session";
+      toast.error(fallback);
+    },
+  });
+
+  // Handle observe session
+
+  const handleObserveClick = async (sessionId: string) => {
+    const name = me?.firstName + " " + me?.lastName;
+    const email = me?.email;
+
+    try {
+      // Try one-time enqueue as Observer (uses your existing /enqueue controller)
+      const resp = await api.post<{
+        data: { action: "stream" | "waiting_room"; sessionId: string };
+      }>("/api/v1/waiting-room/enqueue", {
+        sessionId,
+        name,
+        email,
+        role: "Observer",
+        passcode: project?.projectPasscode,
+      });
+
+      const action = resp.data?.data?.action;
+      if (action === "stream") {
+        const ff = flagsFromProject(project as unknown);
+        router.push(buildMeetingUrl(sessionId, ff, { role: "observer" }));
+      } else {
+        router.push(`/waiting-room/observer/${sessionId}`);
+      }
+    } catch (err) {
+      // If passcode is required or invalid, gracefully route to your existing join page
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.message || "";
+        if (
+          msg.includes("Passcode is required") ||
+          msg.includes("Invalid observer passcode")
+        ) {
+          toast.message("Observer passcode required — continue to join");
+          // Reuse your observer join page where user can enter passcode
+          router.push(`/join/observer/${sessionId}`);
+          return;
+        }
+        if (
+          msg.includes("Session not found") ||
+          msg.includes("Project not found")
+        ) {
+          toast.error(msg);
+          return;
+        }
+      }
+      toast.error("Could not open session");
+    }
+  };
 
   // Mutation to delete session
   const deleteSession = useMutation({
@@ -130,10 +237,16 @@ const Sessions = () => {
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
-        <HeadingBlue25px>Sessions (All Times {isProjectLoading ? "Loading..." : tzPretty || project?.defaultTimeZone})</HeadingBlue25px>
+        <HeadingBlue25px>
+          Sessions (All Times{" "}
+          {isProjectLoading
+            ? "Loading..."
+            : tzPretty || project?.defaultTimeZone}
+          )
+        </HeadingBlue25px>
         <CustomButton
           icon={<Plus />}
-          text="Add New Session"
+          text="Add Sessions"
           variant="default"
           className=" bg-custom-orange-2 text-white hover:bg-custom-orange-1 font-semibold px-2"
           onClick={() => {
@@ -141,6 +254,7 @@ const Sessions = () => {
           }}
         />
       </div>
+
       {isLoading ? (
         <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">
           Loading Sessions...
@@ -151,9 +265,9 @@ const Sessions = () => {
             sessions={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
-            onRowClick={(id) => router.push(`/session-details/${id}`)}
-            onModerate={(id) => router.push(`/session-details/${id}/moderate`)}
-            onObserve={(id) => router.push(`/session-details/${id}/observe`)}
+            // onRowClick={(id) => router.push(`/session-details/${id}`)}
+            onModerate={(id) => startMeeting.mutate(id)}
+            onObserve={handleObserveClick}
             onAction={(action, session) => {
               switch (action) {
                 case "edit":

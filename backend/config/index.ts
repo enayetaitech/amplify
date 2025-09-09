@@ -19,6 +19,7 @@ export default {
 
 
   session_secret: process.env.SESSION_SECRET,
+  admit_jwt_secret: process.env.ADMIT_JWT_SECRET,
   
   frontend_base_url: process.env.FRONTEND_BASE_URL,
   
@@ -34,7 +35,8 @@ export default {
   s3_bucket_name: process.env.S3_BUCKET_NAME,
   s3_bucket_region: process.env.S3_REGION,
 
-  hls_base_url: process.env.HLS_CDN_BASE,
+  hls_base_url: process.env.HLS_PUBLIC_BASE,
+  enable_breakout_file_recording: process.env.ENABLE_BREAKOUT_FILE_RECORDING,
   
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
 
@@ -44,6 +46,6 @@ export default {
 
   livekit_api_key: process.env.LIVEKIT_API_KEY,
   livekit_api_secret: process.env.LIVEKIT_API_SECRET,
-  livekit_api_url: process.env.LIVEKIT_HOST,
+  livekit_ws_url: process.env.LIVEKIT_WS_URL,
  
 };

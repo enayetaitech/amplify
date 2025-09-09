@@ -52,4 +52,3 @@ const bEnd = bStart + 30 * 60_000;
 const overlaps = aStart < bEnd && bStart < aEnd;
 assert(overlaps, "Cross-midnight sessions should overlap");
 
-console.log("DST and overlap checks passed.");

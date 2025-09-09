@@ -341,7 +341,6 @@ const AddPollDialog = ({
       resetForm();
     },
     onError: (error) => {
-      console.log("error message", error.message);
       toast.error(
         error instanceof Error ? error.message : "Failed to create poll"
       );

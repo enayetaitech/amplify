@@ -8,6 +8,9 @@ import SessionAccess from "components/viewProject/SessionAccess";
 import TagModal from "components/viewProject/TagModel";
 import { useProject } from "hooks/useProject";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Button } from "components/ui/button";
+import { projectSections } from "constant/projectSections";
 import React, { useState } from "react";
 
 const ViewProject = () => {
@@ -35,6 +38,17 @@ const ViewProject = () => {
         </div>
         <div className="w-full">
           <SessionAccess project={project!} />
+        </div>
+        <div className="mt-6">
+          <div className="flex flex-wrap gap-2">
+            {projectSections.map(({ slug, label }) => (
+              <Link key={slug} href={`/projects/${project!._id}/${slug}`}>
+                <Button variant="outline" size="sm">
+                  {label}
+                </Button>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
       <TagModal

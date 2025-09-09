@@ -42,7 +42,6 @@ const PreviewPollDialog: React.FC<PreviewPollDialogProps> = ({
   poll,
   onClose,
 }) => {
-  console.log("poll", poll);
   const [textValues, setTextValues] = React.useState<Record<string, string>>(
     {}
   );

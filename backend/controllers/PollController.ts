@@ -17,7 +17,6 @@ export const createPoll = async (
   const { projectId, sessionId, title, questions, createdBy, createdByRole } =
     req.body;
 
-  console.log("req.body", req.body);
 
   /* 1. Basic payload validation ------------------------------------ */
   if (!projectId || !title || !createdBy || !createdByRole) {
@@ -61,10 +60,8 @@ export const createPoll = async (
           new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
         );
       }
-console.log('files', files)
       // find the matching question by your tempImageName
       const q = questionsPayload.find((q) => q.tempImageName === file.originalname);
-console.log('question',q)
       if (q) {
         q.image = result.url;
         // optionally store the S3 key if you need it:
@@ -91,7 +88,6 @@ console.log('question',q)
     createdByRole,
   });
 
-  console.log("poll", poll);
   sendResponse(res, poll, "Poll created", 201);
 };
 

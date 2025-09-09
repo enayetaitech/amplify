@@ -39,6 +39,9 @@ export interface ILiveSession {
     hlsEgressId: string | null;
     hlsPlaylistName: string | null;
     fileEgressId: string | null;
+    streaming?: boolean;
+    hlsStartedAt?: Date | null;
+    hlsStoppedAt?: Date | null;
     startedBy: string;
     endedBy: string;
 }

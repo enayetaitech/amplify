@@ -19,7 +19,6 @@ export const createObserverDocument = async (
   /* 1️⃣ pull form-data fields */
   const { projectId, sessionId, addedBy, addedByRole } = req.body;
   const file = req.file as Express.Multer.File | undefined;
-  console.log("req.body", req.body);
 
   /* 2️⃣ basic validations */
   if (!file) {
