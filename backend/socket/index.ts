@@ -1,6 +1,7 @@
 // backend/socket/index.ts
 import type { Server as HTTPServer } from "http";
 import { Server, Socket } from "socket.io";
+import { setIo } from "./bus";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 
@@ -49,6 +50,7 @@ export function attachSocket(server: HTTPServer) {
     path: "/socket.io",
     cors: { origin: true, credentials: true },
   });
+  setIo(io);
 
   io.on("connection", (socket: Socket) => {
     // Expect query: ?sessionId=...&role=...&name=...&email=...

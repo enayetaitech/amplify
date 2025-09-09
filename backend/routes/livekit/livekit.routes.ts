@@ -11,6 +11,7 @@ import { getObserverHls } from "../../controllers/LiveReadController";
 import {
   createBreakoutRoom,
   listBreakouts,
+  listBreakoutsPublic,
   closeBreakout,
   extendBreakout,
   moveParticipantToBreakout,
@@ -42,6 +43,9 @@ router.get(
   authorizeRoles("Admin", "Moderator"),
   catchError(listBreakouts)
 );
+
+// Public read-only list for observers (no auth)
+router.get("/public/:sessionId/breakouts", catchError(listBreakoutsPublic));
 router.post(
   "/:sessionId/breakouts/:index/close",
   authenticateJwt,

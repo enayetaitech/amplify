@@ -9,7 +9,11 @@ import {
   roomService,
   startHlsEgress,
   stopHlsEgress,
+  startFileEgress,
+  stopFileEgress,
 } from "../processors/livekit/livekitService";
+import { emitBreakoutsChanged } from "../socket/bus";
+import config from "../config/index";
 
 export const createBreakoutRoom = async (
   req: Request,
@@ -40,11 +44,20 @@ export const createBreakoutRoom = async (
 
   let egressId: string | undefined;
   let playbackUrl: string | null = null;
+  let fileEgressId: string | undefined;
   try {
     const e = await startHlsEgress(livekitRoom);
     egressId = e.egressId;
     playbackUrl = e.playbackUrl || null;
   } catch {}
+
+  // auto-start MP4 file egress (recording) only when explicitly enabled
+  if (config.enable_breakout_file_recording === "true") {
+    try {
+      const rec = await startFileEgress(livekitRoom);
+      fileEgressId = rec.egressId;
+    } catch {}
+  }
 
   await BreakoutRoom.create({
     sessionId: new Types.ObjectId(sessionId),
@@ -53,6 +66,9 @@ export const createBreakoutRoom = async (
     hls: playbackUrl
       ? { egressId, playbackUrl, startedAt: new Date() }
       : undefined,
+    recording: fileEgressId
+      ? { egressId: fileEgressId, startedAt: new Date() }
+      : undefined,
   });
 
   sendResponse(
@@ -60,6 +76,9 @@ export const createBreakoutRoom = async (
     { index, roomName: livekitRoom, playbackUrl },
     "Breakout created"
   );
+  try {
+    emitBreakoutsChanged(String(sessionId));
+  } catch {}
 };
 
 export const listBreakouts = async (
@@ -78,6 +97,32 @@ export const listBreakouts = async (
     .sort({ index: 1 })
     .lean();
   sendResponse(res, { items }, "Breakouts");
+};
+
+// Public (no auth) – for observers to read breakout HLS
+export const listBreakoutsPublic = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { sessionId } = req.params;
+  if (!sessionId || !Types.ObjectId.isValid(sessionId)) {
+    return next(new ErrorHandler("Invalid sessionId", 400));
+  }
+  const items = await BreakoutRoom.find({
+    sessionId: new Types.ObjectId(sessionId),
+    $or: [{ closedAt: { $exists: false } }, { closedAt: null }],
+  })
+    .sort({ index: 1 })
+    .lean();
+
+  // Limit to fields observers need
+  const mapped = items.map((b) => ({
+    index: b.index,
+    livekitRoom: b.livekitRoom,
+    hls: { playbackUrl: b.hls?.playbackUrl || null },
+  }));
+  sendResponse(res, { items: mapped }, "Breakouts");
 };
 
 export const closeBreakout = async (
@@ -107,6 +152,14 @@ export const closeBreakout = async (
     await stopHlsEgress(bo.hls.egressId);
     bo.hls.stoppedAt = new Date();
   }
+  // stop file egress if running (only if feature enabled)
+  if (
+    config.enable_breakout_file_recording === "true" &&
+    bo.recording?.egressId
+  ) {
+    await stopFileEgress(bo.recording.egressId);
+    bo.recording.stoppedAt = new Date();
+  }
 
   // attempt to move participants back to main room
   try {
@@ -125,6 +178,9 @@ export const closeBreakout = async (
   bo.closedAt = new Date();
   await bo.save();
   sendResponse(res, { ok: true }, "Breakout closed");
+  try {
+    emitBreakoutsChanged(String(sessionId));
+  } catch {}
 };
 
 export const extendBreakout = async (
@@ -160,6 +216,9 @@ export const extendBreakout = async (
   bo.closesAt = new Date(base + minutes * 60 * 1000);
   await bo.save();
   sendResponse(res, { closesAt: bo.closesAt }, "Breakout extended");
+  try {
+    emitBreakoutsChanged(String(sessionId));
+  } catch {}
 };
 
 export const moveParticipantToBreakout = async (

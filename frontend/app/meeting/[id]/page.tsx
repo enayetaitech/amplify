@@ -732,20 +732,14 @@ export default function Meeting() {
     };
   }, [role, router, sessionId]);
 
-  // Observer view: render HLS player when URL is available
+  // Observer view: render room selector (main + breakouts) and HLS player
   if (role === "observer") {
-    if (!hlsUrl) {
-      return (
-        <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
-          <div className="col-span-12 m-auto text-gray-500">
-            Loading stream…
-          </div>
-        </div>
-      );
-    }
-
-    // HLS player with warmup (like full_livekit_code.md)
-    return <ObserverHlsLayout hlsUrl={hlsUrl} />;
+    return (
+      <ObserverBreakoutSelect
+        sessionId={String(sessionId)}
+        initialMainUrl={hlsUrl}
+      />
+    );
   }
 
   if (!token || !wsUrl) {
@@ -824,7 +818,12 @@ function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
     const ping = async (src: string) => {
       for (let i = 0; i < 10; i++) {
         try {
-          const r = await fetch(src, { method: "HEAD", cache: "no-store" });
+          const u = new URL(src);
+          // try to fetch the top-level playlist; if forbidden, try a direct GET
+          const r = await fetch(u.toString(), {
+            method: "HEAD",
+            cache: "no-store",
+          });
           if (r.ok) return true;
         } catch {}
         await new Promise((r) => setTimeout(r, 1000));
@@ -846,6 +845,13 @@ function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
           liveDurationInfinity: true,
           liveSyncDurationCount: 3,
           maxLiveSyncPlaybackRate: 1.2,
+          // try to be resilient against S3 403 while segments warm up
+          fragLoadingRetryDelay: 1000,
+          manifestLoadingRetryDelay: 1000,
+          levelLoadingRetryDelay: 1000,
+          fragLoadingMaxRetry: 6,
+          manifestLoadingMaxRetry: 6,
+          levelLoadingMaxRetry: 6,
         });
         hls.loadSource(hlsUrl);
         hls.attachMedia(video);
@@ -883,6 +889,196 @@ function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
       <aside className="col-span-3 border rounded p-3 overflow-y-auto">
         <h3 className="font-semibold mb-2">Observers</h3>
       </aside>
+    </div>
+  );
+}
+
+function ObserverBreakoutSelect({
+  sessionId,
+  initialMainUrl,
+}: {
+  sessionId: string;
+  initialMainUrl: string | null;
+}) {
+  const [options, setOptions] = useState<
+    Array<{ key: string; label: string; url: string | null }>
+  >([{ key: "__main__", label: "Main", url: initialMainUrl }]);
+  const [selected, setSelected] = useState<string>("__main__");
+  const [url, setUrl] = useState<string | null>(initialMainUrl);
+
+  // keep main option in sync when initialMainUrl prop changes later
+  useEffect(() => {
+    setOptions((prev) => {
+      const rest = prev.filter((o) => o.key !== "__main__");
+      return [{ key: "__main__", label: "Main", url: initialMainUrl }, ...rest];
+    });
+    if (selected === "__main__") setUrl(initialMainUrl);
+  }, [initialMainUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.get<{
+          data: {
+            items: Array<{
+              index: number;
+              livekitRoom: string;
+              hls?: { playbackUrl?: string };
+            }>;
+          };
+        }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
+        const items = res.data?.data?.items || [];
+        const mapped = items.map((b) => ({
+          key: b.livekitRoom,
+          label: `Breakout #${b.index}`,
+          url: b.hls?.playbackUrl || null,
+        }));
+        if (!cancelled) {
+          setOptions((prev) => {
+            const main = prev.find((o) => o.key === "__main__") || {
+              key: "__main__",
+              label: "Main",
+              url: initialMainUrl,
+            };
+            return [main, ...mapped];
+          });
+        }
+      } catch {}
+    };
+
+    load();
+
+    // socket-based live refresh
+    const s: Socket | undefined = (
+      globalThis as unknown as { __meetingSocket?: Socket }
+    ).__meetingSocket;
+    const onChanged = () => load();
+    s?.on("breakouts:changed", onChanged);
+    return () => {
+      cancelled = true;
+      s?.off("breakouts:changed", onChanged);
+    };
+  }, [sessionId, initialMainUrl]);
+
+  useEffect(() => {
+    // whenever selected or options change, update URL
+    if (selected === "__main__") {
+      setUrl(options.find((o) => o.key === "__main__")?.url || null);
+    } else {
+      setUrl(options.find((o) => o.key === selected)?.url || null);
+    }
+  }, [selected, options]);
+
+  // while selected is a breakout with no URL yet, poll a couple times to pick it up
+  useEffect(() => {
+    if (selected === "__main__") return;
+    if (url) return;
+    let tries = 0;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      tries++;
+      try {
+        const res = await api.get<{
+          data: {
+            items: Array<{
+              index: number;
+              livekitRoom: string;
+              hls?: { playbackUrl?: string };
+            }>;
+          };
+        }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
+        const items = res.data?.data?.items || [];
+        const found = items.find((b) => b.livekitRoom === selected);
+        if (found?.hls?.playbackUrl) {
+          setOptions((prev) => {
+            const main = prev.find((o) => o.key === "__main__") || {
+              key: "__main__",
+              label: "Main",
+              url: initialMainUrl,
+            };
+            const mapped = items.map((b) => ({
+              key: b.livekitRoom,
+              label: `Breakout #${b.index}`,
+              url: b.hls?.playbackUrl || null,
+            }));
+            return [main, ...mapped];
+          });
+          setUrl(found.hls.playbackUrl);
+          return;
+        }
+      } catch {}
+      if (tries < 5) t = setTimeout(tick, 1500);
+    };
+    tick();
+    return () => clearTimeout(t);
+  }, [selected, url, sessionId, initialMainUrl]);
+
+  // react when socket indicates breakouts changed
+  useEffect(() => {
+    const s: Socket | undefined = (
+      globalThis as unknown as { __meetingSocket?: Socket }
+    ).__meetingSocket;
+    const onChanged = async () => {
+      try {
+        const res = await api.get<{
+          data: {
+            items: Array<{
+              index: number;
+              livekitRoom: string;
+              hls?: { playbackUrl?: string };
+            }>;
+          };
+        }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
+        const items = res.data?.data?.items || [];
+        const mapped = items.map((b) => ({
+          key: b.livekitRoom,
+          label: `Breakout #${b.index}`,
+          url: b.hls?.playbackUrl || null,
+        }));
+        setOptions((prev) => {
+          const main = prev.find((o) => o.key === "__main__") || {
+            key: "__main__",
+            label: "Main",
+            url: initialMainUrl,
+          };
+          return [main, ...mapped];
+        });
+      } catch {}
+    };
+    s?.on("breakouts:changed", onChanged);
+    return () => {
+      s?.off("breakouts:changed", onChanged);
+    };
+  }, [sessionId, initialMainUrl]);
+
+  return (
+    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      <div className="col-span-3 border rounded p-3 overflow-y-auto">
+        <h3 className="font-semibold mb-2">Observer</h3>
+        <label className="block text-sm mb-1">Choose a room</label>
+        <select
+          className="border rounded px-2 py-1 text-black w-full"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+        >
+          {options.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <div className="text-xs text-gray-500 mt-2">
+          {url ? "Streaming available" : "No live stream for this room"}
+        </div>
+      </div>
+      <div className="col-span-9 border rounded p-3 flex flex-col min-h-0">
+        {url ? (
+          <ObserverHlsLayout hlsUrl={url} />
+        ) : (
+          <div className="m-auto text-gray-500">No live stream…</div>
+        )}
+      </div>
     </div>
   );
 }
