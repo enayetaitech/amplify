@@ -4,13 +4,14 @@ import axios, {
   AxiosInstance,
   AxiosRequestConfig,
   AxiosResponse,
-} from 'axios';
+} from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL ?? 'https://bamplify.hgsingalong.com';
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() || "https://amplifyre.shop";
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, 
+  withCredentials: true,
 });
 
 interface FailedQueueItem {
@@ -21,7 +22,7 @@ interface FailedQueueItem {
 /** ✅  Auth routes that should NOT trigger silent refresh */
 const AUTH_ROUTES_REGEX = [
   /\/api\/v1\/auth\/(login|register|forgot-password|reset-password)$/,
-  /\/api\/v1\/users\/login$/,          // 👈  your current login URL
+  /\/api\/v1\/users\/login$/, // 👈  your current login URL
 ];
 
 const REFRESH_ENDPOINT = "/api/v1/auth/refreshToken";
@@ -46,23 +47,23 @@ function processQueue(error?: unknown): void {
   failedQueue = [];
 }
 
-
-
 api.interceptors.response.use(
   (response: AxiosResponse<unknown>) => response,
-   async (error: AxiosError & {
-    config?: AxiosRequestConfig & { _retry?: boolean };
-  }) => {
-     const { config: originalRequest, response } = error;
+  async (
+    error: AxiosError & {
+      config?: AxiosRequestConfig & { _retry?: boolean };
+    }
+  ) => {
+    const { config: originalRequest, response } = error;
 
     /* 1️⃣  Put backend “message” onto error.message for easy toasting */
-   if (axios.isAxiosError(error)) {
-  const msg = (error.response?.data as { message?: string } | undefined)?.message;
-  if (msg) {
-    error.message = msg;
-  }
-}
-
+    if (axios.isAxiosError(error)) {
+      const msg = (error.response?.data as { message?: string } | undefined)
+        ?.message;
+      if (msg) {
+        error.message = msg;
+      }
+    }
 
     /* 2️⃣  Silent token refresh (but skip for auth routes) */
     if (
@@ -73,7 +74,7 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true;
 
-       if (isRefreshing) {
+      if (isRefreshing) {
         // queue while a refresh is already in flight
         await new Promise<void>((resolve, reject) =>
           failedQueue.push({ resolve, reject })
@@ -83,7 +84,7 @@ api.interceptors.response.use(
 
       isRefreshing = true;
 
-   isRefreshing = true;
+      isRefreshing = true;
       try {
         await axios.post(`${BASE_URL}${REFRESH_ENDPOINT}`, null, {
           withCredentials: true,
@@ -104,9 +105,12 @@ api.interceptors.response.use(
 );
 
 api.interceptors.response.use(
-  response => response,
+  (response) => response,
   (error: unknown) => {
-    if (axios.isAxiosError<{ message: string }>(error) && error.response?.data?.message) {
+    if (
+      axios.isAxiosError<{ message: string }>(error) &&
+      error.response?.data?.message
+    ) {
       // override the built-in AxiosError.message
       error.message = error.response.data.message;
     }

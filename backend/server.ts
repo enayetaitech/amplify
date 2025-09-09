@@ -13,7 +13,7 @@ import { attachSocket } from "./socket/index";
 const app = express();
 console.log("Starting server...",config.frontend_base_url);
 // ✅ CORS config
-const allowedOrigins = [config.frontend_base_url as string,  "http://localhost:3000",];
+const allowedOrigins = [config.frontend_base_url as string,  "http://localhost:3000", "https://amplifyre.shop"];
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -36,7 +36,8 @@ app.use(deviceInfoMiddleware);
 
 // Example route
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  const bucket = config.s3_bucket_name;
+  res.send("Hello World!, " + bucket);
 });
 
 app.use((req, res, next) => {
