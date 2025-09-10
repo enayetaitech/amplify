@@ -278,7 +278,7 @@ export default function Meeting() {
       <div className="relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0  meeting_bg">
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
         {isLeftOpen && (
-          <aside className="relative col-span-3 h-full rounded-r-2xl p-3 overflow-y-auto bg-white shadow">
+          <aside className="relative col-span-3 h-full rounded-r-2xl p-2 overflow-y-auto bg-white shadow">
             <button
               type="button"
               onClick={() => setIsLeftOpen(false)}
@@ -357,12 +357,12 @@ export default function Meeting() {
                 <span>{isStreaming ? "Stop Stream" : "Start Stream"}</span>
               </button>
             )}
-            <ModeratorWaitingPanel />
             <ParticipantsPanel
               role={role}
               socket={socketRef.current}
               myEmail={my?.email || null}
             />
+            <ModeratorWaitingPanel />
             <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
           </aside>
         )}

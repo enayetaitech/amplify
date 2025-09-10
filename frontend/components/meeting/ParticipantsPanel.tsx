@@ -58,7 +58,7 @@ export default function ParticipantsPanel({
 
 
   return (
-    <div className="mt-4">
+    <div className="my-2 bg-custom-gray-5 rounded-lg p-1">
       <div className="font-semibold mb-2">Participants (Live)</div>
 
       <div className="flex items-center gap-2 mb-3">

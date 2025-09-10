@@ -71,7 +71,7 @@ export default function ModeratorWaitingPanel() {
   const admitAll = () => socketRef.current?.emit("waiting:admitAll");
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 bg-custom-gray-5 rounded-lg p-1">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Moderator – Waiting Room</h1>
         <button className="border rounded-lg px-3 py-2" onClick={admitAll}>
