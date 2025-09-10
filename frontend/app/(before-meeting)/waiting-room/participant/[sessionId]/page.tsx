@@ -19,7 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "components/ui/sheet";
-import { Camera, MessageSquare, PanelLeftClose, PanelLeftOpen, Video } from "lucide-react";
+import {  MessageSquare, PanelLeftClose, PanelLeftOpen, Video } from "lucide-react";
 
 type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
@@ -168,7 +168,7 @@ export default function ParticipantWaitingRoom() {
         {/* Sidebar (desktop) */}
         {isChatOpen && (
           <aside className="hidden lg:flex w-[320px] shrink-0 h-[calc(100vh-80px)] sticky top-0">
-            <div className="bg-white border-r w-full flex flex-col">
+            <div className="bg-white w-full flex flex-col">
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="text-sm font-semibold tracking-wide">
                   WAITING ROOM CHAT
@@ -204,7 +204,7 @@ export default function ParticipantWaitingRoom() {
             </div>
           )}
 
-          <div className="border rounded-xl bg-white p-4 lg:p-6">
+          <div className="rounded-xl bg-white p-4 lg:p-6">
             <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center">
               <p className="text-center text-slate-700">
                 Please wait, the meeting host will let you in soon.
