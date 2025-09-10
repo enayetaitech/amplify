@@ -6,8 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  useTrackToggle,
-  DisconnectButton,
+  ControlBar,
 } from "@livekit/components-react";
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
@@ -26,18 +25,10 @@ import ParticipantsPanel from "components/meeting/ParticipantsPanel";
 import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
 import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridge";
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
+import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Logo from "components/shared/LogoComponent";
-import {
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-  MonitorUp,
-  PhoneOff,
-} from "lucide-react";
-import { Track } from "livekit-client";
 
 declare global {
   interface Window {
@@ -284,7 +275,7 @@ export default function Meeting() {
       <div className="relative grid grid-cols-12 gap-4 h-[100vh]  meeting_bg">
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
         {isLeftOpen && (
-          <aside className="relative col-span-3 rounded-r-2xl p-3 overflow-y-auto bg-white shadow-2xl">
+          <aside className="relative col-span-3 rounded p-3 overflow-y-auto bg-white shadow">
             <button
               type="button"
               onClick={() => setIsLeftOpen(false)}
@@ -348,15 +339,16 @@ export default function Meeting() {
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
             <VideoGrid />
-            <div className="pt-2">
-              <CustomControlBar />
+            <div className="pt-2 flex items-center justify-between gap-2">
+              <ControlBar variation="minimal" />
+              <ScreenshareControl role={role} />
             </div>
           </div>
         </main>
 
         {/* RIGHT: observer chat/media hub — hide for participants */}
         {role !== "participant" && isRightOpen && (
-          <aside className="relative col-span-3 rounded-l-2xl p-3 overflow-y-auto bg-white shadow-2xl">
+          <aside className="relative col-span-3 rounded p-3 overflow-y-auto bg-white shadow">
             <button
               type="button"
               onClick={() => setIsRightOpen(false)}
@@ -387,65 +379,5 @@ export default function Meeting() {
         )}
       </div>
     </LiveKitRoom>
-  );
-}
-
-function MicToggle() {
-  const { buttonProps, enabled } = useTrackToggle({
-    source: Track.Source.Microphone,
-  });
-  return (
-    <button
-      {...buttonProps}
-      className="rounded-full w-10 h-10 flex items-center justify-center hover:bg-white/10"
-      aria-label="Toggle microphone"
-    >
-      {enabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-    </button>
-  );
-}
-
-function CameraToggle() {
-  const { buttonProps, enabled } = useTrackToggle({
-    source: Track.Source.Camera,
-  });
-  return (
-    <button
-      {...buttonProps}
-      className="rounded-full w-10 h-10 flex items-center justify-center hover:bg-white/10"
-      aria-label="Toggle camera"
-    >
-      {enabled ? (
-        <Video className="h-5 w-5" />
-      ) : (
-        <VideoOff className="h-5 w-5" />
-      )}
-    </button>
-  );
-}
-
-function ScreenShareToggle() {
-  const { buttonProps } = useTrackToggle({ source: Track.Source.ScreenShare });
-  return (
-    <button
-      {...buttonProps}
-      className="rounded-full w-10 h-10 flex items-center justify-center hover:bg-white/10"
-      aria-label="Toggle screenshare"
-    >
-      <MonitorUp className="h-5 w-5" />
-    </button>
-  );
-}
-
-function CustomControlBar() {
-  return (
-    <div className="w-full bg-black text-white rounded-xl px-4 py-2 flex items-center justify-center gap-6">
-      <MicToggle />
-      <CameraToggle />
-      <ScreenShareToggle />
-      <DisconnectButton className="bg-red-600 hover:bg-red-700 rounded-full w-10 h-10 flex items-center justify-center">
-        <PhoneOff className="h-5 w-5 text-white" />
-      </DisconnectButton>
-    </div>
   );
 }
