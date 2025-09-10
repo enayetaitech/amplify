@@ -253,7 +253,7 @@ export default function Meeting() {
 
   if (!token || !wsUrl) {
     return (
-      <div className="grid grid-cols-12 gap-4 h-[100vh] p-4">
+      <div className="grid grid-cols-12 gap-4 h-[100dvh] overflow-hidden p-4">
         <div className="col-span-12 m-auto text-gray-500">Connecting…</div>
       </div>
     );
@@ -272,10 +272,10 @@ export default function Meeting() {
 
   return (
     <LiveKitRoom token={token} serverUrl={wsUrl}>
-      <div className="relative grid grid-cols-12 gap-4 h-[100vh]  meeting_bg">
+      <div className="relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0  meeting_bg">
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
         {isLeftOpen && (
-          <aside className="relative col-span-3 rounded p-3 overflow-y-auto bg-white shadow">
+          <aside className="relative col-span-3 h-full rounded-r-2xl p-3 overflow-y-auto bg-white shadow">
             <button
               type="button"
               onClick={() => setIsLeftOpen(false)}
@@ -308,7 +308,7 @@ export default function Meeting() {
 
         {/* MIDDLE: LiveKit room visuals */}
         <main
-          className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}
+          className={`${mainColSpanClass} h-full min-h-0 overflow-hidden rounded p-3 flex flex-col`}
         >
           {/* Top header inside main area */}
           <div className="flex items-center justify-between px-1 pb-2">
@@ -328,7 +328,7 @@ export default function Meeting() {
             <Logo />
           </div>
 
-          <div className="flex flex-col h-full lk-scope">
+          <div className="flex flex-col flex-1 min-h-0 lk-scope">
             <AutoPublishOnConnect role={role} />
             <SubscribeCameraBridge />
             <RegisterIdentityBridge
@@ -339,7 +339,7 @@ export default function Meeting() {
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
             <VideoGrid />
-            <div className="pt-2 flex items-center justify-between gap-2">
+            <div className="shrink-0 pt-2 flex items-center justify-between gap-2">
               <ControlBar variation="minimal" />
               <ScreenshareControl role={role} />
             </div>
@@ -348,7 +348,7 @@ export default function Meeting() {
 
         {/* RIGHT: observer chat/media hub — hide for participants */}
         {role !== "participant" && isRightOpen && (
-          <aside className="relative col-span-3 rounded p-3 overflow-y-auto bg-white shadow">
+          <aside className="relative col-span-3 h-full rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
             <button
               type="button"
               onClick={() => setIsRightOpen(false)}
