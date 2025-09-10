@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useParticipants } from "@livekit/components-react";
 import { Button } from "components/ui/button";
-import { toast } from "sonner";
 import type { Socket } from "socket.io-client";
 import type { UiRole } from "constant/roles";
 
@@ -40,7 +38,7 @@ export default function ParticipantsPanel({
   socket: Socket | null;
   myEmail?: string | null;
 }) {
-  const [busy, setBusy] = useState<null | "start" | "stop">(null);
+ 
   const all = useParticipants();
   const remotes = all.filter((p) => !p.isLocal);
 
@@ -57,35 +55,7 @@ export default function ParticipantsPanel({
     );
   };
 
-  const canControlStream = role === "admin" || role === "moderator";
 
-  const onStartStream = () => {
-    if (!socket) return;
-    setBusy("start");
-    socket.emit(
-      "meeting:stream:start",
-      {},
-      (ack?: { ok?: boolean; error?: string }) => {
-        setBusy(null);
-        if (ack?.ok) toast.success("Streaming started");
-        else toast.error(ack?.error || "Failed to start streaming");
-      }
-    );
-  };
-
-  const onStopStream = () => {
-    if (!socket) return;
-    setBusy("stop");
-    socket.emit(
-      "meeting:stream:stop",
-      {},
-      (ack?: { ok?: boolean; error?: string }) => {
-        setBusy(null);
-        if (ack?.ok) toast.success("Streaming stopped");
-        else toast.error(ack?.error || "Failed to stop streaming");
-      }
-    );
-  };
 
   return (
     <div className="mt-4">
@@ -108,20 +78,7 @@ export default function ParticipantsPanel({
         >
           Revoke all
         </Button>
-        {canControlStream && (
-          <div className="mb-3 flex items-center gap-2">
-            <Button onClick={onStartStream} disabled={busy === "start"}>
-              Start Stream
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={onStopStream}
-              disabled={busy === "stop"}
-            >
-              Stop Stream
-            </Button>
-          </div>
-        )}
+        {/* Stream controls moved to meeting left sidebar under Whiteboard */}
       </div>
 
       <div className="space-y-2">
@@ -257,4 +214,3 @@ export default function ParticipantsPanel({
     </div>
   );
 }
-

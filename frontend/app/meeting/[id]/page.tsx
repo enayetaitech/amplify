@@ -29,6 +29,7 @@ import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
 import { ChevronLeft, ChevronRight, PenTool } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "components/ui/button";
 import Logo from "components/shared/LogoComponent";
 
 declare global {
@@ -128,6 +129,8 @@ export default function Meeting() {
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
+  const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // 🔌 single meeting socket for this page
   const socketRef = useRef<Socket | null>(null);
@@ -296,6 +299,57 @@ export default function Meeting() {
               </span>
               <span>Whiteboard</span>
             </button>
+
+            {(role === "admin" || role === "moderator") && (
+              <div className="mb-3 w-[80%]">
+                <Button
+                  className="w-full"
+                  variant={isStreaming ? "destructive" : "default"}
+                  disabled={streamBusy !== null}
+                  onClick={() => {
+                    const s = socketRef.current;
+                    if (!s) return;
+                    if (!isStreaming) {
+                      setStreamBusy("start");
+                      s.emit(
+                        "meeting:stream:start",
+                        {},
+                        (ack?: { ok?: boolean; error?: string }) => {
+                          setStreamBusy(null);
+                          if (ack?.ok) {
+                            setIsStreaming(true);
+                            toast.success("Streaming started");
+                          } else {
+                            toast.error(
+                              ack?.error || "Failed to start streaming"
+                            );
+                          }
+                        }
+                      );
+                    } else {
+                      setStreamBusy("stop");
+                      s.emit(
+                        "meeting:stream:stop",
+                        {},
+                        (ack?: { ok?: boolean; error?: string }) => {
+                          setStreamBusy(null);
+                          if (ack?.ok) {
+                            setIsStreaming(false);
+                            toast.success("Streaming stopped");
+                          } else {
+                            toast.error(
+                              ack?.error || "Failed to stop streaming"
+                            );
+                          }
+                        }
+                      );
+                    }
+                  }}
+                >
+                  {isStreaming ? "Stop Stream" : "Start Stream"}
+                </Button>
+              </div>
+            )}
             <ModeratorWaitingPanel />
             <ParticipantsPanel
               role={role}
