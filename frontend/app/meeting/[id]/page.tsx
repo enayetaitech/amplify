@@ -28,6 +28,7 @@ import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import Logo from "components/shared/LogoComponent";
 
 declare global {
   interface Window {
@@ -307,8 +308,26 @@ export default function Meeting() {
 
         {/* MIDDLE: LiveKit room visuals */}
         <main
-          className={`${mainColSpanClass} border rounded p-3 flex flex-col min-h-0`}
+          className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}
         >
+          {/* Top header inside main area */}
+          <div className="flex items-center justify-between px-1 pb-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                <span>On going meeting</span>
+              </div>
+              <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+                {role === "moderator"
+                  ? "Moderator View"
+                  : role === "admin"
+                  ? "Admin View"
+                  : "Participant View"}
+              </span>
+            </div>
+            <Logo />
+          </div>
+
           <div className="flex flex-col h-full lk-scope">
             <AutoPublishOnConnect role={role} />
             <SubscribeCameraBridge />
