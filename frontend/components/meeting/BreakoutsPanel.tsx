@@ -169,7 +169,8 @@ export default function BreakoutsPanel({
   };
 
   const moveToBreakout = async (toIdx: number) => {
-    for (const id of selectedIds) {
+    const movedIds = [...selectedIds];
+    for (const id of movedIds) {
       try {
         await api.post(`/api/v1/livekit/${sessionId}/breakouts/move-to`, {
           identity: id,
@@ -180,10 +181,17 @@ export default function BreakoutsPanel({
       }
     }
     setSelectedIds([]);
+    // Optimistically remove moved users from current source room list
+    setParticipants((prev) =>
+      prev.filter((p) => !movedIds.includes(p.identity))
+    );
+    // Force refresh in case socket is delayed
+    setRefreshTick((x) => x + 1);
   };
 
   const moveToMain = async (fromIdx: number) => {
-    for (const id of selectedIds) {
+    const movedIds = [...selectedIds];
+    for (const id of movedIds) {
       try {
         await api.post(`/api/v1/livekit/${sessionId}/breakouts/move-back`, {
           identity: id,
@@ -194,6 +202,12 @@ export default function BreakoutsPanel({
       }
     }
     setSelectedIds([]);
+    // Optimistically remove moved users from current source room list
+    setParticipants((prev) =>
+      prev.filter((p) => !movedIds.includes(p.identity))
+    );
+    // Force refresh in case socket is delayed
+    setRefreshTick((x) => x + 1);
   };
 
   const breakoutIndices = breakouts.map((b) => b.index);
