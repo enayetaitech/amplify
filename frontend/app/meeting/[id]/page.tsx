@@ -27,7 +27,8 @@ import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridg
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, PenTool } from "lucide-react";
+import { toast } from "sonner";
 import Logo from "components/shared/LogoComponent";
 
 declare global {
@@ -284,7 +285,17 @@ export default function Meeting() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <h3 className="font-semibold mb-2">Controls & Waiting Room</h3>
+            <button
+              type="button"
+              onClick={() => toast("Features not developed yet")}
+              className="mb-2 inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+              aria-label="Whiteboard"
+            >
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                <PenTool className="h-3.5 w-3.5 text-white" />
+              </span>
+              <span>Whiteboard</span>
+            </button>
             <ModeratorWaitingPanel />
             <ParticipantsPanel
               role={role}
