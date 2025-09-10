@@ -99,6 +99,56 @@ function VideoGrid() {
   );
 }
 
+/** Bridge to (re)subscribe to remote camera tracks after participant connects or publishes */
+function SubscribeCameraBridge() {
+  const room = useRoomContext();
+  useEffect(() => {
+    if (!room) return;
+
+    const hasSetSubscribed = (
+      pub: unknown
+    ): pub is { setSubscribed: (b: boolean) => Promise<void> | void } => {
+      return (
+        !!pub &&
+        typeof (pub as { setSubscribed?: unknown }).setSubscribed === "function"
+      );
+    };
+
+    const ensureSubs = () => {
+      try {
+        // Iterate remote participants and ensure camera publications are subscribed
+        for (const p of room.remoteParticipants.values()) {
+          const pubs = p.getTrackPublications();
+          for (const pub of pubs) {
+            if (pub.source === Track.Source.Camera && !pub.isSubscribed) {
+              try {
+                if (hasSetSubscribed(pub)) {
+                  void pub.setSubscribed(true);
+                }
+              } catch {}
+            }
+          }
+        }
+      } catch {}
+    };
+
+    const onConnected = () => ensureSubs();
+    const onParticipantConnected = () => ensureSubs();
+    const onTrackPublished = () => ensureSubs();
+
+    if (room.state === "connected") ensureSubs();
+    room.on(RoomEvent.Connected, onConnected);
+    room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+    room.on(RoomEvent.TrackPublished, onTrackPublished);
+    return () => {
+      room.off(RoomEvent.Connected, onConnected);
+      room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+      room.off(RoomEvent.TrackPublished, onTrackPublished);
+    };
+  }, [room]);
+  return null;
+}
+
 async function fetchLiveKitToken(sessionId: string, role: ServerRole) {
   const res = await api.post<ApiResponse<{ token: string }>>(
     "/api/v1/livekit/token",
@@ -770,6 +820,8 @@ export default function Meeting() {
         <main className="col-span-6 border rounded p-3 flex flex-col min-h-0">
           <div className="flex flex-col h-full lk-scope">
             <AutoPublishOnConnect role={role} />
+            {/* Ensure we resubscribe to remote camera tracks after moves */}
+            <SubscribeCameraBridge />
             <RegisterIdentityBridge
               socket={socketRef.current}
               email={my?.email || ""}

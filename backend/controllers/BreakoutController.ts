@@ -14,6 +14,7 @@ import {
 } from "../processors/livekit/livekitService";
 import { emitBreakoutsChanged } from "../socket/bus";
 import config from "../config/index";
+import { TrackSource } from "livekit-server-sdk";
 
 export const createBreakoutRoom = async (
   req: Request,
@@ -247,6 +248,35 @@ export const moveParticipantToBreakout = async (
     String(identity),
     bo.livekitRoom
   );
+  // Restore baseline publish sources (MIC + CAMERA) in destination room
+  try {
+    const list = await roomService.listParticipants(bo.livekitRoom);
+    const found = list.find((pi) => pi.identity === String(identity));
+    const prev =
+      (found &&
+        (
+          found as unknown as {
+            permission?: { canPublishSources?: TrackSource[] };
+          }
+        ).permission) ||
+      {};
+    const prevSources = Array.isArray(
+      (prev as { canPublishSources?: TrackSource[] }).canPublishSources
+    )
+      ? ((prev as { canPublishSources?: TrackSource[] })
+          .canPublishSources as TrackSource[])
+      : [];
+    const baseline: TrackSource[] = [
+      TrackSource.MICROPHONE,
+      TrackSource.CAMERA,
+    ];
+    const next = Array.from(
+      new Set((prevSources.length ? prevSources : baseline).concat(baseline))
+    );
+    await roomService.updateParticipant(bo.livekitRoom, String(identity), {
+      permission: { ...(prev as any), canPublishSources: next },
+    });
+  } catch {}
   sendResponse(res, { ok: true }, "Moved");
 };
 
@@ -276,6 +306,35 @@ export const moveParticipantToMain = async (
     String(identity),
     String(sessionId)
   );
+  // Restore baseline publish sources (MIC + CAMERA) in destination room
+  try {
+    const list = await roomService.listParticipants(String(sessionId));
+    const found = list.find((pi) => pi.identity === String(identity));
+    const prev =
+      (found &&
+        (
+          found as unknown as {
+            permission?: { canPublishSources?: TrackSource[] };
+          }
+        ).permission) ||
+      {};
+    const prevSources = Array.isArray(
+      (prev as { canPublishSources?: TrackSource[] }).canPublishSources
+    )
+      ? ((prev as { canPublishSources?: TrackSource[] })
+          .canPublishSources as TrackSource[])
+      : [];
+    const baseline: TrackSource[] = [
+      TrackSource.MICROPHONE,
+      TrackSource.CAMERA,
+    ];
+    const next = Array.from(
+      new Set((prevSources.length ? prevSources : baseline).concat(baseline))
+    );
+    await roomService.updateParticipant(String(sessionId), String(identity), {
+      permission: { ...(prev as any), canPublishSources: next },
+    });
+  } catch {}
   sendResponse(res, { ok: true }, "Moved");
 };
 
