@@ -37,6 +37,7 @@ export default function BreakoutsPanel({
   const [participants, setParticipants] = useState<ParticipantItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [showDetails, setShowDetails] = useState(false);
 
   const canManage = role === "admin" || role === "moderator";
 
@@ -117,6 +118,7 @@ export default function BreakoutsPanel({
 
   const createBreakout = async () => {
     if (!canManage || creating) return;
+    setShowDetails(true);
     setCreating(true);
     try {
       const res = await api.post<{
@@ -213,118 +215,122 @@ export default function BreakoutsPanel({
       </div>
 
       {/* Move participants */}
-      <div className="border-t pt-3">
-        <div className="font-semibold mb-2">Move participants</div>
-        <label className="text-sm">Source room</label>
-        <select
-          className="block border rounded px-2 py-1 mb-2 text-black"
-          value={sourceRoom}
-          onChange={(e) => setSourceRoom(e.target.value)}
-        >
-          {roomsList.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+      {showDetails && (
+        <div className="border-t pt-3">
+          <div className="font-semibold mb-2">Move participants</div>
+          <label className="text-sm">Source room</label>
+          <select
+            className="block border rounded px-2 py-1 mb-2 text-black"
+            value={sourceRoom}
+            onChange={(e) => setSourceRoom(e.target.value)}
+          >
+            {roomsList.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
 
-        <label className="text-sm">Choose participants</label>
-        <select
-          multiple
-          value={selectedIds}
-          onChange={(e) =>
-            setSelectedIds(
-              Array.from(e.target.selectedOptions)
-                .map((o) => o.value)
-                .filter((v) => participants.some((p) => p.identity === v))
-            )
-          }
-          className="w-full min-h-[90px] border rounded px-2 py-1 text-black"
-        >
-          {participants.map((p) => (
-            <option key={p.identity} value={p.identity}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          <label className="text-sm">Choose participants</label>
+          <select
+            multiple
+            value={selectedIds}
+            onChange={(e) =>
+              setSelectedIds(
+                Array.from(e.target.selectedOptions)
+                  .map((o) => o.value)
+                  .filter((v) => participants.some((p) => p.identity === v))
+              )
+            }
+            className="w-full min-h-[90px] border rounded px-2 py-1 text-black"
+          >
+            {participants.map((p) => (
+              <option key={p.identity} value={p.identity}>
+                {p.name}
+              </option>
+            ))}
+          </select>
 
-        <div className="flex flex-wrap gap-2 mt-2">
-          {!selectedIsMain && selectedBreakoutIndex !== null && (
-            <Button
-              size="sm"
-              onClick={() => moveToMain(selectedBreakoutIndex)}
-              disabled={selectedIds.length === 0}
-            >
-              Move to main
-            </Button>
-          )}
-          {breakoutIndices.map((idx) => {
-            const bo = breakouts.find((b) => b.index === idx);
-            const isSame = bo?.livekitRoom === sourceRoom;
-            if (isSame) return null;
-            return (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {!selectedIsMain && selectedBreakoutIndex !== null && (
               <Button
-                key={idx}
                 size="sm"
-                onClick={() => moveToBreakout(idx)}
+                onClick={() => moveToMain(selectedBreakoutIndex)}
                 disabled={selectedIds.length === 0}
               >
-                Move to Breakout #{idx}
+                Move to main
               </Button>
-            );
-          })}
+            )}
+            {breakoutIndices.map((idx) => {
+              const bo = breakouts.find((b) => b.index === idx);
+              const isSame = bo?.livekitRoom === sourceRoom;
+              if (isSame) return null;
+              return (
+                <Button
+                  key={idx}
+                  size="sm"
+                  onClick={() => moveToBreakout(idx)}
+                  disabled={selectedIds.length === 0}
+                >
+                  Move to Breakout #{idx}
+                </Button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Active list */}
-      <div className="border-t pt-3">
-        <div className="font-semibold mb-2">Active breakouts</div>
-        {breakouts.filter((b) => !b.closedAt).length === 0 && (
-          <div className="text-sm text-gray-500">None</div>
-        )}
-        <div className="space-y-2">
-          {breakouts
-            .filter((b) => !b.closedAt)
-            .map((b) => (
-              <div
-                key={b.index}
-                className="flex items-center justify-between gap-2 border rounded p-2"
-              >
-                <div>
-                  <div className="font-medium">Breakout #{b.index}</div>
-                  {b.closesAt ? (
-                    <div className="text-xs text-gray-500">
-                      Closes at {new Date(b.closesAt).toLocaleTimeString()}
-                    </div>
-                  ) : null}
-                  {b.hls?.playbackUrl ? (
-                    <div className="text-xs">
-                      <a
-                        className="underline"
-                        href={b.hls.playbackUrl}
-                        target="_blank"
-                      >
-                        Open HLS
-                      </a>
-                    </div>
-                  ) : null}
+      {showDetails && (
+        <div className="border-t pt-3">
+          <div className="font-semibold mb-2">Active breakouts</div>
+          {breakouts.filter((b) => !b.closedAt).length === 0 && (
+            <div className="text-sm text-gray-500">None</div>
+          )}
+          <div className="space-y-2">
+            {breakouts
+              .filter((b) => !b.closedAt)
+              .map((b) => (
+                <div
+                  key={b.index}
+                  className="flex items-center justify-between gap-2 border rounded p-2"
+                >
+                  <div>
+                    <div className="font-medium">Breakout #{b.index}</div>
+                    {b.closesAt ? (
+                      <div className="text-xs text-gray-500">
+                        Closes at {new Date(b.closesAt).toLocaleTimeString()}
+                      </div>
+                    ) : null}
+                    {b.hls?.playbackUrl ? (
+                      <div className="text-xs">
+                        <a
+                          className="underline"
+                          href={b.hls.playbackUrl}
+                          target="_blank"
+                        >
+                          Open HLS
+                        </a>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={() => extend(b.index, 5)}>
+                      +5 min
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => close(b.index)}
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" onClick={() => extend(b.index, 5)}>
-                    +5 min
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => close(b.index)}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
