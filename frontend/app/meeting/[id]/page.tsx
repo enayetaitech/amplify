@@ -8,7 +8,6 @@ import {
   RoomAudioRenderer,
   ControlBar,
 } from "@livekit/components-react";
-//
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import "@livekit/components-styles";
@@ -16,7 +15,6 @@ import "./meeting.css";
 import { useGlobalContext } from "context/GlobalContext";
 import { flagsFromSearchParams } from "constant/featureFlags";
 import { safeLocalGet } from "utils/storage";
-
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
 import BreakoutsPanel from "components/meeting/BreakoutsPanel";
@@ -29,6 +27,7 @@ import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridg
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 declare global {
   interface Window {
@@ -125,6 +124,8 @@ export default function Meeting() {
   const [wsUrl, setWsUrl] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
+  const [isLeftOpen, setIsLeftOpen] = useState(true);
+  const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
 
   // 🔌 single meeting socket for this page
   const socketRef = useRef<Socket | null>(null);
@@ -251,29 +252,63 @@ export default function Meeting() {
 
   if (!token || !wsUrl) {
     return (
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      <div className="grid grid-cols-12 gap-4 h-[100vh] p-4">
         <div className="col-span-12 m-auto text-gray-500">Connecting…</div>
       </div>
     );
   }
 
+  // Note: right panel initial state derives from role; avoid conditional hooks after returns
+
+  const mainColSpanClass =
+    (isLeftOpen ? 1 : 0) + (role !== "participant" && isRightOpen ? 1 : 0) === 2
+      ? "col-span-6"
+      : (isLeftOpen ? 1 : 0) +
+          (role !== "participant" && isRightOpen ? 1 : 0) ===
+        1
+      ? "col-span-9"
+      : "col-span-12";
+
   return (
     <LiveKitRoom token={token} serverUrl={wsUrl}>
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      <div className="relative grid grid-cols-12 gap-4 h-[100vh]  meeting_bg">
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
-        <aside className="col-span-3 border rounded p-3 overflow-y-auto">
-          <h3 className="font-semibold mb-2">Controls & Waiting Room</h3>
-          <ModeratorWaitingPanel />
-          <ParticipantsPanel
-            role={role}
-            socket={socketRef.current}
-            myEmail={my?.email || null}
-          />
-          <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
-        </aside>
+        {isLeftOpen && (
+          <aside className="relative col-span-3 rounded p-3 overflow-y-auto bg-white shadow">
+            <button
+              type="button"
+              onClick={() => setIsLeftOpen(false)}
+              className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              aria-label="Collapse left panel"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <h3 className="font-semibold mb-2">Controls & Waiting Room</h3>
+            <ModeratorWaitingPanel />
+            <ParticipantsPanel
+              role={role}
+              socket={socketRef.current}
+              myEmail={my?.email || null}
+            />
+            <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
+          </aside>
+        )}
+
+        {!isLeftOpen && (
+          <button
+            type="button"
+            onClick={() => setIsLeftOpen(true)}
+            className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Expand left panel"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
 
         {/* MIDDLE: LiveKit room visuals */}
-        <main className="col-span-6 border rounded p-3 flex flex-col min-h-0">
+        <main
+          className={`${mainColSpanClass} border rounded p-3 flex flex-col min-h-0`}
+        >
           <div className="flex flex-col h-full lk-scope">
             <AutoPublishOnConnect role={role} />
             <SubscribeCameraBridge />
@@ -293,8 +328,16 @@ export default function Meeting() {
         </main>
 
         {/* RIGHT: observer chat/media hub — hide for participants */}
-        {role !== "participant" ? (
-          <aside className="col-span-3 border rounded p-3 overflow-y-auto">
+        {role !== "participant" && isRightOpen && (
+          <aside className="relative col-span-3 rounded p-3 overflow-y-auto bg-white shadow">
+            <button
+              type="button"
+              onClick={() => setIsRightOpen(false)}
+              className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              aria-label="Collapse right panel"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
             <h3 className="font-semibold mb-2">Observers</h3>
             {(role === "admin" || role === "moderator") &&
               featureFlags.breakoutsEnabled && (
@@ -304,8 +347,16 @@ export default function Meeting() {
                 </div>
               )}
           </aside>
-        ) : (
-          <div className="col-span-3" />
+        )}
+        {role !== "participant" && !isRightOpen && (
+          <button
+            type="button"
+            onClick={() => setIsRightOpen(true)}
+            className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Expand right panel"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
         )}
       </div>
     </LiveKitRoom>
