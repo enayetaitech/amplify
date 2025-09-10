@@ -10,11 +10,13 @@ export interface EnqueuePayload {
   email: string;
   role: "Participant" | "Moderator" | "Observer";
   device?: string;
+  passcode?: string;
 }
 
 export function useEnqueueWaitingRoom() {
   const enqueue = useCallback(async (payload: EnqueuePayload) => {
-    await api.post(`/api/v1/waiting-room/enqueue`, payload);
+    const res = await api.post(`/api/v1/waiting-room/enqueue`, payload);
+    return res.data;
   }, []);
 
   return { enqueue };
