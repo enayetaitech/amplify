@@ -27,9 +27,8 @@ import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridg
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
-import { ChevronLeft, ChevronRight, PenTool } from "lucide-react";
+import { ChevronLeft, ChevronRight, PenTool, Play, Square } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "components/ui/button";
 import Logo from "components/shared/LogoComponent";
 
 declare global {
@@ -291,7 +290,7 @@ export default function Meeting() {
             <button
               type="button"
               onClick={() => toast("Features not developed yet")}
-              className="mb-2 inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+              className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
               aria-label="Whiteboard"
             >
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
@@ -301,54 +300,62 @@ export default function Meeting() {
             </button>
 
             {(role === "admin" || role === "moderator") && (
-              <div className="mb-3 w-[80%]">
-                <Button
-                  className="w-full"
-                  variant={isStreaming ? "destructive" : "default"}
-                  disabled={streamBusy !== null}
-                  onClick={() => {
-                    const s = socketRef.current;
-                    if (!s) return;
-                    if (!isStreaming) {
-                      setStreamBusy("start");
-                      s.emit(
-                        "meeting:stream:start",
-                        {},
-                        (ack?: { ok?: boolean; error?: string }) => {
-                          setStreamBusy(null);
-                          if (ack?.ok) {
-                            setIsStreaming(true);
-                            toast.success("Streaming started");
-                          } else {
-                            toast.error(
-                              ack?.error || "Failed to start streaming"
-                            );
-                          }
+              <button
+                type="button"
+                onClick={() => {
+                  const s = socketRef.current;
+                  if (!s || streamBusy !== null) return;
+                  if (!isStreaming) {
+                    setStreamBusy("start");
+                    s.emit(
+                      "meeting:stream:start",
+                      {},
+                      (ack?: { ok?: boolean; error?: string }) => {
+                        setStreamBusy(null);
+                        if (ack?.ok) {
+                          setIsStreaming(true);
+                          toast.success("Streaming started");
+                        } else {
+                          toast.error(
+                            ack?.error || "Failed to start streaming"
+                          );
                         }
-                      );
-                    } else {
-                      setStreamBusy("stop");
-                      s.emit(
-                        "meeting:stream:stop",
-                        {},
-                        (ack?: { ok?: boolean; error?: string }) => {
-                          setStreamBusy(null);
-                          if (ack?.ok) {
-                            setIsStreaming(false);
-                            toast.success("Streaming stopped");
-                          } else {
-                            toast.error(
-                              ack?.error || "Failed to stop streaming"
-                            );
-                          }
+                      }
+                    );
+                  } else {
+                    setStreamBusy("stop");
+                    s.emit(
+                      "meeting:stream:stop",
+                      {},
+                      (ack?: { ok?: boolean; error?: string }) => {
+                        setStreamBusy(null);
+                        if (ack?.ok) {
+                          setIsStreaming(false);
+                          toast.success("Streaming stopped");
+                        } else {
+                          toast.error(ack?.error || "Failed to stop streaming");
                         }
-                      );
-                    }
-                  }}
-                >
-                  {isStreaming ? "Stop Stream" : "Start Stream"}
-                </Button>
-              </div>
+                      }
+                    );
+                  }
+                }}
+                disabled={streamBusy !== null}
+                className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition ${
+                  streamBusy !== null
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-200"
+                } bg-gray-100 text-gray-700`}
+                aria-label={isStreaming ? "Stop Stream" : "Start Stream"}
+              >
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                  {isStreaming ? (
+                    <Square className="h-3.5 w-3.5 text-white" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5 text-white" />
+                  )}
+                </span>
+                <span>{isStreaming ? "Stop Stream" : "Start Stream"}</span>
+              </button>
             )}
             <ModeratorWaitingPanel />
             <ParticipantsPanel
