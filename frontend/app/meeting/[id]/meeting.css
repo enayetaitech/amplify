@@ -17,3 +17,56 @@
 .lk-scope [data-lk-source="screen_share"] .lk-participant-metadata {
   display: none !important;
 }
+
+/* Control bar: full width, black background, white icons */
+.lk-scope .lk-control-bar {
+  width: 100% !important;
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  justify-content: center !important;
+  gap: 16px !important;
+}
+
+.lk-scope .lk-control-bar .lk-button,
+.lk-scope .lk-control-bar button {
+  color: #fff !important;
+  background: transparent !important;
+}
+
+.lk-scope .lk-control-bar svg {
+  width: 20px !important;
+  height: 20px !important;
+  color: #fff !important;
+  fill: #fff !important;
+}
+
+/* Hide text labels inside TrackToggle etc. */
+.lk-scope .lk-control-bar .lk-button span,
+.lk-scope .lk-control-bar .lk-media-device-menu,
+.lk-scope .lk-control-bar .lk-button-group-menu {
+  display: none !important;
+}
+
+/* Hide StartMediaButton (text-only button); keep Disconnect button which has an svg */
+.lk-scope .lk-control-bar > button:not(.lk-button):not(:has(svg)) {
+  display: none !important;
+}
+
+/* Style the Disconnect (End Call) button */
+.lk-scope .lk-control-bar > button:not(.lk-button):has(svg) {
+  background: #dc2626 !important; /* red */
+  border-radius: 9999px !important;
+  width: 40px !important;
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.lk-scope .lk-control-bar > button:not(.lk-button):has(svg) svg {
+  color: #fff !important;
+  fill: #fff !important;
+}
+
+/* Leave button visible; style via icon-only rules above */
