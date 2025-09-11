@@ -15,6 +15,10 @@ import {
 import { emitBreakoutsChanged } from "../socket/bus";
 import config from "../config/index";
 import { TrackSource } from "livekit-server-sdk";
+import {
+  cancelBreakoutCloseTimer,
+  scheduleBreakoutCloseTimer,
+} from "../services/breakoutScheduler";
 
 export const createBreakoutRoom = async (
   req: Request,
@@ -60,10 +64,12 @@ export const createBreakoutRoom = async (
     } catch {}
   }
 
+  const closesAtDefault = new Date(Date.now() + 2 * 60 * 1000);
   await BreakoutRoom.create({
     sessionId: new Types.ObjectId(sessionId),
     index,
     livekitRoom,
+    closesAt: closesAtDefault,
     hls: playbackUrl
       ? { egressId, playbackUrl, startedAt: new Date() }
       : undefined,
@@ -71,6 +77,13 @@ export const createBreakoutRoom = async (
       ? { egressId: fileEgressId, startedAt: new Date() }
       : undefined,
   });
+
+  // schedule default auto-close
+  try {
+    scheduleBreakoutCloseTimer(String(sessionId), index, closesAtDefault);
+  } catch {}
+
+  // no closesAt set here by default; panel can later extend and we'll schedule timer then
 
   sendResponse(
     res,
@@ -126,27 +139,12 @@ export const listBreakoutsPublic = async (
   sendResponse(res, { items: mapped }, "Breakouts");
 };
 
-export const closeBreakout = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { sessionId, index } = req.params as {
-    sessionId: string;
-    index: string;
-  };
-  if (!sessionId || !Types.ObjectId.isValid(sessionId)) {
-    return next(new ErrorHandler("Invalid sessionId", 400));
-  }
-  const idx = Number(index);
-  if (!idx || idx < 1)
-    return next(new ErrorHandler("Invalid breakout index", 400));
-
+export async function closeBreakoutByIndex(sessionId: string, idx: number) {
   const bo = await BreakoutRoom.findOne({
     sessionId: new Types.ObjectId(sessionId),
     index: idx,
   });
-  if (!bo) return next(new ErrorHandler("Breakout not found", 404));
+  if (!bo) throw new Error("Breakout not found");
 
   // stop HLS egress if running
   if (bo.hls?.egressId) {
@@ -178,10 +176,35 @@ export const closeBreakout = async (
 
   bo.closedAt = new Date();
   await bo.save();
-  sendResponse(res, { ok: true }, "Breakout closed");
   try {
     emitBreakoutsChanged(String(sessionId));
   } catch {}
+}
+
+export const closeBreakout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { sessionId, index } = req.params as {
+    sessionId: string;
+    index: string;
+  };
+  if (!sessionId || !Types.ObjectId.isValid(sessionId)) {
+    return next(new ErrorHandler("Invalid sessionId", 400));
+  }
+  const idx = Number(index);
+  if (!idx || idx < 1)
+    return next(new ErrorHandler("Invalid breakout index", 400));
+
+  try {
+    await closeBreakoutByIndex(String(sessionId), idx);
+    // cancel any pending timer
+    cancelBreakoutCloseTimer(String(sessionId), idx);
+  } catch (e: any) {
+    return next(new ErrorHandler(e?.message || "Breakout not found", 404));
+  }
+  sendResponse(res, { ok: true }, "Breakout closed");
 };
 
 export const extendBreakout = async (
@@ -219,6 +242,10 @@ export const extendBreakout = async (
   sendResponse(res, { closesAt: bo.closesAt }, "Breakout extended");
   try {
     emitBreakoutsChanged(String(sessionId));
+  } catch {}
+  // schedule/refresh auto-close timer
+  try {
+    scheduleBreakoutCloseTimer(String(sessionId), idx, bo.closesAt!);
   } catch {}
 };
 
