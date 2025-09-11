@@ -7,6 +7,7 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
   ControlBar,
+  useRoomContext,
 } from "@livekit/components-react";
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
@@ -38,6 +39,7 @@ import {
   Folder,
   Trash2,
   FileText,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "components/shared/LogoComponent";
@@ -51,6 +53,16 @@ import {
 } from "components/ui/card";
 import { Button } from "components/ui/button";
 import { Separator } from "components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "components/ui/alert-dialog";
 
 declare global {
   interface Window {
@@ -80,6 +92,82 @@ async function fetchLiveKitToken(sessionId: string, role: ServerRole) {
     }
   );
   return res.data.data.token;
+}
+
+function LeaveMeetingButton({
+  role,
+  sessionId,
+}: {
+  role: UiRole;
+  sessionId: string;
+}) {
+  const room = useRoomContext();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const confirmText =
+    role === "admin" || role === "moderator"
+      ? "Are you sure you want to end this meeting for everyone?"
+      : "Are you sure you want to leave this meeting?";
+
+  const titleText =
+    role === "admin" || role === "moderator" ? "End meeting" : "Leave meeting";
+
+  const onConfirm = async () => {
+    try {
+      setBusy(true);
+      if (role === "admin" || role === "moderator") {
+        try {
+          await api.post<ApiResponse<unknown>>(
+            `/api/v1/liveSessions/${sessionId}/end`
+          );
+          toast.success("Meeting ended");
+        } catch {
+          toast.error("Failed to end meeting");
+        }
+        try {
+          await room.disconnect(true);
+        } catch {}
+        router.push("/projects");
+      } else {
+        try {
+          await room.disconnect(true);
+        } catch {}
+        router.replace("/remove-participant");
+      }
+    } finally {
+      setBusy(false);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        variant="destructive"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2"
+      >
+        <LogOut className="h-4 w-4" />
+        {role === "admin" || role === "moderator" ? "End" : "Leave"}
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{titleText}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmText}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirm} disabled={busy}>
+              {role === "admin" || role === "moderator" ? "End" : "Leave"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 }
 
 export default function Meeting() {
@@ -479,7 +567,10 @@ export default function Meeting() {
                   : "Participant View"}
               </span>
             </div>
-            <Logo />
+            <div className="flex flex-col items-end gap-2">
+              <Logo />
+              <LeaveMeetingButton role={role} sessionId={String(sessionId)} />
+            </div>
           </div>
 
           <div className="flex flex-col flex-1 min-h-0 lk-scope">
@@ -496,7 +587,6 @@ export default function Meeting() {
             <VideoGrid />
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
-              {/* <ScreenshareControl role={role} /> */}
             </div>
           </div>
         </main>
