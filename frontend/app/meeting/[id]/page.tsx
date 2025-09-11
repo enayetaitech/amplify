@@ -326,7 +326,7 @@ export default function Meeting() {
       <div className="relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0  meeting_bg">
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
         {isLeftOpen && (
-          <aside className="relative col-span-3 h-full rounded-r-2xl p-2 overflow-y-auto bg-white shadow">
+          <aside className="relative col-span-3 h-full rounded-r-2xl p-2 overflow-y-auto overflow-x-hidden bg-white shadow">
             <button
               type="button"
               onClick={() => setIsLeftOpen(false)}
