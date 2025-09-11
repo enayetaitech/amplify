@@ -388,12 +388,17 @@ export default function Meeting() {
                 </button>
               )}
             <div className="relative">
-              {isBreakoutOverlayOpen && (
-                <div className="absolute inset-0 z-30 rounded-xl bg-white p-3  overflow-auto">
-                  <h4 className="font-semibold mb-2">Breakouts</h4>
-                  <BreakoutsPanel sessionId={String(sessionId)} role={role} />
-                </div>
-              )}
+              <div
+                className={`absolute border inset-0 rounded-lg bg-white p-3 overflow-auto transition-opacity ${
+                  isBreakoutOverlayOpen
+                    ? "z-30 opacity-100"
+                    : "z-[-1] opacity-0 pointer-events-none"
+                }`}
+                aria-hidden={!isBreakoutOverlayOpen}
+              >
+                <h4 className="font-semibold mb-2">Breakouts</h4>
+                <BreakoutsPanel sessionId={String(sessionId)} role={role} />
+              </div>
               <ParticipantsPanel
                 role={role}
                 socket={socketRef.current}
