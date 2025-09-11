@@ -497,7 +497,7 @@ export default function Meeting() {
             <VideoGrid />
             <div className="shrink-0 pt-2 flex items-center justify-between gap-2">
               <ControlBar variation="minimal" />
-              <ScreenshareControl role={role} />
+              {/* <ScreenshareControl role={role} /> */}
             </div>
           </div>
         </main>
