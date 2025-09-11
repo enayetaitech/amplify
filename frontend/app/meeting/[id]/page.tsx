@@ -494,7 +494,7 @@ export default function Meeting() {
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
             <VideoGrid />
-            <div className="shrink-0 pt-2 flex items-center justify-between gap-2">
+            <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" />
               {/* <ScreenshareControl role={role} /> */}
             </div>

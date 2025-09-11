@@ -17,3 +17,34 @@
 .lk-scope [data-lk-source="screen_share"] .lk-participant-metadata {
   display: none !important;
 }
+
+/* Control bar background override */
+.lk-scope .lk-control-bar {
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+/* Make controls visible on black */
+.lk-scope .lk-control-bar .lk-button {
+  color: #fff !important;
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+.lk-scope .lk-control-bar .lk-button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+.lk-scope .lk-control-bar .lk-button[data-lk-state="active"] {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+.lk-scope .lk-control-bar .lk-button svg {
+  color: #fff !important;
+  fill: #fff !important;
+}
+
+/* Start Audio button */
+.lk-scope .lk-control-bar .lk-start-media-button {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
