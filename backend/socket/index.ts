@@ -32,6 +32,8 @@ import { LiveSessionModel } from "../model/LiveSessionModel";
 // sessionId -> (email -> socketId)
 const emailIndex = new Map<string, Map<string, string>>();
 const identityIndex = new Map<string, Map<string, string>>();
+// Track observer sockets per session for accurate counts
+const observerSockets = new Map<string, Set<string>>();
 
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
@@ -76,6 +78,20 @@ export function attachSocket(server: HTTPServer) {
 
     if (["Observer", "Moderator", "Admin"].includes(role)) {
       socket.join(rooms.observer);
+    }
+    // Helper to emit observer count to session
+    const emitObserverCount = () => {
+      const set = observerSockets.get(sessionId);
+      const count = set ? set.size : 0;
+      io.to(sessionId).emit("observer:count", { count });
+    };
+
+    // Maintain observer count map only for Observer role
+    if (role === "Observer") {
+      if (!observerSockets.has(sessionId))
+        observerSockets.set(sessionId, new Set());
+      observerSockets.get(sessionId)!.add(socket.id);
+      emitObserverCount();
     }
 
     // Track email -> socket (only if email present)
@@ -528,6 +544,16 @@ export function attachSocket(server: HTTPServer) {
       }
       // Notify panels to refresh participant lists (may affect move UI)
       io.to(sessionId).emit("meeting:participants-changed", {});
+
+      // Update observer count on disconnect if this was an observer
+      if (role === "Observer") {
+        const set = observerSockets.get(sessionId);
+        if (set) {
+          set.delete(socket.id);
+          if (set.size === 0) observerSockets.delete(sessionId);
+        }
+        emitObserverCount();
+      }
     });
   });
 

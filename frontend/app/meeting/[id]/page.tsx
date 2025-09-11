@@ -138,6 +138,7 @@ export default function Meeting() {
   const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
   const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [observerCount, setObserverCount] = useState(0);
   const [isBreakoutOverlayOpen, setIsBreakoutOverlayOpen] = useState(false);
 
   // 🔌 single meeting socket for this page
@@ -215,6 +216,9 @@ export default function Meeting() {
     });
     socketRef.current = s;
     window.__meetingSocket = s;
+    s.on("observer:count", (p: { count?: number }) => {
+      setObserverCount(Number(p?.count || 0));
+    });
     // 1-minute breakout warning handler
     s.on("meeting:force-mute", (payload: { email?: string }) => {
       if (
@@ -476,7 +480,35 @@ export default function Meeting() {
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-            <h3 className="font-semibold mb-2">Observers</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold">Backroom</h3>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1"
+                aria-label="Observer count"
+              >
+                <span className="inline-flex h-4 w-4 items-center justify-center">
+                  {/* eye icon */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-3.5 w-3.5"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </span>
+                <span>Viewers</span>
+                <span className="ml-1 rounded bg-white/20 px-1">
+                  {observerCount}
+                </span>
+              </button>
+            </div>
           </aside>
         )}
         {role !== "participant" && !isRightOpen && (
