@@ -27,7 +27,14 @@ import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridg
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
-import { ChevronLeft, ChevronRight, PenTool, Play, Square } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  PenTool,
+  Play,
+  Square,
+  LayoutGrid,
+} from "lucide-react";
 import { toast } from "sonner";
 import Logo from "components/shared/LogoComponent";
 
@@ -130,6 +137,7 @@ export default function Meeting() {
   const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
   const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isBreakoutOverlayOpen, setIsBreakoutOverlayOpen] = useState(false);
 
   // 🔌 single meeting socket for this page
   const socketRef = useRef<Socket | null>(null);
@@ -357,13 +365,44 @@ export default function Meeting() {
                 <span>{isStreaming ? "Stop Stream" : "Start Stream"}</span>
               </button>
             )}
-            <ParticipantsPanel
-              role={role}
-              socket={socketRef.current}
-              myEmail={my?.email || null}
-            />
-            <ModeratorWaitingPanel />
-            <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
+            {featureFlags.breakoutsEnabled &&
+              (role === "admin" || role === "moderator") && (
+                <button
+                  type="button"
+                  onClick={() => setIsBreakoutOverlayOpen((v) => !v)}
+                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                  aria-label={
+                    isBreakoutOverlayOpen
+                      ? "Close Breakout Panel"
+                      : "Open Breakout Panel"
+                  }
+                >
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-custom-dark-blue-1">
+                    <LayoutGrid className="h-3.5 w-3.5 text-white" />
+                  </span>
+                  <span>
+                    {isBreakoutOverlayOpen
+                      ? "Close Breakout Panel"
+                      : "Open Breakout Panel"}
+                  </span>
+                </button>
+              )}
+            <div className="relative">
+              {isBreakoutOverlayOpen && (
+                <div className="absolute inset-0 z-30 rounded-xl bg-white/95 backdrop-blur flex items-center justify-center p-4 border">
+                  <div className="text-lg font-semibold text-custom-dark-blue-1">
+                    breakout room
+                  </div>
+                </div>
+              )}
+              <ParticipantsPanel
+                role={role}
+                socket={socketRef.current}
+                myEmail={my?.email || null}
+              />
+              <ModeratorWaitingPanel />
+              <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
+            </div>
           </aside>
         )}
 
