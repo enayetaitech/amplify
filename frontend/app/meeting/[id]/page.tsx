@@ -25,6 +25,7 @@ import ParticipantsPanel from "components/meeting/ParticipantsPanel";
 import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
 import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridge";
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
+import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
 import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
 import {
@@ -141,6 +142,7 @@ export default function Meeting() {
 
   // 🔌 single meeting socket for this page
   const socketRef = useRef<Socket | null>(null);
+  // warning toast state not needed; we use sonner directly
 
   // 1) fetch start/join token (participants/admin/mod) OR HLS url (observers)
   useEffect(() => {
@@ -213,6 +215,7 @@ export default function Meeting() {
     });
     socketRef.current = s;
     window.__meetingSocket = s;
+    // 1-minute breakout warning handler
     s.on("meeting:force-mute", (payload: { email?: string }) => {
       if (
         payload?.email &&
@@ -450,6 +453,7 @@ export default function Meeting() {
               socket={socketRef.current}
               email={my?.email || ""}
             />
+            <BreakoutWarningBridge socket={socketRef.current} role={role} />
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />

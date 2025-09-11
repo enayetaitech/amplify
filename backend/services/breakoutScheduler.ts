@@ -1,6 +1,8 @@
 import BreakoutRoom from "../model/BreakoutRoom";
 import { Types } from "mongoose";
 import { closeBreakoutByIndex } from "../controllers/BreakoutController";
+import { emitToRoom, emitToSocket } from "../socket/bus";
+import { roomService } from "../processors/livekit/livekitService";
 
 // In-memory timers: sessionId -> index -> timeout
 const timers = new Map<string, Map<number, NodeJS.Timeout>>();
@@ -12,6 +14,35 @@ export function scheduleBreakoutCloseTimer(
 ) {
   cancelBreakoutCloseTimer(sessionId, index);
   const delay = Math.max(0, closesAt.getTime() - Date.now());
+  const warnDelay = Math.max(0, delay - 60 * 1000);
+
+  // Schedule 1-minute warning
+  setTimeout(async () => {
+    try {
+      // Notify moderators/admins in this session
+      emitToRoom(`observer::${sessionId}`, "breakout:one-minute-warning", {
+        index,
+      });
+      // Notify participants currently in the breakout room
+      try {
+        const bo = await BreakoutRoom.findOne({
+          sessionId: new (Types as any).ObjectId(sessionId),
+          index,
+        }).lean();
+        if (bo?.livekitRoom) {
+          const ps = await roomService.listParticipants(bo.livekitRoom);
+          for (const p of ps || []) {
+            // We don't have direct socket mapping here; broadcast to a dynamic room by identity is not available.
+            // Reuse emitToRoom with a derived room name based on session (clients are in session room). Include identity so clients can filter if needed.
+            emitToRoom(sessionId, "breakout:one-minute-warning", {
+              index,
+              identity: p.identity,
+            });
+          }
+        }
+      } catch {}
+    } catch {}
+  }, warnDelay);
   const to = setTimeout(async () => {
     try {
       await closeBreakoutByIndex(sessionId, index);

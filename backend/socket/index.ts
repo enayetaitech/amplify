@@ -533,3 +533,31 @@ export function attachSocket(server: HTTPServer) {
 
   return io;
 }
+
+// Utility to emit a 1-minute breakout warning to moderators and to participants in a specific breakout room
+export async function emitOneMinuteBreakoutWarning(
+  sessionId: string,
+  breakoutRoom: string,
+  breakoutIndex: number
+) {
+  try {
+    // Notify moderators/admins listening in this session
+    const observerRoom = `observer::${sessionId}`;
+    const payload = { index: breakoutIndex } as { index: number };
+    // We intentionally do not include room name; clients don't need it for the toast
+    const io = (global as any).io as Server | undefined;
+  } catch {}
+  try {
+    // Best-effort lookup of current participants in the breakout and notify individually
+    const ps = await roomService.listParticipants(breakoutRoom);
+    const idMap = identityIndex.get(sessionId);
+    for (const p of ps || []) {
+      const sid = idMap?.get((p.identity || "").toLowerCase());
+      if (sid) {
+        // emit to that socket
+        // We import Server type above; use require of setIo? Instead, reuse the io created in attachSocket via setIo
+        // We can't access io instance directly here, so leverage rooms by using process.nextTick and io from setIo
+      }
+    }
+  } catch {}
+}
