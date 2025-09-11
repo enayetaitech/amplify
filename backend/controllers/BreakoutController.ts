@@ -12,7 +12,7 @@ import {
   startFileEgress,
   stopFileEgress,
 } from "../processors/livekit/livekitService";
-import { emitBreakoutsChanged } from "../socket/bus";
+import { emitBreakoutsChanged, emitToRoom } from "../socket/bus";
 import config from "../config/index";
 import { TrackSource } from "livekit-server-sdk";
 import {
@@ -160,10 +160,12 @@ export async function closeBreakoutByIndex(sessionId: string, idx: number) {
     bo.recording.stoppedAt = new Date();
   }
 
-  // attempt to move participants back to main room
+  // attempt to move participants back to main room, collect identities
+  const movedIdentities: string[] = [];
   try {
     const ps = await roomService.listParticipants(bo.livekitRoom);
     for (const p of ps) {
+      if (p?.identity) movedIdentities.push(p.identity);
       try {
         await roomService.moveParticipant(
           bo.livekitRoom,
@@ -178,6 +180,15 @@ export async function closeBreakoutByIndex(sessionId: string, idx: number) {
   await bo.save();
   try {
     emitBreakoutsChanged(String(sessionId));
+  } catch {}
+
+  // notify moderators/admins and participants
+  try {
+    emitToRoom(`observer::${sessionId}`, "breakout:closed-mod", { index: idx });
+    emitToRoom(String(sessionId), "breakout:closed", {
+      index: idx,
+      identities: movedIdentities,
+    });
   } catch {}
 }
 

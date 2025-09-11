@@ -34,5 +34,31 @@ export default function BreakoutWarningBridge({
     };
   }, [socket, room, role]);
 
+  useEffect(() => {
+    if (!socket) return;
+    const onClosedMod = (payload: { index?: number }) => {
+      if (role === "admin" || role === "moderator") {
+        toast(`Breakout${payload?.index ? ` #${payload.index}` : ""} closed`);
+      }
+    };
+    const onClosed = (payload: { index?: number; identities?: string[] }) => {
+      const localId = room?.localParticipant?.identity || "";
+      const involved = (payload?.identities || []).includes(localId);
+      if (involved) {
+        toast(
+          `Breakout${
+            payload?.index ? ` #${payload.index}` : ""
+          } closed. You are being transferred to the main meeting.`
+        );
+      }
+    };
+    socket.on("breakout:closed-mod", onClosedMod);
+    socket.on("breakout:closed", onClosed);
+    return () => {
+      socket.off("breakout:closed-mod", onClosedMod);
+      socket.off("breakout:closed", onClosed);
+    };
+  }, [socket, room, role]);
+
   return null;
 }
