@@ -53,19 +53,29 @@ export default function ParticipantsPanel({
   >({});
   const all = useParticipants();
   const remotes = all.filter((p) => !p.isLocal);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   if (!(role === "admin" || role === "moderator")) return null;
 
-  const bulk = (allow: boolean) => {
-    if (!socket) return;
-    socket.emit(
-      "meeting:screenshare:allow-all",
-      { allow },
-      (ack: { ok: boolean; updated: number; error?: string }) => {
-        if (!ack?.ok) console.error(ack?.error || "Bulk screenshare failed");
-      }
-    );
-  };
+  // (bulk function inlined into the single toggle button below)
+
+  // Determine if all remote participants are currently allowed to screenshare
+  const allAllowed =
+    remotes.length > 0 &&
+    remotes.every((p) => {
+      const identity = p.identity || "";
+      const sources = (p.permissions?.canPublishSources ??
+        []) as unknown as Track.Source[];
+      const computedAllowed =
+        sources.length === 0 ||
+        sources.includes(Track.Source.ScreenShare) ||
+        sources.includes(Track.Source.ScreenShareAudio);
+      const allowed =
+        shareAllowedOverride[identity] !== undefined
+          ? (shareAllowedOverride[identity] as boolean)
+          : computedAllowed;
+      return allowed;
+    });
 
   return (
     <div className="my-2 bg-custom-gray-5 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
@@ -75,19 +85,40 @@ export default function ParticipantsPanel({
         <div className="flex items-center gap-2 mb-3">
           <Button
             size="sm"
-            onClick={() => bulk(true)}
-            disabled={!socket}
+            onClick={() => {
+              if (!socket || bulkBusy) return;
+              setBulkBusy(true);
+              const next = !allAllowed;
+              socket.emit(
+                "meeting:screenshare:allow-all",
+                { allow: next },
+                (ack: { ok: boolean; updated: number; error?: string }) => {
+                  if (!ack?.ok) {
+                    console.error(
+                      `${next ? "Allow" : "Revoke"} all screenshare failed:`,
+                      ack?.error
+                    );
+                    setBulkBusy(false);
+                    return;
+                  }
+                  setShareAllowedOverride((prev) => {
+                    const updated: Record<string, boolean | undefined> = {
+                      ...prev,
+                    };
+                    for (const rp of remotes) {
+                      const id = rp.identity || "";
+                      if (id) updated[id] = next;
+                    }
+                    return updated;
+                  });
+                  setBulkBusy(false);
+                }
+              );
+            }}
+            disabled={!socket || bulkBusy}
             className="bg-neutral-200 hover:bg-neutral-300 text-black"
           >
-            Allow screenshare for all
-          </Button>
-          <Button
-            size="sm"
-            className="bg-neutral-200 hover:bg-neutral-300 text-custom-orange-1"
-            onClick={() => bulk(false)}
-            disabled={!socket}
-          >
-            Revoke all
+            {allAllowed ? "Revoke all" : "Allow screenshare for all"}
           </Button>
         </div>
       )}
