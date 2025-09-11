@@ -223,7 +223,9 @@ export default function BreakoutsPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button size="sm" onClick={createBreakout} disabled={creating}>
+        <Button size="sm" onClick={createBreakout} disabled={creating}
+        className="bg-gray-100 hover:bg-gray-200 text-gray-700 "
+        >
           {creating ? "Creating…" : "Create Breakout"}
         </Button>
       </div>
@@ -316,17 +318,7 @@ export default function BreakoutsPanel({
                         Closes at {new Date(b.closesAt).toLocaleTimeString()}
                       </div>
                     ) : null}
-                    {b.hls?.playbackUrl ? (
-                      <div className="text-xs">
-                        <a
-                          className="underline"
-                          href={b.hls.playbackUrl}
-                          target="_blank"
-                        >
-                          Open HLS
-                        </a>
-                      </div>
-                    ) : null}
+                   
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" onClick={() => extend(b.index, 5)}>
