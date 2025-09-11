@@ -359,7 +359,9 @@ export default function Meeting() {
 
     // Meeting end broadcast → route away
     const onMeetingEnded = () => {
-      if (role === "admin" || role === "moderator") {
+      if (role === "observer") {
+        router.replace(`/waiting-room/observer/${sessionId}`);
+      } else if (role === "admin" || role === "moderator") {
         router.push("/projects");
       } else {
         router.replace("/remove-participant");
@@ -374,7 +376,7 @@ export default function Meeting() {
       s.off("observer:list");
       s.disconnect();
     };
-  }, [sessionId, my?.email, my?.name, serverRole]);
+  }, [sessionId, my?.email, my?.name, serverRole, role, router]);
 
   // If observer and stream stops, route back to observer waiting room
   useEffect(() => {
