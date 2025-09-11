@@ -370,7 +370,7 @@ export default function Meeting() {
                 <button
                   type="button"
                   onClick={() => setIsBreakoutOverlayOpen((v) => !v)}
-                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
                   aria-label={
                     isBreakoutOverlayOpen
                       ? "Close Breakout Panel"
@@ -389,10 +389,9 @@ export default function Meeting() {
               )}
             <div className="relative">
               {isBreakoutOverlayOpen && (
-                <div className="absolute inset-0 z-30 rounded-xl bg-white/95 backdrop-blur flex items-center justify-center p-4 border">
-                  <div className="text-lg font-semibold text-custom-dark-blue-1">
-                    breakout room
-                  </div>
+                <div className="absolute inset-0 z-30 rounded-xl bg-white p-3  overflow-auto">
+                  <h4 className="font-semibold mb-2">Breakouts</h4>
+                  <BreakoutsPanel sessionId={String(sessionId)} role={role} />
                 </div>
               )}
               <ParticipantsPanel
@@ -469,13 +468,6 @@ export default function Meeting() {
               <ChevronRight className="h-4 w-4" />
             </button>
             <h3 className="font-semibold mb-2">Observers</h3>
-            {(role === "admin" || role === "moderator") &&
-              featureFlags.breakoutsEnabled && (
-                <div className="mt-4">
-                  <h4 className="font-semibold mb-2">Breakouts</h4>
-                  <BreakoutsPanel sessionId={String(sessionId)} role={role} />
-                </div>
-              )}
           </aside>
         )}
         {role !== "participant" && !isRightOpen && (
