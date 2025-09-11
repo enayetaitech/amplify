@@ -2,7 +2,15 @@
 
 import { useParticipants } from "@livekit/components-react";
 import { Button } from "components/ui/button";
-import { MicOff, CameraOff, ScreenShare, ScreenShareOff } from "lucide-react";
+import {
+  MicOff,
+  CameraOff,
+  ScreenShare,
+  ScreenShareOff,
+  Mic,
+  Camera,
+} from "lucide-react";
+import { Track } from "livekit-client";
 import type { Socket } from "socket.io-client";
 import type { UiRole } from "constant/roles";
 
@@ -92,6 +100,15 @@ export default function ParticipantsPanel({
           const email = emailFromParticipant(p);
           const label = name || email || identity;
 
+          const micPub = p.getTrackPublication
+            ? p.getTrackPublication(Track.Source.Microphone)
+            : undefined;
+          const isMicOn = !!micPub && !micPub.isMuted;
+          const camPub = p.getTrackPublication
+            ? p.getTrackPublication(Track.Source.Camera)
+            : undefined;
+          const isCamOn = !!camPub && !camPub.isMuted;
+
           const isMe = !!myEmail && email === myEmail.toLowerCase();
           const canAct = !isMe && !!socket;
           const canMute = !isMe && !!socket;
@@ -136,7 +153,11 @@ export default function ParticipantsPanel({
                     );
                   }}
                 >
-                  <MicOff className="h-4 w-4" />
+                  {isMicOn ? (
+                    <Mic className="h-4 w-4 text-black font-bold" />
+                  ) : (
+                    <MicOff className="h-4 w-4 text-custom-orange-1 font-bold" />
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
@@ -160,7 +181,11 @@ export default function ParticipantsPanel({
                     );
                   }}
                 >
-                  <CameraOff className="h-4 w-4" />
+                  {isCamOn ? (
+                    <Camera className="h-4 w-4 text-black font-bold" />
+                  ) : (
+                    <CameraOff className="h-4 w-4 text-custom-orange-2 font-bold" />
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
