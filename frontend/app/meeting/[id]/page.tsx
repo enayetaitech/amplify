@@ -26,7 +26,6 @@ import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
 import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridge";
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
-import ScreenshareControl from "components/meeting/ScreenshareControl";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
 import {
   ChevronLeft,
