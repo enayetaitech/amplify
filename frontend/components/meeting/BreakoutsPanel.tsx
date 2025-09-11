@@ -236,7 +236,7 @@ export default function BreakoutsPanel({
           <div className="font-semibold mb-2">Move participants</div>
           <label className="text-sm">Source room</label>
           <select
-            className="block border rounded px-2 py-1 mb-2 text-black"
+            className="block border rounded px-2 py-1 mb-2 text-black w-full"
             value={sourceRoom}
             onChange={(e) => setSourceRoom(e.target.value)}
           >
@@ -247,7 +247,7 @@ export default function BreakoutsPanel({
             ))}
           </select>
 
-          <label className="text-sm">Choose participants</label>
+          <label className="text-sm w-full">Choose participants</label>
           <select
             multiple
             value={selectedIds}
