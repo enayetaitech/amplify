@@ -35,9 +35,11 @@ import {
   Play,
   Square,
   LayoutGrid,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "components/shared/LogoComponent";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 
 declare global {
   interface Window {
@@ -139,6 +141,9 @@ export default function Meeting() {
   const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [observerCount, setObserverCount] = useState(0);
+  const [observerList, setObserverList] = useState<
+    { name: string; email: string }[]
+  >([]);
   const [isBreakoutOverlayOpen, setIsBreakoutOverlayOpen] = useState(false);
 
   // 🔌 single meeting socket for this page
@@ -219,6 +224,12 @@ export default function Meeting() {
     s.on("observer:count", (p: { count?: number }) => {
       setObserverCount(Number(p?.count || 0));
     });
+    s.on(
+      "observer:list",
+      (p: { observers?: { name: string; email: string }[] }) => {
+        setObserverList(Array.isArray(p?.observers) ? p.observers : []);
+      }
+    );
     // 1-minute breakout warning handler
     s.on("meeting:force-mute", (payload: { email?: string }) => {
       if (
@@ -238,9 +249,19 @@ export default function Meeting() {
       window.dispatchEvent(new CustomEvent("amplify:force-camera-off"));
     });
 
+    // initial snapshot of observers
+    s.emit(
+      "observer:list:get",
+      {},
+      (resp?: { observers?: { name: string; email: string }[] }) => {
+        setObserverList(Array.isArray(resp?.observers) ? resp!.observers! : []);
+      }
+    );
+
     return () => {
       s.off("meeting:force-mute");
       s.off("meeting:force-camera-off");
+      s.off("observer:list");
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole]);
@@ -481,7 +502,7 @@ export default function Meeting() {
               <ChevronRight className="h-4 w-4" />
             </button>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">Backroom</h3>
+              <h3 className="font-semibold pl-5">Backroom</h3>
               <button
                 type="button"
                 className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1"
@@ -508,6 +529,62 @@ export default function Meeting() {
                   {observerCount}
                 </span>
               </button>
+            </div>
+            {/* Backroom tabs - styled like left sidebar Participants panel */}
+            <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
+              <Tabs defaultValue="list">
+                <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
+                  <TabsTrigger
+                    value="list"
+                    className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                  >
+                    Observer List
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="chat"
+                    className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                  >
+                    Observer Text
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="list">
+                  <div className="space-y-2">
+                    {observerList.length === 0 && (
+                      <div className="text-sm text-gray-500">
+                        No observers yet.
+                      </div>
+                    )}
+                    {observerList.map((o) => {
+                      const label = o.name || o.email || "Observer";
+                      return (
+                        <div
+                          key={`${label}-${o.email}`}
+                          className="flex items-center justify-between gap-2  rounded px-2 py-1"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {label}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md   cursor-pointer"
+                            aria-label={`Open chat with ${label}`}
+                            title={`Open chat with ${label}`}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="chat">
+                  <div className="text-sm text-gray-500">Yet to implement</div>
+                </TabsContent>
+              </Tabs>
             </div>
           </aside>
         )}

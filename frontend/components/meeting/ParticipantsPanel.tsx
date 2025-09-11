@@ -79,9 +79,9 @@ export default function ParticipantsPanel({
     });
 
   return (
-    <div className="my-2 bg-custom-gray-5 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
+    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
       <Tabs defaultValue="list">
-        <TabsList className="sticky top-0 z-10 bg-custom-gray-5 w-full gap-2">
+        <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger
             value="list"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"

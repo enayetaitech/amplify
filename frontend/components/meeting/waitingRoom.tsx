@@ -73,7 +73,7 @@ export default function ModeratorWaitingPanel() {
   if (waiting.length === 0) return null;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 bg-custom-gray-5 rounded-lg p-2 max-h-[30vh] overflow-y-auto">
+    <div className="max-w-3xl mx-auto space-y-6 bg-custom-gray-2 rounded-lg p-2 max-h-[30vh] overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-sm font-semibold">Waiting ({waiting.length})</h1>
         <button className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer" onClick={admitAll}>

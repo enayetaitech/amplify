@@ -34,6 +34,11 @@ const emailIndex = new Map<string, Map<string, string>>();
 const identityIndex = new Map<string, Map<string, string>>();
 // Track observer sockets per session for accurate counts
 const observerSockets = new Map<string, Set<string>>();
+// Track observer display info per sessionId -> (socketId -> { name, email })
+const observerInfo = new Map<
+  string,
+  Map<string, { name: string; email: string }>
+>();
 
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
@@ -85,13 +90,27 @@ export function attachSocket(server: HTTPServer) {
       const count = set ? set.size : 0;
       io.to(sessionId).emit("observer:count", { count });
     };
+    // Helper to emit observer list (names/emails) to the session
+    const emitObserverList = () => {
+      const m = observerInfo.get(sessionId);
+      const observers = m
+        ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+        : [];
+      io.to(sessionId).emit("observer:list", { observers });
+    };
 
     // Maintain observer count map only for Observer role
     if (role === "Observer") {
       if (!observerSockets.has(sessionId))
         observerSockets.set(sessionId, new Set());
       observerSockets.get(sessionId)!.add(socket.id);
+      if (!observerInfo.has(sessionId)) observerInfo.set(sessionId, new Map());
+      observerInfo.get(sessionId)!.set(socket.id, {
+        name: name || email || "Observer",
+        email: email || "",
+      });
       emitObserverCount();
+      emitObserverList();
     }
 
     // Track email -> socket (only if email present)
@@ -138,6 +157,28 @@ export function attachSocket(server: HTTPServer) {
           // Notify moderators/admin panels that the live participants list may have changed
           io.to(sessionId).emit("meeting:participants-changed", {});
         } catch {}
+      }
+    );
+
+    // Provide current observer list snapshot on demand
+    socket.on(
+      "observer:list:get",
+      (
+        _payload: {},
+        ack?: (resp: { observers: { name: string; email: string }[] }) => void
+      ) => {
+        try {
+          const m = observerInfo.get(sessionId);
+          const observers = m
+            ? Array.from(m.values()).map((v) => ({
+                name: v.name,
+                email: v.email,
+              }))
+            : [];
+          ack?.({ observers });
+        } catch {
+          ack?.({ observers: [] });
+        }
       }
     );
 
@@ -545,14 +586,20 @@ export function attachSocket(server: HTTPServer) {
       // Notify panels to refresh participant lists (may affect move UI)
       io.to(sessionId).emit("meeting:participants-changed", {});
 
-      // Update observer count on disconnect if this was an observer
+      // Update observer count/list on disconnect if this was an observer
       if (role === "Observer") {
         const set = observerSockets.get(sessionId);
         if (set) {
           set.delete(socket.id);
           if (set.size === 0) observerSockets.delete(sessionId);
         }
+        const infoMap = observerInfo.get(sessionId);
+        if (infoMap) {
+          infoMap.delete(socket.id);
+          if (infoMap.size === 0) observerInfo.delete(sessionId);
+        }
         emitObserverCount();
+        emitObserverList();
       }
     });
   });
