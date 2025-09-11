@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParticipants } from "@livekit/components-react";
 import { Button } from "components/ui/button";
 import {
@@ -47,6 +48,9 @@ export default function ParticipantsPanel({
   socket: Socket | null;
   myEmail?: string | null;
 }) {
+  const [shareAllowedOverride, setShareAllowedOverride] = useState<
+    Record<string, boolean | undefined>
+  >({});
   const all = useParticipants();
   const remotes = all.filter((p) => !p.isLocal);
 
@@ -67,25 +71,26 @@ export default function ParticipantsPanel({
     <div className="my-2 bg-custom-gray-5 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
       <div className="font-semibold mb-2">Participants (Live)</div>
 
-      <div className="flex items-center gap-2 mb-3">
-        <Button
-          size="sm"
-          onClick={() => bulk(true)}
-          disabled={!socket}
-          className="bg-neutral-200 hover:bg-neutral-300 text-black"
-        >
-          Allow screenshare for all
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => bulk(false)}
-          disabled={!socket}
-        >
-          Revoke all
-        </Button>
-        {/* Stream controls moved to meeting left sidebar under Whiteboard */}
-      </div>
+      {remotes.length !== 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <Button
+            size="sm"
+            onClick={() => bulk(true)}
+            disabled={!socket}
+            className="bg-neutral-200 hover:bg-neutral-300 text-black"
+          >
+            Allow screenshare for all
+          </Button>
+          <Button
+            size="sm"
+            className="bg-neutral-200 hover:bg-neutral-300 text-custom-orange-1"
+            onClick={() => bulk(false)}
+            disabled={!socket}
+          >
+            Revoke all
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-2">
         {remotes.length === 0 && (
@@ -187,54 +192,61 @@ export default function ParticipantsPanel({
                     <CameraOff className="h-4 w-4 text-custom-orange-2 font-bold" />
                   )}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hover:bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!canAct}
-                  aria-label="Allow screenshare"
-                  title="Allow screenshare"
-                  onClick={() => {
-                    if (!socket) return;
-                    socket.emit(
-                      "meeting:screenshare:allow",
-                      { ...targetPayload, allow: true },
-                      (ack: { ok: boolean; error?: string }) => {
-                        if (!ack?.ok)
-                          console.error(
-                            "Allow screenshare failed:",
-                            ack?.error
-                          );
+                {(() => {
+                  const sources = (p.permissions?.canPublishSources ??
+                    []) as unknown as Track.Source[];
+                  const computedAllowed =
+                    sources.length === 0 ||
+                    sources.includes(Track.Source.ScreenShare) ||
+                    sources.includes(Track.Source.ScreenShareAudio);
+                  const allowed =
+                    shareAllowedOverride[identity] !== undefined
+                      ? (shareAllowedOverride[identity] as boolean)
+                      : computedAllowed;
+                  return (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover:bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!canAct}
+                      aria-label={
+                        allowed ? "Revoke screenshare" : "Allow screenshare"
                       }
-                    );
-                  }}
-                >
-                  <ScreenShare className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hover:bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!canAct}
-                  aria-label="Revoke screenshare"
-                  title="Revoke screenshare"
-                  onClick={() => {
-                    if (!socket) return;
-                    socket.emit(
-                      "meeting:screenshare:allow",
-                      { ...targetPayload, allow: false },
-                      (ack: { ok: boolean; error?: string }) => {
-                        if (!ack?.ok)
-                          console.error(
-                            "Revoke screenshare failed:",
-                            ack?.error
-                          );
+                      title={
+                        allowed ? "Revoke screenshare" : "Allow screenshare"
                       }
-                    );
-                  }}
-                >
-                  <ScreenShareOff className="h-4 w-4" />
-                </Button>
+                      onClick={() => {
+                        if (!socket) return;
+                        const next = !allowed;
+                        socket.emit(
+                          "meeting:screenshare:allow",
+                          { ...targetPayload, allow: next },
+                          (ack: { ok: boolean; error?: string }) => {
+                            if (!ack?.ok) {
+                              console.error(
+                                `${
+                                  next ? "Allow" : "Revoke"
+                                } screenshare failed:`,
+                                ack?.error
+                              );
+                              return;
+                            }
+                            setShareAllowedOverride((prev) => ({
+                              ...prev,
+                              [identity]: next,
+                            }));
+                          }
+                        );
+                      }}
+                    >
+                      {allowed ? (
+                        <ScreenShareOff className="h-4 w-4 text-custom-orange-1" />
+                      ) : (
+                        <ScreenShare className="h-4 w-4 text-black" />
+                      )}
+                    </Button>
+                  );
+                })()}
               </div>
             </div>
           );
