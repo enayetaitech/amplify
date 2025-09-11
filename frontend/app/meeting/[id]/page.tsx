@@ -357,7 +357,18 @@ export default function Meeting() {
       }
     );
 
+    // Meeting end broadcast → route away
+    const onMeetingEnded = () => {
+      if (role === "admin" || role === "moderator") {
+        router.push("/projects");
+      } else {
+        router.replace("/remove-participant");
+      }
+    };
+    s.on("meeting:ended", onMeetingEnded);
+
     return () => {
+      s.off("meeting:ended", onMeetingEnded);
       s.off("meeting:force-mute");
       s.off("meeting:force-camera-off");
       s.off("observer:list");
