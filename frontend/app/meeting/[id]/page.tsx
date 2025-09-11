@@ -495,7 +495,7 @@ export default function Meeting() {
             <RoomAudioRenderer />
             <VideoGrid />
             <div className="shrink-0 pt-2  gap-2">
-              <ControlBar variation="minimal" />
+              <ControlBar variation="minimal" controls={{ leave: false }} />
               {/* <ScreenshareControl role={role} /> */}
             </div>
           </div>
