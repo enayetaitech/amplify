@@ -16,22 +16,36 @@ export default function BreakoutWarningBridge({
 
   useEffect(() => {
     if (!socket) return;
-    const handler = (payload: { index?: number; identity?: string }) => {
-      const isAdminish = role === "admin" || role === "moderator";
-      const localId = room?.localParticipant?.identity || "";
-      const isTarget = !!payload?.identity && payload.identity === localId;
-      if (isAdminish || isTarget) {
+    const isAdminish = role === "admin" || role === "moderator";
+
+    if (isAdminish) {
+      const onMod = (payload: { index?: number }) => {
         toast(
           `1 min left to close breakout${
             payload?.index ? ` #${payload.index}` : ""
           }`
         );
-      }
-    };
-    socket.on("breakout:one-minute-warning", handler);
-    return () => {
-      socket.off("breakout:one-minute-warning", handler);
-    };
+      };
+      socket.on("breakout:one-minute-warning", onMod);
+      return () => {
+        socket.off("breakout:one-minute-warning", onMod);
+      };
+    } else {
+      const onP = (payload: { index?: number; identity?: string }) => {
+        const localId = room?.localParticipant?.identity || "";
+        if (payload?.identity === localId) {
+          toast(
+            `1 min left to close breakout${
+              payload?.index ? ` #${payload.index}` : ""
+            }`
+          );
+        }
+      };
+      socket.on("breakout:one-minute-warning-participant", onP);
+      return () => {
+        socket.off("breakout:one-minute-warning-participant", onP);
+      };
+    }
   }, [socket, room, role]);
 
   useEffect(() => {

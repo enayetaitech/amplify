@@ -32,9 +32,8 @@ export function scheduleBreakoutCloseTimer(
         if (bo?.livekitRoom) {
           const ps = await roomService.listParticipants(bo.livekitRoom);
           for (const p of ps || []) {
-            // We don't have direct socket mapping here; broadcast to a dynamic room by identity is not available.
-            // Reuse emitToRoom with a derived room name based on session (clients are in session room). Include identity so clients can filter if needed.
-            emitToRoom(sessionId, "breakout:one-minute-warning", {
+            // Send participant-specific event on session room for filtering client-side
+            emitToRoom(sessionId, "breakout:one-minute-warning-participant", {
               index,
               identity: p.identity,
             });
