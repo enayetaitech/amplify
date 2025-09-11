@@ -2,6 +2,7 @@
 
 import { useParticipants } from "@livekit/components-react";
 import { Button } from "components/ui/button";
+import { MicOff, CameraOff, ScreenShare, ScreenShareOff } from "lucide-react";
 import type { Socket } from "socket.io-client";
 import type { UiRole } from "constant/roles";
 
@@ -38,7 +39,6 @@ export default function ParticipantsPanel({
   socket: Socket | null;
   myEmail?: string | null;
 }) {
- 
   const all = useParticipants();
   const remotes = all.filter((p) => !p.isLocal);
 
@@ -55,10 +55,8 @@ export default function ParticipantsPanel({
     );
   };
 
-
-
   return (
-    <div className="my-2 bg-custom-gray-5 rounded-lg p-1">
+    <div className="my-2 bg-custom-gray-5 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
       <div className="font-semibold mb-2">Participants (Live)</div>
 
       <div className="flex items-center gap-2 mb-3">
@@ -116,12 +114,12 @@ export default function ParticipantsPanel({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  className={`px-2 py-1 rounded text-sm ${
-                    canMute
-                      ? "bg-neutral-200 hover:bg-neutral-300"
-                      : "bg-neutral-100 text-gray-400 cursor-not-allowed"
-                  }`}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Mute mic"
+                  title="Mute mic"
                   disabled={!canMute}
                   onClick={() => {
                     if (!socket) return;
@@ -138,14 +136,14 @@ export default function ParticipantsPanel({
                     );
                   }}
                 >
-                  Mute mic
-                </button>
-                <button
-                  className={`px-2 py-1 rounded text-sm ${
-                    canMute
-                      ? "bg-neutral-200 hover:bg-neutral-300"
-                      : "bg-neutral-100 text-gray-400 cursor-not-allowed"
-                  }`}
+                  <MicOff className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Turn off camera"
+                  title="Turn off camera"
                   disabled={!canMute}
                   onClick={() => {
                     if (!socket) return;
@@ -162,12 +160,15 @@ export default function ParticipantsPanel({
                     );
                   }}
                 >
-                  Turn off cam
-                </button>
+                  <CameraOff className="h-4 w-4" />
+                </Button>
                 <Button
-                  size="sm"
-                  className="bg-neutral-200 hover:bg-neutral-300 text-black"
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!canAct}
+                  aria-label="Allow screenshare"
+                  title="Allow screenshare"
                   onClick={() => {
                     if (!socket) return;
                     socket.emit(
@@ -183,12 +184,15 @@ export default function ParticipantsPanel({
                     );
                   }}
                 >
-                  Allow share
+                  <ScreenShare className="h-4 w-4" />
                 </Button>
                 <Button
-                  size="sm"
-                  variant="outline"
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!canAct}
+                  aria-label="Revoke screenshare"
+                  title="Revoke screenshare"
                   onClick={() => {
                     if (!socket) return;
                     socket.emit(
@@ -204,7 +208,7 @@ export default function ParticipantsPanel({
                     );
                   }}
                 >
-                  Revoke
+                  <ScreenShareOff className="h-4 w-4" />
                 </Button>
               </div>
             </div>
