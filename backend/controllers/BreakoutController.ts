@@ -189,6 +189,8 @@ export async function closeBreakoutByIndex(sessionId: string, idx: number) {
       index: idx,
       identities: movedIdentities,
     });
+    // trigger UI refreshes for participant pickers
+    emitToRoom(String(sessionId), "meeting:participants-changed", {});
   } catch {}
 }
 
