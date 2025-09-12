@@ -18,6 +18,7 @@ import {
 } from "schemas/observerJoinSchema";
 import { useResolveObserverSession } from "hooks/useResolveObserverSession";
 import { useEnqueueWaitingRoom } from "hooks/useEnqueueWaitingRoom";
+import { safeLocalSet } from "utils/storage";
 
 const ObserverJoinMeeting: React.FC = () => {
   const router = useRouter();
@@ -53,6 +54,13 @@ const ObserverJoinMeeting: React.FC = () => {
         passcode: values.passcode,
         device:
           typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      });
+
+      // Persist for socket handshakes (waiting room and meeting page)
+      safeLocalSet("liveSessionUser", {
+        name: nameTrimmed,
+        email: emailNormalized,
+        role: "Observer",
       });
 
       const action = res?.data?.action as "waiting_room" | "stream" | undefined;

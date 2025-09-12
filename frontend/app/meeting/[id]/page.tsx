@@ -308,14 +308,19 @@ export default function Meeting() {
   useEffect(() => {
     if (!sessionId) return;
 
+    const saved =
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("liveSessionUser")
+        ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
+        : {};
     const s = io(SOCKET_URL, {
       path: "/socket.io",
       withCredentials: true,
       query: {
         sessionId: String(sessionId),
         role: serverRole,
-        name: my?.name || "",
-        email: my?.email || "",
+        name: my?.name || saved?.name || "",
+        email: my?.email || saved?.email || "",
       },
     });
     socketRef.current = s;
