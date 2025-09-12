@@ -34,6 +34,9 @@ export default function Stage({ role }: StageProps) {
   const cameraTracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: true },
   ]);
+  const shareTracks = useTracks([
+    { source: Track.Source.ScreenShare, withPlaceholder: true },
+  ]);
 
   const identityToSpeaking: Record<string, boolean> = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -222,6 +225,156 @@ export default function Stage({ role }: StageProps) {
     const tileH = Math.floor((tileW * 9) / 16);
     const area = tileW * tileH;
     if (area > best.area) best = { cols, rows, w: tileW, h: tileH, area };
+  }
+
+  const hasShare = shareTracks.length > 0 && !!shareTracks[0]?.publication;
+
+  if (hasShare) {
+    const facesCount = orderedTracks.length;
+    const sharePrimary = shareTracks.slice(0, 1);
+    const useSideBySide = containerSize.w >= 1100; // heuristic: wide viewports prefer side-by-side
+
+    if (useSideBySide) {
+      // Side-by-side: left share (~65% width), right faces smart grid
+      const sharePaneMaxW = Math.floor(containerSize.w * 0.65);
+      const sharePaneH = containerSize.h;
+      const shareWByH = Math.floor((sharePaneH * 16) / 9);
+      const shareW = Math.min(sharePaneMaxW, shareWByH);
+      const shareH = Math.floor((shareW * 9) / 16);
+      const rightW = Math.max(0, containerSize.w - shareW - gap);
+
+      // Smart grid for faces in right pane
+      let sbBest = {
+        cols: 1,
+        rows: Math.max(1, facesCount),
+        w: minTileW,
+        h: Math.floor((minTileW * 9) / 16),
+        area: 0,
+      };
+      if (facesCount > 0 && rightW > 0) {
+        for (let cols = 1; cols <= Math.min(facesCount, maxCols); cols++) {
+          const rows = Math.ceil(facesCount / cols);
+          const availW = Math.max(0, rightW - (cols - 1) * gap);
+          const availH = Math.max(0, containerSize.h - (rows - 1) * gap);
+          if (availW === 0 || availH === 0) continue;
+          const rawTileW = Math.floor(availW / cols);
+          const rawTileH = Math.floor(availH / rows);
+          const fitW = Math.min(rawTileW, Math.floor((rawTileH * 16) / 9));
+          const tileW = Math.max(minTileW, fitW);
+          const tileH = Math.floor((tileW * 9) / 16);
+          const area = tileW * tileH;
+          if (area > sbBest.area)
+            sbBest = { cols, rows, w: tileW, h: tileH, area };
+        }
+      }
+
+      return (
+        <div ref={stageRef} className="flex-1 min-h-0">
+          <div className="flex" style={{ gap }}>
+            <div
+              className="flex items-center justify-center"
+              style={{ width: shareW, height: containerSize.h }}
+            >
+              <TrackLoop tracks={sharePrimary}>
+                <div
+                  style={{ width: shareW, height: shareH }}
+                  className="relative rounded-lg overflow-hidden bg-black"
+                >
+                  <Tile />
+                </div>
+              </TrackLoop>
+            </div>
+            {facesCount > 0 && rightW > 0 && (
+              <div
+                className="grid"
+                style={{
+                  width: rightW,
+                  gridTemplateColumns: `repeat(${sbBest.cols}, ${sbBest.w}px)`,
+                  gridAutoRows: `${sbBest.h}px`,
+                  gap,
+                  justifyContent: "center",
+                  alignContent: "center",
+                }}
+              >
+                <TrackLoop tracks={orderedTracks}>
+                  <div className="relative rounded-lg overflow-hidden bg-black">
+                    <Tile />
+                  </div>
+                </TrackLoop>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Presenter Large layout: share big + bottom filmstrip
+    const filmstripGap = facesCount > 0 ? gap : 0;
+
+    // compute filmstrip one-row best sizing
+    let stripCols = Math.min(facesCount, maxCols);
+    let stripW = minTileW;
+    let stripH = Math.floor((stripW * 9) / 16);
+    if (facesCount > 0) {
+      for (let cols = Math.min(facesCount, maxCols); cols >= 1; cols--) {
+        const availW = Math.max(0, containerSize.w - (cols - 1) * gap);
+        const rawTileW = Math.floor(availW / cols);
+        const tileW = Math.max(minTileW, rawTileW);
+        const tileH = Math.floor((tileW * 9) / 16);
+        stripCols = cols;
+        stripW = tileW;
+        stripH = tileH;
+        break;
+      }
+    }
+
+    const availableForShareH = Math.max(
+      0,
+      containerSize.h - (facesCount > 0 ? stripH + filmstripGap : 0)
+    );
+    const shareWByH = Math.floor((availableForShareH * 16) / 9);
+    const shareW = Math.min(containerSize.w, shareWByH);
+    const shareH = Math.min(availableForShareH, Math.floor((shareW * 9) / 16));
+
+    return (
+      <div
+        ref={stageRef}
+        className="flex-1 min-h-0 flex flex-col"
+        style={{ gap }}
+      >
+        <div
+          className="flex items-center justify-center"
+          style={{ height: shareH }}
+        >
+          <TrackLoop tracks={sharePrimary}>
+            <div
+              style={{ width: shareW, height: shareH }}
+              className="relative rounded-lg overflow-hidden bg-black"
+            >
+              <Tile />
+            </div>
+          </TrackLoop>
+        </div>
+        {facesCount > 0 && (
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: `repeat(${stripCols}, ${stripW}px)`,
+              gridAutoRows: `${stripH}px`,
+              gap,
+              justifyContent: "center",
+              alignContent: "center",
+            }}
+          >
+            <TrackLoop tracks={orderedTracks}>
+              <div className="relative rounded-lg overflow-hidden bg-black">
+                <Tile />
+              </div>
+            </TrackLoop>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
