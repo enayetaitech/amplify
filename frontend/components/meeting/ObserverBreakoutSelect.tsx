@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "lib/api";
 import type { Socket } from "socket.io-client";
 import ObserverHlsLayout from "./ObserverHlsLayout";
@@ -200,6 +200,11 @@ export default function ObserverBreakoutSelect({
       ? "col-span-9"
       : "col-span-12";
 
+  const hasBreakouts = useMemo(
+    () => options.some((o) => o.key !== "__main__"),
+    [options]
+  );
+
   useEffect(() => {
     if (selected === "__main__") return;
     if (url) return;
@@ -362,27 +367,29 @@ export default function ObserverBreakoutSelect({
             </Tabs>
           </div>
 
-          <Separator className="my-2" />
+          {hasBreakouts && <Separator className="my-2" />}
 
           {/* Lower: Breakouts selection (existing functionality) */}
-          <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
-            <h3 className="font-semibold mb-2">Breakouts</h3>
-            <label className="block text-sm mb-1">Choose a room</label>
-            <select
-              className="border rounded px-2 py-1 text-black w-full"
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              {options.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <div className="text-xs text-gray-500 mt-2">
-              {url ? "Streaming available" : "No live stream for this room"}
+          {hasBreakouts && (
+            <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
+              <h3 className="font-semibold mb-2">Breakouts</h3>
+              <label className="block text-sm mb-1">Choose a room</label>
+              <select
+                className="border rounded px-2 py-1 text-black w-full"
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {options.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <div className="text-xs text-gray-500 mt-2">
+                {url ? "Streaming available" : "No live stream for this room"}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
       {!isLeftOpen && (
