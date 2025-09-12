@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
+import Logo from "components/shared/LogoComponent";
 
 export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -72,21 +73,31 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
   }, [hlsUrl]);
 
   return (
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
-      <div className="col-span-9 border rounded p-3 flex flex-col min-h-0">
+    <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+            <span>On going meeting</span>
+          </div>
+          <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+            Observer View
+          </span>
+        </div>
+        <div className="flex items-center">
+          <Logo />
+        </div>
+      </div>
+      <div className="flex-1 min-h-0">
         <video
           ref={videoRef}
           controls
           playsInline
           autoPlay
           crossOrigin="anonymous"
-          className="w-full h-full"
+          className="w-full h-full object-cover bg-black"
         />
       </div>
-      <aside className="col-span-3 border rounded p-3 overflow-y-auto">
-        <h3 className="font-semibold mb-2">Observers</h3>
-      </aside>
     </div>
   );
 }
-

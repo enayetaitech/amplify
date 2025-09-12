@@ -425,7 +425,7 @@ export default function ObserverBreakoutSelect({
         </button>
       )}
       <div
-        className={`${mainColSpanClass} border rounded p-3 flex flex-col min-h-0`}
+        className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}
       >
         {url ? (
           <ObserverHlsLayout hlsUrl={url} />
