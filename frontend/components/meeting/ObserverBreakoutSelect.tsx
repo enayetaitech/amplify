@@ -6,6 +6,7 @@ import type { Socket } from "socket.io-client";
 import ObserverHlsLayout from "./ObserverHlsLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Separator } from "components/ui/separator";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ObserverBreakoutSelect({
   sessionId,
@@ -25,6 +26,7 @@ export default function ObserverBreakoutSelect({
   const [meetingSocket, setMeetingSocket] = useState<Socket | undefined>(
     undefined
   );
+  const [isLeftOpen, setIsLeftOpen] = useState(true);
 
   useEffect(() => {
     setOptions((prev) => {
@@ -253,65 +255,95 @@ export default function ObserverBreakoutSelect({
   }, [sessionId, initialMainUrl, selected]);
 
   return (
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
-      <div className="col-span-3 border rounded p-3 overflow-y-auto">
-        {/* Upper: Participants tabs */}
-        <div>
-          <h3 className="font-semibold mb-2">Participants</h3>
-          <Tabs defaultValue="plist">
-            <TabsList className="gap-2">
-              <TabsTrigger value="plist" className="rounded-full h-7 px-4">
-                Participant List
-              </TabsTrigger>
-              <TabsTrigger value="pchat" className="rounded-full h-7 px-4">
-                Participant Chat
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="plist">
-              <div className="space-y-2">
-                {participants.length === 0 && (
-                  <div className="text-sm text-gray-500">
-                    No participants yet.
-                  </div>
-                )}
-                {participants.map((p) => (
-                  <div key={p.identity} className="text-sm">
-                    {p.name}
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="pchat">
-              <div className="text-sm text-gray-500">
-                Participant chat will appear here.
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <Separator className="my-4" />
-
-        {/* Lower: Breakouts selection (existing functionality) */}
-        <div>
-          <h3 className="font-semibold mb-2">Breakouts</h3>
-          <label className="block text-sm mb-1">Choose a room</label>
-          <select
-            className="border rounded px-2 py-1 text-black w-full"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
+    <div className="relative grid grid-cols-12 gap-4 h-[100dvh]">
+      {isLeftOpen && (
+        <div className="relative col-span-3 h-[100dvh] rounded-r-2xl p-2 overflow-y-auto overflow-x-hidden bg-white shadow min-h-0 flex flex-col gap-4">
+          <button
+            type="button"
+            onClick={() => setIsLeftOpen(false)}
+            className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Collapse left panel"
           >
-            {options.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <div className="text-xs text-gray-500 mt-2">
-            {url ? "Streaming available" : "No live stream for this room"}
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          {/* Upper: Participants tabs */}
+          <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
+            <h3 className="font-semibold mb-2">Participants</h3>
+            <Tabs defaultValue="plist">
+              <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
+                <TabsTrigger
+                  value="plist"
+                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                >
+                  Participant List
+                </TabsTrigger>
+                <TabsTrigger
+                  value="pchat"
+                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                >
+                  Participant Chat
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="plist">
+                <div className="space-y-2">
+                  {participants.length === 0 && (
+                    <div className="text-sm text-gray-500">
+                      No participants yet.
+                    </div>
+                  )}
+                  {participants.map((p) => (
+                    <div key={p.identity} className="text-sm">
+                      {p.name}
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="pchat">
+                <div className="text-sm text-gray-500">
+                  Participant chat will appear here.
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          <Separator className="my-2" />
+
+          {/* Lower: Breakouts selection (existing functionality) */}
+          <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
+            <h3 className="font-semibold mb-2">Breakouts</h3>
+            <label className="block text-sm mb-1">Choose a room</label>
+            <select
+              className="border rounded px-2 py-1 text-black w-full"
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+            >
+              {options.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-gray-500 mt-2">
+              {url ? "Streaming available" : "No live stream for this room"}
+            </div>
           </div>
         </div>
-      </div>
-      <div className="col-span-9 border rounded p-3 flex flex-col min-h-0">
+      )}
+      {!isLeftOpen && (
+        <button
+          type="button"
+          onClick={() => setIsLeftOpen(true)}
+          className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+          aria-label="Expand left panel"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
+      <div
+        className={`${
+          isLeftOpen ? "col-span-9" : "col-span-12"
+        } border rounded p-3 flex flex-col min-h-0`}
+      >
         {url ? (
           <ObserverHlsLayout hlsUrl={url} />
         ) : (
