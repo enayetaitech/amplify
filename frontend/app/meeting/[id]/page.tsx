@@ -5,17 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   LiveKitRoom,
-  GridLayout,
-  ParticipantTile,
   RoomAudioRenderer,
-  useTracks,
-  useRoomContext,
   ControlBar,
-  useParticipants,
-  ScreenShareIcon,
+  useRoomContext,
 } from "@livekit/components-react";
-import { Track, RoomEvent } from "livekit-client";
-import Hls from "hls.js";
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
 import "@livekit/components-styles";
@@ -23,19 +16,59 @@ import "./meeting.css";
 import { useGlobalContext } from "context/GlobalContext";
 import { flagsFromSearchParams } from "constant/featureFlags";
 import { safeLocalGet } from "utils/storage";
-
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
-import { Button } from "../../../components/ui/button";
-import { toast } from "sonner";
 import BreakoutsPanel from "components/meeting/BreakoutsPanel";
+import AutoPublishOnConnect from "components/meeting/AutoPublishOnConnect";
+import VideoGrid from "components/meeting/VideoGrid";
+import SubscribeCameraBridge from "components/meeting/SubscribeCameraBridge";
+import ParticipantsPanel from "components/meeting/ParticipantsPanel";
+import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
+import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridge";
+import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
+import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
+import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
+import {
+  ChevronLeft,
+  ChevronRight,
+  PenTool,
+  Play,
+  Square,
+  LayoutGrid,
+  MessageSquare,
+  Folder,
+  Trash2,
+  FileText,
+  LogOut,
+} from "lucide-react";
+import { toast } from "sonner";
+import Logo from "components/shared/LogoComponent";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardAction,
+  CardContent,
+} from "components/ui/card";
+import { Button } from "components/ui/button";
+import { Separator } from "components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "components/ui/alert-dialog";
 
 declare global {
   interface Window {
-    __meetingSocket?: Socket; // already created elsewhere in your app
+    __meetingSocket?: Socket;
   }
 }
-
 import {
   UiRole,
   ServerRole,
@@ -43,502 +76,97 @@ import {
   normalizeUiRole,
   normalizeServerRole,
 } from "constant/roles";
+
 type LocalJoinUser = {
   name?: string;
   email?: string;
   role?: ServerRole | string;
 };
-/** Enables cam (muted mic) once connected for admin/moderator */
-function AutoPublishOnConnect({ role }: { role: UiRole }) {
-  const room = useRoomContext();
-
-  useEffect(() => {
-    if (!room) return;
-
-    const enableNow = async () => {
-      if (role === "admin" || role === "moderator") {
-        await room.localParticipant.setCameraEnabled(true);
-        await room.localParticipant.setMicrophoneEnabled(false);
-      }
-    };
-
-    if (room.state === "connected") {
-      void enableNow();
-      return; // ensure the effect returns void here
-    }
-
-    const onConnected = () => {
-      room.off(RoomEvent.Connected, onConnected);
-      void enableNow();
-    };
-    room.on(RoomEvent.Connected, onConnected);
-
-    // ✅ cleanup returns void
-    return () => {
-      room.off(RoomEvent.Connected, onConnected);
-    };
-  }, [room, role]);
-
-  return null;
-}
-
-/** Video grid that safely uses useTracks inside LiveKitRoom context */
-function VideoGrid() {
-  const trackRefs = useTracks([
-    { source: Track.Source.Camera, withPlaceholder: true },
-    { source: Track.Source.ScreenShare, withPlaceholder: true },
-  ]);
-
-  return (
-    <div className="flex-1 min-h-0">
-      <GridLayout tracks={trackRefs}>
-        {/* IMPORTANT: exactly ONE child element; no map() here */}
-        <ParticipantTile />
-      </GridLayout>
-    </div>
-  );
-}
 
 async function fetchLiveKitToken(sessionId: string, role: ServerRole) {
   const res = await api.post<ApiResponse<{ token: string }>>(
     "/api/v1/livekit/token",
     {
       roomName: sessionId,
-      role, // NOTE: capitalized per backend type
+      role,
     }
   );
-
-  // Your codebase typically nests data under data.data
   return res.data.data.token;
 }
 
-/** --- helpers --- */
-const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
-
-function emailFromIdentity(identity?: string): string | null {
-  if (!identity) return null;
-  const hit = identity.match(EMAIL_RE);
-  return hit ? hit[0].toLowerCase() : null;
-}
-
-/** Try both identity and metadata for an email */
-function emailFromParticipant(p: {
-  identity?: string;
-  metadata?: string | null;
-}) {
-  const fromId = emailFromIdentity(p.identity);
-  if (fromId) return fromId;
-  if (!p?.metadata) return null;
-  try {
-    const meta = JSON.parse(p.metadata);
-    const e = (meta?.email || meta?.userEmail || meta?.e || "").toString();
-    return EMAIL_RE.test(e) ? e.toLowerCase() : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Participants (Live) list + per-row "Mute mic" for Admin/Moderator */
-function ParticipantsPanel({
+function LeaveMeetingButton({
   role,
-  socket,
-  myEmail,
+  sessionId,
 }: {
   role: UiRole;
-  socket: Socket | null;
-  myEmail?: string | null;
-}) {
-  const [busy, setBusy] = useState<null | "start" | "stop">(null);
-  const all = useParticipants(); // from LiveKit context
-  const remotes = all.filter((p) => !p.isLocal); // don't show a mute button for self
-
-  if (!(role === "admin" || role === "moderator")) return null;
-
-  const bulk = (allow: boolean) => {
-    if (!socket) return;
-    socket.emit(
-      "meeting:screenshare:allow-all",
-      { allow },
-      (ack: { ok: boolean; updated: number; error?: string }) => {
-        if (!ack?.ok) console.error(ack?.error || "Bulk screenshare failed");
-      }
-    );
-  };
-
-  const canControlStream = role === "admin" || role === "moderator";
-
-  const onStartStream = () => {
-    if (!socket) return;
-    setBusy("start");
-    socket.emit(
-      "meeting:stream:start",
-      {},
-      (ack?: { ok?: boolean; error?: string }) => {
-        setBusy(null);
-        if (ack?.ok) toast.success("Streaming started");
-        else toast.error(ack?.error || "Failed to start streaming");
-      }
-    );
-  };
-
-  const onStopStream = () => {
-    if (!socket) return;
-    setBusy("stop");
-    socket.emit(
-      "meeting:stream:stop",
-      {},
-      (ack?: { ok?: boolean; error?: string }) => {
-        setBusy(null);
-        if (ack?.ok) toast.success("Streaming stopped");
-        else toast.error(ack?.error || "Failed to stop streaming");
-      }
-    );
-  };
-
-  return (
-    <div className="mt-4">
-      <div className="font-semibold mb-2">Participants (Live)</div>
-
-      {/* Bulk controls */}
-      <div className="flex items-center gap-2 mb-3">
-        <Button
-          size="sm"
-          onClick={() => bulk(true)}
-          disabled={!socket}
-          className="bg-neutral-200 hover:bg-neutral-300 text-black"
-        >
-          Allow screenshare for all
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => bulk(false)}
-          disabled={!socket}
-        >
-          Revoke all
-        </Button>
-        {canControlStream && (
-          <div className="mb-3 flex items-center gap-2">
-            <Button onClick={onStartStream} disabled={busy === "start"}>
-              Start Stream
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={onStopStream}
-              disabled={busy === "stop"}
-            >
-              Stop Stream
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        {remotes.length === 0 && (
-          <div className="text-sm text-gray-500">
-            No remote participants yet.
-          </div>
-        )}
-
-        {remotes.map((p) => {
-          const identity: string = p.identity || "";
-          const name: string = p.name || "";
-          const email = emailFromParticipant(p);
-          const label = name || email || identity;
-
-          const isMe = !!myEmail && email === myEmail.toLowerCase();
-          const canAct = !isMe && !!socket;
-          const canMute = !isMe && !!socket;
-          const targetPayload = email
-            ? { targetEmail: email }
-            : { targetIdentity: identity };
-
-          return (
-            <div
-              key={identity}
-              className="flex items-center justify-between gap-2 border rounded px-2 py-1"
-            >
-              <div className="min-w-0">
-                <div className="text-sm font-medium truncate">{label}</div>
-                {email && (
-                  <div className="text-[11px] text-gray-500 truncate">
-                    {email}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Mute mic */}
-                <button
-                  className={`px-2 py-1 rounded text-sm ${
-                    canMute
-                      ? "bg-neutral-200 hover:bg-neutral-300"
-                      : "bg-neutral-100 text-gray-400 cursor-not-allowed"
-                  }`}
-                  disabled={!canMute}
-                  onClick={() => {
-                    if (!socket) return;
-                    const payload = email
-                      ? { targetEmail: email }
-                      : { targetIdentity: identity };
-                    socket.emit(
-                      "meeting:mute-mic",
-                      payload,
-                      (ack: { ok: boolean; error?: string }) => {
-                        if (!ack?.ok)
-                          console.error("Mute mic failed:", ack?.error);
-                      }
-                    );
-                  }}
-                >
-                  Mute mic
-                </button>
-                {/* Turn off camera */}
-                <button
-                  className={`px-2 py-1 rounded text-sm ${
-                    canMute
-                      ? "bg-neutral-200 hover:bg-neutral-300"
-                      : "bg-neutral-100 text-gray-400 cursor-not-allowed"
-                  }`}
-                  disabled={!canMute}
-                  onClick={() => {
-                    if (!socket) return;
-                    const payload = email
-                      ? { targetEmail: email }
-                      : { targetIdentity: identity };
-                    socket.emit(
-                      "meeting:camera-off",
-                      payload,
-                      (ack: { ok: boolean; error?: string }) => {
-                        if (!ack?.ok)
-                          console.error("Camera off failed:", ack?.error);
-                      }
-                    );
-                  }}
-                >
-                  Turn off cam
-                </button>
-                {/* Allow screenshare */}
-                <Button
-                  size="sm"
-                  className="bg-neutral-200 hover:bg-neutral-300 text-black"
-                  disabled={!canAct}
-                  onClick={() => {
-                    if (!socket) return;
-                    socket.emit(
-                      "meeting:screenshare:allow",
-                      { ...targetPayload, allow: true },
-                      (ack: { ok: boolean; error?: string }) => {
-                        if (!ack?.ok)
-                          console.error(
-                            "Allow screenshare failed:",
-                            ack?.error
-                          );
-                      }
-                    );
-                  }}
-                >
-                  Allow share
-                </Button>
-
-                {/* Revoke screenshare */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!canAct}
-                  onClick={() => {
-                    if (!socket) return;
-                    socket.emit(
-                      "meeting:screenshare:allow",
-                      { ...targetPayload, allow: false },
-                      (ack: { ok: boolean; error?: string }) => {
-                        if (!ack?.ok)
-                          console.error(
-                            "Revoke screenshare failed:",
-                            ack?.error
-                          );
-                      }
-                    );
-                  }}
-                >
-                  Revoke
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/** Bridge: inside LiveKitRoom (where useRoomContext works), disable mic on server push. */
-function ForceMuteSelfBridge() {
-  const room = useRoomContext();
-  useEffect(() => {
-    const handler = async () => {
-      try {
-        if (room?.localParticipant) {
-          await room.localParticipant.setMicrophoneEnabled(false);
-        }
-      } catch (e) {
-        console.error("Failed to self force-mute:", e);
-      }
-    };
-    window.addEventListener("amplify:force-mute-self", handler);
-    return () => window.removeEventListener("amplify:force-mute-self", handler);
-  }, [room]);
-  return null;
-}
-
-function ForceCameraOffSelfBridge() {
-  const room = useRoomContext();
-  useEffect(() => {
-    const handler = async () => {
-      try {
-        if (room?.localParticipant) {
-          await room.localParticipant.setCameraEnabled(false);
-        }
-      } catch (e) {
-        console.error("Failed to self force-camera-off:", e);
-      }
-    };
-    window.addEventListener("amplify:force-camera-off", handler);
-    return () =>
-      window.removeEventListener("amplify:force-camera-off", handler);
-  }, [room]);
-  return null;
-}
-
-function RegisterIdentityBridge({
-  socket,
-  email,
-}: {
-  socket: Socket | null;
-  email?: string;
+  sessionId: string;
 }) {
   const room = useRoomContext();
-  useEffect(() => {
-    if (!room || !socket) return;
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-    const send = () => {
-      const id = room.localParticipant?.identity;
-      if (id) socket.emit("meeting:register-identity", { identity: id, email });
-    };
+  const confirmText =
+    role === "admin" || role === "moderator"
+      ? "Are you sure you want to end this meeting for everyone?"
+      : "Are you sure you want to leave this meeting?";
 
-    if (room.state === "connected") send();
-    room.on(RoomEvent.Connected, send);
-    return () => {
-      room.off(RoomEvent.Connected, send);
-    };
-  }, [room, socket, email]);
-  return null;
-}
+  const titleText =
+    role === "admin" || role === "moderator" ? "End meeting" : "Leave meeting";
 
-function ScreenshareControl({
-  role,
-}: {
-  role: "admin" | "moderator" | "participant" | "observer";
-}) {
-  const room = useRoomContext();
-  const [allowed, setAllowed] = useState<boolean>(false);
-  const [sharing, setSharing] = useState(false);
-
-  // compute allowance: moderators/admins always; participants only if canPublishSources includes SCREEN_SHARE(_AUDIO)
-  useEffect(() => {
-    const lp = room.localParticipant;
-
-    const compute = () => {
+  const onConfirm = async () => {
+    try {
+      setBusy(true);
       if (role === "admin" || role === "moderator") {
-        setAllowed(true);
-        return;
+        try {
+          await api.post<ApiResponse<unknown>>(
+            `/api/v1/liveSessions/${sessionId}/end`
+          );
+          toast.success("Meeting ended");
+        } catch {
+          toast.error("Failed to end meeting");
+        }
+        try {
+          await room.disconnect(true);
+        } catch {}
+        router.push("/projects");
+      } else {
+        try {
+          await room.disconnect(true);
+        } catch {}
+        router.replace("/remove-participant");
       }
-
-      // ✅ make sure this is typed as client-side Track.Source[]
-      const sources = (lp.permissions?.canPublishSources ??
-        []) as unknown as Track.Source[];
-
-      const can =
-        sources.length === 0 || // empty means "all sources allowed"
-        sources.includes(Track.Source.ScreenShare) ||
-        sources.includes(Track.Source.ScreenShareAudio);
-
-      setAllowed(can);
-    };
-
-    compute();
-    const onPerms = () => compute();
-    room.on(RoomEvent.ParticipantPermissionsChanged, onPerms);
-    return () => {
-      room.off(RoomEvent.ParticipantPermissionsChanged, onPerms);
-    };
-  }, [room, role]);
-
-  // listen to server nudge to force-stop local capture
-  useEffect(() => {
-    const sock = window.__meetingSocket;
-    if (!sock) return; // ok: returns void, not a cleanup
-
-    const stop = async () => {
-      try {
-        await room.localParticipant.setScreenShareEnabled(false);
-      } catch {
-        // no-op
-      }
-    };
-
-    // add listener
-    sock.on("meeting:force-stop-screenshare", stop);
-
-    // ✅ proper cleanup: remove the listener (returns void)
-    return () => {
-      sock.off("meeting:force-stop-screenshare", stop);
-    };
-  }, [room]);
-
-  useEffect(() => {
-    const lp = room.localParticipant;
-    if (!lp) return;
-
-    const compute = () => {
-      const hasShare =
-        lp
-          .getTrackPublications()
-          .some((pub) => pub.source === Track.Source.ScreenShare) ||
-        lp
-          .getTrackPublications()
-          .some((pub) => pub.source === Track.Source.ScreenShareAudio);
-      setSharing(hasShare);
-    };
-
-    compute();
-
-    const onPub = () => compute();
-    const onUnpub = () => compute();
-
-    room.on(RoomEvent.LocalTrackPublished, onPub);
-    room.on(RoomEvent.LocalTrackUnpublished, onUnpub);
-    return () => {
-      room.off(RoomEvent.LocalTrackPublished, onPub);
-      room.off(RoomEvent.LocalTrackUnpublished, onUnpub);
-    };
-  }, [room]);
-
-  const toggle = async () => {
-    await room.localParticipant.setScreenShareEnabled(!sharing);
+    } finally {
+      setBusy(false);
+      setOpen(false);
+    }
   };
 
-  if (!allowed) return null;
-
   return (
-    <Button
-      size="sm"
-      onClick={toggle}
-      title={sharing ? "Stop share" : "Share screen"}
-    >
-      <ScreenShareIcon />
-      <span className="ml-1">{sharing ? "Stop" : "Share"}</span>
-    </Button>
+    <>
+      <Button
+        variant="destructive"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2"
+      >
+        <LogOut className="h-4 w-4" />
+        {role === "admin" || role === "moderator" ? "End" : "Leave"}
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{titleText}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmText}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirm} disabled={busy}>
+              {role === "admin" || role === "moderator" ? "End" : "Leave"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -553,10 +181,9 @@ export default function Meeting() {
   const { id: sessionId } = useParams();
 
   // 1) derive role
-  const { user } = useGlobalContext(); // dashboard user, if logged in
+  const { user } = useGlobalContext();
 
   const role: UiRole = useMemo(() => {
-    // dashboard users
     const dashboardServer = normalizeServerRole(user?.role);
     if (dashboardServer)
       return dashboardServer === "Observer"
@@ -567,12 +194,10 @@ export default function Meeting() {
         ? "admin"
         : "participant";
 
-    // honor query param role when provided (e.g., from observer join flow)
     const qp = searchParams?.get("role");
     const qpUi = normalizeUiRole(qp);
     if (qpUi) return qpUi;
 
-    // participant from join flow
     const u = safeLocalGet<LocalJoinUser>("liveSessionUser");
     if (u) {
       const storedServer = normalizeServerRole(u?.role);
@@ -585,7 +210,6 @@ export default function Meeting() {
           ? "admin"
           : "participant";
     }
-    // default to participant (or you can redirect)
     return "participant";
   }, [user, searchParams]);
 
@@ -611,9 +235,19 @@ export default function Meeting() {
   const [wsUrl, setWsUrl] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
+  const [isLeftOpen, setIsLeftOpen] = useState(true);
+  const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
+  const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [observerCount, setObserverCount] = useState(0);
+  const [observerList, setObserverList] = useState<
+    { name: string; email: string }[]
+  >([]);
+  const [isBreakoutOverlayOpen, setIsBreakoutOverlayOpen] = useState(false);
 
   // 🔌 single meeting socket for this page
   const socketRef = useRef<Socket | null>(null);
+  // warning toast state not needed; we use sonner directly
 
   // 1) fetch start/join token (participants/admin/mod) OR HLS url (observers)
   useEffect(() => {
@@ -625,7 +259,6 @@ export default function Meeting() {
       return;
     }
 
-    // participants: use token from waiting-room exchange
     if (role === "participant") {
       const saved =
         typeof window !== "undefined"
@@ -633,16 +266,14 @@ export default function Meeting() {
           : null;
 
       if (!saved) {
-        // they came straight to the meeting (new tab/incognito) → send back
         router.replace(`/waiting-room/participant/${sessionId}`);
         return;
       }
       setToken(saved);
       setWsUrl(url);
-      return; // ⛔ do NOT call /token
+      return;
     }
 
-    // observers: fetch HLS url (no LiveKit token needed)
     if (role === "observer") {
       (async () => {
         try {
@@ -662,7 +293,6 @@ export default function Meeting() {
       return;
     }
 
-    // admin/moderator: call cookie-auth /token
     (async () => {
       const lkToken = await fetchLiveKitToken(sessionId as string, serverRole);
       if (!lkToken) {
@@ -690,9 +320,17 @@ export default function Meeting() {
     });
     socketRef.current = s;
     window.__meetingSocket = s;
-    // When server enforces mute, dispatch event that the bridge listens for
+    s.on("observer:count", (p: { count?: number }) => {
+      setObserverCount(Number(p?.count || 0));
+    });
+    s.on(
+      "observer:list",
+      (p: { observers?: { name: string; email: string }[] }) => {
+        setObserverList(Array.isArray(p?.observers) ? p.observers : []);
+      }
+    );
+    // 1-minute breakout warning handler
     s.on("meeting:force-mute", (payload: { email?: string }) => {
-      // If payload has email and it's not me, ignore; otherwise act.
       if (
         payload?.email &&
         payload.email.toLowerCase() !== (my.email || "").toLowerCase()
@@ -701,7 +339,6 @@ export default function Meeting() {
       window.dispatchEvent(new CustomEvent("amplify:force-mute-self"));
     });
 
-    // When server enforces camera off, dispatch event that the bridge listens for
     s.on("meeting:force-camera-off", (payload: { email?: string }) => {
       if (
         payload?.email &&
@@ -711,12 +348,35 @@ export default function Meeting() {
       window.dispatchEvent(new CustomEvent("amplify:force-camera-off"));
     });
 
+    // initial snapshot of observers
+    s.emit(
+      "observer:list:get",
+      {},
+      (resp?: { observers?: { name: string; email: string }[] }) => {
+        setObserverList(Array.isArray(resp?.observers) ? resp!.observers! : []);
+      }
+    );
+
+    // Meeting end broadcast → route away
+    const onMeetingEnded = () => {
+      if (role === "observer") {
+        router.replace(`/waiting-room/observer/${sessionId}`);
+      } else if (role === "admin" || role === "moderator") {
+        router.push("/projects");
+      } else {
+        router.replace("/remove-participant");
+      }
+    };
+    s.on("meeting:ended", onMeetingEnded);
+
     return () => {
+      s.off("meeting:ended", onMeetingEnded);
       s.off("meeting:force-mute");
       s.off("meeting:force-camera-off");
+      s.off("observer:list");
       s.disconnect();
     };
-  }, [sessionId, my?.email, my?.name, serverRole]);
+  }, [sessionId, my?.email, my?.name, serverRole, role, router]);
 
   // If observer and stream stops, route back to observer waiting room
   useEffect(() => {
@@ -732,7 +392,7 @@ export default function Meeting() {
     };
   }, [role, router, sessionId]);
 
-  // Observer view: render room selector (main + breakouts) and HLS player
+  // Observer view
   if (role === "observer") {
     return (
       <ObserverBreakoutSelect
@@ -744,341 +404,365 @@ export default function Meeting() {
 
   if (!token || !wsUrl) {
     return (
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      <div className="grid grid-cols-12 gap-4 h-[100dvh] overflow-hidden p-4">
         <div className="col-span-12 m-auto text-gray-500">Connecting…</div>
       </div>
     );
   }
 
+  // Note: right panel initial state derives from role; avoid conditional hooks after returns
+
+  const mainColSpanClass =
+    (isLeftOpen ? 1 : 0) + (role !== "participant" && isRightOpen ? 1 : 0) === 2
+      ? "col-span-6"
+      : (isLeftOpen ? 1 : 0) +
+          (role !== "participant" && isRightOpen ? 1 : 0) ===
+        1
+      ? "col-span-9"
+      : "col-span-12";
+
   return (
     <LiveKitRoom token={token} serverUrl={wsUrl}>
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
+      <div className="relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0  meeting_bg">
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
-        <aside className="col-span-3 border rounded p-3 overflow-y-auto">
-          <h3 className="font-semibold mb-2">Controls & Waiting Room</h3>
-          <ModeratorWaitingPanel />
-          <ParticipantsPanel
-            role={role}
-            socket={socketRef.current}
-            myEmail={my?.email || null}
-          />
-          {/* Example data attr to confirm flags available */}
-          <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
-        </aside>
+        {isLeftOpen && (
+          <aside className="relative col-span-3 h-full rounded-r-2xl p-2 overflow-y-auto overflow-x-hidden bg-white shadow">
+            <button
+              type="button"
+              onClick={() => setIsLeftOpen(false)}
+              className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              aria-label="Collapse left panel"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => toast("Features not developed yet")}
+              className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+              aria-label="Whiteboard"
+            >
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                <PenTool className="h-3.5 w-3.5 text-white" />
+              </span>
+              <span>Whiteboard</span>
+            </button>
+
+            {(role === "admin" || role === "moderator") && (
+              <button
+                type="button"
+                onClick={() => {
+                  const s = socketRef.current;
+                  if (!s || streamBusy !== null) return;
+                  if (!isStreaming) {
+                    setStreamBusy("start");
+                    s.emit(
+                      "meeting:stream:start",
+                      {},
+                      (ack?: { ok?: boolean; error?: string }) => {
+                        setStreamBusy(null);
+                        if (ack?.ok) {
+                          setIsStreaming(true);
+                          toast.success("Streaming started");
+                        } else {
+                          toast.error(
+                            ack?.error || "Failed to start streaming"
+                          );
+                        }
+                      }
+                    );
+                  } else {
+                    setStreamBusy("stop");
+                    s.emit(
+                      "meeting:stream:stop",
+                      {},
+                      (ack?: { ok?: boolean; error?: string }) => {
+                        setStreamBusy(null);
+                        if (ack?.ok) {
+                          setIsStreaming(false);
+                          toast.success("Streaming stopped");
+                        } else {
+                          toast.error(ack?.error || "Failed to stop streaming");
+                        }
+                      }
+                    );
+                  }
+                }}
+                disabled={streamBusy !== null}
+                className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition ${
+                  streamBusy !== null
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-200"
+                } bg-gray-100 text-gray-700`}
+                aria-label={isStreaming ? "Stop Stream" : "Start Stream"}
+              >
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                  {isStreaming ? (
+                    <Square className="h-3.5 w-3.5 text-white" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5 text-white" />
+                  )}
+                </span>
+                <span>{isStreaming ? "Stop Stream" : "Start Stream"}</span>
+              </button>
+            )}
+            {featureFlags.breakoutsEnabled &&
+              (role === "admin" || role === "moderator") && (
+                <button
+                  type="button"
+                  onClick={() => setIsBreakoutOverlayOpen((v) => !v)}
+                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                  aria-label={
+                    isBreakoutOverlayOpen
+                      ? "Close Breakout Panel"
+                      : "Open Breakout Panel"
+                  }
+                >
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-custom-dark-blue-1">
+                    <LayoutGrid className="h-3.5 w-3.5 text-white" />
+                  </span>
+                  <span>
+                    {isBreakoutOverlayOpen
+                      ? "Close Breakout Panel"
+                      : "Open Breakout Panel"}
+                  </span>
+                </button>
+              )}
+            <div className="relative">
+              <div
+                className={`absolute border inset-0 rounded-lg bg-white p-3 overflow-auto transition-opacity ${
+                  isBreakoutOverlayOpen
+                    ? "z-30 opacity-100"
+                    : "z-[-1] opacity-0 pointer-events-none"
+                }`}
+                aria-hidden={!isBreakoutOverlayOpen}
+              >
+                <h4 className="font-semibold mb-2">Breakouts</h4>
+                <BreakoutsPanel sessionId={String(sessionId)} role={role} />
+              </div>
+              <ParticipantsPanel
+                role={role}
+                socket={socketRef.current}
+                myEmail={my?.email || null}
+              />
+              <ModeratorWaitingPanel />
+              <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
+            </div>
+          </aside>
+        )}
+
+        {!isLeftOpen && (
+          <button
+            type="button"
+            onClick={() => setIsLeftOpen(true)}
+            className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Expand left panel"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
 
         {/* MIDDLE: LiveKit room visuals */}
-        <main className="col-span-6 border rounded p-3 flex flex-col min-h-0">
-          <div className="flex flex-col h-full lk-scope">
+        <main
+          className={`${mainColSpanClass} h-full min-h-0 overflow-hidden rounded p-3 flex flex-col`}
+        >
+          {/* Top header inside main area */}
+          <div className="flex items-center justify-between px-1 pb-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                <span>On going meeting</span>
+              </div>
+              <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+                {role === "moderator"
+                  ? "Moderator View"
+                  : role === "admin"
+                  ? "Admin View"
+                  : "Participant View"}
+              </span>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <Logo />
+              <LeaveMeetingButton role={role} sessionId={String(sessionId)} />
+            </div>
+          </div>
+
+          <div className="flex flex-col flex-1 min-h-0 lk-scope">
             <AutoPublishOnConnect role={role} />
+            <SubscribeCameraBridge />
             <RegisterIdentityBridge
               socket={socketRef.current}
               email={my?.email || ""}
             />
+            <BreakoutWarningBridge socket={socketRef.current} role={role} />
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
             <VideoGrid />
-            <div className="pt-2 flex items-center justify-between gap-2">
-              <ControlBar variation="minimal" />
-              <ScreenshareControl role={role} />
+            <div className="shrink-0 pt-2  gap-2">
+              <ControlBar variation="minimal" controls={{ leave: false }} />
             </div>
           </div>
         </main>
 
         {/* RIGHT: observer chat/media hub — hide for participants */}
-        {role !== "participant" ? (
-          <aside className="col-span-3 border rounded p-3 overflow-y-auto">
-            <h3 className="font-semibold mb-2">Observers</h3>
-            {/* observer group chat, names, counts, media hub */}
-            {(role === "admin" || role === "moderator") &&
-              featureFlags.breakoutsEnabled && (
-                <div className="mt-4">
-                  <h4 className="font-semibold mb-2">Breakouts</h4>
-                  <BreakoutsPanel sessionId={String(sessionId)} role={role} />
+        {role !== "participant" && isRightOpen && (
+          <aside className="relative col-span-3 h-full rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
+            <button
+              type="button"
+              onClick={() => setIsRightOpen(false)}
+              className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              aria-label="Collapse right panel"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold pl-5">Backroom</h3>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1"
+                aria-label="Observer count"
+              >
+                <span className="inline-flex h-4 w-4 items-center justify-center">
+                  {/* eye icon */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-3.5 w-3.5"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </span>
+                <span>Viewers</span>
+                <span className="ml-1 rounded bg-white/20 px-1">
+                  {observerCount}
+                </span>
+              </button>
+            </div>
+            {/* Backroom tabs - styled like left sidebar Participants panel */}
+            <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
+              <Tabs defaultValue="list">
+                <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
+                  <TabsTrigger
+                    value="list"
+                    className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                  >
+                    Observer List
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="chat"
+                    className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                  >
+                    Observer Text
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="list">
+                  <div className="space-y-2">
+                    {observerList.length === 0 && (
+                      <div className="text-sm text-gray-500">
+                        No observers yet.
+                      </div>
+                    )}
+                    {observerList.map((o) => {
+                      const label = o.name || o.email || "Observer";
+                      return (
+                        <div
+                          key={`${label}-${o.email}`}
+                          className="flex items-center justify-between gap-2  rounded px-2 py-1"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {label}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md   cursor-pointer"
+                            aria-label={`Open chat with ${label}`}
+                            title={`Open chat with ${label}`}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="chat">
+                  <div className="text-sm text-gray-500">Yet to implement</div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Document Hub */}
+            <Card className=" border-none shadow-none">
+              <CardHeader className=" px-3 flex items-center justify-between">
+                <CardTitle className="flex  items-center gap-2 text-sm text-[#00293C]">
+                  <FileText className="h-4 w-4" />
+                  DOCUMENT HUB
+                </CardTitle>
+                <CardAction>
+                  <Button
+                    variant="orange"
+                    className="text-sm px-4 py-[1px] rounded-full"
+                    onClick={() => toast("Yet to implement")}
+                  >
+                    Upload File
+                  </Button>
+                </CardAction>
+              </CardHeader>
+              <Separator className="" />
+
+              <CardContent className="px-3 pb-3">
+                <div className="bg-custom-gray-2 rounded-xl  p-2">
+                  <div className="flex items-center justify-between px-3 text-[12px] text-gray-600">
+                    <span>Name</span>
+                    <span>Size</span>
+                  </div>
+                  <div className="mt-2 rounded-lg bg-custom-gray-2 p-2">
+                    <div className="flex items-center justify-between px-2 py-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Folder className="h-4 w-4 shrink-0" />
+                        <span className="truncate text-sm">
+                          PRO_FILES_01: Introduction...
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-600">5.2MB</span>
+                        <button
+                          type="button"
+                          className="text-red-500 cursor-pointer"
+                          aria-label="Delete file"
+                          onClick={() => toast("Yet to implement")}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </CardContent>
+            </Card>
           </aside>
-        ) : (
-          <div className="col-span-3" />
+        )}
+        {role !== "participant" && !isRightOpen && (
+          <button
+            type="button"
+            onClick={() => setIsRightOpen(true)}
+            className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Expand right panel"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
         )}
       </div>
     </LiveKitRoom>
-  );
-}
-
-function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !hlsUrl) return;
-
-    let cleanup: (() => void) | null = null;
-
-    const ping = async (src: string) => {
-      for (let i = 0; i < 10; i++) {
-        try {
-          const u = new URL(src);
-          // try to fetch the top-level playlist; if forbidden, try a direct GET
-          const r = await fetch(u.toString(), {
-            method: "HEAD",
-            cache: "no-store",
-          });
-          if (r.ok) return true;
-        } catch {}
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      return false;
-    };
-
-    (async () => {
-      await ping(hlsUrl);
-      if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = hlsUrl;
-        try {
-          await video.play();
-        } catch {}
-        return;
-      }
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          liveDurationInfinity: true,
-          liveSyncDurationCount: 3,
-          maxLiveSyncPlaybackRate: 1.2,
-          // try to be resilient against S3 403 while segments warm up
-          fragLoadingRetryDelay: 1000,
-          manifestLoadingRetryDelay: 1000,
-          levelLoadingRetryDelay: 1000,
-          fragLoadingMaxRetry: 6,
-          manifestLoadingMaxRetry: 6,
-          levelLoadingMaxRetry: 6,
-        });
-        hls.loadSource(hlsUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.ERROR, (_e, data) => {
-          if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-            if (data.type === Hls.ErrorTypes.MEDIA_ERROR)
-              hls.recoverMediaError();
-          }
-        });
-        try {
-          await video.play();
-        } catch {}
-        cleanup = () => hls.destroy();
-      }
-    })();
-
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, [hlsUrl]);
-
-  return (
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
-      <div className="col-span-9 border rounded p-3 flex flex-col min-h-0">
-        <video
-          ref={videoRef}
-          controls
-          playsInline
-          autoPlay
-          crossOrigin="anonymous"
-          className="w-full h-full"
-        />
-      </div>
-      <aside className="col-span-3 border rounded p-3 overflow-y-auto">
-        <h3 className="font-semibold mb-2">Observers</h3>
-      </aside>
-    </div>
-  );
-}
-
-function ObserverBreakoutSelect({
-  sessionId,
-  initialMainUrl,
-}: {
-  sessionId: string;
-  initialMainUrl: string | null;
-}) {
-  const [options, setOptions] = useState<
-    Array<{ key: string; label: string; url: string | null }>
-  >([{ key: "__main__", label: "Main", url: initialMainUrl }]);
-  const [selected, setSelected] = useState<string>("__main__");
-  const [url, setUrl] = useState<string | null>(initialMainUrl);
-
-  // keep main option in sync when initialMainUrl prop changes later
-  useEffect(() => {
-    setOptions((prev) => {
-      const rest = prev.filter((o) => o.key !== "__main__");
-      return [{ key: "__main__", label: "Main", url: initialMainUrl }, ...rest];
-    });
-    if (selected === "__main__") setUrl(initialMainUrl);
-  }, [initialMainUrl]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await api.get<{
-          data: {
-            items: Array<{
-              index: number;
-              livekitRoom: string;
-              hls?: { playbackUrl?: string };
-            }>;
-          };
-        }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
-        const items = res.data?.data?.items || [];
-        const mapped = items.map((b) => ({
-          key: b.livekitRoom,
-          label: `Breakout #${b.index}`,
-          url: b.hls?.playbackUrl || null,
-        }));
-        if (!cancelled) {
-          setOptions((prev) => {
-            const main = prev.find((o) => o.key === "__main__") || {
-              key: "__main__",
-              label: "Main",
-              url: initialMainUrl,
-            };
-            return [main, ...mapped];
-          });
-        }
-      } catch {}
-    };
-
-    load();
-
-    // socket-based live refresh
-    const s: Socket | undefined = (
-      globalThis as unknown as { __meetingSocket?: Socket }
-    ).__meetingSocket;
-    const onChanged = () => load();
-    s?.on("breakouts:changed", onChanged);
-    return () => {
-      cancelled = true;
-      s?.off("breakouts:changed", onChanged);
-    };
-  }, [sessionId, initialMainUrl]);
-
-  useEffect(() => {
-    // whenever selected or options change, update URL
-    if (selected === "__main__") {
-      setUrl(options.find((o) => o.key === "__main__")?.url || null);
-    } else {
-      setUrl(options.find((o) => o.key === selected)?.url || null);
-    }
-  }, [selected, options]);
-
-  // while selected is a breakout with no URL yet, poll a couple times to pick it up
-  useEffect(() => {
-    if (selected === "__main__") return;
-    if (url) return;
-    let tries = 0;
-    let t: ReturnType<typeof setTimeout> | undefined;
-    const tick = async () => {
-      tries++;
-      try {
-        const res = await api.get<{
-          data: {
-            items: Array<{
-              index: number;
-              livekitRoom: string;
-              hls?: { playbackUrl?: string };
-            }>;
-          };
-        }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
-        const items = res.data?.data?.items || [];
-        const found = items.find((b) => b.livekitRoom === selected);
-        if (found?.hls?.playbackUrl) {
-          setOptions((prev) => {
-            const main = prev.find((o) => o.key === "__main__") || {
-              key: "__main__",
-              label: "Main",
-              url: initialMainUrl,
-            };
-            const mapped = items.map((b) => ({
-              key: b.livekitRoom,
-              label: `Breakout #${b.index}`,
-              url: b.hls?.playbackUrl || null,
-            }));
-            return [main, ...mapped];
-          });
-          setUrl(found.hls.playbackUrl);
-          return;
-        }
-      } catch {}
-      if (tries < 5) t = setTimeout(tick, 1500);
-    };
-    tick();
-    return () => clearTimeout(t);
-  }, [selected, url, sessionId, initialMainUrl]);
-
-  // react when socket indicates breakouts changed
-  useEffect(() => {
-    const s: Socket | undefined = (
-      globalThis as unknown as { __meetingSocket?: Socket }
-    ).__meetingSocket;
-    const onChanged = async () => {
-      try {
-        const res = await api.get<{
-          data: {
-            items: Array<{
-              index: number;
-              livekitRoom: string;
-              hls?: { playbackUrl?: string };
-            }>;
-          };
-        }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
-        const items = res.data?.data?.items || [];
-        const mapped = items.map((b) => ({
-          key: b.livekitRoom,
-          label: `Breakout #${b.index}`,
-          url: b.hls?.playbackUrl || null,
-        }));
-        setOptions((prev) => {
-          const main = prev.find((o) => o.key === "__main__") || {
-            key: "__main__",
-            label: "Main",
-            url: initialMainUrl,
-          };
-          return [main, ...mapped];
-        });
-      } catch {}
-    };
-    s?.on("breakouts:changed", onChanged);
-    return () => {
-      s?.off("breakouts:changed", onChanged);
-    };
-  }, [sessionId, initialMainUrl]);
-
-  return (
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
-      <div className="col-span-3 border rounded p-3 overflow-y-auto">
-        <h3 className="font-semibold mb-2">Observer</h3>
-        <label className="block text-sm mb-1">Choose a room</label>
-        <select
-          className="border rounded px-2 py-1 text-black w-full"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          {options.map((o) => (
-            <option key={o.key} value={o.key}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <div className="text-xs text-gray-500 mt-2">
-          {url ? "Streaming available" : "No live stream for this room"}
-        </div>
-      </div>
-      <div className="col-span-9 border rounded p-3 flex flex-col min-h-0">
-        {url ? (
-          <ObserverHlsLayout hlsUrl={url} />
-        ) : (
-          <div className="m-auto text-gray-500">No live stream…</div>
-        )}
-      </div>
-    </div>
   );
 }

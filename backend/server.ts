@@ -3,17 +3,22 @@ import express from "express";
 import config from "./config/index";
 import connectDB from "./config/db";
 import errorMiddleware from "./middlewares/ErrorMiddleware";
-import mainRoutes from "./routes/index"
+import mainRoutes from "./routes/index";
 import cors from "cors";
-import cookieParser from "cookie-parser"; 
+import cookieParser from "cookie-parser";
 import { deviceInfoMiddleware } from "./middlewares/deviceInfo";
 import http from "http";
 import { attachSocket } from "./socket/index";
+import { rescheduleAllBreakoutTimers } from "./services/breakoutScheduler";
 
 const app = express();
-console.log("Starting server...",config.frontend_base_url);
+console.log("Starting server...", config.frontend_base_url);
 // ✅ CORS config
-const allowedOrigins = [config.frontend_base_url as string,  "http://localhost:3000", "https://amplifyre.shop"];
+const allowedOrigins = [
+  config.frontend_base_url as string,
+  "http://localhost:3000",
+  "https://amplifyre.shop",
+];
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -30,7 +35,7 @@ app.use(
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(cookieParser());
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 // this must come before any route that needs deviceInfo
 app.use(deviceInfoMiddleware);
 
@@ -45,7 +50,6 @@ app.use((req, res, next) => {
   // console.log('Body:', req.body);
   next();
 });
-
 
 // Place your other routes here
 app.use("/api/v1", mainRoutes);
@@ -64,4 +68,13 @@ const PORT = config.port || 8008;
 server.listen(PORT, async () => {
   await connectDB();
   console.log(`Server is running on port ${PORT}`);
+  try {
+    await rescheduleAllBreakoutTimers();
+    console.log("Breakout timers rescheduled");
+  } catch (e) {
+    console.warn(
+      "Failed to reschedule breakout timers",
+      (e as any)?.message || e
+    );
+  }
 });

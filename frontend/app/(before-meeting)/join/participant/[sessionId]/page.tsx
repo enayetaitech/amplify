@@ -1,136 +1,160 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import api from "lib/api";
-import axios from "axios";
 import { toast } from "sonner";
+import Logo from "components/shared/LogoComponent";
+import FooterComponent from "components/shared/FooterComponent";
+import { Button } from "components/ui/button";
+import { Form } from "components/ui/form";
+import TextInputField from "components/createAccount/TextInputField";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FieldErrors, useForm } from "react-hook-form";
+import {
+  ParticipantJoinValues,
+  participantJoinSchema,
+} from "schemas/participantJoinSchema";
+import { useResolveParticipantSession } from "hooks/useResolveParticipantSession";
+import { useEnqueueWaitingRoom } from "hooks/useEnqueueWaitingRoom";
 
 export default function ParticipantJoinMeeting() {
   const router = useRouter();
   const { sessionId: idParam } = useParams() as { sessionId: string };
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [joining, setJoining] = useState(false);
+  const { resolve } = useResolveParticipantSession();
+  const { enqueue } = useEnqueueWaitingRoom();
 
-  // async function resolveProjectToSession(projectId: string) {
-  //   const res = await api.get<{ data: { sessionId: string } }>(
-  //     `/api/v1/sessions/project/${projectId}/latest`,
-  //     { params: { role: "Participant" } }
-  //   );
-  //   return res.data.data.sessionId;
-  // }
+  const form = useForm<ParticipantJoinValues>({
+    resolver: zodResolver(participantJoinSchema),
+    defaultValues: { firstName: "", lastName: "", email: "" },
+    mode: "onSubmit",
+  });
 
-  async function tryGetSession(projectOrSessionId: string) {
-    try {
-      const res = await api.get<{
-        data: { _id: string; projectId: string | { _id: string } };
-      }>(`/api/v1/sessions/${projectOrSessionId}`);
-      return {
-        sessionId: res.data.data._id,
-        projectId: res.data.data.projectId,
-      };
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
-        return null;
+  const handleErrors = (errors: FieldErrors<ParticipantJoinValues>) => {
+    Object.values(errors).forEach((fieldError) => {
+      if (fieldError?.message) {
+        toast.error(fieldError.message as string);
       }
-      throw err;
-    }
-  }
+    });
+  };
 
-  const handleJoin = async () => {
-    const nameTrimmed = name.trim();
-  const emailNormalized = email.trim().toLowerCase();
+  const onSubmit = form.handleSubmit(async (values) => {
+    const nameTrimmed = `${values.firstName.trim()} ${values.lastName.trim()}`;
+    const emailNormalized = values.email.trim().toLowerCase();
 
-  if (!nameTrimmed || !emailNormalized) {
-    toast.error("Name and email are required");
-    return;
-  }
-    setJoining(true);
     try {
-      // Determine if the route param is a sessionId or a projectId
-      const maybeSession = await tryGetSession(idParam);
+      const { sessionId } = await resolve(idParam);
 
-      let projectId: string;
-
-      if (maybeSession) {
-        // Always resolve via project to enforce Participant semantics
-        type ProjectRef = string | { _id: string };
-
-        const pid = maybeSession.projectId as ProjectRef;
-
-        projectId = typeof pid === "string" ? pid : pid._id;
-      } else {
-        projectId = idParam;
-      }
-
-      // 2) Resolve the latest session for participants
-    let sessionId: string;
-    try {
-      const res = await api.get<{ data: { sessionId: string } }>(
-        `/api/v1/sessions/project/${projectId}/latest`,
-        { params: { role: "Participant" } }
-      );
-      sessionId = res.data.data.sessionId;
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
-        toast.error("No session is currently running");
-        return;
-      }
-      throw err;
-    }
-
-      // 3) Enqueue into the waiting room (no auth required)
-      await api.post(`/api/v1/waiting-room/enqueue`, {
+      await enqueue({
         sessionId,
         name: nameTrimmed,
         email: emailNormalized,
         role: "Participant",
-        // optional, but useful for reporting:
-        device: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+        device:
+          typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       });
 
-    // 4) Persist for the waiting-room page (which opens the socket)
-    localStorage.setItem(
-      "liveSessionUser",
-      JSON.stringify({ name: nameTrimmed, email: emailNormalized, role: "Participant" })
-    );
+      localStorage.setItem(
+        "liveSessionUser",
+        JSON.stringify({
+          name: nameTrimmed,
+          email: emailNormalized,
+          role: "Participant",
+        })
+      );
 
-    // 5) Go to the participant waiting room
       router.push(`/waiting-room/participant/${sessionId}`);
     } catch (err) {
-      const msg = axios.isAxiosError(err) ? err.message : "Failed to join";
+      const anyErr = err as unknown;
+      const msg =
+        anyErr && typeof anyErr === "object" && "message" in anyErr
+          ? (anyErr as { message: string }).message
+          : "Failed to join";
       toast.error(msg);
-    } finally {
-      setJoining(false);
     }
-  };
+  }, handleErrors);
 
   return (
-    <div className="max-w-md mx-auto p-4 space-y-4">
-      <h2 className="text-xl font-semibold">Join as Participant</h2>
-      <input
-        className="w-full p-2 border rounded"
-        placeholder="Your name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <input
-        className="w-full p-2 border rounded"
-        placeholder="Your email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+    <div className="bg-white">
+      {/* Content */}
+      <div className="lg:flex lg:justify-center lg:items-center">
+        {/* Left: Form */}
+        <div className="flex-1 pb-5 lg:pb-0">
+          <div className="border-0">
+            <div className="text-center pt-2 lg:pt-5">
+              <div className=" bg-white flex justify-center items-center pb-5">
+                <Logo />
+              </div>
+              <h2 className="text-2xl lg:text-3xl font-bold">JOIN MEETING</h2>
+            </div>
+            {/* mobile image */}
+            <div className="lg:hidden flex justify-center items-center py-2 px-4">
+              <Image
+                src="/join-meeting.png"
+                alt="Join meeting"
+                width={360}
+                height={240}
+                className="h-auto w-full"
+                priority
+              />
+            </div>
+            <div className="mt-2 lg:mt-6">
+              <Form {...form}>
+                <form onSubmit={onSubmit} className="lg:px-24 px-4 space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <TextInputField
+                      control={form.control}
+                      name="firstName"
+                      label="First Name"
+                      placeholder="First Name"
+                      disabled={form.formState.isSubmitting}
+                    />
+                    <TextInputField
+                      control={form.control}
+                      name="lastName"
+                      label="Last Name"
+                      placeholder="Last Name"
+                      disabled={form.formState.isSubmitting}
+                    />
+                  </div>
+                  <TextInputField
+                    control={form.control}
+                    name="email"
+                    label="Email"
+                    placeholder="Enter your email"
+                    type="email"
+                    disabled={form.formState.isSubmitting}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full bg-orange-500 hover:bg-orange-600"
+                    disabled={form.formState.isSubmitting}
+                  >
+                    {form.formState.isSubmitting ? "Joining…" : "Join Meeting"}
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          </div>
+        </div>
 
-      {/* localhost:3000/join/participant/670d9310667c144b9c271710 */}
-      <button
-        className="w-full py-2 bg-green-600 text-white rounded"
-        onClick={handleJoin}
-        disabled={joining}
-      >
-        {joining ? "Joining…" : "Join Meeting"}
-      </button>
+        {/* Right: Image */}
+        <div className="flex-1  min-h-screen hidden lg:flex items-center justify-center">
+          <div className="px-6 mt-5">
+            <Image
+              src="/join-meeting.png"
+              alt="Join meeting"
+              width={640}
+              height={480}
+              className="h-auto w-full max-w-xl"
+              priority
+            />
+          </div>
+        </div>
+      </div>
+
+      <FooterComponent />
     </div>
   );
 }

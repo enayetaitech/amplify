@@ -11,3 +11,15 @@ export function emitBreakoutsChanged(sessionId: string) {
     ioRef?.to(sessionId).emit("breakouts:changed", {});
   } catch {}
 }
+
+export function emitToRoom(room: string, event: string, payload?: any) {
+  try {
+    ioRef?.to(room).emit(event, payload ?? {});
+  } catch {}
+}
+
+export function emitToSocket(socketId: string, event: string, payload?: any) {
+  try {
+    ioRef?.to(socketId).emit(event, payload ?? {});
+  } catch {}
+}

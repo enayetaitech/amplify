@@ -105,9 +105,10 @@ const Sessions = () => {
       // Refresh any live flags if you show them
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
 
-      // Go to meeting either way, appending feature flags
+      // Go to meeting in a new window/tab
       const ff = flagsFromProject(project as unknown);
-      router.push(buildMeetingUrl(sessionId, ff));
+      const url = buildMeetingUrl(sessionId, ff);
+      window.open(url, "_blank", "noopener,noreferrer");
     },
     onError: (err, sessionId) => {
       // If server returned non-2xx with the same message, still proceed
@@ -116,7 +117,8 @@ const Sessions = () => {
         if (msg === "Session already ongoing") {
           toast.message("Session already ongoing — opening meeting");
           const ff = flagsFromProject(project as unknown);
-          router.push(buildMeetingUrl(sessionId, ff));
+          const url = buildMeetingUrl(sessionId, ff);
+          window.open(url, "_blank", "noopener,noreferrer");
           return;
         }
       }

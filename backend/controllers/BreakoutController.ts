@@ -12,8 +12,13 @@ import {
   startFileEgress,
   stopFileEgress,
 } from "../processors/livekit/livekitService";
-import { emitBreakoutsChanged } from "../socket/bus";
+import { emitBreakoutsChanged, emitToRoom } from "../socket/bus";
 import config from "../config/index";
+import { TrackSource } from "livekit-server-sdk";
+import {
+  cancelBreakoutCloseTimer,
+  scheduleBreakoutCloseTimer,
+} from "../services/breakoutScheduler";
 
 export const createBreakoutRoom = async (
   req: Request,
@@ -59,10 +64,12 @@ export const createBreakoutRoom = async (
     } catch {}
   }
 
+  const closesAtDefault = new Date(Date.now() + 2 * 60 * 1000);
   await BreakoutRoom.create({
     sessionId: new Types.ObjectId(sessionId),
     index,
     livekitRoom,
+    closesAt: closesAtDefault,
     hls: playbackUrl
       ? { egressId, playbackUrl, startedAt: new Date() }
       : undefined,
@@ -70,6 +77,13 @@ export const createBreakoutRoom = async (
       ? { egressId: fileEgressId, startedAt: new Date() }
       : undefined,
   });
+
+  // schedule default auto-close
+  try {
+    scheduleBreakoutCloseTimer(String(sessionId), index, closesAtDefault);
+  } catch {}
+
+  // no closesAt set here by default; panel can later extend and we'll schedule timer then
 
   sendResponse(
     res,
@@ -125,6 +139,61 @@ export const listBreakoutsPublic = async (
   sendResponse(res, { items: mapped }, "Breakouts");
 };
 
+export async function closeBreakoutByIndex(sessionId: string, idx: number) {
+  const bo = await BreakoutRoom.findOne({
+    sessionId: new Types.ObjectId(sessionId),
+    index: idx,
+  });
+  if (!bo) throw new Error("Breakout not found");
+
+  // stop HLS egress if running
+  if (bo.hls?.egressId) {
+    await stopHlsEgress(bo.hls.egressId);
+    bo.hls.stoppedAt = new Date();
+  }
+  // stop file egress if running (only if feature enabled)
+  if (
+    config.enable_breakout_file_recording === "true" &&
+    bo.recording?.egressId
+  ) {
+    await stopFileEgress(bo.recording.egressId);
+    bo.recording.stoppedAt = new Date();
+  }
+
+  // attempt to move participants back to main room, collect identities
+  const movedIdentities: string[] = [];
+  try {
+    const ps = await roomService.listParticipants(bo.livekitRoom);
+    for (const p of ps) {
+      if (p?.identity) movedIdentities.push(p.identity);
+      try {
+        await roomService.moveParticipant(
+          bo.livekitRoom,
+          p.identity,
+          String(sessionId)
+        );
+      } catch {}
+    }
+  } catch {}
+
+  bo.closedAt = new Date();
+  await bo.save();
+  try {
+    emitBreakoutsChanged(String(sessionId));
+  } catch {}
+
+  // notify moderators/admins and participants
+  try {
+    emitToRoom(`observer::${sessionId}`, "breakout:closed-mod", { index: idx });
+    emitToRoom(String(sessionId), "breakout:closed", {
+      index: idx,
+      identities: movedIdentities,
+    });
+    // trigger UI refreshes for participant pickers
+    emitToRoom(String(sessionId), "meeting:participants-changed", {});
+  } catch {}
+}
+
 export const closeBreakout = async (
   req: Request,
   res: Response,
@@ -141,46 +210,14 @@ export const closeBreakout = async (
   if (!idx || idx < 1)
     return next(new ErrorHandler("Invalid breakout index", 400));
 
-  const bo = await BreakoutRoom.findOne({
-    sessionId: new Types.ObjectId(sessionId),
-    index: idx,
-  });
-  if (!bo) return next(new ErrorHandler("Breakout not found", 404));
-
-  // stop HLS egress if running
-  if (bo.hls?.egressId) {
-    await stopHlsEgress(bo.hls.egressId);
-    bo.hls.stoppedAt = new Date();
-  }
-  // stop file egress if running (only if feature enabled)
-  if (
-    config.enable_breakout_file_recording === "true" &&
-    bo.recording?.egressId
-  ) {
-    await stopFileEgress(bo.recording.egressId);
-    bo.recording.stoppedAt = new Date();
-  }
-
-  // attempt to move participants back to main room
   try {
-    const ps = await roomService.listParticipants(bo.livekitRoom);
-    for (const p of ps) {
-      try {
-        await roomService.moveParticipant(
-          bo.livekitRoom,
-          p.identity,
-          String(sessionId)
-        );
-      } catch {}
-    }
-  } catch {}
-
-  bo.closedAt = new Date();
-  await bo.save();
+    await closeBreakoutByIndex(String(sessionId), idx);
+    // cancel any pending timer
+    cancelBreakoutCloseTimer(String(sessionId), idx);
+  } catch (e: any) {
+    return next(new ErrorHandler(e?.message || "Breakout not found", 404));
+  }
   sendResponse(res, { ok: true }, "Breakout closed");
-  try {
-    emitBreakoutsChanged(String(sessionId));
-  } catch {}
 };
 
 export const extendBreakout = async (
@@ -219,6 +256,10 @@ export const extendBreakout = async (
   try {
     emitBreakoutsChanged(String(sessionId));
   } catch {}
+  // schedule/refresh auto-close timer
+  try {
+    scheduleBreakoutCloseTimer(String(sessionId), idx, bo.closesAt!);
+  } catch {}
 };
 
 export const moveParticipantToBreakout = async (
@@ -247,6 +288,35 @@ export const moveParticipantToBreakout = async (
     String(identity),
     bo.livekitRoom
   );
+  // Restore baseline publish sources (MIC + CAMERA) in destination room
+  try {
+    const list = await roomService.listParticipants(bo.livekitRoom);
+    const found = list.find((pi) => pi.identity === String(identity));
+    const prev =
+      (found &&
+        (
+          found as unknown as {
+            permission?: { canPublishSources?: TrackSource[] };
+          }
+        ).permission) ||
+      {};
+    const prevSources = Array.isArray(
+      (prev as { canPublishSources?: TrackSource[] }).canPublishSources
+    )
+      ? ((prev as { canPublishSources?: TrackSource[] })
+          .canPublishSources as TrackSource[])
+      : [];
+    const baseline: TrackSource[] = [
+      TrackSource.MICROPHONE,
+      TrackSource.CAMERA,
+    ];
+    const next = Array.from(
+      new Set((prevSources.length ? prevSources : baseline).concat(baseline))
+    );
+    await roomService.updateParticipant(bo.livekitRoom, String(identity), {
+      permission: { ...(prev as any), canPublishSources: next },
+    });
+  } catch {}
   sendResponse(res, { ok: true }, "Moved");
 };
 
@@ -276,6 +346,35 @@ export const moveParticipantToMain = async (
     String(identity),
     String(sessionId)
   );
+  // Restore baseline publish sources (MIC + CAMERA) in destination room
+  try {
+    const list = await roomService.listParticipants(String(sessionId));
+    const found = list.find((pi) => pi.identity === String(identity));
+    const prev =
+      (found &&
+        (
+          found as unknown as {
+            permission?: { canPublishSources?: TrackSource[] };
+          }
+        ).permission) ||
+      {};
+    const prevSources = Array.isArray(
+      (prev as { canPublishSources?: TrackSource[] }).canPublishSources
+    )
+      ? ((prev as { canPublishSources?: TrackSource[] })
+          .canPublishSources as TrackSource[])
+      : [];
+    const baseline: TrackSource[] = [
+      TrackSource.MICROPHONE,
+      TrackSource.CAMERA,
+    ];
+    const next = Array.from(
+      new Set((prevSources.length ? prevSources : baseline).concat(baseline))
+    );
+    await roomService.updateParticipant(String(sessionId), String(identity), {
+      permission: { ...(prev as any), canPublishSources: next },
+    });
+  } catch {}
   sendResponse(res, { ok: true }, "Moved");
 };
 
