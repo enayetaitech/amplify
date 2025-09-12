@@ -20,7 +20,7 @@ import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
 import BreakoutsPanel from "components/meeting/BreakoutsPanel";
 import AutoPublishOnConnect from "components/meeting/AutoPublishOnConnect";
-import VideoGrid from "components/meeting/VideoGrid";
+import Stage from "components/meeting/Stage";
 import SubscribeCameraBridge from "components/meeting/SubscribeCameraBridge";
 import ParticipantsPanel from "components/meeting/ParticipantsPanel";
 import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
@@ -602,7 +602,7 @@ export default function Meeting() {
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
-            <VideoGrid />
+            <Stage role={role} />
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
             </div>
