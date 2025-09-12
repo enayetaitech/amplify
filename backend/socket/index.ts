@@ -182,6 +182,54 @@ export function attachSocket(server: HTTPServer) {
       }
     );
 
+    // Provide current participant list snapshot on demand (optionally for a breakout room)
+    socket.on(
+      "participants:list:get",
+      async (
+        payload: { room?: string } | undefined,
+        ack?: (resp: { items: { identity: string; name: string }[] }) => void
+      ) => {
+        try {
+          const roomName =
+            payload && typeof payload.room === "string" && payload.room
+              ? payload.room
+              : String(sessionId);
+          const ps = await roomService.listParticipants(roomName);
+          const items = (ps || [])
+            .filter((p) => {
+              // hide hidden/privileged tracks and moderator/admin
+              const hidden = (p as { permission?: { hidden?: boolean } })
+                .permission?.hidden;
+              if (hidden) return false;
+              let role: string | undefined;
+              try {
+                const mdRaw = (p as { metadata?: string }).metadata;
+                const md = mdRaw ? JSON.parse(mdRaw) : undefined;
+                role = md?.role as string | undefined;
+              } catch {}
+              if (role === "Admin" || role === "Moderator") return false;
+              return true;
+            })
+            .map((p) => {
+              const identity = (p as { identity?: string }).identity || "";
+              let label = (p as { name?: string }).name || "";
+              if (!label) {
+                try {
+                  const mdRaw = (p as { metadata?: string }).metadata;
+                  const md = mdRaw ? JSON.parse(mdRaw) : undefined;
+                  label = (md?.email as string) || "";
+                } catch {}
+              }
+              if (!label) label = identity;
+              return { identity, name: label };
+            });
+          ack?.({ items });
+        } catch {
+          ack?.({ items: [] });
+        }
+      }
+    );
+
     // ===== Moderator actions =====
     socket.on("waiting:admit", async ({ email }: { email: string }) => {
       if (!["Moderator", "Admin"].includes(role)) return;

@@ -1,9 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "lib/api";
 import type { Socket } from "socket.io-client";
 import ObserverHlsLayout from "./ObserverHlsLayout";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+import { Separator } from "components/ui/separator";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  MessageSquare,
+  FileText,
+} from "lucide-react";
+import { Button } from "components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardAction,
+  CardContent,
+} from "components/ui/card";
+import { toast } from "sonner";
 
 export default function ObserverBreakoutSelect({
   sessionId,
@@ -12,11 +30,23 @@ export default function ObserverBreakoutSelect({
   sessionId: string;
   initialMainUrl: string | null;
 }) {
+  type ParticipantItem = { identity: string; name: string };
   const [options, setOptions] = useState<
     Array<{ key: string; label: string; url: string | null }>
   >([{ key: "__main__", label: "Main", url: initialMainUrl }]);
   const [selected, setSelected] = useState<string>("__main__");
   const [url, setUrl] = useState<string | null>(initialMainUrl);
+  const [participants, setParticipants] = useState<ParticipantItem[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [meetingSocket, setMeetingSocket] = useState<Socket | undefined>(
+    undefined
+  );
+  const [isLeftOpen, setIsLeftOpen] = useState(true);
+  const [isRightOpen, setIsRightOpen] = useState(true);
+  const [observerCount, setObserverCount] = useState(0);
+  const [observerList, setObserverList] = useState<
+    { name: string; email: string }[]
+  >([]);
 
   useEffect(() => {
     setOptions((prev) => {
@@ -24,7 +54,7 @@ export default function ObserverBreakoutSelect({
       return [{ key: "__main__", label: "Main", url: initialMainUrl }, ...rest];
     });
     if (selected === "__main__") setUrl(initialMainUrl);
-  }, [initialMainUrl]);
+  }, [initialMainUrl, selected]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +109,107 @@ export default function ObserverBreakoutSelect({
     }
   }, [selected, options]);
 
+  // Wait for meeting socket to be available
+  useEffect(() => {
+    let t: ReturnType<typeof setInterval> | undefined;
+    const trySet = () => {
+      const s: Socket | undefined = (
+        globalThis as unknown as { __meetingSocket?: Socket }
+      ).__meetingSocket;
+      if (s) {
+        setMeetingSocket(s);
+        if (t) clearInterval(t);
+      }
+    };
+    trySet();
+    if (!meetingSocket) {
+      t = setInterval(trySet, 400);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [meetingSocket]);
+
+  // Load participants for current room (main or breakout) via socket RPC
+  useEffect(() => {
+    let cancelled = false;
+    const s = meetingSocket;
+    const load = () => {
+      try {
+        s?.emit(
+          "participants:list:get",
+          selected !== "__main__" ? { room: selected } : {},
+          (resp?: { items?: ParticipantItem[] }) => {
+            if (cancelled) return;
+            setParticipants(Array.isArray(resp?.items) ? resp!.items! : []);
+          }
+        );
+      } catch {
+        if (!cancelled) setParticipants([]);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, selected, refreshTick, meetingSocket]);
+
+  // Refresh participants on socket event
+  useEffect(() => {
+    const s = meetingSocket;
+    const onChanged = () => setRefreshTick((x) => x + 1);
+    s?.on("meeting:participants-changed", onChanged);
+    return () => {
+      s?.off("meeting:participants-changed", onChanged);
+    };
+  }, [sessionId, meetingSocket]);
+
+  // Right sidebar: observer count/list
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onCount = (p: { count?: number }) => {
+      setObserverCount(Number(p?.count || 0));
+    };
+    const onList = (p: { observers?: { name: string; email: string }[] }) => {
+      const list = Array.isArray(p?.observers) ? p.observers : [];
+      setObserverList(list);
+      setObserverCount(list.length);
+    };
+    s.on("observer:count", onCount);
+    s.on("observer:list", onList);
+    // initial list
+    s.emit(
+      "observer:list:get",
+      {},
+      (resp?: { observers?: { name: string; email: string }[] }) => {
+        const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
+        setObserverList(list);
+        setObserverCount(list.length);
+      }
+    );
+    return () => {
+      s.off("observer:count", onCount);
+      s.off("observer:list", onList);
+    };
+  }, [meetingSocket]);
+
+  const mainColSpanClass =
+    (isLeftOpen ? 1 : 0) + (isRightOpen ? 1 : 0) === 2
+      ? "col-span-6"
+      : (isLeftOpen ? 1 : 0) + (isRightOpen ? 1 : 0) === 1
+      ? "col-span-9"
+      : "col-span-12";
+
+  const hasBreakouts = useMemo(
+    () => options.some((o) => o.key !== "__main__"),
+    [options]
+  );
+
+  // Track previous breakout set to detect creations/closures and toast
+  const prevBreakoutsMapRef = useRef<Map<string, number>>(new Map());
+  const breakoutsInitRef = useRef(false);
+
   useEffect(() => {
     if (selected === "__main__") return;
     if (url) return;
@@ -126,6 +257,22 @@ export default function ObserverBreakoutSelect({
     const s: Socket | undefined = (
       globalThis as unknown as { __meetingSocket?: Socket }
     ).__meetingSocket;
+    const refreshMainUrl = async () => {
+      try {
+        const res = await api.get<{ data?: { url?: string } }>(
+          `/api/v1/livekit/${sessionId}/hls`
+        );
+        const mainUrl = res?.data?.data?.url || initialMainUrl || null;
+        setOptions((prev) => {
+          const rest = prev.filter((o) => o.key !== "__main__");
+          return [{ key: "__main__", label: "Main", url: mainUrl }, ...rest];
+        });
+        setUrl(mainUrl);
+      } catch {
+        setUrl(initialMainUrl || null);
+      }
+    };
+
     const onChanged = async () => {
       try {
         const res = await api.get<{
@@ -138,6 +285,22 @@ export default function ObserverBreakoutSelect({
           };
         }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
         const items = res.data?.data?.items || [];
+        // diff previous vs current for toast notifications
+        try {
+          const prevMap = prevBreakoutsMapRef.current;
+          const currentMap = new Map<string, number>();
+          for (const b of items) currentMap.set(b.livekitRoom, b.index);
+          if (breakoutsInitRef.current) {
+            for (const [room, idx] of currentMap.entries()) {
+              if (!prevMap.has(room)) toast.success(`Breakout #${idx} created`);
+            }
+            for (const [room, idx] of prevMap.entries()) {
+              if (!currentMap.has(room)) toast.info(`Breakout #${idx} closed`);
+            }
+          }
+          prevBreakoutsMapRef.current = currentMap;
+          if (!breakoutsInitRef.current) breakoutsInitRef.current = true;
+        } catch {}
         const mapped = items.map((b) => ({
           key: b.livekitRoom,
           label: `Breakout #${b.index}`,
@@ -151,41 +314,274 @@ export default function ObserverBreakoutSelect({
           };
           return [main, ...mapped];
         });
+
+        // if currently-selected breakout no longer exists, auto-switch to Main
+        const exists = items.some((b) => b.livekitRoom === selected);
+        if (selected !== "__main__" && !exists) {
+          setSelected("__main__");
+          await refreshMainUrl();
+          setRefreshTick((x) => x + 1);
+        }
       } catch {}
     };
     s?.on("breakouts:changed", onChanged);
+    const onClosed = async () => {
+      // Rely on breakouts:changed diff to toast; avoid duplicate toasts here
+      // also force-check selection on explicit close event
+      await onChanged();
+    };
+    s?.on("breakout:closed-mod", onClosed);
     return () => {
       s?.off("breakouts:changed", onChanged);
+      s?.off("breakout:closed-mod", onClosed);
     };
-  }, [sessionId, initialMainUrl]);
+  }, [sessionId, initialMainUrl, selected]);
 
   return (
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
-      <div className="col-span-3 border rounded p-3 overflow-y-auto">
-        <h3 className="font-semibold mb-2">Observer</h3>
-        <label className="block text-sm mb-1">Choose a room</label>
-        <select
-          className="border rounded px-2 py-1 text-black w-full"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          {options.map((o) => (
-            <option key={o.key} value={o.key}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <div className="text-xs text-gray-500 mt-2">
-          {url ? "Streaming available" : "No live stream for this room"}
+    <div className="relative grid grid-cols-12 gap-4 h-[100dvh]">
+      {isLeftOpen && (
+        <div className="relative col-span-3 h-[100dvh] rounded-r-2xl p-2 overflow-y-auto overflow-x-hidden bg-white shadow min-h-0 flex flex-col gap-4">
+          <button
+            type="button"
+            onClick={() => setIsLeftOpen(false)}
+            className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Collapse left panel"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          {/* Upper: Participants tabs */}
+          <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
+            <h3 className="font-semibold mb-2">Participants</h3>
+            <Tabs defaultValue="plist">
+              <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
+                <TabsTrigger
+                  value="plist"
+                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                >
+                  Participant List
+                </TabsTrigger>
+                <TabsTrigger
+                  value="pchat"
+                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                >
+                  Participant Chat
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="plist">
+                <div className="space-y-2">
+                  {participants.length === 0 && (
+                    <div className="text-sm text-gray-500">
+                      No participants yet.
+                    </div>
+                  )}
+                  {participants.map((p) => (
+                    <div key={p.identity} className="text-sm">
+                      {p.name}
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="pchat">
+                <div className="text-sm text-gray-500">
+                  Participant chat will appear here.
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {hasBreakouts && <Separator className="my-2" />}
+
+          {/* Lower: Breakouts selection (existing functionality) */}
+          {hasBreakouts && (
+            <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
+              <h3 className="font-semibold mb-2">Breakouts</h3>
+              <label className="block text-sm mb-1">Choose a room</label>
+              <select
+                className="border rounded px-2 py-1 text-black w-full"
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {options.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <div className="text-xs text-gray-500 mt-2">
+                {url ? "Streaming available" : "No live stream for this room"}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-      <div className="col-span-9 border rounded p-3 flex flex-col min-h-0">
+      )}
+      {!isLeftOpen && (
+        <button
+          type="button"
+          onClick={() => setIsLeftOpen(true)}
+          className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+          aria-label="Expand left panel"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
+      <div
+        className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}
+      >
         {url ? (
           <ObserverHlsLayout hlsUrl={url} />
         ) : (
           <div className="m-auto text-gray-500">No live stream…</div>
         )}
       </div>
+      {isRightOpen && (
+        <aside className="relative col-span-3 h-[100dvh] rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
+          <button
+            type="button"
+            onClick={() => setIsRightOpen(false)}
+            className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Collapse right panel"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold pl-5">Backroom</h3>
+            <div className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1">
+              <span className="inline-flex h-4 w-4 items-center justify-center">
+                <Eye className="h-3.5 w-3.5" />
+              </span>
+              <span>Viewers</span>
+              <span className="ml-1 rounded bg-white/20 px-1">
+                {observerCount}
+              </span>
+            </div>
+          </div>
+          <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
+            <Tabs defaultValue="list">
+              <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
+                <TabsTrigger
+                  value="list"
+                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                >
+                  Observer List
+                </TabsTrigger>
+                <TabsTrigger
+                  value="chat"
+                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+                >
+                  Observer Text
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="list">
+                <div className="space-y-2">
+                  {observerList.length === 0 && (
+                    <div className="text-sm text-gray-500">
+                      No observers yet.
+                    </div>
+                  )}
+                  {observerList.map((o) => {
+                    const label = o.name || o.email || "Observer";
+                    return (
+                      <div
+                        key={`${label}-${o.email}`}
+                        className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {label}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                          aria-label={`Open chat with ${label}`}
+                          title={`Open chat with ${label}`}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </TabsContent>
+              <TabsContent value="chat">
+                <div className="text-sm text-gray-500">Yet to implement</div>
+              </TabsContent>
+            </Tabs>
+          </div>
+          <Card className="border-none shadow-none">
+            <CardHeader className="px-3 flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-sm text-[#00293C]">
+                <FileText className="h-4 w-4" />
+                DOCUMENT HUB
+              </CardTitle>
+              <CardAction>
+                <Button
+                  variant="orange"
+                  className="text-sm px-4 py-[1px] rounded-full"
+                  onClick={() => toast("Yet to develop")}
+                >
+                  Upload File
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <Separator />
+            <CardContent className="px-3 pb-3">
+              <div className="bg-custom-gray-2 rounded-xl p-2">
+                <div className="flex items-center justify-between px-3 text-[12px] text-gray-600">
+                  <span>Name</span>
+                  <span>Size</span>
+                </div>
+                <div className="mt-2 rounded-lg bg-custom-gray-2 p-2">
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 shrink-0" />
+                      <span className="truncate text-sm">
+                        PRO_FILES_01: Introduction...
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-600">5.2MB</span>
+                      <button
+                        type="button"
+                        className="text-red-500 cursor-pointer"
+                        aria-label="Delete file"
+                        onClick={() => toast("Yet to develop")}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      )}
+      {!isRightOpen && (
+        <button
+          type="button"
+          onClick={() => setIsRightOpen(true)}
+          className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+          aria-label="Expand right panel"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }

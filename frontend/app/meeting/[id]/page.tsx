@@ -308,14 +308,19 @@ export default function Meeting() {
   useEffect(() => {
     if (!sessionId) return;
 
+    const saved =
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("liveSessionUser")
+        ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
+        : {};
     const s = io(SOCKET_URL, {
       path: "/socket.io",
       withCredentials: true,
       query: {
         sessionId: String(sessionId),
         role: serverRole,
-        name: my?.name || "",
-        email: my?.email || "",
+        name: my?.name || saved?.name || "",
+        email: my?.email || saved?.email || "",
       },
     });
     socketRef.current = s;
@@ -640,7 +645,7 @@ export default function Meeting() {
                 </span>
                 <span>Viewers</span>
                 <span className="ml-1 rounded bg-white/20 px-1">
-                  {observerCount}
+                  {isStreaming ? observerCount : 0}
                 </span>
               </button>
             </div>
@@ -663,40 +668,50 @@ export default function Meeting() {
                 </TabsList>
 
                 <TabsContent value="list">
-                  <div className="space-y-2">
-                    {observerList.length === 0 && (
-                      <div className="text-sm text-gray-500">
-                        No observers yet.
-                      </div>
-                    )}
-                    {observerList.map((o) => {
-                      const label = o.name || o.email || "Observer";
-                      return (
-                        <div
-                          key={`${label}-${o.email}`}
-                          className="flex items-center justify-between gap-2  rounded px-2 py-1"
-                        >
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">
-                              {label}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="h-7 w-7 inline-flex items-center justify-center rounded-md   cursor-pointer"
-                            aria-label={`Open chat with ${label}`}
-                            title={`Open chat with ${label}`}
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </button>
+                  {!isStreaming ? (
+                    <div className="text-sm text-gray-500">Not Streaming</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {observerList.length === 0 && (
+                        <div className="text-sm text-gray-500">
+                          No observers yet.
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+                      {observerList.map((o) => {
+                        const label = o.name || o.email || "Observer";
+                        return (
+                          <div
+                            key={`${label}-${o.email}`}
+                            className="flex items-center justify-between gap-2  rounded px-2 py-1"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate">
+                                {label}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="h-7 w-7 inline-flex items-center justify-center rounded-md   cursor-pointer"
+                              aria-label={`Open chat with ${label}`}
+                              title={`Open chat with ${label}`}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="chat">
-                  <div className="text-sm text-gray-500">Yet to implement</div>
+                  {!isStreaming ? (
+                    <div className="text-sm text-gray-500">Not Streaming</div>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      Yet to implement
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>

@@ -318,6 +318,9 @@ export const moveParticipantToBreakout = async (
     });
   } catch {}
   sendResponse(res, { ok: true }, "Moved");
+  try {
+    emitToRoom(String(sessionId), "meeting:participants-changed", {});
+  } catch {}
 };
 
 export const moveParticipantToMain = async (
@@ -376,6 +379,9 @@ export const moveParticipantToMain = async (
     });
   } catch {}
   sendResponse(res, { ok: true }, "Moved");
+  try {
+    emitToRoom(String(sessionId), "meeting:participants-changed", {});
+  } catch {}
 };
 
 export const listParticipantsOfRoom = async (
