@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "lib/api";
 import type { Socket } from "socket.io-client";
 import ObserverHlsLayout from "./ObserverHlsLayout";
@@ -21,6 +21,7 @@ import {
   CardAction,
   CardContent,
 } from "components/ui/card";
+import { toast } from "sonner";
 
 export default function ObserverBreakoutSelect({
   sessionId,
@@ -205,6 +206,10 @@ export default function ObserverBreakoutSelect({
     [options]
   );
 
+  // Track previous breakout set to detect creations/closures and toast
+  const prevBreakoutsMapRef = useRef<Map<string, number>>(new Map());
+  const breakoutsInitRef = useRef(false);
+
   useEffect(() => {
     if (selected === "__main__") return;
     if (url) return;
@@ -280,6 +285,22 @@ export default function ObserverBreakoutSelect({
           };
         }>(`/api/v1/livekit/public/${sessionId}/breakouts`);
         const items = res.data?.data?.items || [];
+        // diff previous vs current for toast notifications
+        try {
+          const prevMap = prevBreakoutsMapRef.current;
+          const currentMap = new Map<string, number>();
+          for (const b of items) currentMap.set(b.livekitRoom, b.index);
+          if (breakoutsInitRef.current) {
+            for (const [room, idx] of currentMap.entries()) {
+              if (!prevMap.has(room)) toast.success(`Breakout #${idx} created`);
+            }
+            for (const [room, idx] of prevMap.entries()) {
+              if (!currentMap.has(room)) toast.info(`Breakout #${idx} closed`);
+            }
+          }
+          prevBreakoutsMapRef.current = currentMap;
+          if (!breakoutsInitRef.current) breakoutsInitRef.current = true;
+        } catch {}
         const mapped = items.map((b) => ({
           key: b.livekitRoom,
           label: `Breakout #${b.index}`,
@@ -305,6 +326,7 @@ export default function ObserverBreakoutSelect({
     };
     s?.on("breakouts:changed", onChanged);
     const onClosed = async () => {
+      // Rely on breakouts:changed diff to toast; avoid duplicate toasts here
       // also force-check selection on explicit close event
       await onChanged();
     };
