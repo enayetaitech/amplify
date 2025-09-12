@@ -189,6 +189,22 @@ export default function ObserverBreakoutSelect({
     const s: Socket | undefined = (
       globalThis as unknown as { __meetingSocket?: Socket }
     ).__meetingSocket;
+    const refreshMainUrl = async () => {
+      try {
+        const res = await api.get<{ data?: { url?: string } }>(
+          `/api/v1/livekit/${sessionId}/hls`
+        );
+        const mainUrl = res?.data?.data?.url || initialMainUrl || null;
+        setOptions((prev) => {
+          const rest = prev.filter((o) => o.key !== "__main__");
+          return [{ key: "__main__", label: "Main", url: mainUrl }, ...rest];
+        });
+        setUrl(mainUrl);
+      } catch {
+        setUrl(initialMainUrl || null);
+      }
+    };
+
     const onChanged = async () => {
       try {
         const res = await api.get<{
@@ -214,13 +230,27 @@ export default function ObserverBreakoutSelect({
           };
           return [main, ...mapped];
         });
+
+        // if currently-selected breakout no longer exists, auto-switch to Main
+        const exists = items.some((b) => b.livekitRoom === selected);
+        if (selected !== "__main__" && !exists) {
+          setSelected("__main__");
+          await refreshMainUrl();
+          setRefreshTick((x) => x + 1);
+        }
       } catch {}
     };
     s?.on("breakouts:changed", onChanged);
+    const onClosed = async () => {
+      // also force-check selection on explicit close event
+      await onChanged();
+    };
+    s?.on("breakout:closed-mod", onClosed);
     return () => {
       s?.off("breakouts:changed", onChanged);
+      s?.off("breakout:closed-mod", onClosed);
     };
-  }, [sessionId, initialMainUrl]);
+  }, [sessionId, initialMainUrl, selected]);
 
   return (
     <div className="grid grid-cols-12 gap-4 h-[calc(100vh-80px)] p-4">
