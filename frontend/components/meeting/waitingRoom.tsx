@@ -22,6 +22,7 @@ export default function ModeratorWaitingPanel() {
   const [waiting, setWaiting] = useState<WaitingUser[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const joinedRef = useRef(false);
+  // Toasts handled globally in meeting page; keep only local list state here
 
   // For demo: “me” as Moderator (in prod, JWT-protected page)
   const me = useMemo(
@@ -47,7 +48,8 @@ export default function ModeratorWaitingPanel() {
       if (joinedRef.current) return;
       joinedRef.current = true;
       s.emit("join-room", {}, (rooms: WaitingListPayload) => {
-        setWaiting(rooms.participantsWaitingRoom || []);
+        const initial = rooms.participantsWaitingRoom || [];
+        setWaiting(initial);
       });
     });
 
@@ -76,7 +78,10 @@ export default function ModeratorWaitingPanel() {
     <div className="max-w-3xl mx-auto space-y-6 bg-custom-gray-2 rounded-lg p-2 max-h-[30vh] overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-sm font-semibold">Waiting ({waiting.length})</h1>
-        <button className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer" onClick={admitAll}>
+        <button
+          className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
+          onClick={admitAll}
+        >
           Admit all
         </button>
       </div>

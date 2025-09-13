@@ -400,6 +400,40 @@ export default function Meeting() {
     };
   }, [role, router, sessionId]);
 
+  // Always-mounted bridge for moderator/admin: toast when participants join waiting room
+  useEffect(() => {
+    if (!(role === "moderator" || role === "admin")) return;
+    const s = window.__meetingSocket;
+    if (!s) return;
+    let prev = new Set<string>();
+
+    // seed once by requesting the list, reusing existing endpoint behavior
+    s.emit("observer:list:get", {});
+
+    const onWaitingList = (payload: {
+      participantsWaitingRoom: { email?: string; name?: string }[];
+    }) => {
+      const next = payload?.participantsWaitingRoom || [];
+      const nextSet = new Set(next.map((u) => (u.email || "").toLowerCase()));
+
+      if (prev.size > 0) {
+        for (const u of next) {
+          const emailKey = (u.email || "").toLowerCase();
+          if (!prev.has(emailKey)) {
+            const label = u.name || u.email || "Someone";
+            toast.success(`${label} joined the waiting room`);
+          }
+        }
+      }
+      prev = nextSet;
+    };
+
+    s.on("waiting:list", onWaitingList);
+    return () => {
+      s.off("waiting:list", onWaitingList);
+    };
+  }, [role]);
+
   // Observer view
   if (role === "observer") {
     return (
