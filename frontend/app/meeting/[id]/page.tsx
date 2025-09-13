@@ -20,7 +20,7 @@ import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
 import BreakoutsPanel from "components/meeting/BreakoutsPanel";
 import AutoPublishOnConnect from "components/meeting/AutoPublishOnConnect";
-import VideoGrid from "components/meeting/VideoGrid";
+import Stage from "components/meeting/Stage";
 import SubscribeCameraBridge from "components/meeting/SubscribeCameraBridge";
 import ParticipantsPanel from "components/meeting/ParticipantsPanel";
 import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
@@ -129,10 +129,16 @@ function LeaveMeetingButton({
         try {
           await room.disconnect(true);
         } catch {}
+        try {
+          localStorage.removeItem("liveSessionUser");
+        } catch {}
         router.push("/projects");
       } else {
         try {
           await room.disconnect(true);
+        } catch {}
+        try {
+          localStorage.removeItem("liveSessionUser");
         } catch {}
         router.replace("/remove-participant");
       }
@@ -342,6 +348,7 @@ export default function Meeting() {
       )
         return;
       window.dispatchEvent(new CustomEvent("amplify:force-mute-self"));
+      toast.info("Your microphone was muted by the host.");
     });
 
     s.on("meeting:force-camera-off", (payload: { email?: string }) => {
@@ -351,6 +358,7 @@ export default function Meeting() {
       )
         return;
       window.dispatchEvent(new CustomEvent("amplify:force-camera-off"));
+      toast.info("Your camera was turned off by the host.");
     });
 
     // initial snapshot of observers
@@ -361,6 +369,11 @@ export default function Meeting() {
         setObserverList(Array.isArray(resp?.observers) ? resp!.observers! : []);
       }
     );
+
+    // Request initial waiting list snapshot broadcast for seeding moderator toasts
+    try {
+      s.emit("join-room", {});
+    } catch {}
 
     // Meeting end broadcast → route away
     const onMeetingEnded = () => {
@@ -383,12 +396,25 @@ export default function Meeting() {
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
 
+  // Clear local storage on browser/tab close for participants
+  useEffect(() => {
+    if (role !== "participant") return;
+    const onBeforeUnload = () => {
+      try {
+        localStorage.removeItem("liveSessionUser");
+      } catch {}
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [role]);
+
   // If observer and stream stops, route back to observer waiting room
   useEffect(() => {
     if (role !== "observer") return;
     const s = window.__meetingSocket;
     if (!s) return;
     const onStopped = () => {
+      toast.info("Streaming stopped. You are being taken to the waiting room.");
       router.replace(`/waiting-room/observer/${sessionId}`);
     };
     s.on("observer:stream:stopped", onStopped);
@@ -396,6 +422,61 @@ export default function Meeting() {
       s.off("observer:stream:stopped", onStopped);
     };
   }, [role, router, sessionId]);
+
+  // Always-mounted bridge for moderator/admin: toast when participants join waiting room
+  useEffect(() => {
+    if (!(role === "moderator" || role === "admin")) return;
+    const s = window.__meetingSocket;
+    if (!s) return;
+    let prev = new Set<string>();
+
+    // seed once by requesting the list, reusing existing endpoint behavior
+    s.emit("observer:list:get", {});
+
+    const onWaitingList = (payload: {
+      participantsWaitingRoom: { email?: string; name?: string }[];
+    }) => {
+      const next = payload?.participantsWaitingRoom || [];
+      const nextSet = new Set(next.map((u) => (u.email || "").toLowerCase()));
+
+      if (prev.size > 0) {
+        for (const u of next) {
+          const emailKey = (u.email || "").toLowerCase();
+          if (!prev.has(emailKey)) {
+            const label = u.name || u.email || "Someone";
+            toast.success(`${label} joined the waiting room`);
+          }
+        }
+      }
+      prev = nextSet;
+    };
+
+    s.on("waiting:list", onWaitingList);
+    return () => {
+      s.off("waiting:list", onWaitingList);
+    };
+  }, [role]);
+
+  // Observer toasts for admitted participants (single or all)
+  useEffect(() => {
+    if (role !== "observer") return;
+    const s = window.__meetingSocket;
+    if (!s) return;
+    const onOneAdmitted = (p: { name?: string; email?: string }) => {
+      const label = p?.name || p?.email || "Participant";
+      toast.success(`${label} was admitted to the meeting`);
+    };
+    const onManyAdmitted = (p: { count?: number }) => {
+      const c = Number(p?.count || 0);
+      if (c > 0) toast.success(`${c} participants were admitted`);
+    };
+    s.on("announce:participant:admitted", onOneAdmitted);
+    s.on("announce:participants:admitted", onManyAdmitted);
+    return () => {
+      s.off("announce:participant:admitted", onOneAdmitted);
+      s.off("announce:participants:admitted", onManyAdmitted);
+    };
+  }, [role]);
 
   // Observer view
   if (role === "observer") {
@@ -493,7 +574,7 @@ export default function Meeting() {
                   }
                 }}
                 disabled={streamBusy !== null}
-                className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition ${
+                className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition  ${
                   streamBusy !== null
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:bg-gray-200"
@@ -515,7 +596,7 @@ export default function Meeting() {
                 <button
                   type="button"
                   onClick={() => setIsBreakoutOverlayOpen((v) => !v)}
-                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm cursor-pointer text-gray-700 hover:bg-gray-200 transition"
                   aria-label={
                     isBreakoutOverlayOpen
                       ? "Close Breakout Panel"
@@ -602,7 +683,7 @@ export default function Meeting() {
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
-            <VideoGrid />
+            <Stage role={role} />
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
             </div>

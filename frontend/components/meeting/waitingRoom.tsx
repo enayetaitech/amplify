@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
+import { toast } from "sonner";
 import { SOCKET_URL } from "constant/socket";
 
 type WaitingUser = {
@@ -22,6 +23,7 @@ export default function ModeratorWaitingPanel() {
   const [waiting, setWaiting] = useState<WaitingUser[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const joinedRef = useRef(false);
+  // Toasts handled globally in meeting page; keep only local list state here
 
   // For demo: “me” as Moderator (in prod, JWT-protected page)
   const me = useMemo(
@@ -47,7 +49,8 @@ export default function ModeratorWaitingPanel() {
       if (joinedRef.current) return;
       joinedRef.current = true;
       s.emit("join-room", {}, (rooms: WaitingListPayload) => {
-        setWaiting(rooms.participantsWaitingRoom || []);
+        const initial = rooms.participantsWaitingRoom || [];
+        setWaiting(initial);
       });
     });
 
@@ -63,11 +66,18 @@ export default function ModeratorWaitingPanel() {
     };
   }, [me.email, me.name, me.role, sessionId]);
 
-  const admit = (email: string) =>
+  const admit = (email: string, label?: string) => {
+    toast.success(`Admitted ${label || email}`);
     socketRef.current?.emit("waiting:admit", { email });
-  const remove = (email: string) =>
+  };
+  const remove = (email: string, label?: string) => {
+    toast.success(`Removed ${label || email} from waiting room`);
     socketRef.current?.emit("waiting:remove", { email });
-  const admitAll = () => socketRef.current?.emit("waiting:admitAll");
+  };
+  const admitAll = () => {
+    toast.success("Admitted all participants");
+    socketRef.current?.emit("waiting:admitAll");
+  };
 
   // Hide the panel entirely if there is no one in the waiting room
   if (waiting.length === 0) return null;
@@ -76,7 +86,10 @@ export default function ModeratorWaitingPanel() {
     <div className="max-w-3xl mx-auto space-y-6 bg-custom-gray-2 rounded-lg p-2 max-h-[30vh] overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-sm font-semibold">Waiting ({waiting.length})</h1>
-        <button className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer" onClick={admitAll}>
+        <button
+          className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
+          onClick={admitAll}
+        >
           Admit all
         </button>
       </div>
@@ -98,13 +111,13 @@ export default function ModeratorWaitingPanel() {
               <div className="flex items-center justify-between  gap-2">
                 <button
                   className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
-                  onClick={() => admit(u.email)}
+                  onClick={() => admit(u.email, u.name || u.email)}
                 >
                   Admit
                 </button>
                 <button
                   className="bg-custom-dark-blue-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
-                  onClick={() => remove(u.email)}
+                  onClick={() => remove(u.email, u.name || u.email)}
                 >
                   Remove
                 </button>
