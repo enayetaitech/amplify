@@ -129,10 +129,16 @@ function LeaveMeetingButton({
         try {
           await room.disconnect(true);
         } catch {}
+        try {
+          localStorage.removeItem("liveSessionUser");
+        } catch {}
         router.push("/projects");
       } else {
         try {
           await room.disconnect(true);
+        } catch {}
+        try {
+          localStorage.removeItem("liveSessionUser");
         } catch {}
         router.replace("/remove-participant");
       }
@@ -389,6 +395,18 @@ export default function Meeting() {
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
+
+  // Clear local storage on browser/tab close for participants
+  useEffect(() => {
+    if (role !== "participant") return;
+    const onBeforeUnload = () => {
+      try {
+        localStorage.removeItem("liveSessionUser");
+      } catch {}
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [role]);
 
   // If observer and stream stops, route back to observer waiting room
   useEffect(() => {

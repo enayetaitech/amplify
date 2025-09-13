@@ -130,6 +130,9 @@ export default function ParticipantWaitingRoom() {
     );
 
     s.on("waiting:removed", () => {
+      try {
+        localStorage.removeItem("liveSessionUser");
+      } catch {}
       router.push(`/remove-participant`); // implement simple “removed” page later
     });
 
@@ -140,6 +143,17 @@ export default function ParticipantWaitingRoom() {
       s.disconnect();
     };
   }, [me.email, me.name, me.role, router, sessionId]);
+
+  // Clear local storage on browser/tab close
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      try {
+        localStorage.removeItem("liveSessionUser");
+      } catch {}
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
 
   return (
     <div className="min-h-screen dashboard_sidebar_bg">
