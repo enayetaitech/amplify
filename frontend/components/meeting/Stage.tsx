@@ -28,6 +28,8 @@ export default function Stage({ role }: StageProps) {
     w: 0,
     h: 0,
   });
+  const [spotlightIds, setSpotlightIds] = useState<string[]>([]);
+  const [focusedShareIdx, setFocusedShareIdx] = useState<number>(0);
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   const participants = useParticipants();
@@ -55,6 +57,19 @@ export default function Stage({ role }: StageProps) {
       if (!id) continue;
       const name = p.name || id;
       map[id] = name;
+    }
+    return map;
+  }, [participants]);
+
+  const identityToCamOn: Record<string, boolean> = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const p of participants) {
+      const id = p.identity || "";
+      if (!id) continue;
+      const camPub = p.getTrackPublication
+        ? p.getTrackPublication(Track.Source.Camera)
+        : undefined;
+      map[id] = !!camPub && !camPub.isMuted;
     }
     return map;
   }, [participants]);
@@ -91,31 +106,107 @@ export default function Stage({ role }: StageProps) {
   }, [participants, role]);
 
   const orderedTracks = useMemo(() => {
-    const arr = [...cameraTracks];
-    arr.sort((a, b) => {
+    // Filter to hide non-video unless speaking/pinned/spotlight
+    const filtered = [...cameraTracks].filter((t) => {
+      const id = t.participant?.identity || "";
+      if (!id) return false;
+      const priority =
+        (pinnedIdentity && id === pinnedIdentity) || spotlightIds.includes(id);
+      const camOn = identityToCamOn[id];
+      const speaking = identityToSpeaking[id];
+      return priority || camOn || speaking;
+    });
+
+    filtered.sort((a, b) => {
       const aId = a.participant?.identity || "";
       const bId = b.participant?.identity || "";
 
-      // 1) pinned first
+      // 1) spotlight first
+      const aSpot = spotlightIds.includes(aId) ? 1 : 0;
+      const bSpot = spotlightIds.includes(bId) ? 1 : 0;
+      if (aSpot !== bSpot) return bSpot - aSpot;
+
+      // 2) pinned next
       const aPinned = pinnedIdentity && aId === pinnedIdentity ? 1 : 0;
       const bPinned = pinnedIdentity && bId === pinnedIdentity ? 1 : 0;
       if (aPinned !== bPinned) return bPinned - aPinned;
 
-      // 2) speaking next
+      // 3) speaking next
       const aSpeak = identityToSpeaking[aId] ? 1 : 0;
       const bSpeak = identityToSpeaking[bId] ? 1 : 0;
       if (aSpeak !== bSpeak) return bSpeak - aSpeak;
 
-      // 3) stable by name/identity
+      // 4) stable by name/identity
       const aName = identityToName[aId] || aId;
       const bName = identityToName[bId] || bId;
       return aName.localeCompare(bName);
     });
-    return arr;
-  }, [cameraTracks, pinnedIdentity, identityToSpeaking, identityToName]);
+    return filtered;
+  }, [
+    cameraTracks,
+    pinnedIdentity,
+    spotlightIds,
+    identityToCamOn,
+    identityToSpeaking,
+    identityToName,
+  ]);
 
   const togglePin = useCallback((identity: string) => {
     setPinnedIdentity((prev) => (prev === identity ? null : identity));
+  }, []);
+
+  const toggleSpotlight = useCallback(
+    (identity: string) => {
+      setSpotlightIds((prev) => {
+        const exists = prev.includes(identity);
+        const next = exists
+          ? prev.filter((x) => x !== identity)
+          : [...prev, identity].slice(0, 2);
+        // broadcast if moderator/admin and socket is available
+        try {
+          const sock = (
+            window as unknown as {
+              __meetingSocket?: { emit: (ev: string, p: unknown) => void };
+            }
+          ).__meetingSocket;
+          if (sock && (role === "moderator" || role === "admin")) {
+            sock.emit("meeting:layout:spotlight", { identities: next });
+          }
+        } catch {}
+        return next;
+      });
+    },
+    [role]
+  );
+
+  // listen for spotlight broadcasts
+  useEffect(() => {
+    type Sock = {
+      on?: (ev: string, cb: (p?: unknown) => void) => void;
+      off?: (ev: string, cb: (p?: unknown) => void) => void;
+    } | null;
+    const sock: Sock =
+      typeof window !== "undefined"
+        ? (window as unknown as { __meetingSocket?: Sock }).__meetingSocket ||
+          null
+        : null;
+    if (!sock) return;
+    const onSpot = (p?: unknown) => {
+      const q = (p || {}) as { identities?: unknown };
+      const ids = Array.isArray(q.identities)
+        ? (q.identities as unknown[])
+        : [];
+      const list = ids.filter((x) => typeof x === "string") as string[];
+      setSpotlightIds(list);
+    };
+    if (typeof sock.on === "function") {
+      sock.on("meeting:layout:spotlight", onSpot);
+    }
+    return () => {
+      if (typeof sock.off === "function") {
+        sock.off("meeting:layout:spotlight", onSpot);
+      }
+    };
   }, []);
 
   function Tile() {
@@ -137,7 +228,12 @@ export default function Stage({ role }: StageProps) {
           speaking ? "ring-2 ring-custom-light-blue-2" : "ring-0"
         }`}
         tabIndex={0}
-        onDoubleClick={() => identity && togglePin(identity)}
+        onDoubleClick={(e) => {
+          if (!identity) return;
+          if ((role === "moderator" || role === "admin") && e.shiftKey)
+            toggleSpotlight(identity);
+          else togglePin(identity);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && identity) togglePin(identity);
         }}
@@ -227,11 +323,23 @@ export default function Stage({ role }: StageProps) {
     if (area > best.area) best = { cols, rows, w: tileW, h: tileH, area };
   }
 
-  const hasShare = shareTracks.length > 0 && !!shareTracks[0]?.publication;
+  const activeShares = shareTracks.filter((t) => !!t.publication);
+  const hasShare = activeShares.length > 0;
+  useEffect(() => {
+    if (focusedShareIdx >= activeShares.length)
+      setFocusedShareIdx(Math.max(0, activeShares.length - 1));
+  }, [activeShares.length, focusedShareIdx]);
 
   if (hasShare) {
     const facesCount = orderedTracks.length;
-    const sharePrimary = shareTracks.slice(0, 1);
+    const sharePrimary =
+      activeShares.length > 0
+        ? [
+            activeShares[
+              Math.max(0, Math.min(focusedShareIdx, activeShares.length - 1))
+            ],
+          ]
+        : [];
     const useSideBySide = containerSize.w >= 1100; // heuristic: wide viewports prefer side-by-side
 
     if (useSideBySide) {
@@ -281,6 +389,32 @@ export default function Stage({ role }: StageProps) {
                   className="relative rounded-lg overflow-hidden bg-black"
                 >
                   <Tile />
+                  {activeShares.length > 1 && (
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      {activeShares.map((s, idx) => {
+                        const label =
+                          s.participant?.name ||
+                          s.participant?.identity ||
+                          `Share ${idx + 1}`;
+                        return (
+                          <button
+                            key={s.publication?.trackSid || `${label}-${idx}`}
+                            type="button"
+                            onClick={() => setFocusedShareIdx(idx)}
+                            className={`text-xs px-2 py-1 rounded-md border ${
+                              idx === focusedShareIdx
+                                ? "bg-black/60 text-white border-white/50"
+                                : "bg-black/30 text-white/80 border-white/30"
+                            }`}
+                            title={label}
+                            aria-label={`Focus ${label}`}
+                          >
+                            {idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </TrackLoop>
             </div>
@@ -352,6 +486,32 @@ export default function Stage({ role }: StageProps) {
               className="relative rounded-lg overflow-hidden bg-black"
             >
               <Tile />
+              {activeShares.length > 1 && (
+                <div className="absolute top-2 right-2 flex gap-1">
+                  {activeShares.map((s, idx) => {
+                    const label =
+                      s.participant?.name ||
+                      s.participant?.identity ||
+                      `Share ${idx + 1}`;
+                    return (
+                      <button
+                        key={s.publication?.trackSid || `${label}-${idx}`}
+                        type="button"
+                        onClick={() => setFocusedShareIdx(idx)}
+                        className={`text-xs px-2 py-1 rounded-md border ${
+                          idx === focusedShareIdx
+                            ? "bg-black/60 text-white border-white/50"
+                            : "bg-black/30 text-white/80 border-white/30"
+                        }`}
+                        title={label}
+                        aria-label={`Focus ${label}`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </TrackLoop>
         </div>

@@ -1,11 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import Logo from "components/shared/LogoComponent";
 
 export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({
+    w: 0,
+    h: 0,
+  });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr) return;
+      setContainerSize({ w: Math.floor(cr.width), h: Math.floor(cr.height) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -88,15 +105,32 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
           <Logo />
         </div>
       </div>
-      <div className="flex-1 min-h-0">
-        <video
-          ref={videoRef}
-          controls
-          playsInline
-          autoPlay
-          crossOrigin="anonymous"
-          className="w-full h-full object-cover bg-black"
-        />
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 flex items-center justify-center"
+      >
+        {(() => {
+          const W = containerSize.w;
+          const H = containerSize.h;
+          const wByH = Math.floor((H * 16) / 9);
+          const viewW = Math.min(W, wByH);
+          const viewH = Math.floor((viewW * 9) / 16);
+          return (
+            <div
+              style={{ width: viewW, height: viewH }}
+              className="relative rounded-lg overflow-hidden bg-black"
+            >
+              <video
+                ref={videoRef}
+                controls
+                playsInline
+                autoPlay
+                crossOrigin="anonymous"
+                className="w-full h-full object-cover bg-black"
+              />
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
