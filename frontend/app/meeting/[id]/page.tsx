@@ -342,6 +342,7 @@ export default function Meeting() {
       )
         return;
       window.dispatchEvent(new CustomEvent("amplify:force-mute-self"));
+      toast.info("Your microphone was muted by the host.");
     });
 
     s.on("meeting:force-camera-off", (payload: { email?: string }) => {
@@ -351,6 +352,7 @@ export default function Meeting() {
       )
         return;
       window.dispatchEvent(new CustomEvent("amplify:force-camera-off"));
+      toast.info("Your camera was turned off by the host.");
     });
 
     // initial snapshot of observers
