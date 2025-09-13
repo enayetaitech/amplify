@@ -255,6 +255,14 @@ export function attachSocket(server: HTTPServer) {
         io.to(targetId).emit("participant:admitted", { admitToken });
       }
 
+      // notify observers that a participant was admitted
+      try {
+        io.to(rooms.observer).emit("announce:participant:admitted", {
+          name: displayName,
+          email,
+        });
+      } catch {}
+
       // 3) update moderator panels as you already do
       io.to(rooms.waiting).emit("waiting:list", {
         participantsWaitingRoom: state.participantsWaitingRoom,
@@ -284,6 +292,7 @@ export function attachSocket(server: HTTPServer) {
       // for each known socket in this session, try to send an admitToken
       const idx = emailIndex.get(sessionId);
       if (idx) {
+        let admittedCount = 0;
         for (const [eml, sockId] of idx.entries()) {
           const displayName =
             state.participantList?.find((p) => p.email?.toLowerCase() === eml)
@@ -297,7 +306,15 @@ export function attachSocket(server: HTTPServer) {
           });
 
           io.to(sockId).emit("participant:admitted", { admitToken });
+          admittedCount++;
         }
+
+        // notify all observers with admitted count
+        try {
+          io.to(rooms.observer).emit("announce:participants:admitted", {
+            count: admittedCount,
+          });
+        } catch {}
       }
       io.to(rooms.waiting).emit("waiting:list", {
         participantsWaitingRoom: state.participantsWaitingRoom,

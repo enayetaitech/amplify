@@ -434,6 +434,27 @@ export default function Meeting() {
     };
   }, [role]);
 
+  // Observer toasts for admitted participants (single or all)
+  useEffect(() => {
+    if (role !== "observer") return;
+    const s = window.__meetingSocket;
+    if (!s) return;
+    const onOneAdmitted = (p: { name?: string; email?: string }) => {
+      const label = p?.name || p?.email || "Participant";
+      toast.success(`${label} was admitted to the meeting`);
+    };
+    const onManyAdmitted = (p: { count?: number }) => {
+      const c = Number(p?.count || 0);
+      if (c > 0) toast.success(`${c} participants were admitted`);
+    };
+    s.on("announce:participant:admitted", onOneAdmitted);
+    s.on("announce:participants:admitted", onManyAdmitted);
+    return () => {
+      s.off("announce:participant:admitted", onOneAdmitted);
+      s.off("announce:participants:admitted", onManyAdmitted);
+    };
+  }, [role]);
+
   // Observer view
   if (role === "observer") {
     return (

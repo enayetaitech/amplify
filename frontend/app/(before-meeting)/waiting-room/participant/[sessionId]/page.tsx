@@ -19,7 +19,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "components/ui/sheet";
-import {  MessageSquare, PanelLeftClose, PanelLeftOpen, Video } from "lucide-react";
+import {
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Video,
+} from "lucide-react";
 
 type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
@@ -105,6 +110,8 @@ export default function ParticipantWaitingRoom() {
       "participant:admitted",
       async ({ admitToken }: { admitToken: string }) => {
         try {
+          const { toast } = await import("sonner");
+          toast.success("You have been admitted to the meeting");
           const resp = await api.post<ApiResponse<{ token: string }>>(
             "/api/v1/livekit/exchange",
             { admitToken } // public route – no auth header needed
@@ -139,7 +146,7 @@ export default function ParticipantWaitingRoom() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 lg:px-8 py-4">
         <div className="items-center gap-3 hidden lg:flex">
-          <Video/>
+          <Video />
           <span className="text-sm ">Waiting Room</span>
           <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
             Participant View

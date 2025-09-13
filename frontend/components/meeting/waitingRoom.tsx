@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
+import { toast } from "sonner";
 import { SOCKET_URL } from "constant/socket";
 
 type WaitingUser = {
@@ -65,11 +66,16 @@ export default function ModeratorWaitingPanel() {
     };
   }, [me.email, me.name, me.role, sessionId]);
 
-  const admit = (email: string) =>
+  const admit = (email: string, label?: string) => {
+    toast.success(`Admitted ${label || email}`);
     socketRef.current?.emit("waiting:admit", { email });
+  };
   const remove = (email: string) =>
     socketRef.current?.emit("waiting:remove", { email });
-  const admitAll = () => socketRef.current?.emit("waiting:admitAll");
+  const admitAll = () => {
+    toast.success("Admitted all participants");
+    socketRef.current?.emit("waiting:admitAll");
+  };
 
   // Hide the panel entirely if there is no one in the waiting room
   if (waiting.length === 0) return null;
@@ -103,7 +109,7 @@ export default function ModeratorWaitingPanel() {
               <div className="flex items-center justify-between  gap-2">
                 <button
                   className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
-                  onClick={() => admit(u.email)}
+                  onClick={() => admit(u.email, u.name || u.email)}
                 >
                   Admit
                 </button>

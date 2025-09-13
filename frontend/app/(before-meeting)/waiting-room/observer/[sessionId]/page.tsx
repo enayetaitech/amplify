@@ -53,8 +53,22 @@ export default function ObserverWaitingRoom() {
 
     s.on("observer:stream:started", onStarted);
 
+    // Show toasts when participants are admitted
+    const onOneAdmitted = (p: { name?: string; email?: string }) => {
+      const label = p?.name || p?.email || "Participant";
+      toast.success(`${label} was admitted to the meeting`);
+    };
+    const onManyAdmitted = (p: { count?: number }) => {
+      const c = Number(p?.count || 0);
+      if (c > 0) toast.success(`${c} participants were admitted`);
+    };
+    s.on("announce:participant:admitted", onOneAdmitted);
+    s.on("announce:participants:admitted", onManyAdmitted);
+
     return () => {
       s.off("observer:stream:started", onStarted);
+      s.off("announce:participant:admitted", onOneAdmitted);
+      s.off("announce:participants:admitted", onManyAdmitted);
       s.disconnect();
     };
   }, [router, sessionId]);
