@@ -389,6 +389,7 @@ export default function Meeting() {
     const s = window.__meetingSocket;
     if (!s) return;
     const onStopped = () => {
+      toast.info("Streaming stopped. You are being taken to the waiting room.");
       router.replace(`/waiting-room/observer/${sessionId}`);
     };
     s.on("observer:stream:stopped", onStopped);

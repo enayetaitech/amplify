@@ -18,6 +18,7 @@ import {
   PanelRightClose,
   Video,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function ObserverWaitingRoom() {
   const { sessionId } = useParams() as { sessionId: string };
@@ -44,6 +45,9 @@ export default function ObserverWaitingRoom() {
     });
 
     const onStarted = () => {
+      toast.success(
+        "Streaming started. You are being taken to the streaming page."
+      );
       router.replace(`/meeting/${sessionId}?role=Observer`);
     };
 
