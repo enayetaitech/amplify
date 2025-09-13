@@ -364,6 +364,11 @@ export default function Meeting() {
       }
     );
 
+    // Request initial waiting list snapshot broadcast for seeding moderator toasts
+    try {
+      s.emit("join-room", {});
+    } catch {}
+
     // Meeting end broadcast → route away
     const onMeetingEnded = () => {
       if (role === "observer") {

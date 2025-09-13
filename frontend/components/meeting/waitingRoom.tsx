@@ -70,8 +70,10 @@ export default function ModeratorWaitingPanel() {
     toast.success(`Admitted ${label || email}`);
     socketRef.current?.emit("waiting:admit", { email });
   };
-  const remove = (email: string) =>
+  const remove = (email: string, label?: string) => {
+    toast.success(`Removed ${label || email} from waiting room`);
     socketRef.current?.emit("waiting:remove", { email });
+  };
   const admitAll = () => {
     toast.success("Admitted all participants");
     socketRef.current?.emit("waiting:admitAll");
@@ -115,7 +117,7 @@ export default function ModeratorWaitingPanel() {
                 </button>
                 <button
                   className="bg-custom-dark-blue-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
-                  onClick={() => remove(u.email)}
+                  onClick={() => remove(u.email, u.name || u.email)}
                 >
                   Remove
                 </button>
