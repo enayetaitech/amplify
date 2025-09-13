@@ -493,7 +493,7 @@ export default function Meeting() {
                   }
                 }}
                 disabled={streamBusy !== null}
-                className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition ${
+                className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition  ${
                   streamBusy !== null
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:bg-gray-200"
@@ -515,7 +515,7 @@ export default function Meeting() {
                 <button
                   type="button"
                   onClick={() => setIsBreakoutOverlayOpen((v) => !v)}
-                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm cursor-pointer text-gray-700 hover:bg-gray-200 transition"
                   aria-label={
                     isBreakoutOverlayOpen
                       ? "Close Breakout Panel"

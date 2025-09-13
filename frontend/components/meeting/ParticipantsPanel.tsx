@@ -136,7 +136,7 @@ export default function ParticipantsPanel({
                   );
                 }}
                 disabled={!socket || bulkBusy}
-                className="bg-neutral-200 hover:bg-neutral-300 text-black"
+                className="bg-gray-100 hover:bg-gray-200 text-black"
               >
                 {allAllowed ? "Revoke all" : "Allow screenshare for all"}
               </Button>
@@ -175,7 +175,7 @@ export default function ParticipantsPanel({
               return (
                 <div
                   key={identity}
-                  className="flex items-center justify-between gap-2 border rounded px-2 py-1"
+                  className="flex items-center justify-between gap-2 rounded px-2 py-1"
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{label}</div>
