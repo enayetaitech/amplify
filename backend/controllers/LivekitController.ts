@@ -39,6 +39,7 @@ export const getLivekitToken = async (
     name: displayName,
     role,
     roomName,
+    email: me?.email || undefined,
   });
 
   sendResponse(res, { token }, "LiveKit token issued");
@@ -60,6 +61,7 @@ export const exchangeAdmitForLivekitToken = async (
       name,
       role: "Participant",
       roomName: sessionId,
+      email,
     });
 
     sendResponse(res, { token }, "LiveKit token issued");

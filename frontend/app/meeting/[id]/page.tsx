@@ -633,6 +633,7 @@ export default function Meeting() {
                 role={role}
                 socket={socketRef.current}
                 myEmail={my?.email || null}
+                sessionId={String(sessionId)}
               />
               <ModeratorWaitingPanel />
               <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
