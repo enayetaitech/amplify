@@ -27,7 +27,11 @@ import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
 import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridge";
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
+
+import ModeratorChatPanel from "components/meeting/ModeratorChatPanel";
 import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
+import ParticipantChatPanel from "components/meeting/ParticipantChatPanel";
+import MeetingJoinBridge from "components/meeting/MeetingJoinBridge";
 import {
   ChevronLeft,
   ChevronRight,
@@ -189,7 +193,7 @@ export default function Meeting() {
   // 1) derive role
   const { user } = useGlobalContext();
 
-  const role: UiRole = useMemo(() => {
+  const role: UiRole = useMemo((): UiRole => {
     const dashboardServer = normalizeServerRole(user?.role);
     if (dashboardServer)
       return dashboardServer === "Observer"
@@ -216,7 +220,7 @@ export default function Meeting() {
           ? "admin"
           : "participant";
     }
-    return "participant";
+    return "participant" as UiRole;
   }, [user, searchParams]);
 
   const serverRole: ServerRole = useMemo(() => toServerRole(role), [role]);
@@ -265,7 +269,7 @@ export default function Meeting() {
       return;
     }
 
-    if (role === "participant") {
+    if ((role as UiRole) === "participant") {
       const saved =
         typeof window !== "undefined"
           ? sessionStorage.getItem(`lk:${sessionId as string}`)
@@ -679,7 +683,9 @@ export default function Meeting() {
               socket={socketRef.current}
               email={my?.email || ""}
             />
+            <MeetingJoinBridge socket={socketRef.current} />
             <BreakoutWarningBridge socket={socketRef.current} role={role} />
+            <MeetingJoinBridge socket={socketRef.current} />
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
@@ -690,7 +696,7 @@ export default function Meeting() {
           </div>
         </main>
 
-        {/* RIGHT: observer chat/media hub — hide for participants */}
+        {/* RIGHT: observer chat/media hub — hide for participants. For participants, show their chat panel on the left sidebar above waiting room. */}
         {role !== "participant" && isRightOpen && (
           <aside className="relative col-span-3 h-full rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
             <button
@@ -786,12 +792,26 @@ export default function Meeting() {
                 </TabsContent>
 
                 <TabsContent value="chat">
-                  {!isStreaming ? (
-                    <div className="text-sm text-gray-500">Not Streaming</div>
+                  {(role as UiRole) === "participant" ? (
+                    <ParticipantChatPanel
+                      socket={socketRef.current}
+                      sessionId={String(sessionId)}
+                      me={{
+                        email: my?.email || "",
+                        name: my?.name || "",
+                        role: serverRole,
+                      }}
+                    />
                   ) : (
-                    <div className="text-sm text-gray-500">
-                      Yet to implement
-                    </div>
+                    <ModeratorChatPanel
+                      socket={socketRef.current}
+                      sessionId={String(sessionId)}
+                      me={{
+                        email: my?.email || "",
+                        name: my?.name || "",
+                        role: serverRole,
+                      }}
+                    />
                   )}
                 </TabsContent>
               </Tabs>
@@ -847,6 +867,15 @@ export default function Meeting() {
               </CardContent>
             </Card>
           </aside>
+        )}
+        {(role as UiRole) === "participant" && isLeftOpen && (
+          <div className="absolute left-2 bottom-2 right-[calc(100%-25%)]">
+            <ParticipantChatPanel
+              socket={socketRef.current}
+              sessionId={String(sessionId)}
+              me={{ email: my.email, name: my.name, role: "Participant" }}
+            />
+          </div>
         )}
         {role !== "participant" && !isRightOpen && (
           <button

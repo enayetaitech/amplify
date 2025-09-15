@@ -306,7 +306,10 @@ export default function ParticipantsPanel({
         </TabsContent>
 
         <TabsContent value="chat">
-          <div className="text-sm text-gray-500">Yet to implement</div>
+          {/* Moderator chat controls are shown in right sidebar via ModeratorChatPanel */}
+          <div className="text-sm text-gray-500">
+            Open the Backroom → Text tab.
+          </div>
         </TabsContent>
       </Tabs>
     </div>

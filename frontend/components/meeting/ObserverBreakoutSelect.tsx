@@ -22,6 +22,7 @@ import {
   CardContent,
 } from "components/ui/card";
 import { toast } from "sonner";
+import ObserverChatPanel from "./ObserverChatPanel";
 
 export default function ObserverBreakoutSelect({
   sessionId,
@@ -424,9 +425,7 @@ export default function ObserverBreakoutSelect({
           <ChevronRight className="h-4 w-4" />
         </button>
       )}
-      <div
-        className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}
-      >
+      <div className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}>
         {url ? (
           <ObserverHlsLayout hlsUrl={url} />
         ) : (
@@ -504,7 +503,12 @@ export default function ObserverBreakoutSelect({
                 </div>
               </TabsContent>
               <TabsContent value="chat">
-                <div className="text-sm text-gray-500">Yet to implement</div>
+                <ObserverChatPanel
+                  socket={meetingSocket || null}
+                  sessionId={sessionId}
+                  me={{ email: "", name: "", role: "Observer" }}
+                  isStreaming={!!url}
+                />
               </TabsContent>
             </Tabs>
           </div>

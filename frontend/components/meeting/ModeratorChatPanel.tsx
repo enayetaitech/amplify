@@ -1,0 +1,343 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { Socket } from "socket.io-client";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+import { Input } from "components/ui/input";
+import { Button } from "components/ui/button";
+import { Send } from "lucide-react";
+import useChat, { ChatMessage } from "hooks/useChat";
+
+export default function ModeratorChatPanel({
+  socket,
+  sessionId,
+  me,
+}: {
+  socket: Socket | null;
+  sessionId: string;
+  me: {
+    email: string;
+    name: string;
+    role: "Participant" | "Observer" | "Moderator" | "Admin";
+  };
+}) {
+  const { send, getHistory, messagesByScope } = useChat({
+    socket,
+    sessionId,
+    my: me,
+  });
+  const [groupText, setGroupText] = useState("");
+  const [dmTarget, setDmTarget] = useState("");
+  const [dmText, setDmText] = useState("");
+  const [wrTarget, setWrTarget] = useState("");
+  const [wrText, setWrText] = useState("");
+  const [modTarget, setModTarget] = useState("");
+  const [modText, setModText] = useState("");
+
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const dmRef = useRef<HTMLDivElement | null>(null);
+  const wrRef = useRef<HTMLDivElement | null>(null);
+  const modRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    getHistory("meeting_group");
+  }, [getHistory]);
+
+  useEffect(() => {
+    if (dmTarget.trim())
+      getHistory("meeting_dm", { withEmail: dmTarget.trim().toLowerCase() });
+  }, [dmTarget, getHistory]);
+  useEffect(() => {
+    if (wrTarget.trim())
+      getHistory("waiting_dm", { withEmail: wrTarget.trim().toLowerCase() });
+  }, [wrTarget, getHistory]);
+  useEffect(() => {
+    if (modTarget.trim())
+      getHistory("meeting_mod_dm", {
+        withEmail: modTarget.trim().toLowerCase(),
+      });
+  }, [modTarget, getHistory]);
+
+  const groupMessagesLength = messagesByScope["meeting_group"]?.length || 0;
+  useEffect(() => {
+    if (groupRef.current)
+      groupRef.current.scrollTop = groupRef.current.scrollHeight;
+  }, [groupMessagesLength]);
+
+  const onSendGroup = async () => {
+    const text = groupText.trim();
+    if (!text) return;
+    const ack = await send("meeting_group", text);
+    if (ack.ok) setGroupText("");
+  };
+  const onSendDm = async () => {
+    const t = dmTarget.trim().toLowerCase();
+    const text = dmText.trim();
+    if (!t || !text) return;
+    const ack = await send("meeting_dm", text, t);
+    if (ack.ok) setDmText("");
+  };
+  const onSendWr = async () => {
+    const t = wrTarget.trim().toLowerCase();
+    const text = wrText.trim();
+    if (!t || !text) return;
+    const ack = await send("waiting_dm", text, t);
+    if (ack.ok) setWrText("");
+  };
+  const onSendMod = async () => {
+    const t = modTarget.trim().toLowerCase();
+    const text = modText.trim();
+    if (!t || !text) return;
+    const ack = await send("meeting_mod_dm", text, t);
+    if (ack.ok) setModText("");
+  };
+
+  const groupItems = (messagesByScope["meeting_group"] || []).map((m, i) =>
+    renderItem(m, i)
+  );
+
+  return (
+    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden flex flex-col">
+      <Tabs defaultValue="group" className="flex-1 flex min-h-0 flex-col">
+        <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
+          <TabsTrigger
+            value="group"
+            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+          >
+            Participant Group
+          </TabsTrigger>
+          <TabsTrigger
+            value="dm"
+            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+          >
+            Participant DMs
+          </TabsTrigger>
+          <TabsTrigger
+            value="waiting"
+            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+          >
+            Waiting DMs
+          </TabsTrigger>
+          <TabsTrigger
+            value="mods"
+            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+          >
+            Moderator DMs
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="group" className="flex-1 min-h-0">
+          <div
+            ref={groupRef}
+            className="h-[22vh] overflow-y-auto bg-white rounded p-2"
+          >
+            <div className="space-y-1 text-sm">
+              {groupItems.length === 0 ? (
+                <div className="text-gray-500">No messages yet.</div>
+              ) : (
+                groupItems
+              )}
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Input
+              value={groupText}
+              onChange={(e) => setGroupText(e.target.value)}
+              placeholder="Write a message to everyone"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendGroup();
+                }
+              }}
+            />
+            <Button
+              onClick={onSendGroup}
+              className="inline-flex items-center gap-1"
+            >
+              <Send className="h-4 w-4" />
+              Send
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="dm" className="flex-1 min-h-0">
+          <div className="flex items-center gap-2 mb-2">
+            <Input
+              value={dmTarget}
+              onChange={(e) => setDmTarget(e.target.value)}
+              placeholder="Participant email"
+              onBlur={() =>
+                dmTarget &&
+                getHistory("meeting_dm", {
+                  withEmail: dmTarget.trim().toLowerCase(),
+                })
+              }
+            />
+          </div>
+          <div
+            ref={dmRef}
+            className="h-[18vh] overflow-y-auto bg-white rounded p-2"
+          >
+            <div className="space-y-1 text-sm">
+              {/* render thread from scope store for simplicity */}
+              {(messagesByScope["meeting_dm"] || [])
+                .filter((m) =>
+                  dmTarget
+                    ? (m.toEmail || "") === dmTarget.trim().toLowerCase() ||
+                      (m.email || "").toLowerCase() ===
+                        dmTarget.trim().toLowerCase()
+                    : true
+                )
+                .map((m, i) => renderItem(m, i))}
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Input
+              value={dmText}
+              onChange={(e) => setDmText(e.target.value)}
+              placeholder="Write a private message"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendDm();
+                }
+              }}
+            />
+            <Button
+              onClick={onSendDm}
+              className="inline-flex items-center gap-1"
+            >
+              <Send className="h-4 w-4" />
+              Send
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="waiting" className="flex-1 min-h-0">
+          <div className="flex items-center gap-2 mb-2">
+            <Input
+              value={wrTarget}
+              onChange={(e) => setWrTarget(e.target.value)}
+              placeholder="Participant email (waiting room)"
+              onBlur={() =>
+                wrTarget &&
+                getHistory("waiting_dm", {
+                  withEmail: wrTarget.trim().toLowerCase(),
+                })
+              }
+            />
+          </div>
+          <div
+            ref={wrRef}
+            className="h-[18vh] overflow-y-auto bg-white rounded p-2"
+          >
+            <div className="space-y-1 text-sm">
+              {(messagesByScope["waiting_dm"] || [])
+                .filter((m) =>
+                  wrTarget
+                    ? (m.toEmail || "") === wrTarget.trim().toLowerCase() ||
+                      (m.email || "").toLowerCase() ===
+                        wrTarget.trim().toLowerCase()
+                    : true
+                )
+                .map((m, i) => renderItem(m, i))}
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Input
+              value={wrText}
+              onChange={(e) => setWrText(e.target.value)}
+              placeholder="Write a private message to waiting participant"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendWr();
+                }
+              }}
+            />
+            <Button
+              onClick={onSendWr}
+              className="inline-flex items-center gap-1"
+            >
+              <Send className="h-4 w-4" />
+              Send
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="mods" className="flex-1 min-h-0">
+          <div className="flex items-center gap-2 mb-2">
+            <Input
+              value={modTarget}
+              onChange={(e) => setModTarget(e.target.value)}
+              placeholder="Moderator email"
+              onBlur={() =>
+                modTarget &&
+                getHistory("meeting_mod_dm", {
+                  withEmail: modTarget.trim().toLowerCase(),
+                })
+              }
+            />
+          </div>
+          <div
+            ref={modRef}
+            className="h-[18vh] overflow-y-auto bg-white rounded p-2"
+          >
+            <div className="space-y-1 text-sm">
+              {(messagesByScope["meeting_mod_dm"] || [])
+                .filter((m) =>
+                  modTarget
+                    ? (m.toEmail || "") === modTarget.trim().toLowerCase() ||
+                      (m.email || "").toLowerCase() ===
+                        modTarget.trim().toLowerCase()
+                    : true
+                )
+                .map((m, i) => renderItem(m, i))}
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Input
+              value={modText}
+              onChange={(e) => setModText(e.target.value)}
+              placeholder="Write a private message to moderator"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendMod();
+                }
+              }}
+            />
+            <Button
+              onClick={onSendMod}
+              className="inline-flex items-center gap-1"
+            >
+              <Send className="h-4 w-4" />
+              Send
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function renderItem(m: ChatMessage, i: number) {
+  const label = m.senderName || m.name || m.email || m.senderEmail || "";
+  const when = new Date(String(m.timestamp)).toLocaleTimeString();
+  const content = m.content;
+  const role = m.role || "Moderator";
+  return (
+    <div key={`${label}-${i}`} className="flex items-start gap-2">
+      <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+      <div className="min-w-0">
+        <div className="text-[12px] text-gray-600">
+          <span className="font-medium text-gray-900">{label}</span>
+          <span className="ml-1 text-[11px] text-gray-500">{role}</span>
+          <span className="ml-2 text-[11px] text-gray-400">{when}</span>
+        </div>
+        <div className="whitespace-pre-wrap text-sm">{content}</div>
+      </div>
+    </div>
+  );
+}

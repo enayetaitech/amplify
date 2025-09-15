@@ -25,6 +25,7 @@ import {
   PanelLeftOpen,
   Video,
 } from "lucide-react";
+import ParticipantWaitingDm from "components/meeting/ParticipantWaitingDm";
 
 type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
@@ -203,8 +204,12 @@ export default function ParticipantWaitingRoom() {
                   <PanelLeftClose className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="p-4 text-sm text-muted-foreground">
-                Chat will appear here once implemented.
+              <div className="p-2 h-full">
+                <ParticipantWaitingDm
+                  socket={socketRef.current}
+                  sessionId={sessionId}
+                  me={{ email: me.email, name: me.name, role: "Participant" }}
+                />
               </div>
             </div>
           </aside>
@@ -259,8 +264,12 @@ export default function ParticipantWaitingRoom() {
           <SheetHeader className="px-4 py-3 border-b">
             <SheetTitle>WAITING ROOM CHAT</SheetTitle>
           </SheetHeader>
-          <div className="p-4 text-sm text-muted-foreground">
-            Chat will appear here once implemented.
+          <div className="p-2 h-[70vh]">
+            <ParticipantWaitingDm
+              socket={socketRef.current}
+              sessionId={sessionId}
+              me={{ email: me.email, name: me.name, role: "Participant" }}
+            />
           </div>
         </SheetContent>
       </Sheet>
