@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Send } from "lucide-react";
+import { Badge } from "components/ui/badge";
 import useChat, { ChatMessage } from "hooks/useChat";
 
 export default function ModeratorChatPanel({
@@ -38,6 +39,8 @@ export default function ModeratorChatPanel({
   const dmRef = useRef<HTMLDivElement | null>(null);
   const wrRef = useRef<HTMLDivElement | null>(null);
   const modRef = useRef<HTMLDivElement | null>(null);
+  const [tab, setTab] = useState<"group" | "dm" | "waiting" | "mods">("group");
+  const [lastReadGroup, setLastReadGroup] = useState(0);
 
   useEffect(() => {
     getHistory("meeting_group");
@@ -63,6 +66,20 @@ export default function ModeratorChatPanel({
     if (groupRef.current)
       groupRef.current.scrollTop = groupRef.current.scrollHeight;
   }, [groupMessagesLength]);
+
+  // Clear unread when viewing or when new messages arrive while on the tab
+  useEffect(() => {
+    if (tab === "group") setLastReadGroup(groupMessagesLength);
+  }, [groupMessagesLength, tab]);
+
+  const unreadGroup = Math.max(0, groupMessagesLength - lastReadGroup);
+
+  const onGroupScroll = () => {
+    const el = groupRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
+    if (nearBottom) setLastReadGroup(groupMessagesLength);
+  };
 
   const onSendGroup = async () => {
     const text = groupText.trim();
@@ -98,13 +115,35 @@ export default function ModeratorChatPanel({
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden flex flex-col">
-      <Tabs defaultValue="group" className="flex-1 flex min-h-0 flex-col">
+      <Tabs
+        value={tab}
+        onValueChange={(v) =>
+          setTab(
+            v === "dm"
+              ? "dm"
+              : v === "waiting"
+              ? "waiting"
+              : v === "mods"
+              ? "mods"
+              : "group"
+          )
+        }
+        className="flex-1 flex min-h-0 flex-col"
+      >
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger
             value="group"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
           >
             Participant Group
+            {unreadGroup > 0 && (
+              <Badge
+                variant="destructive"
+                className="ml-2 h-5 w-5 p-0 text-[10px] inline-flex items-center justify-center"
+              >
+                {unreadGroup}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="dm"
@@ -129,6 +168,7 @@ export default function ModeratorChatPanel({
         <TabsContent value="group" className="flex-1 min-h-0">
           <div
             ref={groupRef}
+            onScroll={onGroupScroll}
             className="h-[22vh] overflow-y-auto bg-white rounded p-2"
           >
             <div className="space-y-1 text-sm">

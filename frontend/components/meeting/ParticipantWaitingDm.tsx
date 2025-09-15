@@ -62,9 +62,8 @@ export default function ParticipantWaitingDm({
             }
           }}
         />
-        <Button onClick={onSend} className="inline-flex items-center gap-1">
+        <Button onClick={onSend} size="sm" className="h-8 w-8 p-0">
           <Send className="h-4 w-4" />
-          Send
         </Button>
       </div>
     </div>

@@ -115,6 +115,9 @@ export default function ParticipantsPanel({
   const [lastReadCount, setLastReadCount] = useState<Record<string, number>>(
     {}
   );
+  const [showGroupChat, setShowGroupChat] = useState(false);
+  const [groupChatText, setGroupChatText] = useState("");
+  const [lastReadGroupCount, setLastReadGroupCount] = useState(0);
   const selectedParticipantDisplayName = useMemo(() => {
     if (!selectedParticipant) return "";
     const match = remotes.find((p) => {
@@ -173,6 +176,18 @@ export default function ParticipantsPanel({
     }
   }, [selectedParticipant, dmLen]);
 
+  // auto scroll group chat when open
+  const groupLen = (messagesByScope["meeting_group"] || []).length;
+  useEffect(() => {
+    if (showGroupChat && chatListRef.current) {
+      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+    }
+    if (showGroupChat) {
+      setLastReadGroupCount(groupLen);
+    }
+  }, [showGroupChat, groupLen]);
+  const unreadGroup = Math.max(0, groupLen - lastReadGroupCount);
+
   const countIncomingFrom = (participantEmailLower: string): number => {
     const dm = messagesByScope["meeting_dm"] || [];
     let cnt = 0;
@@ -212,6 +227,12 @@ export default function ParticipantsPanel({
       const current = countIncomingFrom(selectedParticipant);
       setLastReadCount((prev) => ({ ...prev, [selectedParticipant]: current }));
     }
+  };
+  const onGroupChatScroll = () => {
+    const el = chatListRef.current;
+    if (!el || !showGroupChat) return;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+    if (nearBottom) setLastReadGroupCount(groupLen);
   };
 
   if (!(role === "admin" || role === "moderator")) return null;
@@ -465,7 +486,7 @@ export default function ParticipantsPanel({
 
         <TabsContent value="chat">
           <div className="grid grid-cols-12 gap-2 h-[28vh]">
-            {!selectedParticipant && (
+            {!selectedParticipant && !showGroupChat && (
               <div className="col-span-12 rounded bg-white overflow-y-auto">
                 <div className="space-y-1 p-2">
                   {remotes.length === 0 ? (
@@ -473,53 +494,167 @@ export default function ParticipantsPanel({
                       No participants in the meeting.
                     </div>
                   ) : (
-                    remotes.map((p) => {
-                      const email = participantEmail(p);
-                      const name = p.name || email || p.identity || "Unknown";
-                      const unread = email
-                        ? participantUnreadMap[email.toLowerCase()] || 0
-                        : 0;
-                      return (
-                        <div
-                          key={p.identity}
-                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                          onClick={() => {
-                            if (email) {
-                              openParticipantChat(email);
-                            } else {
-                              toast.info(
-                                "Email not available for this participant yet."
-                              );
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium truncate">
-                              {name}
-                            </span>
-                            {!email && (
-                              <span className="text-xs text-gray-400">
-                                (no email)
-                              </span>
-                            )}
-                            {email && unread > 0 && (
-                              <Badge
-                                variant="destructive"
-                                className="h-5 w-5 p-0 text-xs flex items-center justify-center"
-                              >
-                                {unread}
-                              </Badge>
-                            )}
-                          </div>
-                          <MessageSquare className="h-4 w-4 text-gray-400" />
+                    <>
+                      <div
+                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        onClick={() => {
+                          setShowGroupChat(true);
+                          setSelectedParticipant(null);
+                          getHistory("meeting_group");
+                          setLastReadGroupCount(groupLen);
+                        }}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium truncate">
+                            Group Chat
+                          </span>
+                          {unreadGroup > 0 && (
+                            <Badge
+                              variant="destructive"
+                              className="h-5 w-5 p-0 text-xs flex items-center justify-center"
+                            >
+                              {unreadGroup}
+                            </Badge>
+                          )}
                         </div>
-                      );
-                    })
+                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                      </div>
+                      {remotes.map((p) => {
+                        const email = participantEmail(p);
+                        const name = p.name || email || p.identity || "Unknown";
+                        const unread = email
+                          ? participantUnreadMap[email.toLowerCase()] || 0
+                          : 0;
+                        return (
+                          <div
+                            key={p.identity}
+                            className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                            onClick={() => {
+                              if (email) {
+                                openParticipantChat(email);
+                              } else {
+                                toast.info(
+                                  "Email not available for this participant yet."
+                                );
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-medium truncate">
+                                {name}
+                              </span>
+                              {!email && (
+                                <span className="text-xs text-gray-400">
+                                  (no email)
+                                </span>
+                              )}
+                              {email && unread > 0 && (
+                                <Badge
+                                  variant="destructive"
+                                  className="h-5 w-5 p-0 text-xs flex items-center justify-center"
+                                >
+                                  {unread}
+                                </Badge>
+                              )}
+                            </div>
+                            <MessageSquare className="h-4 w-4 text-gray-400" />
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
                 </div>
               </div>
             )}
-            {selectedParticipant && (
+            {showGroupChat && (
+              <div className="col-span-12 rounded bg-white flex flex-col">
+                <div className="flex items-center justify-between p-2 border-b">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      Participant Group Chat
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowGroupChat(false)}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div
+                  ref={chatListRef}
+                  onScroll={onGroupChatScroll}
+                  className="flex-1 overflow-y-auto p-2"
+                >
+                  <div className="space-y-1 text-sm">
+                    {(messagesByScope["meeting_group"] || []).map((m, i) => {
+                      const who =
+                        m.senderName ||
+                        m.name ||
+                        m.email ||
+                        m.senderEmail ||
+                        "";
+                      return (
+                        <div
+                          key={`${who}-${i}`}
+                          className="flex items-start gap-2"
+                        >
+                          <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+                          <div className="min-w-0">
+                            <div className="text-[12px] text-gray-600">
+                              <span className="font-medium text-gray-900">
+                                {who}
+                              </span>
+                              <span className="ml-2 text-[11px] text-gray-400">
+                                {new Date(
+                                  String(m.timestamp)
+                                ).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <div className="whitespace-pre-wrap text-sm">
+                              {m.content}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="p-2 flex items-center gap-2 border-t">
+                  <Input
+                    value={groupChatText}
+                    onChange={(e) => setGroupChatText(e.target.value)}
+                    placeholder="Type a message..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        const text = groupChatText.trim();
+                        if (!text) return;
+                        send("meeting_group", text).then((ack) => {
+                          if (ack.ok) setGroupChatText("");
+                        });
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => {
+                      const text = groupChatText.trim();
+                      if (!text) return;
+                      send("meeting_group", text).then((ack) => {
+                        if (ack.ok) setGroupChatText("");
+                      });
+                    }}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {selectedParticipant && !showGroupChat && (
               <div className="col-span-12 rounded bg-white flex flex-col">
                 <div className="flex items-center justify-between p-2 border-b">
                   <div className="flex items-center gap-2">
