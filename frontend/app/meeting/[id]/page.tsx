@@ -144,7 +144,7 @@ function LeaveMeetingButton({
         try {
           localStorage.removeItem("liveSessionUser");
         } catch {}
-        router.replace("/remove-participant");
+        router.replace("/participant-left");
       }
     } finally {
       setBusy(false);
@@ -386,7 +386,7 @@ export default function Meeting() {
       } else if (role === "admin" || role === "moderator") {
         router.push("/projects");
       } else {
-        router.replace("/remove-participant");
+        router.replace("/participant-left");
       }
     };
     s.on("meeting:ended", onMeetingEnded);
