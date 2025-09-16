@@ -25,6 +25,7 @@ import {
   startHlsEgress,
   stopHlsEgress,
 } from "../processors/livekit/livekitService";
+import BreakoutRoom from "../model/BreakoutRoom";
 import { SessionModel } from "../model/SessionModel";
 import { LiveSessionModel } from "../model/LiveSessionModel";
 import { ParticipantWaitingRoomChatModel } from "../model/ParticipantWaitingRoomChatModel";
@@ -713,6 +714,109 @@ export function attachSocket(server: HTTPServer) {
     );
 
     // ===== Moderator actions =====
+    // Move participant to a breakout (socket-based)
+    socket.on(
+      "meeting:participant:move-to-breakout",
+      async (
+        payload: { identity?: string; toIndex?: number },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!(role === "Moderator" || role === "Admin")) {
+            return ack?.({ ok: false, error: "forbidden" });
+          }
+          const identity = (payload?.identity || "").trim();
+          const toIndexNum = Number(payload?.toIndex || 0);
+          if (!identity)
+            return ack?.({ ok: false, error: "identity_required" });
+          if (!toIndexNum || toIndexNum < 1)
+            return ack?.({ ok: false, error: "invalid_breakout_index" });
+
+          const bo = await BreakoutRoom.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+            index: toIndexNum,
+          }).lean();
+          if (!bo) return ack?.({ ok: false, error: "breakout_not_found" });
+
+          try {
+            await roomService.moveParticipant(
+              String(sessionId),
+              identity,
+              bo.livekitRoom
+            );
+          } catch (e: any) {
+            console.error("socket move-to-breakout failed", {
+              sessionId,
+              identity,
+              toRoom: bo.livekitRoom,
+              error: e?.message || e,
+            });
+            return ack?.({ ok: false, error: e?.message || "move_failed" });
+          }
+
+          // notify moderator panels to refresh lists
+          try {
+            io.to(String(sessionId)).emit("meeting:participants-changed", {});
+          } catch {}
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Move participant back to main (socket-based)
+    socket.on(
+      "meeting:participant:move-to-main",
+      async (
+        payload: { identity?: string; fromIndex?: number },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!(role === "Moderator" || role === "Admin")) {
+            return ack?.({ ok: false, error: "forbidden" });
+          }
+          const identity = (payload?.identity || "").trim();
+          const fromIndexNum = Number(payload?.fromIndex || 0);
+          if (!identity)
+            return ack?.({ ok: false, error: "identity_required" });
+          if (!fromIndexNum || fromIndexNum < 1)
+            return ack?.({ ok: false, error: "invalid_breakout_index" });
+
+          const bo = await BreakoutRoom.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+            index: fromIndexNum,
+          }).lean();
+          if (!bo) return ack?.({ ok: false, error: "breakout_not_found" });
+
+          try {
+            await roomService.moveParticipant(
+              bo.livekitRoom,
+              identity,
+              String(sessionId)
+            );
+          } catch (e: any) {
+            console.error("socket move-to-main failed", {
+              sessionId,
+              identity,
+              fromRoom: bo.livekitRoom,
+              error: e?.message || e,
+            });
+            return ack?.({ ok: false, error: e?.message || "move_failed" });
+          }
+
+          // notify moderator panels to refresh lists
+          try {
+            io.to(String(sessionId)).emit("meeting:participants-changed", {});
+          } catch {}
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
     socket.on("waiting:admit", async ({ email }: { email: string }) => {
       if (!["Moderator", "Admin"].includes(role)) return;
       const state = await admitByEmail(sessionId, email);

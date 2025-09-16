@@ -170,15 +170,29 @@ export default function BreakoutsPanel({
 
   const moveToBreakout = async (toIdx: number) => {
     const movedIds = [...selectedIds];
-    for (const id of movedIds) {
-      try {
-        await api.post(`/api/v1/livekit/${sessionId}/breakouts/move-to`, {
-          identity: id,
-          toIndex: toIdx,
-        });
-      } catch {
-        toast.error(`Failed to move ${id}`);
+    const s: Socket | undefined = (
+      globalThis as unknown as {
+        __meetingSocket?: Socket;
       }
+    ).__meetingSocket;
+    for (const id of movedIds) {
+      await new Promise<void>((resolve) => {
+        try {
+          s?.emit(
+            "meeting:participant:move-to-breakout",
+            { identity: id, toIndex: toIdx },
+            (ack?: { ok?: boolean; error?: string }) => {
+              if (!ack?.ok) {
+                toast.error(ack?.error || `Failed to move ${id}`);
+              }
+              resolve();
+            }
+          );
+        } catch {
+          toast.error(`Failed to move ${id}`);
+          resolve();
+        }
+      });
     }
     setSelectedIds([]);
     // Optimistically remove moved users from current source room list
@@ -191,15 +205,29 @@ export default function BreakoutsPanel({
 
   const moveToMain = async (fromIdx: number) => {
     const movedIds = [...selectedIds];
-    for (const id of movedIds) {
-      try {
-        await api.post(`/api/v1/livekit/${sessionId}/breakouts/move-back`, {
-          identity: id,
-          fromIndex: fromIdx,
-        });
-      } catch {
-        toast.error(`Failed to move ${id}`);
+    const s: Socket | undefined = (
+      globalThis as unknown as {
+        __meetingSocket?: Socket;
       }
+    ).__meetingSocket;
+    for (const id of movedIds) {
+      await new Promise<void>((resolve) => {
+        try {
+          s?.emit(
+            "meeting:participant:move-to-main",
+            { identity: id, fromIndex: fromIdx },
+            (ack?: { ok?: boolean; error?: string }) => {
+              if (!ack?.ok) {
+                toast.error(ack?.error || `Failed to move ${id}`);
+              }
+              resolve();
+            }
+          );
+        } catch {
+          toast.error(`Failed to move ${id}`);
+          resolve();
+        }
+      });
     }
     setSelectedIds([]);
     // Optimistically remove moved users from current source room list
@@ -223,8 +251,11 @@ export default function BreakoutsPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button size="sm" onClick={createBreakout} disabled={creating}
-        className="bg-gray-100 hover:bg-gray-200 text-gray-700 "
+        <Button
+          size="sm"
+          onClick={createBreakout}
+          disabled={creating}
+          className="bg-gray-100 hover:bg-gray-200 text-gray-700 "
         >
           {creating ? "Creating…" : "Create Breakout"}
         </Button>
@@ -318,7 +349,6 @@ export default function BreakoutsPanel({
                         Closes at {new Date(b.closesAt).toLocaleTimeString()}
                       </div>
                     ) : null}
-                   
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" onClick={() => extend(b.index, 5)}>
