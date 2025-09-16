@@ -5,28 +5,48 @@ import type { Socket } from "socket.io-client";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Send } from "lucide-react";
-import useChat, { ChatMessage } from "hooks/useChat";
+import useChat, { ChatMessage, ChatScope } from "hooks/useChat";
 
 export default function ParticipantWaitingDm({
   socket,
   sessionId,
   me,
+  chatProps,
 }: {
   socket: Socket | null;
   sessionId: string;
   me: { email: string; name: string; role: "Participant" };
+  chatProps?: {
+    send: (
+      scope: ChatScope,
+      content: string,
+      toEmail?: string
+    ) => Promise<{ ok: boolean; error?: string }>;
+    getHistory: (
+      scope: ChatScope,
+      options?: { withEmail?: string; limit?: number }
+    ) => Promise<ChatMessage[]>;
+    messagesByScope: Record<string, ChatMessage[]>;
+  };
 }) {
-  const { send, getHistory, messagesByScope } = useChat({
+  // Always call useChat hook (required for React hooks rules)
+  const localChat = useChat({
     socket,
     sessionId,
     my: me,
   });
+
+  // Use provided chat props or fallback to local hook
+  const { send, getHistory, messagesByScope } = chatProps || localChat;
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    getHistory("waiting_dm");
-  }, [getHistory]);
+    // Only initialize history if using local hook (not when chatProps are provided)
+    if (!chatProps) {
+      getHistory("waiting_dm");
+    }
+  }, [getHistory, chatProps]);
 
   const waitingDmLength = messagesByScope["waiting_dm"]?.length || 0;
   useEffect(() => {
@@ -42,15 +62,15 @@ export default function ParticipantWaitingDm({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div ref={listRef} className="flex-1 overflow-y-auto bg-white p-2">
+    <div className="flex flex-col h-full min-h-0">
+      <div ref={listRef} className="flex-1 overflow-y-auto p-2 min-h-0">
         <div className="space-y-1 text-sm">
           {(messagesByScope["waiting_dm"] || []).map((m, i) => (
             <MessageItem key={i} m={m} />
           ))}
         </div>
       </div>
-      <div className="p-2 flex items-center gap-2 border-t">
+      <div className="flex-shrink-0 p-2 flex items-center gap-2 border-t bg-white">
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
