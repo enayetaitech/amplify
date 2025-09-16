@@ -759,6 +759,18 @@ export function attachSocket(server: HTTPServer) {
             io.to(String(sessionId)).emit("meeting:participants-changed", {});
           } catch {}
 
+          // notify the moved participant (by LiveKit identity if registered)
+          try {
+            const sid = identityIndex
+              .get(sessionId)
+              ?.get(identity.toLowerCase());
+            if (sid) {
+              io.to(sid).emit("breakout:moved", {
+                index: toIndexNum,
+              });
+            }
+          } catch {}
+
           return ack?.({ ok: true });
         } catch (e: any) {
           return ack?.({ ok: false, error: e?.message || "internal_error" });

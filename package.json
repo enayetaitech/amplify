@@ -1,0 +1,7 @@
+{
+  "name": "amplify-root",
+  "private": true,
+  "scripts": {
+    "build:push": "bash ./build-and-push.sh"
+  }
+}

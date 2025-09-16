@@ -50,6 +50,16 @@ export default function BreakoutWarningBridge({
 
   useEffect(() => {
     if (!socket) return;
+    // Notify participant when they are moved to a breakout room
+    const onMoved = (payload: { index?: number }) => {
+      toast(
+        `You have been moved to breakout${
+          payload?.index ? ` #${payload.index}` : ""
+        }`
+      );
+    };
+    socket.on("breakout:moved", onMoved);
+
     const onClosedMod = (payload: { index?: number }) => {
       if (role === "admin" || role === "moderator") {
         toast(`Breakout${payload?.index ? ` #${payload.index}` : ""} closed`);
@@ -69,6 +79,7 @@ export default function BreakoutWarningBridge({
     socket.on("breakout:closed-mod", onClosedMod);
     socket.on("breakout:closed", onClosed);
     return () => {
+      socket.off("breakout:moved", onMoved);
       socket.off("breakout:closed-mod", onClosedMod);
       socket.off("breakout:closed", onClosed);
     };
