@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams, useRouter } from "next/navigation";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
@@ -48,6 +48,9 @@ const Sessions = () => {
   const [page, setPage] = useState(1);
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
+
+  // Holds the popup window opened synchronously on user click
+  const popupRef = useRef<Window | null>(null);
 
   const { data: project, isLoading: isProjectLoading } = useProject(
     projectId as string
@@ -92,7 +95,7 @@ const Sessions = () => {
       );
       return res.data; // e.g. { success: true, ... } OR { success: false, message: "Session already ongoing" }
     },
-    onSuccess: (data, sessionId) => {
+    onSuccess: (data) => {
       const success = data?.success;
       const message = data?.message;
 
@@ -104,31 +107,64 @@ const Sessions = () => {
 
       // Refresh any live flags if you show them
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
-
-      // Go to meeting in a new window/tab
-      const ff = flagsFromProject(project as unknown);
-      const url = buildMeetingUrl(sessionId, ff);
-      window.open(url, "_blank", "noopener,noreferrer");
     },
-    onError: (err, sessionId) => {
-      // If server returned non-2xx with the same message, still proceed
+    onError: (err) => {
+      // Show messages only; navigation handled per-call callbacks
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.message;
         if (msg === "Session already ongoing") {
           toast.message("Session already ongoing — opening meeting");
-          const ff = flagsFromProject(project as unknown);
-          const url = buildMeetingUrl(sessionId, ff);
-          window.open(url, "_blank", "noopener,noreferrer");
-          return;
+        } else {
+          const fallback = err.response?.data?.message ?? err.message;
+          toast.error(fallback);
         }
+        return;
       }
-
-      const fallback = axios.isAxiosError(err)
-        ? err.response?.data?.message ?? err.message
-        : "Could not start the session";
-      toast.error(fallback);
+      toast.error("Could not start the session");
     },
   });
+
+  const handleModerateClick = (sessionId: string) => {
+    // Open synchronously to preserve user gesture (Safari/Chrome-safe)
+    const popup = window.open("", "_blank");
+    if (!popup) {
+      toast.error("Popup blocked. Please allow popups for this site.");
+      return;
+    }
+    popupRef.current = popup;
+
+    startMeeting.mutate(sessionId, {
+      onSuccess: () => {
+        const ff = flagsFromProject(project as unknown);
+        const url = buildMeetingUrl(sessionId, ff);
+        try {
+          popupRef.current?.location.replace(url);
+        } finally {
+          popupRef.current = null;
+        }
+      },
+      onError: (err) => {
+        if (axios.isAxiosError(err)) {
+          const msg = err.response?.data?.message;
+          if (msg === "Session already ongoing") {
+            const ff = flagsFromProject(project as unknown);
+            const url = buildMeetingUrl(sessionId, ff);
+            try {
+              popupRef.current?.location.replace(url);
+            } finally {
+              popupRef.current = null;
+            }
+            return;
+          }
+        }
+        try {
+          popupRef.current?.close();
+        } finally {
+          popupRef.current = null;
+        }
+      },
+    });
+  };
 
   // Handle observe session
 
@@ -268,7 +304,7 @@ const Sessions = () => {
             meta={data!.meta}
             onPageChange={setPage}
             // onRowClick={(id) => router.push(`/session-details/${id}`)}
-            onModerate={(id) => startMeeting.mutate(id)}
+            onModerate={handleModerateClick}
             onObserve={handleObserveClick}
             onAction={(action, session) => {
               switch (action) {

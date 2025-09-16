@@ -40,11 +40,24 @@ echo "✅ Backend build completed!"
 
 echo ""
 echo "🏗️  Building Frontend Image..."
+# Temporarily rename frontend/.env to avoid dev env leaking into prod build
+ENV_MOVED=0
+if [ -f frontend/.env ]; then
+    echo "🔧 Temporarily moving frontend/.env to frontend/.env.dev.backup"
+    mv frontend/.env frontend/.env.dev.backup
+    ENV_MOVED=1
+fi
 docker build \
   -t ${FRONTEND_IMAGE}:${TAG} \
   -f docker/dockerfile.frontend \
   .
 echo "✅ Frontend build completed!"
+
+# Restore the dev .env after build
+if [ "$ENV_MOVED" = "1" ] && [ -f frontend/.env.dev.backup ]; then
+    echo "🔁 Restoring frontend/.env from backup"
+    mv frontend/.env.dev.backup frontend/.env
+fi
 
 echo ""
 echo "📤 Pushing Images to Docker Hub..."
