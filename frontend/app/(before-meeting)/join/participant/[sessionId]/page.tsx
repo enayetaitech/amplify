@@ -107,6 +107,7 @@ export default function ParticipantJoinMeeting() {
                       control={form.control}
                       name="firstName"
                       label="First Name"
+                      required
                       placeholder="First Name"
                       disabled={form.formState.isSubmitting}
                     />
@@ -114,6 +115,7 @@ export default function ParticipantJoinMeeting() {
                       control={form.control}
                       name="lastName"
                       label="Last Name"
+                      required
                       placeholder="Last Name"
                       disabled={form.formState.isSubmitting}
                     />
@@ -122,6 +124,7 @@ export default function ParticipantJoinMeeting() {
                     control={form.control}
                     name="email"
                     label="Email"
+                    required
                     placeholder="Enter your email"
                     type="email"
                     disabled={form.formState.isSubmitting}

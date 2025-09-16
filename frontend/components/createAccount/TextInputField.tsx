@@ -10,11 +10,7 @@ import {
   FormMessage,
 } from "components/ui/form";
 import { Input } from "components/ui/input";
-import {
-  Control,
-  FieldValues,
-  Path,
-} from "react-hook-form";
+import { Control, FieldValues, Path } from "react-hook-form";
 
 interface TextInputFieldProps<TFieldValues extends FieldValues> {
   /** The RHF control object, typed to your form’s TFieldValues */
@@ -23,6 +19,8 @@ interface TextInputFieldProps<TFieldValues extends FieldValues> {
   name: Path<TFieldValues>;
   /** Visible label text */
   label: string;
+  /** Whether the field is required; shows a red asterisk */
+  required?: boolean;
   /** Placeholder inside the <Input> */
   placeholder?: string;
   /** Native input type; defaults to "text" */
@@ -32,12 +30,11 @@ interface TextInputFieldProps<TFieldValues extends FieldValues> {
   disabled?: boolean;
 }
 
-export default function TextInputField<
-  TFieldValues extends FieldValues
->({
+export default function TextInputField<TFieldValues extends FieldValues>({
   control,
   name,
   label,
+  required = false,
   placeholder = "",
   type = "text",
   className = "",
@@ -49,10 +46,16 @@ export default function TextInputField<
       name={name}
       render={({ field }) => (
         <FormItem className={className}>
-          <FormLabel>{label}</FormLabel>
+          <FormLabel>
+            {label}
+            {required ? <span className="text-red-500 ml-0.5">*</span> : null}
+          </FormLabel>
           <FormControl>
-            <Input type={type} placeholder={placeholder} {...field} 
-            disabled={disabled}
+            <Input
+              type={type}
+              placeholder={placeholder}
+              {...field}
+              disabled={disabled}
             />
           </FormControl>
           <FormMessage />
