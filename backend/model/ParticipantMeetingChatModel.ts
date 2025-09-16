@@ -1,18 +1,44 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 import { IWaitingRoomChat } from "../../shared/interface/WaitingRoomChatInterface";
 
+export interface ParticipantMeetingChatDocument
+  extends Omit<IWaitingRoomChat, "sessionId" | "_id">,
+    Document {
+  sessionId: Types.ObjectId;
+}
 
-export interface ParticipantMeetingChatDocument extends Omit<IWaitingRoomChat,"sessionId" | "_id">, Document {sessionId: Types.ObjectId;}
-
-const ParticipantMeetingChatSchema = new Schema<ParticipantMeetingChatDocument>({
-   sessionId: { type: Schema.Types.ObjectId, ref: "LiveSession", required: true },
-   email:   { type: String, required: true },
-  senderName:    { type: String, required: true },
- role: { type: String, enum: ["Participant", "Observer", "Moderator"], required: true },
+const ParticipantMeetingChatSchema = new Schema<ParticipantMeetingChatDocument>(
+  {
+    sessionId: {
+      type: Schema.Types.ObjectId,
+      ref: "LiveSession",
+      required: true,
+    },
+    email: { type: String, required: true },
+    senderName: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["Participant", "Observer", "Moderator"],
+      required: true,
+    },
     content: { type: String, required: true },
-  timestamp:     { type: Date,   required: true },
+    timestamp: { type: Date, default: () => new Date() },
+    scope: { type: String, required: true },
+    toEmail: { type: String, required: false },
+  }
+);
+
+ParticipantMeetingChatSchema.index({ sessionId: 1, scope: 1, timestamp: 1 });
+ParticipantMeetingChatSchema.index({
+  sessionId: 1,
+  scope: 1,
+  email: 1,
+  toEmail: 1,
+  timestamp: 1,
 });
 
-export const ParticipantMeetingChatModel = mongoose.model<
-  ParticipantMeetingChatDocument
->("ParticipantMeetingChat", ParticipantMeetingChatSchema);
+export const ParticipantMeetingChatModel =
+  mongoose.model<ParticipantMeetingChatDocument>(
+    "ParticipantMeetingChat",
+    ParticipantMeetingChatSchema
+  );

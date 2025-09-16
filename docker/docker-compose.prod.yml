@@ -2,36 +2,27 @@ version: "3.8"
 
 services:
   backend-server:
-    container_name: backend
+    container_name: backend-prod
     build:
-
       context: ..
       dockerfile: docker/dockerfile.backend
     ports:
       - "8978:8978"
-    volumes:
-      - ../backend:/app/backend
-      - /app/backend/node_modules
     env_file:
       - ../backend/.env.prod
-
+    restart: unless-stopped
+    # No volumes in production - code is built into the image
 
   frontend-server:
-    container_name: frontend
+    container_name: frontend-prod
     build:
-
       context: ..
       dockerfile: docker/dockerfile.frontend
-
     ports:
-      - "8979:8979"
+      - "80:8979" # Changed to port 80 for production
     depends_on:
       - backend-server
-
-    volumes:
-      - ../frontend:/app/frontend
-      - /app/frontend/node_modules
     env_file:
       - ../frontend/.env.prod
-    command: npm run dev -- -p 8979
-
+    restart: unless-stopped
+    # No volumes and no dev command in production - uses built production app

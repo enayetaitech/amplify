@@ -3,3 +3,5 @@ frontend/.git
 /backend/dist/
 
 .cursor
+frontend/.env.*
+backend/.env.*

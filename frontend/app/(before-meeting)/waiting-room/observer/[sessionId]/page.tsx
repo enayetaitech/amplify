@@ -19,11 +19,14 @@ import {
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
+import ObserverChatPanel from "components/meeting/ObserverChatPanel";
+import { Socket } from "socket.io-client";
 
 export default function ObserverWaitingRoom() {
   const { sessionId } = useParams() as { sessionId: string };
   const router = useRouter();
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -52,6 +55,7 @@ export default function ObserverWaitingRoom() {
     };
 
     s.on("observer:stream:started", onStarted);
+    setSocket(s);
 
     // Show toasts when participants are admitted
     const onOneAdmitted = (p: { name?: string; email?: string }) => {
@@ -144,8 +148,13 @@ export default function ObserverWaitingRoom() {
                   <PanelRightClose className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="p-4 text-sm text-muted-foreground">
-                Chat will appear here once implemented.
+              <div className="p-2">
+                <ObserverChatPanel
+                  socket={socket}
+                  sessionId={sessionId}
+                  me={{ email: "", name: "", role: "Observer" }}
+                  isStreaming={false}
+                />
               </div>
             </div>
           </aside>
@@ -165,8 +174,13 @@ export default function ObserverWaitingRoom() {
           <SheetHeader className="px-4 py-3 border-b">
             <SheetTitle>WAITING ROOM CHAT</SheetTitle>
           </SheetHeader>
-          <div className="p-4 text-sm text-muted-foreground">
-            Chat will appear here once implemented.
+          <div className="p-2">
+            <ObserverChatPanel
+              socket={socket}
+              sessionId={sessionId}
+              me={{ email: "", name: "", role: "Observer" }}
+              isStreaming={false}
+            />
           </div>
         </SheetContent>
       </Sheet>

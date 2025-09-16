@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
@@ -25,6 +31,8 @@ import {
   PanelLeftOpen,
   Video,
 } from "lucide-react";
+import ParticipantWaitingDm from "components/meeting/ParticipantWaitingDm";
+import useChat from "hooks/useChat";
 
 type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
@@ -61,7 +69,43 @@ export default function ParticipantWaitingRoom() {
   const [waiting, setWaiting] = useState<WaitingUser[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const joinedRef = useRef(false);
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Custom function to handle chat open/close with unread count reset
+  const handleChatToggle = useCallback((open: boolean) => {
+    setIsChatOpen(open);
+    if (open) {
+      setUnreadCount(0); // Reset unread count when opening chat
+    }
+  }, []);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const prevMessageCountRef = useRef(0);
+
+  // Move chat state to parent to persist across mobile sheet open/close
+  const { send, getHistory, messagesByScope } = useChat({
+    socket: socketRef.current,
+    sessionId,
+    my: { email: me.email, name: me.name, role: me.role },
+  });
+
+  // Track unread messages
+  useEffect(() => {
+    const currentMessageCount = messagesByScope["waiting_dm"]?.length || 0;
+    const prevMessageCount = prevMessageCountRef.current;
+
+    if (currentMessageCount > prevMessageCount && !isChatOpen) {
+      setUnreadCount((prev) => prev + (currentMessageCount - prevMessageCount));
+    }
+
+    prevMessageCountRef.current = currentMessageCount;
+  }, [messagesByScope, isChatOpen]);
+
+  // Initialize chat history when socket is available
+  useEffect(() => {
+    if (socketRef.current && me.email) {
+      getHistory("waiting_dm");
+    }
+  }, [getHistory, me.email]);
 
   // chat state
   // const [chatInput, setChatInput] = useState("");
@@ -158,38 +202,13 @@ export default function ParticipantWaitingRoom() {
   return (
     <div className="min-h-screen dashboard_sidebar_bg">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 lg:px-8 py-4">
-        <div className="items-center gap-3 hidden lg:flex">
-          <Video />
-          <span className="text-sm ">Waiting Room</span>
-          <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
-            Participant View
-          </span>
-        </div>
-        {/* <div className="text-center hidden lg:block">
-          <h1 className="text-lg lg:text-xl font-semibold tracking-wide">
-            MEETING 01 - PROJECT NAME
-          </h1>
-        </div> */}
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setIsChatOpen(true)}
-          >
-            <MessageSquare className="h-5 w-5" />
-          </Button>
-          <Logo />
-        </div>
-      </div>
 
       {/* Layout */}
-      <div className="flex">
+      <div className="flex h-full">
         {/* Sidebar (desktop) */}
         {isChatOpen && (
-          <aside className="hidden lg:flex w-[320px] shrink-0 h-[calc(100vh-80px)] sticky top-0">
-            <div className="bg-white w-full flex flex-col">
+          <aside className="hidden lg:flex w-[320px] ">
+            <div className="bg-white w-full flex flex-col h-full rounded-xl">
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="text-sm font-semibold tracking-wide">
                   WAITING ROOM CHAT
@@ -203,8 +222,13 @@ export default function ParticipantWaitingRoom() {
                   <PanelLeftClose className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="p-4 text-sm text-muted-foreground">
-                Chat will appear here once implemented.
+              <div className="flex-1 flex flex-col min-h-0">
+                <ParticipantWaitingDm
+                  socket={socketRef.current}
+                  sessionId={sessionId}
+                  me={{ email: me.email, name: me.name, role: "Participant" }}
+                  chatProps={{ send, getHistory, messagesByScope }}
+                />
               </div>
             </div>
           </aside>
@@ -212,15 +236,49 @@ export default function ParticipantWaitingRoom() {
 
         {/* Main */}
         <main className="flex-1 px-4 lg:px-8 pb-10 w-full">
-          {/* Desktop toggle when sidebar hidden */}
+          <div className="flex items-center justify-between px-4 lg:px-8 py-4">
+            <div className="items-center gap-3 hidden lg:flex">
+              <Video />
+              <span className="text-sm ">Waiting Room</span>
+              <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+                Participant View
+              </span>
+            </div>
+            {/* <div className="text-center hidden lg:block">
+          <h1 className="text-lg lg:text-xl font-semibold tracking-wide">
+            MEETING 01 - PROJECT NAME
+          </h1>
+        </div> */}
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden z-50 relative"
+                onClick={() => handleChatToggle(true)}
+              >
+                <MessageSquare className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Button>
+              <Logo />
+            </div>
+          </div>
           {!isChatOpen && (
             <div className="hidden lg:flex items-center gap-2 mb-3">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsChatOpen(true)}
+                onClick={() => handleChatToggle(true)}
               >
                 <PanelLeftOpen className="h-4 w-4 mr-2" /> Open Chat
+                {unreadCount > 0 && (
+                  <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </Button>
             </div>
           )}
@@ -253,14 +311,19 @@ export default function ParticipantWaitingRoom() {
           typeof window !== "undefined" &&
           window.innerWidth < 1024
         }
-        onOpenChange={setIsChatOpen}
+        onOpenChange={handleChatToggle}
       >
         <SheetContent side="left" className="p-0 w-[90%] sm:max-w-sm">
           <SheetHeader className="px-4 py-3 border-b">
             <SheetTitle>WAITING ROOM CHAT</SheetTitle>
           </SheetHeader>
-          <div className="p-4 text-sm text-muted-foreground">
-            Chat will appear here once implemented.
+          <div className="flex-1 flex flex-col min-h-0">
+            <ParticipantWaitingDm
+              socket={socketRef.current}
+              sessionId={sessionId}
+              me={{ email: me.email, name: me.name, role: "Participant" }}
+              chatProps={{ send, getHistory, messagesByScope }}
+            />
           </div>
         </SheetContent>
       </Sheet>

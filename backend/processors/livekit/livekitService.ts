@@ -31,18 +31,19 @@ export const roomService = new RoomServiceClient(
 const egress = new EgressClient(config.livekit_ws_url!, apiKey, apiSecret);
 
 export async function issueRoomToken(params: {
-  identity: string; // user id
+  identity: string; // user id or stable hash identity
   name?: string; // display name (optional)
   role: LivekitRole;
   roomName: string;
+  email?: string; // include for frontend extraction (not used as identity)
 }) {
-  const { identity, name, role, roomName } = params;
+  const { identity, name, role, roomName, email } = params;
 
   // Include role as metadata so sockets can authorize easily.
   const at = new AccessToken(apiKey, apiSecret, {
     identity,
     name,
-    metadata: JSON.stringify({ role }),
+    metadata: JSON.stringify({ role, email: email ?? null }),
   });
 
   // Base grant applies to everyone who joins the room

@@ -27,11 +27,22 @@ import {
 } from "../processors/livekit/livekitService";
 import { SessionModel } from "../model/SessionModel";
 import { LiveSessionModel } from "../model/LiveSessionModel";
+import { ParticipantWaitingRoomChatModel } from "../model/ParticipantWaitingRoomChatModel";
+import { ParticipantMeetingChatModel } from "../model/ParticipantMeetingChatModel";
+import GroupMessageModel, {
+  GroupMessageModel as GroupMsgNamed,
+} from "../model/GroupMessage";
+import ObserverGroupMessageModel, {
+  ObserverGroupMessageModel as ObsGroupMsgNamed,
+} from "../model/ObserverGroupMessage";
+import { ObserverWaitingRoomChatModel } from "../model/ObserverWaitingRoomChatModel";
 
 // In-memory map to find a participant socket by email within a session
 // sessionId -> (email -> socketId)
 const emailIndex = new Map<string, Map<string, string>>();
 const identityIndex = new Map<string, Map<string, string>>();
+// Track moderator sockets per session (Moderators/Admins only)
+const moderatorSockets = new Map<string, Set<string>>();
 // Track observer sockets per session for accurate counts
 const observerSockets = new Map<string, Set<string>>();
 // Track observer display info per sessionId -> (socketId -> { name, email })
@@ -84,6 +95,11 @@ export function attachSocket(server: HTTPServer) {
     if (["Observer", "Moderator", "Admin"].includes(role)) {
       socket.join(rooms.observer);
     }
+    if (["Moderator", "Admin"].includes(role)) {
+      if (!moderatorSockets.has(sessionId))
+        moderatorSockets.set(sessionId, new Set());
+      moderatorSockets.get(sessionId)!.add(socket.id);
+    }
     // Helper to emit observer count to session
     const emitObserverCount = () => {
       const set = observerSockets.get(sessionId);
@@ -133,6 +149,472 @@ export function attachSocket(server: HTTPServer) {
         observersWaitingRoom: state.observersWaitingRoom,
       });
     });
+
+    // Explicitly join/leave the meeting chat room when client enters/leaves the meeting UI
+    socket.on("meeting:join", () => socket.join(rooms.meeting));
+    socket.on("meeting:leave", () => socket.leave(rooms.meeting));
+
+    // Cache LiveSession _id for persistence
+    const liveIdCache = new Map<string, Types.ObjectId>();
+    async function ensureLiveIdFor(
+      sessionIdStr: string
+    ): Promise<Types.ObjectId> {
+      const cached = liveIdCache.get(sessionIdStr);
+      if (cached) return cached;
+      const found = await LiveSessionModel.findOne(
+        { sessionId: new Types.ObjectId(sessionIdStr) },
+        { _id: 1 }
+      ).lean();
+      if (found?._id) {
+        liveIdCache.set(sessionIdStr, found._id as Types.ObjectId);
+        return found._id as Types.ObjectId;
+      }
+      const created = await LiveSessionModel.create({
+        sessionId: new Types.ObjectId(sessionIdStr),
+        ongoing: false,
+      });
+      liveIdCache.set(sessionIdStr, created._id as Types.ObjectId);
+      return created._id as Types.ObjectId;
+    }
+
+    async function isStreamingActive(sessionIdStr: string): Promise<boolean> {
+      try {
+        const live = await LiveSessionModel.findOne(
+          { sessionId: new Types.ObjectId(sessionIdStr) },
+          { streaming: 1 }
+        ).lean();
+        return !!live?.streaming;
+      } catch {
+        return false;
+      }
+    }
+
+    function emitToModeratorsInSession(
+      sessionIdStr: string,
+      event: string,
+      payload: unknown
+    ) {
+      const set = moderatorSockets.get(sessionIdStr);
+      if (!set || set.size === 0) return;
+      for (const sid of set) io.to(sid).emit(event, payload);
+    }
+
+    type ChatSendPayload = { scope: string; content: string; toEmail?: string };
+    type ChatHistoryPayload = {
+      scope: string;
+      thread?: { withEmail?: string };
+      limit?: number;
+    };
+
+    socket.on(
+      "chat:send",
+      async (
+        payload: ChatSendPayload,
+        ack?: (r: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          const { scope, content } = payload || {};
+          if (!scope || !content || !content.trim())
+            return ack?.({ ok: false, error: "bad_request" });
+          const liveId = await ensureLiveIdFor(sessionId);
+
+          const lowerSender = (email || "").toLowerCase();
+          const now = new Date();
+
+          const emitNew = (target: string | string[] | null, message: any) => {
+            if (!target) return;
+            const evt = "chat:new";
+            if (Array.isArray(target)) {
+              for (const t of target) io.to(t).emit(evt, { scope, message });
+            } else {
+              io.to(target).emit(evt, { scope, message });
+            }
+          };
+
+          // Permission + persistence per scope
+          switch (scope) {
+            case "waiting_dm": {
+              if (
+                !(
+                  role === "Participant" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              const doc = {
+                sessionId: liveId,
+                email,
+                senderName: name || email,
+                role: role === "Admin" ? "Moderator" : (role as any),
+                content,
+                timestamp: now,
+                scope,
+                toEmail: undefined as string | undefined,
+              };
+              if (role === "Participant") {
+                // to moderator pool
+                doc.toEmail = "__moderators__";
+                const saved = await ParticipantWaitingRoomChatModel.create(doc);
+                // emit to sender and all moderators
+                emitNew(socket.id, saved.toObject());
+                emitToModeratorsInSession(sessionId, "chat:new", {
+                  scope,
+                  message: saved.toObject(),
+                });
+                return ack?.({ ok: true });
+              } else {
+                // moderator/admin replying to participant requires toEmail
+                const target = (payload.toEmail || "").toLowerCase();
+                if (!target)
+                  return ack?.({ ok: false, error: "toEmail_required" });
+                doc.toEmail = target;
+                const saved = await ParticipantWaitingRoomChatModel.create(doc);
+                // emit to sender, all moderators (shared thread visibility), and the participant if online
+                emitNew(socket.id, saved.toObject());
+                emitToModeratorsInSession(sessionId, "chat:new", {
+                  scope,
+                  message: saved.toObject(),
+                });
+                const targetId = emailIndex.get(sessionId)?.get(target);
+                if (targetId) emitNew(targetId, saved.toObject());
+                return ack?.({ ok: true });
+              }
+            }
+            case "meeting_group": {
+              if (
+                !(
+                  role === "Participant" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              const saved = await (GroupMsgNamed || GroupMessageModel).create({
+                sessionId: liveId,
+                senderEmail: email,
+                name: name || email,
+                content,
+                scope,
+              });
+              io.to(rooms.meeting).emit("chat:new", {
+                scope,
+                message: saved.toObject(),
+              });
+              if (await isStreamingActive(sessionId)) {
+                io.to(rooms.observer).emit("chat:new", {
+                  scope,
+                  message: saved.toObject(),
+                });
+              }
+              return ack?.({ ok: true });
+            }
+            case "meeting_dm": {
+              if (
+                !(
+                  role === "Participant" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              const doc = {
+                sessionId: liveId,
+                email,
+                senderName: name || email,
+                role: role === "Admin" ? "Moderator" : (role as any),
+                content,
+                timestamp: now,
+                scope,
+                toEmail: undefined as string | undefined,
+              };
+              if (role === "Participant") {
+                doc.toEmail = "__moderators__";
+                const saved = await ParticipantMeetingChatModel.create(doc);
+                emitNew(socket.id, saved.toObject());
+                emitToModeratorsInSession(sessionId, "chat:new", {
+                  scope,
+                  message: saved.toObject(),
+                });
+                return ack?.({ ok: true });
+              } else {
+                const target = (payload.toEmail || "").toLowerCase();
+                if (!target)
+                  return ack?.({ ok: false, error: "toEmail_required" });
+                doc.toEmail = target;
+                const saved = await ParticipantMeetingChatModel.create(doc);
+                emitNew(socket.id, saved.toObject());
+                emitToModeratorsInSession(sessionId, "chat:new", {
+                  scope,
+                  message: saved.toObject(),
+                });
+                const targetId = emailIndex.get(sessionId)?.get(target);
+                if (targetId) emitNew(targetId, saved.toObject());
+                return ack?.({ ok: true });
+              }
+            }
+            case "meeting_mod_dm": {
+              if (!(role === "Moderator" || role === "Admin"))
+                return ack?.({ ok: false, error: "forbidden" });
+              const target = (payload.toEmail || "").toLowerCase();
+              if (!target)
+                return ack?.({ ok: false, error: "toEmail_required" });
+              const saved = await ParticipantMeetingChatModel.create({
+                sessionId: liveId,
+                email,
+                senderName: name || email,
+                role: "Moderator",
+                content,
+                timestamp: now,
+                scope,
+                toEmail: target,
+              });
+              emitNew(socket.id, saved.toObject());
+              const targetId = emailIndex.get(sessionId)?.get(target);
+              if (targetId) emitNew(targetId, saved.toObject());
+              return ack?.({ ok: true });
+            }
+            case "observer_wait_group": {
+              if (role !== "Observer")
+                return ack?.({ ok: false, error: "forbidden" });
+              const saved = await ObserverWaitingRoomChatModel.create({
+                sessionId: liveId,
+                email,
+                senderName: name || email,
+                role: "Observer",
+                content,
+                timestamp: now,
+                scope,
+              });
+              io.to(rooms.observer).emit("chat:new", {
+                scope,
+                message: saved.toObject(),
+              });
+              return ack?.({ ok: true });
+            }
+            case "observer_wait_dm": {
+              if (role !== "Observer")
+                return ack?.({ ok: false, error: "forbidden" });
+              const target = (payload.toEmail || "").toLowerCase();
+              if (!target)
+                return ack?.({ ok: false, error: "toEmail_required" });
+              const saved = await ObserverWaitingRoomChatModel.create({
+                sessionId: liveId,
+                email,
+                senderName: name || email,
+                role: "Observer",
+                content,
+                timestamp: now,
+                scope,
+                toEmail: target,
+              });
+              emitNew(socket.id, saved.toObject());
+              const targetId = emailIndex.get(sessionId)?.get(target);
+              if (targetId) emitNew(targetId, saved.toObject());
+              return ack?.({ ok: true });
+            }
+            case "stream_group": {
+              if (
+                !(
+                  role === "Observer" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              const saved = await (
+                ObsGroupMsgNamed || ObserverGroupMessageModel
+              ).create({
+                sessionId: liveId,
+                senderEmail: email,
+                name: name || email,
+                content,
+                scope,
+              });
+              io.to(rooms.observer).emit("chat:new", {
+                scope,
+                message: saved.toObject(),
+              });
+              return ack?.({ ok: true });
+            }
+            case "stream_dm_obs_obs": {
+              if (role !== "Observer")
+                return ack?.({ ok: false, error: "forbidden" });
+              const target = (payload.toEmail || "").toLowerCase();
+              if (!target)
+                return ack?.({ ok: false, error: "toEmail_required" });
+              const saved = await ObserverWaitingRoomChatModel.create({
+                sessionId: liveId,
+                email,
+                senderName: name || email,
+                role: "Observer",
+                content,
+                timestamp: now,
+                scope,
+                toEmail: target,
+              });
+              emitNew(socket.id, saved.toObject());
+              const targetId = emailIndex.get(sessionId)?.get(target);
+              if (targetId) emitNew(targetId, saved.toObject());
+              return ack?.({ ok: true });
+            }
+            case "stream_dm_obs_mod": {
+              if (
+                !(
+                  role === "Observer" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              const target = (payload.toEmail || "").toLowerCase();
+              if (!target)
+                return ack?.({ ok: false, error: "toEmail_required" });
+              const saved = await ObserverWaitingRoomChatModel.create({
+                sessionId: liveId,
+                email,
+                senderName: name || email,
+                role: role === "Observer" ? "Observer" : "Moderator",
+                content,
+                timestamp: now,
+                scope,
+                toEmail: target,
+              });
+              emitNew(socket.id, saved.toObject());
+              const targetId = emailIndex.get(sessionId)?.get(target);
+              if (targetId) emitNew(targetId, saved.toObject());
+              return ack?.({ ok: true });
+            }
+            default:
+              return ack?.({ ok: false, error: "unknown_scope" });
+          }
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    socket.on(
+      "chat:history:get",
+      async (
+        payload: ChatHistoryPayload,
+        ack?: (r: { items: any[] }) => void
+      ) => {
+        try {
+          const { scope, thread, limit } =
+            payload || ({} as ChatHistoryPayload);
+          const liveId = await ensureLiveIdFor(sessionId);
+          const lim = Math.max(1, Math.min(200, Number(limit) || 50));
+
+          const toObj = (docs: any[]) =>
+            docs.map((d) =>
+              typeof d.toObject === "function" ? d.toObject() : d
+            );
+
+          switch (scope) {
+            case "meeting_group": {
+              const items = await (GroupMsgNamed || GroupMessageModel)
+                .find({ sessionId: liveId, scope })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              return ack?.({ items });
+            }
+            case "observer_wait_group": {
+              const items = await ObserverWaitingRoomChatModel.find({
+                sessionId: liveId,
+                scope,
+              })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              return ack?.({ items });
+            }
+            case "stream_group": {
+              const items = await (
+                ObsGroupMsgNamed || ObserverGroupMessageModel
+              )
+                .find({ sessionId: liveId, scope })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              return ack?.({ items });
+            }
+            case "waiting_dm": {
+              // Combine participant→__moderators__ and moderator→participant
+              const user = (thread?.withEmail || email || "").toLowerCase();
+              const items = await ParticipantWaitingRoomChatModel.find({
+                sessionId: liveId,
+                scope,
+                $or: [
+                  { email: user, toEmail: "__moderators__" },
+                  { toEmail: user },
+                ],
+              })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              return ack?.({ items });
+            }
+            case "meeting_dm": {
+              const user = (thread?.withEmail || email || "").toLowerCase();
+              const items = await ParticipantMeetingChatModel.find({
+                sessionId: liveId,
+                scope,
+                $or: [
+                  { email: user, toEmail: "__moderators__" },
+                  { toEmail: user },
+                ],
+              })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              return ack?.({ items });
+            }
+            case "meeting_mod_dm": {
+              const peer = (thread?.withEmail || "").toLowerCase();
+              if (!peer) return ack?.({ items: [] });
+              const me = (email || "").toLowerCase();
+              const items = await ParticipantMeetingChatModel.find({
+                sessionId: liveId,
+                scope,
+                $or: [
+                  { email: me, toEmail: peer },
+                  { email: peer, toEmail: me },
+                ],
+              })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              return ack?.({ items });
+            }
+            case "observer_wait_dm":
+            case "stream_dm_obs_obs":
+            case "stream_dm_obs_mod": {
+              const peer = (thread?.withEmail || "").toLowerCase();
+              if (!peer) return ack?.({ items: [] });
+              const me = (email || "").toLowerCase();
+              const items = await ObserverWaitingRoomChatModel.find({
+                sessionId: liveId,
+                scope,
+                $or: [
+                  { email: me, toEmail: peer },
+                  { email: peer, toEmail: me },
+                ],
+              })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              return ack?.({ items });
+            }
+            default:
+              return ack?.({ items: [] });
+          }
+        } catch {
+          return ack?.({ items: [] });
+        }
+      }
+    );
 
     // Client will tell us their LiveKit identity after joining the room.
     socket.on(
@@ -665,6 +1147,13 @@ export function attachSocket(server: HTTPServer) {
         }
         emitObserverCount();
         emitObserverList();
+      }
+      if (["Moderator", "Admin"].includes(role)) {
+        const set = moderatorSockets.get(sessionId);
+        if (set) {
+          set.delete(socket.id);
+          if (set.size === 0) moderatorSockets.delete(sessionId);
+        }
       }
     });
   });

@@ -5,6 +5,11 @@ import { useParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { SOCKET_URL } from "constant/socket";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+import { Input } from "components/ui/input";
+import { Button } from "components/ui/button";
+import { MessageSquare, Send, X } from "lucide-react";
+import useChat from "hooks/useChat";
 
 type WaitingUser = {
   name: string;
@@ -23,6 +28,18 @@ export default function ModeratorWaitingPanel() {
   const [waiting, setWaiting] = useState<WaitingUser[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const joinedRef = useRef(false);
+  const [, setActiveTab] = useState<"list" | "chat">("list");
+  const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
+  const [chatText, setChatText] = useState("");
+  const chatListRef = useRef<HTMLDivElement | null>(null);
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+
+  // Calculate total unread count for the tab badge
+  const totalUnreadCount = Object.values(unreadMap).reduce(
+    (sum, count) => sum + count,
+    0
+  );
+  const prevLenRef = useRef<number>(0);
   // Toasts handled globally in meeting page; keep only local list state here
 
   // For demo: “me” as Moderator (in prod, JWT-protected page)
@@ -79,11 +96,64 @@ export default function ModeratorWaitingPanel() {
     socketRef.current?.emit("waiting:admitAll");
   };
 
-  // Hide the panel entirely if there is no one in the waiting room
+  const { send, getHistory, messagesByScope } = useChat({
+    socket: socketRef.current,
+    sessionId: String(sessionId || ""),
+    my: { email: me.email, name: me.name, role: "Moderator" },
+  });
+
+  useEffect(() => {
+    if (!selectedEmail) return;
+    getHistory("waiting_dm", { withEmail: selectedEmail.toLowerCase() });
+    // reset unread for this thread when opened
+    setUnreadMap((prev) => ({ ...prev, [selectedEmail.toLowerCase()]: 0 }));
+  }, [selectedEmail, getHistory]);
+
+  useEffect(() => {
+    if (chatListRef.current)
+      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesByScope["waiting_dm"]?.length, selectedEmail]);
+
+  const onSendChat = async () => {
+    if (!selectedEmail) return;
+    const t = chatText.trim();
+    if (!t) return;
+    const ack = await send("waiting_dm", t, selectedEmail.toLowerCase());
+    if (ack.ok) setChatText("");
+  };
+
+  // Track unread per participant and auto-select latest active thread if none selected
+  useEffect(() => {
+    const arr = messagesByScope["waiting_dm"] || [];
+    const prevLen = prevLenRef.current || 0;
+    if (arr.length > prevLen) {
+      const newItems = arr.slice(prevLen);
+      for (const m of newItems) {
+        const sender = (m.email || m.senderEmail || "").toLowerCase();
+        const to = (m.toEmail || "").toLowerCase();
+        const peer = to === "__moderators__" || !to ? sender : to;
+        if (!selectedEmail || selectedEmail.toLowerCase() !== peer) {
+          setUnreadMap((prev) => ({ ...prev, [peer]: (prev[peer] || 0) + 1 }));
+        }
+      }
+      prevLenRef.current = arr.length;
+    } else if (arr.length < prevLen) {
+      prevLenRef.current = arr.length;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesByScope["waiting_dm"]?.length]);
+
+  function openChat(emailLower: string) {
+    setSelectedEmail(emailLower);
+    setUnreadMap((prev) => ({ ...prev, [emailLower]: 0 }));
+  }
+
+  // Hide panel entirely if empty
   if (waiting.length === 0) return null;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 bg-custom-gray-2 rounded-lg p-2 max-h-[30vh] overflow-y-auto">
+    <div className="max-w-3xl mx-auto space-y-2 bg-custom-gray-2 rounded-lg p-2 max-h-[30vh] overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-sm font-semibold">Waiting ({waiting.length})</h1>
         <button
@@ -94,38 +164,187 @@ export default function ModeratorWaitingPanel() {
         </button>
       </div>
 
-      <div className="rounded-xl divide-y">
-        {waiting.length === 0 ? (
-          <div className="p-4 text-sm text-muted-foreground">
-            No one is waiting.
+      <Tabs
+        defaultValue="list"
+        onValueChange={(v) => setActiveTab(v as "list" | "chat")}
+      >
+        <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
+          <TabsTrigger
+            value="list"
+            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+          >
+            Waiting List
+          </TabsTrigger>
+          <TabsTrigger
+            value="chat"
+            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
+          >
+            Waiting Chat
+            {totalUnreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
+                {totalUnreadCount}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="min-h-0 overflow-y-auto">
+          <div className="rounded-xl divide-y max-h-[22vh] overflow-y-auto">
+            {waiting.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">
+                No one is waiting.
+              </div>
+            ) : (
+              waiting.map((u) => (
+                <div
+                  key={u.email}
+                  className="p-3 flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">
+                      {u.name || u.email}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
+                      onClick={() => admit(u.email, u.name || u.email)}
+                    >
+                      Admit
+                    </button>
+                    <button
+                      className="bg-custom-dark-blue-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
+                      onClick={() => remove(u.email, u.name || u.email)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        ) : (
-          waiting.map((u) => (
-            <div
-              key={u.email}
-              className="p-4 flex items-center justify-between"
-            >
-              <div>
-                <div className="font-medium">{u.name}</div>
+        </TabsContent>
+
+        <TabsContent value="chat" className="min-h-0">
+          <div className="h-[24vh]">
+            {!selectedEmail && (
+              <div className="rounded bg-white overflow-y-auto h-full">
+                {waiting.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-500">
+                    No one is waiting.
+                  </div>
+                ) : (
+                  waiting.map((u) => {
+                    const label = u.name || u.email;
+                    const isActive =
+                      selectedEmail &&
+                      selectedEmail.toLowerCase() === u.email.toLowerCase();
+                    return (
+                      <div
+                        key={u.email}
+                        className={`px-3 py-2 flex items-center justify-between gap-2 border-b ${
+                          isActive ? "bg-custom-gray-2" : ""
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {label}
+                          </div>
+                          <div className="text-[11px] text-gray-500 truncate">
+                            {u.email}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                          aria-label={`Open chat with ${label}`}
+                          onClick={() => openChat(u.email.toLowerCase())}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </button>
+                        {unreadMap[u.email.toLowerCase()] ? (
+                          <span className="ml-1 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
+                            {unreadMap[u.email.toLowerCase()]}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              <div className="flex items-center justify-between  gap-2">
-                <button
-                  className="bg-custom-orange-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
-                  onClick={() => admit(u.email, u.name || u.email)}
-                >
-                  Admit
-                </button>
-                <button
-                  className="bg-custom-dark-blue-1 text-sm text-white rounded-lg px-3 py-1 cursor-pointer"
-                  onClick={() => remove(u.email, u.name || u.email)}
-                >
-                  Remove
-                </button>
+            )}
+            {selectedEmail && (
+              <div className="rounded bg-white flex flex-col h-full">
+                <>
+                  <div ref={chatListRef} className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-1 text-sm">
+                      {(messagesByScope["waiting_dm"] || [])
+                        .filter((m) =>
+                          selectedEmail
+                            ? (m.toEmail || "") === selectedEmail ||
+                              (m.email || "").toLowerCase() === selectedEmail
+                            : true
+                        )
+                        .map((m, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+                            <div className="min-w-0">
+                              <div className="text-[12px] text-gray-600">
+                                <span className="font-medium text-gray-900">
+                                  {m.senderName ||
+                                    m.name ||
+                                    m.email ||
+                                    m.senderEmail ||
+                                    ""}
+                                </span>
+                                <span className="ml-2 text-[11px] text-gray-400">
+                                  {new Date(
+                                    String(m.timestamp)
+                                  ).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <div className="whitespace-pre-wrap text-sm">
+                                {m.content}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                  <div className="p-2 flex items-center gap-2 border-t">
+                    <Input
+                      value={chatText}
+                      onChange={(e) => setChatText(e.target.value)}
+                      placeholder={`Message ${selectedEmail}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          onSendChat();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={onSendChat}
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelectedEmail(null)}
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
