@@ -8,6 +8,7 @@ import { Button } from "components/ui/button";
 import { Send } from "lucide-react";
 import { Badge } from "components/ui/badge";
 import useChat, { ChatScope, ChatMessage } from "hooks/useChat";
+import { formatDisplayName } from "lib/utils";
 
 export default function ParticipantChatPanel({
   socket,
@@ -222,7 +223,8 @@ export default function ParticipantChatPanel({
 }
 
 function renderItem(m: ChatMessage, i: number) {
-  const label = m.senderName || m.name || m.email || m.senderEmail || "";
+  const raw = m.senderName || m.name || m.email || m.senderEmail || "";
+  const label = raw.includes("@") ? raw : formatDisplayName(raw);
   const when = new Date(String(m.timestamp)).toLocaleTimeString();
   const content = m.content;
   const role = m.role || "Moderator";

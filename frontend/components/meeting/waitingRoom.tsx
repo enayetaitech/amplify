@@ -10,6 +10,7 @@ import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { MessageSquare, Send, X } from "lucide-react";
 import useChat from "hooks/useChat";
+import { formatDisplayName } from "lib/utils";
 
 type WaitingUser = {
   name: string;
@@ -202,7 +203,7 @@ export default function ModeratorWaitingPanel() {
                 >
                   <div className="min-w-0">
                     <div className="font-medium truncate">
-                      {u.name || u.email}
+                      {u.name ? formatDisplayName(u.name) : u.email}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -235,7 +236,7 @@ export default function ModeratorWaitingPanel() {
                   </div>
                 ) : (
                   waiting.map((u) => {
-                    const label = u.name || u.email;
+                    const label = u.name ? formatDisplayName(u.name) : u.email;
                     const isActive =
                       selectedEmail &&
                       selectedEmail.toLowerCase() === u.email.toLowerCase();
@@ -291,11 +292,17 @@ export default function ModeratorWaitingPanel() {
                             <div className="min-w-0">
                               <div className="text-[12px] text-gray-600">
                                 <span className="font-medium text-gray-900">
-                                  {m.senderName ||
-                                    m.name ||
-                                    m.email ||
-                                    m.senderEmail ||
-                                    ""}
+                                  {(() => {
+                                    const raw =
+                                      m.senderName ||
+                                      m.name ||
+                                      m.email ||
+                                      m.senderEmail ||
+                                      "";
+                                    return raw.includes("@")
+                                      ? raw
+                                      : formatDisplayName(raw);
+                                  })()}
                                 </span>
                                 <span className="ml-2 text-[11px] text-gray-400">
                                   {new Date(

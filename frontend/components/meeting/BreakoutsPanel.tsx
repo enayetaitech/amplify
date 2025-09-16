@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "lib/api";
 import { Button } from "../ui/button";
+import { formatDisplayName } from "lib/utils";
 import { UiRole } from "../../constant/roles";
 import { toast } from "sonner";
 import { io, Socket } from "socket.io-client";
@@ -293,7 +294,7 @@ export default function BreakoutsPanel({
           >
             {participants.map((p) => (
               <option key={p.identity} value={p.identity}>
-                {p.name}
+                {p.name ? formatDisplayName(p.name) : p.identity}
               </option>
             ))}
           </select>

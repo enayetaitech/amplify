@@ -22,6 +22,7 @@ import useChat from "hooks/useChat";
 import { Input } from "components/ui/input";
 import { Badge } from "components/ui/badge";
 import { toast } from "sonner";
+import { formatDisplayName } from "lib/utils";
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 
@@ -125,7 +126,8 @@ export default function ParticipantsPanel({
       return e.toLowerCase() === selectedParticipant;
     });
     const nm = match?.name || "";
-    return nm || selectedParticipant;
+    const formatted = nm ? formatDisplayName(nm) : "";
+    return formatted || selectedParticipant;
   }, [selectedParticipant, remotes]);
 
   const { send, getHistory, messagesByScope } = useChat({
@@ -333,7 +335,7 @@ export default function ParticipantsPanel({
               const identity: string = p.identity || "";
               const name: string = p.name || "";
               const email = emailFromParticipant(p);
-              const label = name || email || identity;
+              const label = name ? formatDisplayName(name) : email || identity;
 
               const micPub = p.getTrackPublication
                 ? p.getTrackPublication(Track.Source.Microphone)
@@ -521,7 +523,9 @@ export default function ParticipantsPanel({
                       </div>
                       {remotes.map((p) => {
                         const email = participantEmail(p);
-                        const name = p.name || email || p.identity || "Unknown";
+                        const name = p.name
+                          ? formatDisplayName(p.name)
+                          : email || p.identity || "Unknown";
                         const unread = email
                           ? participantUnreadMap[email.toLowerCase()] || 0
                           : 0;

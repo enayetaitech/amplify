@@ -6,6 +6,7 @@ import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Send } from "lucide-react";
 import useChat, { ChatMessage, ChatScope } from "hooks/useChat";
+import { formatDisplayName } from "lib/utils";
 
 export default function ParticipantWaitingDm({
   socket,
@@ -91,7 +92,8 @@ export default function ParticipantWaitingDm({
 }
 
 function MessageItem({ m }: { m: ChatMessage }) {
-  const label = m.senderName || m.name || m.email || m.senderEmail || "";
+  const raw = m.senderName || m.name || m.email || m.senderEmail || "";
+  const label = raw.includes("@") ? raw : formatDisplayName(raw);
   const when = new Date(String(m.timestamp)).toLocaleTimeString();
   return (
     <div className="flex items-start gap-2">
