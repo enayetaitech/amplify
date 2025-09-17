@@ -23,6 +23,6 @@ services:
     depends_on:
       - backend-server
     env_file:
-      - ../frontend/.env.prod
+      - ../frontend/.env.production
     restart: unless-stopped
     # No volumes and no dev command in production - uses built production app
