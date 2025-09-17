@@ -15,6 +15,7 @@ import {
   Send,
   X,
 } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { Track } from "livekit-client";
 import type { Socket } from "socket.io-client";
 import type { UiRole } from "constant/roles";
@@ -119,6 +120,7 @@ export default function ParticipantsPanel({
   const [showGroupChat, setShowGroupChat] = useState(false);
   const [groupChatText, setGroupChatText] = useState("");
   const [lastReadGroupCount, setLastReadGroupCount] = useState(0);
+  const [openActionFor, setOpenActionFor] = useState<string | null>(null);
   const selectedParticipantDisplayName = useMemo(() => {
     if (!selectedParticipant) return "";
     const match = remotes.find((p) => {
@@ -479,6 +481,47 @@ export default function ParticipantsPanel({
                         </Button>
                       );
                     })()}
+                    {/* three-dots menu */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                        aria-label={`Open actions for ${label}`}
+                        title={`Open actions for ${label}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenActionFor((prev) =>
+                            prev === identity ? null : identity
+                          );
+                        }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                      {openActionFor === identity && (
+                        <div className="absolute right-0 mt-1 w-44 rounded-md bg-white border shadow-md z-40 p-1">
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100"
+                            onClick={() => {
+                              toast.success("Move to waiting room clicked");
+                              setOpenActionFor(null);
+                            }}
+                          >
+                            Move to waiting room
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 text-red-600"
+                            onClick={() => {
+                              toast.success("Remove from meeting clicked");
+                              setOpenActionFor(null);
+                            }}
+                          >
+                            Remove from meeting
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
