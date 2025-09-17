@@ -32,6 +32,6 @@ services:
       - ../frontend:/app/frontend
       - /app/frontend/node_modules
     env_file:
-      - ../frontend/.env.prod
+      - ../frontend/.env.production
     command: npm run dev -- -p 8979
 
