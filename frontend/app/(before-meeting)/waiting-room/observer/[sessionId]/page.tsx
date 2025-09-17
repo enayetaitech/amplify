@@ -262,6 +262,24 @@ export default function ObserverWaitingRoom() {
                         className="h-[36vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
+                          {/* Group chat row (before participant names) */}
+                          <div className="flex items-center justify-between gap-2 rounded px-2 py-1">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate">
+                                Group Chat
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                              aria-label="Open group chat"
+                              title="Open group chat"
+                              onClick={() => toast("Group chat clicked")}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </button>
+                          </div>
+
                           {observerList.filter(
                             (o) => (o.email || "") !== meEmail
                           ).length === 0 ? (
