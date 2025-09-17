@@ -23,9 +23,10 @@ interface FailedQueueItem {
 const AUTH_ROUTES_REGEX = [
   /\/api\/v1\/auth\/(login|register|forgot-password|reset-password)$/,
   /\/api\/v1\/users\/login$/, // 👈  your current login URL
+  /\/api\/v1\/waiting-room\/enqueue$/,
 ];
 
-const REFRESH_ENDPOINT = "/api/v1/auth/refreshToken";
+const REFRESH_ENDPOINT = "/api/v1/users/refreshToken";
 
 const isAuthRoute = (url?: string): boolean =>
   AUTH_ROUTES_REGEX.some((re) => re.test(url ?? ""));

@@ -5,6 +5,9 @@ import { useCallback } from "react";
 import axios from "axios";
 import api from "lib/api";
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() || "https://amplifyre.shop";
+
 type TryGetSessionResponse = {
   _id: string;
   projectId: string | { _id: string };
@@ -13,8 +16,9 @@ type TryGetSessionResponse = {
 export function useResolveParticipantSession() {
   const tryGetSession = useCallback(async (projectOrSessionId: string) => {
     try {
-      const res = await api.get<{ data: TryGetSessionResponse }>(
-        `/api/v1/sessions/${projectOrSessionId}`
+      const res = await axios.get<{ data: TryGetSessionResponse }>(
+        `${BASE_URL}/api/v1/sessions/${projectOrSessionId}`,
+        { withCredentials: true }
       );
       return {
         sessionId: res.data.data._id,
