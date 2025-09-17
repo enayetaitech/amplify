@@ -124,6 +124,7 @@ export default function ParticipantsPanel({
     Record<string, number>
   >({});
   const chatListRef = useRef<HTMLDivElement | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const [lastReadCount, setLastReadCount] = useState<Record<string, number>>(
     {}
   );
@@ -211,6 +212,26 @@ export default function ParticipantsPanel({
     }
   }, [showGroupChat, groupLen]);
   const unreadGroup = Math.max(0, groupLen - lastReadGroupCount);
+
+  // Close the open actions menu when clicking/touching outside of it
+  useEffect(() => {
+    const onOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (!openActionFor) return;
+      const el = actionMenuRef.current;
+      if (!el) return;
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (!el.contains(target)) {
+        setOpenActionFor(null);
+      }
+    };
+    document.addEventListener("mousedown", onOutsideClick);
+    document.addEventListener("touchstart", onOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", onOutsideClick);
+      document.removeEventListener("touchstart", onOutsideClick);
+    };
+  }, [openActionFor]);
 
   const countIncomingFrom = (participantEmailLower: string): number => {
     const dm = messagesByScope["meeting_dm"] || [];
@@ -518,7 +539,10 @@ export default function ParticipantsPanel({
                         <MoreVertical className="h-4 w-4" />
                       </button>
                       {openActionFor === identity && (
-                        <div className="absolute right-0 mt-1 w-44 rounded-md bg-white border shadow-md z-40 p-1">
+                        <div
+                          ref={actionMenuRef}
+                          className="absolute right-0 mt-1 w-44 rounded-md bg-white border shadow-md z-40 p-1"
+                        >
                           <button
                             type="button"
                             className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 cursor-pointer"
