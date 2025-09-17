@@ -22,6 +22,16 @@ import type { UiRole } from "constant/roles";
 import useChat from "hooks/useChat";
 import { Input } from "components/ui/input";
 import { Badge } from "components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatDisplayName } from "lib/utils";
 
@@ -121,6 +131,16 @@ export default function ParticipantsPanel({
   const [groupChatText, setGroupChatText] = useState("");
   const [lastReadGroupCount, setLastReadGroupCount] = useState(0);
   const [openActionFor, setOpenActionFor] = useState<string | null>(null);
+  // confirmation dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"move" | "remove" | null>(
+    null
+  );
+  const [confirmTarget, setConfirmTarget] = useState<{
+    email?: string | null;
+    identity?: string | null;
+    label?: string | null;
+  } | null>(null);
   const selectedParticipantDisplayName = useMemo(() => {
     if (!selectedParticipant) return "";
     const match = remotes.find((p) => {
@@ -501,9 +521,16 @@ export default function ParticipantsPanel({
                         <div className="absolute right-0 mt-1 w-44 rounded-md bg-white border shadow-md z-40 p-1">
                           <button
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100"
+                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 cursor-pointer"
                             onClick={() => {
-                              toast.success("Move to waiting room clicked");
+                              // open confirm dialog for move
+                              setConfirmAction("move");
+                              setConfirmTarget({
+                                email: email || null,
+                                identity: identity || null,
+                                label,
+                              });
+                              setConfirmOpen(true);
                               setOpenActionFor(null);
                             }}
                           >
@@ -511,9 +538,16 @@ export default function ParticipantsPanel({
                           </button>
                           <button
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 text-red-600"
+                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 text-red-600 cursor-pointer"
                             onClick={() => {
-                              toast.success("Remove from meeting clicked");
+                              // open confirm dialog for remove
+                              setConfirmAction("remove");
+                              setConfirmTarget({
+                                email: email || null,
+                                identity: identity || null,
+                                label,
+                              });
+                              setConfirmOpen(true);
                               setOpenActionFor(null);
                             }}
                           >
@@ -522,6 +556,96 @@ export default function ParticipantsPanel({
                         </div>
                       )}
                     </div>
+                    {/* Confirm dialog */}
+                    <AlertDialog
+                      open={confirmOpen}
+                      onOpenChange={setConfirmOpen}
+                    >
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {confirmAction === "move"
+                              ? `Move ${
+                                  confirmTarget?.label || "participant"
+                                } to waiting room?`
+                              : `Remove ${
+                                  confirmTarget?.label || "participant"
+                                } from meeting?`}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {confirmAction === "move"
+                              ? "This will move the participant to the waiting room. Are you sure you want to do this?"
+                              : "This will remove the participant from the meeting. Are you sure you want to do this?"}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel
+                            onClick={() => {
+                              setConfirmAction(null);
+                              setConfirmTarget(null);
+                            }}
+                          >
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              if (!confirmAction || !confirmTarget) return;
+                              const payload = confirmTarget.email
+                                ? { targetEmail: confirmTarget.email }
+                                : { targetIdentity: confirmTarget.identity };
+                              if (confirmAction === "move") {
+                                if (!socket) {
+                                  toast.error("Not connected");
+                                  setConfirmOpen(false);
+                                  return;
+                                }
+                                socket.emit(
+                                  "meeting:participant:move-to-waiting",
+                                  payload,
+                                  (ack?: { ok?: boolean; error?: string }) => {
+                                    if (ack?.ok)
+                                      toast.success("Moved to waiting room");
+                                    else
+                                      toast.error(
+                                        ack?.error || "Failed to move"
+                                      );
+                                    setConfirmOpen(false);
+                                    setConfirmAction(null);
+                                    setConfirmTarget(null);
+                                  }
+                                );
+                                return;
+                              }
+                              if (confirmAction === "remove") {
+                                if (!socket) {
+                                  toast.error("Not connected");
+                                  setConfirmOpen(false);
+                                  return;
+                                }
+                                socket.emit(
+                                  "meeting:participant:remove",
+                                  payload,
+                                  (ack?: { ok?: boolean; error?: string }) => {
+                                    if (ack?.ok)
+                                      toast.success("Participant removed");
+                                    else
+                                      toast.error(
+                                        ack?.error || "Failed to remove"
+                                      );
+                                    setConfirmOpen(false);
+                                    setConfirmAction(null);
+                                    setConfirmTarget(null);
+                                  }
+                                );
+                                return;
+                              }
+                            }}
+                          >
+                            Confirm
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               );
