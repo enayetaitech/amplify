@@ -80,38 +80,39 @@ export default function ObserverWaitingRoom() {
   return (
     <div className="min-h-screen dashboard_sidebar_bg">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 lg:px-8 py-4">
-        <div className="items-center gap-3 hidden lg:flex">
-          <Video />
-          <span className="text-sm">Observation Room</span>
-          <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
-            Observer View
-          </span>
-        </div>
-        {/* <div className="text-center hidden lg:block">
-          <h1 className="text-lg lg:text-xl font-semibold tracking-wide">
-            MEETING 01 - PROJECT NAME
-          </h1>
-        </div> */}
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setIsChatOpen(true)}
-          >
-            <MessageSquare className="h-5 w-5" />
-          </Button>
-          <Logo />
-        </div>
-      </div>
 
       <div className="flex">
         {/* Main */}
         <main className="flex-1 px-4 lg:px-8 pb-10 w-full">
           {/* Desktop toggle when sidebar hidden */}
+
+          <div className="flex items-center justify-between px-4 lg:px-8 py-2 ">
+            <div className="items-center gap-3 hidden lg:flex">
+              <Video />
+              <span className="text-sm">Observation Room</span>
+              <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+                Observer View
+              </span>
+            </div>
+            {/* <div className="text-center hidden lg:block">
+          <h1 className="text-lg lg:text-xl font-semibold tracking-wide">
+            MEETING 01 - PROJECT NAME
+          </h1>
+        </div> */}
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
+                onClick={() => setIsChatOpen(true)}
+              >
+                <MessageSquare className="h-5 w-5" />
+              </Button>
+              <Logo />
+            </div>
+          </div>
           {!isChatOpen && (
-            <div className="hidden lg:flex items-center gap-2 mb-3 justify-end">
+            <div className="hidden lg:flex items-center gap-2 mb-3 justify-end ">
               <Button
                 variant="outline"
                 size="sm"
@@ -121,7 +122,6 @@ export default function ObserverWaitingRoom() {
               </Button>
             </div>
           )}
-
           <div className=" rounded-xl bg-white p-4 lg:p-6">
             <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center">
               <p className="text-center text-slate-700">
@@ -133,8 +133,8 @@ export default function ObserverWaitingRoom() {
 
         {/* Sidebar (desktop right) */}
         {isChatOpen && (
-          <aside className="hidden lg:flex w-[320px] shrink-0 h-[calc(100vh-80px)] sticky top-0">
-            <div className="bg-white w-full flex flex-col">
+          <aside className="hidden lg:flex w-[320px] shrink-0 h-[100vh]  sticky top-0">
+            <div className="bg-white w-full flex flex-col rounded-l-2xl h-full ">
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="text-sm font-semibold tracking-wide">
                   Observation Room Chat
