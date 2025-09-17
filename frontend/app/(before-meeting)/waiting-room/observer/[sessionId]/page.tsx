@@ -83,7 +83,7 @@ export default function ObserverWaitingRoom() {
       <div className="flex items-center justify-between px-4 lg:px-8 py-4">
         <div className="items-center gap-3 hidden lg:flex">
           <Video />
-          <span className="text-sm">Waiting Room</span>
+          <span className="text-sm">Observation Room</span>
           <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
             Observer View
           </span>
@@ -137,7 +137,7 @@ export default function ObserverWaitingRoom() {
             <div className="bg-white w-full flex flex-col">
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="text-sm font-semibold tracking-wide">
-                  WAITING ROOM CHAT
+                  Observation Room Chat
                 </h3>
                 <Button
                   variant="ghost"
@@ -172,7 +172,7 @@ export default function ObserverWaitingRoom() {
       >
         <SheetContent side="right" className="p-0 w-[90%] sm:max-w-sm">
           <SheetHeader className="px-4 py-3 border-b">
-            <SheetTitle>WAITING ROOM CHAT</SheetTitle>
+            <SheetTitle>Observation Room Chat</SheetTitle>
           </SheetHeader>
           <div className="p-2">
             <ObserverChatPanel

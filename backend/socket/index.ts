@@ -25,6 +25,7 @@ import {
   startHlsEgress,
   stopHlsEgress,
 } from "../processors/livekit/livekitService";
+import BreakoutRoom from "../model/BreakoutRoom";
 import { SessionModel } from "../model/SessionModel";
 import { LiveSessionModel } from "../model/LiveSessionModel";
 import { ParticipantWaitingRoomChatModel } from "../model/ParticipantWaitingRoomChatModel";
@@ -713,6 +714,121 @@ export function attachSocket(server: HTTPServer) {
     );
 
     // ===== Moderator actions =====
+    // Move participant to a breakout (socket-based)
+    socket.on(
+      "meeting:participant:move-to-breakout",
+      async (
+        payload: { identity?: string; toIndex?: number },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!(role === "Moderator" || role === "Admin")) {
+            return ack?.({ ok: false, error: "forbidden" });
+          }
+          const identity = (payload?.identity || "").trim();
+          const toIndexNum = Number(payload?.toIndex || 0);
+          if (!identity)
+            return ack?.({ ok: false, error: "identity_required" });
+          if (!toIndexNum || toIndexNum < 1)
+            return ack?.({ ok: false, error: "invalid_breakout_index" });
+
+          const bo = await BreakoutRoom.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+            index: toIndexNum,
+          }).lean();
+          if (!bo) return ack?.({ ok: false, error: "breakout_not_found" });
+
+          try {
+            await roomService.moveParticipant(
+              String(sessionId),
+              identity,
+              bo.livekitRoom
+            );
+          } catch (e: any) {
+            console.error("socket move-to-breakout failed", {
+              sessionId,
+              identity,
+              toRoom: bo.livekitRoom,
+              error: e?.message || e,
+            });
+            return ack?.({ ok: false, error: e?.message || "move_failed" });
+          }
+
+          // notify moderator panels to refresh lists
+          try {
+            io.to(String(sessionId)).emit("meeting:participants-changed", {});
+          } catch {}
+
+          // notify the moved participant (by LiveKit identity if registered)
+          try {
+            const sid = identityIndex
+              .get(sessionId)
+              ?.get(identity.toLowerCase());
+            if (sid) {
+              io.to(sid).emit("breakout:moved", {
+                index: toIndexNum,
+              });
+            }
+          } catch {}
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Move participant back to main (socket-based)
+    socket.on(
+      "meeting:participant:move-to-main",
+      async (
+        payload: { identity?: string; fromIndex?: number },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!(role === "Moderator" || role === "Admin")) {
+            return ack?.({ ok: false, error: "forbidden" });
+          }
+          const identity = (payload?.identity || "").trim();
+          const fromIndexNum = Number(payload?.fromIndex || 0);
+          if (!identity)
+            return ack?.({ ok: false, error: "identity_required" });
+          if (!fromIndexNum || fromIndexNum < 1)
+            return ack?.({ ok: false, error: "invalid_breakout_index" });
+
+          const bo = await BreakoutRoom.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+            index: fromIndexNum,
+          }).lean();
+          if (!bo) return ack?.({ ok: false, error: "breakout_not_found" });
+
+          try {
+            await roomService.moveParticipant(
+              bo.livekitRoom,
+              identity,
+              String(sessionId)
+            );
+          } catch (e: any) {
+            console.error("socket move-to-main failed", {
+              sessionId,
+              identity,
+              fromRoom: bo.livekitRoom,
+              error: e?.message || e,
+            });
+            return ack?.({ ok: false, error: e?.message || "move_failed" });
+          }
+
+          // notify moderator panels to refresh lists
+          try {
+            io.to(String(sessionId)).emit("meeting:participants-changed", {});
+          } catch {}
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
     socket.on("waiting:admit", async ({ email }: { email: string }) => {
       if (!["Moderator", "Admin"].includes(role)) return;
       const state = await admitByEmail(sessionId, email);
@@ -766,6 +882,160 @@ export function attachSocket(server: HTTPServer) {
           reason: "Removed by moderator",
         });
     });
+
+    // Move an active participant into the waiting room
+    socket.on(
+      "meeting:participant:move-to-waiting",
+      async (
+        payload: { targetEmail?: string; targetIdentity?: string },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!["Moderator", "Admin"].includes(role))
+            return ack?.({ ok: false, error: "forbidden" });
+
+          const email = (payload?.targetEmail || "").toLowerCase().trim();
+          const identity = (payload?.targetIdentity || "").trim();
+          if (!email && !identity)
+            return ack?.({ ok: false, error: "target_required" });
+
+          // Prefer email path when available
+          if (email) {
+            const live = await LiveSessionModel.findOne({ sessionId });
+            if (!live) return ack?.({ ok: false, error: "no_session" });
+
+            // remove from active participants list if present
+            const idx = (live.participantsList || []).findIndex(
+              (p) => (p.email || "").toLowerCase() === email
+            );
+            if (idx >= 0) {
+              const user = live.participantsList.splice(idx, 1)[0];
+              // push into waiting room
+              live.participantWaitingRoom = live.participantWaitingRoom || [];
+              live.participantWaitingRoom.push({
+                name: user.name || user.email,
+                email: user.email,
+                role: user.role || "Participant",
+                joinedAt: new Date(),
+              } as any);
+              await live.save();
+
+              // broadcast updated waiting list and participant change
+              try {
+                const state = await listState(sessionId);
+                io.to(rooms.waiting).emit("waiting:list", {
+                  participantsWaitingRoom: state.participantsWaitingRoom,
+                  observersWaitingRoom: state.observersWaitingRoom,
+                });
+                io.to(String(sessionId)).emit(
+                  "meeting:participants-changed",
+                  {}
+                );
+              } catch {}
+
+              // notify the participant socket if we can find it
+              const targetId = emailIndex.get(sessionId)?.get(email);
+              if (targetId) {
+                try {
+                  io.to(targetId).emit("meeting:moved-to-waiting", {
+                    reason: "Moved by moderator",
+                  });
+                } catch {}
+              }
+            }
+          } else if (identity) {
+            // Identity-only path: attempt to look up socket by identityIndex
+            const idLower = identity.toLowerCase();
+            const idMap = identityIndex.get(sessionId);
+            const targetId = idMap?.get(idLower);
+            if (targetId) {
+              try {
+                io.to(targetId).emit("meeting:moved-to-waiting", {
+                  reason: "Moved by moderator",
+                });
+              } catch {}
+            }
+            // Also update DB lists conservatively: try to find by emailIndex reverse mapping
+            // (best-effort; if not resolvable, the moderator UI will refresh lists via meeting:participants-changed)
+            try {
+              const state = await listState(sessionId);
+              io.to(rooms.waiting).emit("waiting:list", {
+                participantsWaitingRoom: state.participantsWaitingRoom,
+                observersWaitingRoom: state.observersWaitingRoom,
+              });
+              io.to(String(sessionId)).emit("meeting:participants-changed", {});
+            } catch {}
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Remove (kick) an active participant from the meeting
+    socket.on(
+      "meeting:participant:remove",
+      async (
+        payload: { targetEmail?: string; targetIdentity?: string },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!["Moderator", "Admin"].includes(role))
+            return ack?.({ ok: false, error: "forbidden" });
+
+          const email = (payload?.targetEmail || "").toLowerCase().trim();
+          const identity = (payload?.targetIdentity || "").trim();
+          if (!email && !identity)
+            return ack?.({ ok: false, error: "target_required" });
+
+          // Remove from DB participant lists if present
+          const live = await LiveSessionModel.findOne({ sessionId });
+          if (live) {
+            if (email) {
+              live.participantsList = (live.participantsList || []).filter(
+                (p) => (p.email || "").toLowerCase() !== email
+              ) as any;
+              live.participantWaitingRoom = (
+                live.participantWaitingRoom || []
+              ).filter((p) => (p.email || "").toLowerCase() !== email) as any;
+              await live.save();
+            }
+          }
+
+          // Notify panels to refresh
+          try {
+            io.to(String(sessionId)).emit("meeting:participants-changed", {});
+          } catch {}
+
+          // Find target socket and notify + disconnect
+          let targetId: string | undefined | null = undefined;
+          if (email) targetId = emailIndex.get(sessionId)?.get(email as string);
+          if (!targetId && identity)
+            targetId = identityIndex
+              .get(sessionId)
+              ?.get(identity.toLowerCase());
+          if (targetId) {
+            try {
+              io.to(targetId).emit("meeting:removed", {
+                reason: "Removed by moderator",
+              });
+            } catch {}
+            // attempt disconnect
+            try {
+              const sock = io.sockets.sockets.get(targetId as string) as any;
+              if (sock && typeof sock.disconnect === "function")
+                sock.disconnect(true);
+            } catch {}
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
 
     socket.on("waiting:admitAll", async () => {
       if (!["Moderator", "Admin"].includes(role)) return;

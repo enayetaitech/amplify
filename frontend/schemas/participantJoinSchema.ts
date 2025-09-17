@@ -7,21 +7,23 @@ import {
   emailChars,
 } from "./validators";
 
-const nameBase = z
-  .string()
-  .min(1, { message: "Name is required" })
-  .max(20, { message: "Must be 20 characters or fewer" })
-  .refine(noLeadingSpace, { message: "Cannot start with a space" })
-  .refine(noTrailingSpace, { message: "Cannot end with a space" })
-  .refine(noMultipleSpaces, { message: "No multiple spaces allowed" })
-  .refine(alphaSingleSpace, {
-    message: "Only letters and single spaces allowed",
-  });
+// Builder to create a name schema with a field-specific required message
+const buildNameSchema = (requiredMsg: string) =>
+  z
+    .string()
+    .min(1, { message: requiredMsg })
+    .max(20, { message: "Must be 20 characters or fewer" })
+    .refine(noLeadingSpace, { message: "Cannot start with a space" })
+    .refine(noTrailingSpace, { message: "Cannot end with a space" })
+    .refine(noMultipleSpaces, { message: "No multiple spaces allowed" })
+    .refine(alphaSingleSpace, {
+      message: "Only letters and single spaces allowed",
+    });
 
 export const participantJoinSchema = z
   .object({
-    firstName: nameBase,
-    lastName: nameBase,
+    firstName: buildNameSchema("First name is required"),
+    lastName: buildNameSchema("Last name is required"),
     email: z
       .string()
       .min(1, { message: "Email is required" })

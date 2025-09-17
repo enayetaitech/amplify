@@ -144,7 +144,7 @@ function LeaveMeetingButton({
         try {
           localStorage.removeItem("liveSessionUser");
         } catch {}
-        router.replace("/remove-participant");
+        router.replace("/participant-left");
       }
     } finally {
       setBusy(false);
@@ -365,6 +365,23 @@ export default function Meeting() {
       toast.info("Your camera was turned off by the host.");
     });
 
+    // Notify participant when moved to waiting
+    s.on("meeting:moved-to-waiting", () => {
+      try {
+        toast.info("You were moved to the waiting room by the host.");
+        // route them to waiting room (participant flow)
+        router.replace(`/waiting-room/participant/${sessionId}`);
+      } catch {}
+    });
+
+    // Participant removed (kicked)
+    s.on("meeting:removed", () => {
+      try {
+        toast.error("You were removed from the meeting by the host.");
+        router.replace(`/remove-participant`);
+      } catch {}
+    });
+
     // initial snapshot of observers
     s.emit(
       "observer:list:get",
@@ -386,7 +403,7 @@ export default function Meeting() {
       } else if (role === "admin" || role === "moderator") {
         router.push("/projects");
       } else {
-        router.replace("/remove-participant");
+        router.replace("/participant-left");
       }
     };
     s.on("meeting:ended", onMeetingEnded);
@@ -418,7 +435,7 @@ export default function Meeting() {
     const s = window.__meetingSocket;
     if (!s) return;
     const onStopped = () => {
-      toast.info("Streaming stopped. You are being taken to the waiting room.");
+      toast.info("Streaming stopped. You are being taken to the observation room.");
       router.replace(`/waiting-room/observer/${sessionId}`);
     };
     s.on("observer:stream:stopped", onStopped);

@@ -15,13 +15,25 @@ import {
   Send,
   X,
 } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { Track } from "livekit-client";
 import type { Socket } from "socket.io-client";
 import type { UiRole } from "constant/roles";
 import useChat from "hooks/useChat";
 import { Input } from "components/ui/input";
 import { Badge } from "components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "components/ui/alert-dialog";
 import { toast } from "sonner";
+import { formatDisplayName } from "lib/utils";
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 
@@ -118,6 +130,17 @@ export default function ParticipantsPanel({
   const [showGroupChat, setShowGroupChat] = useState(false);
   const [groupChatText, setGroupChatText] = useState("");
   const [lastReadGroupCount, setLastReadGroupCount] = useState(0);
+  const [openActionFor, setOpenActionFor] = useState<string | null>(null);
+  // confirmation dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"move" | "remove" | null>(
+    null
+  );
+  const [confirmTarget, setConfirmTarget] = useState<{
+    email?: string | null;
+    identity?: string | null;
+    label?: string | null;
+  } | null>(null);
   const selectedParticipantDisplayName = useMemo(() => {
     if (!selectedParticipant) return "";
     const match = remotes.find((p) => {
@@ -125,7 +148,8 @@ export default function ParticipantsPanel({
       return e.toLowerCase() === selectedParticipant;
     });
     const nm = match?.name || "";
-    return nm || selectedParticipant;
+    const formatted = nm ? formatDisplayName(nm) : "";
+    return formatted || selectedParticipant;
   }, [selectedParticipant, remotes]);
 
   const { send, getHistory, messagesByScope } = useChat({
@@ -333,7 +357,7 @@ export default function ParticipantsPanel({
               const identity: string = p.identity || "";
               const name: string = p.name || "";
               const email = emailFromParticipant(p);
-              const label = name || email || identity;
+              const label = name ? formatDisplayName(name) : email || identity;
 
               const micPub = p.getTrackPublication
                 ? p.getTrackPublication(Track.Source.Microphone)
@@ -477,6 +501,151 @@ export default function ParticipantsPanel({
                         </Button>
                       );
                     })()}
+                    {/* three-dots menu */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                        aria-label={`Open actions for ${label}`}
+                        title={`Open actions for ${label}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenActionFor((prev) =>
+                            prev === identity ? null : identity
+                          );
+                        }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                      {openActionFor === identity && (
+                        <div className="absolute right-0 mt-1 w-44 rounded-md bg-white border shadow-md z-40 p-1">
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                              // open confirm dialog for move
+                              setConfirmAction("move");
+                              setConfirmTarget({
+                                email: email || null,
+                                identity: identity || null,
+                                label,
+                              });
+                              setConfirmOpen(true);
+                              setOpenActionFor(null);
+                            }}
+                          >
+                            Move to waiting room
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 text-red-600 cursor-pointer"
+                            onClick={() => {
+                              // open confirm dialog for remove
+                              setConfirmAction("remove");
+                              setConfirmTarget({
+                                email: email || null,
+                                identity: identity || null,
+                                label,
+                              });
+                              setConfirmOpen(true);
+                              setOpenActionFor(null);
+                            }}
+                          >
+                            Remove from meeting
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Confirm dialog */}
+                    <AlertDialog
+                      open={confirmOpen}
+                      onOpenChange={setConfirmOpen}
+                    >
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {confirmAction === "move"
+                              ? `Move ${
+                                  confirmTarget?.label || "participant"
+                                } to waiting room?`
+                              : `Remove ${
+                                  confirmTarget?.label || "participant"
+                                } from meeting?`}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {confirmAction === "move"
+                              ? "This will move the participant to the waiting room. Are you sure you want to do this?"
+                              : "This will remove the participant from the meeting. Are you sure you want to do this?"}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel
+                            onClick={() => {
+                              setConfirmAction(null);
+                              setConfirmTarget(null);
+                            }}
+                          >
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              if (!confirmAction || !confirmTarget) return;
+                              const payload = confirmTarget.email
+                                ? { targetEmail: confirmTarget.email }
+                                : { targetIdentity: confirmTarget.identity };
+                              if (confirmAction === "move") {
+                                if (!socket) {
+                                  toast.error("Not connected");
+                                  setConfirmOpen(false);
+                                  return;
+                                }
+                                socket.emit(
+                                  "meeting:participant:move-to-waiting",
+                                  payload,
+                                  (ack?: { ok?: boolean; error?: string }) => {
+                                    if (ack?.ok)
+                                      toast.success("Moved to waiting room");
+                                    else
+                                      toast.error(
+                                        ack?.error || "Failed to move"
+                                      );
+                                    setConfirmOpen(false);
+                                    setConfirmAction(null);
+                                    setConfirmTarget(null);
+                                  }
+                                );
+                                return;
+                              }
+                              if (confirmAction === "remove") {
+                                if (!socket) {
+                                  toast.error("Not connected");
+                                  setConfirmOpen(false);
+                                  return;
+                                }
+                                socket.emit(
+                                  "meeting:participant:remove",
+                                  payload,
+                                  (ack?: { ok?: boolean; error?: string }) => {
+                                    if (ack?.ok)
+                                      toast.success("Participant removed");
+                                    else
+                                      toast.error(
+                                        ack?.error || "Failed to remove"
+                                      );
+                                    setConfirmOpen(false);
+                                    setConfirmAction(null);
+                                    setConfirmTarget(null);
+                                  }
+                                );
+                                return;
+                              }
+                            }}
+                          >
+                            Confirm
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               );
@@ -521,7 +690,9 @@ export default function ParticipantsPanel({
                       </div>
                       {remotes.map((p) => {
                         const email = participantEmail(p);
-                        const name = p.name || email || p.identity || "Unknown";
+                        const name = p.name
+                          ? formatDisplayName(p.name)
+                          : email || p.identity || "Unknown";
                         const unread = email
                           ? participantUnreadMap[email.toLowerCase()] || 0
                           : 0;

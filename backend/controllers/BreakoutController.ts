@@ -282,12 +282,29 @@ export const moveParticipantToBreakout = async (
     index: idx,
   }).lean();
   if (!bo) return next(new ErrorHandler("Breakout not found", 404));
-
-  await roomService.moveParticipant(
-    String(sessionId),
-    String(identity),
-    bo.livekitRoom
-  );
+  try {
+    await roomService.moveParticipant(
+      String(sessionId),
+      String(identity),
+      bo.livekitRoom
+    );
+  } catch (e: any) {
+    // Surface clear diagnostics to logs and client
+    console.error("moveParticipantToBreakout failed", {
+      sessionId,
+      identity,
+      toRoom: bo.livekitRoom,
+      error: e?.message || e,
+    });
+    return next(
+      new ErrorHandler(
+        `Failed to move participant to breakout: ${
+          e?.message || "unknown error"
+        }`,
+        400
+      )
+    );
+  }
   // Restore baseline publish sources (MIC + CAMERA) in destination room
   try {
     const list = await roomService.listParticipants(bo.livekitRoom);
@@ -343,12 +360,29 @@ export const moveParticipantToMain = async (
     index: idx,
   }).lean();
   if (!bo) return next(new ErrorHandler("Breakout not found", 404));
-
-  await roomService.moveParticipant(
-    bo.livekitRoom,
-    String(identity),
-    String(sessionId)
-  );
+  try {
+    await roomService.moveParticipant(
+      bo.livekitRoom,
+      String(identity),
+      String(sessionId)
+    );
+  } catch (e: any) {
+    // Surface clear diagnostics to logs and client
+    console.error("moveParticipantToMain failed", {
+      sessionId,
+      identity,
+      fromRoom: bo.livekitRoom,
+      error: e?.message || e,
+    });
+    return next(
+      new ErrorHandler(
+        `Failed to move participant back to main: ${
+          e?.message || "unknown error"
+        }`,
+        400
+      )
+    );
+  }
   // Restore baseline publish sources (MIC + CAMERA) in destination room
   try {
     const list = await roomService.listParticipants(String(sessionId));
