@@ -80,7 +80,95 @@ const Sessions = () => {
     placeholderData: keepPreviousData,
   });
 
+  // Open a blank window synchronously on user gesture to avoid Safari popup blocking.
+  // We then navigate that window when the mutation completes.
+  const handleModerateClick = (sessionId: string) => {
+    // Use a named window so we can target the same tab later instead of opening a second one.
+    const windowName = `session_${sessionId}`;
+    let newWin: Window | null = null;
+    try {
+      // Open the blank window without `noopener` so the named window can be reused
+      // (passing `noopener` forces a new tab and prevents reusing the named target in Chrome).
+      newWin = window.open("", windowName);
+      if (!newWin) {
+        toast.error("Popup blocked. Please allow popups for this site.");
+      }
+    } catch {
+      newWin = null;
+    }
+
+    startMeeting.mutate(sessionId, {
+      onSuccess: (data, id) => {
+        const success = data?.success;
+        const message = data?.message;
+
+        if (success === false && message === "Session already ongoing") {
+          toast.message("Session already ongoing — opening meeting");
+        } else {
+          toast.success("Session started");
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+
+        const ff = flagsFromProject(project as unknown);
+        const url = buildMeetingUrl(id, ff);
+
+        if (newWin) {
+          // Try to navigate the already-opened named window directly. If that's
+          // blocked for any reason, fall back to opening the named target.
+          try {
+            newWin.location.href = url;
+            try {
+              newWin.focus();
+            } catch {
+              // ignore focus errors
+            }
+          } catch {
+            // If setting location fails, try opening the named target (should reuse the tab).
+            try {
+              window.open(url, windowName);
+            } catch {
+              window.open(url, "_blank", "noopener,noreferrer");
+            }
+          }
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+      },
+      onError: (err, id) => {
+        if (newWin) {
+          try {
+            newWin.close();
+          } catch {
+            // ignore
+          }
+        }
+
+        // If server returned non-2xx with the same message, still proceed
+        if (axios.isAxiosError(err)) {
+          const msg = err.response?.data?.message;
+          if (msg === "Session already ongoing") {
+            toast.message("Session already ongoing — opening meeting");
+            const ff = flagsFromProject(project as unknown);
+            const url = buildMeetingUrl(id, ff);
+            window.open(url, "_blank", "noopener,noreferrer");
+            return;
+          }
+        }
+
+        const fallback = axios.isAxiosError(err)
+          ? err.response?.data?.message ?? err.message
+          : "Could not start the session";
+        toast.error(fallback);
+      },
+    });
+  };
+
   // Start live session then navigate
+  // NOTE: We intentionally do NOT open a window inside the mutation handlers because
+  // browsers (especially Safari) block popups that are not initiated synchronously
+  // from a user gesture. Instead the caller should open a blank window synchronously
+  // and pass it in so we can set its location when the request completes.
   const startMeeting = useMutation<
     { success?: boolean; message?: string },
     unknown,
@@ -90,43 +178,14 @@ const Sessions = () => {
       const res = await api.post<{ success?: boolean; message?: string }>(
         `/api/v1/liveSessions/${sessionId}/start`
       );
-      return res.data; // e.g. { success: true, ... } OR { success: false, message: "Session already ongoing" }
+      return res.data;
     },
-    onSuccess: (data, sessionId) => {
-      const success = data?.success;
-      const message = data?.message;
-
-      if (success === false && message === "Session already ongoing") {
-        toast.message("Session already ongoing — opening meeting");
-      } else {
-        toast.success("Session started");
-      }
-
-      // Refresh any live flags if you show them
+    onSuccess: () => {
+      // keep UI state in caller; no default navigation here to avoid popup blocking
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
-
-      // Go to meeting in a new window/tab
-      const ff = flagsFromProject(project as unknown);
-      const url = buildMeetingUrl(sessionId, ff);
-      window.open(url, "_blank", "noopener,noreferrer");
     },
-    onError: (err, sessionId) => {
-      // If server returned non-2xx with the same message, still proceed
-      if (axios.isAxiosError(err)) {
-        const msg = err.response?.data?.message;
-        if (msg === "Session already ongoing") {
-          toast.message("Session already ongoing — opening meeting");
-          const ff = flagsFromProject(project as unknown);
-          const url = buildMeetingUrl(sessionId, ff);
-          window.open(url, "_blank", "noopener,noreferrer");
-          return;
-        }
-      }
-
-      const fallback = axios.isAxiosError(err)
-        ? err.response?.data?.message ?? err.message
-        : "Could not start the session";
-      toast.error(fallback);
+    onError: () => {
+      // errors are handled per-call
     },
   });
 
@@ -268,7 +327,7 @@ const Sessions = () => {
             meta={data!.meta}
             onPageChange={setPage}
             // onRowClick={(id) => router.push(`/session-details/${id}`)}
-            onModerate={(id) => startMeeting.mutate(id)}
+            onModerate={handleModerateClick}
             onObserve={handleObserveClick}
             onAction={(action, session) => {
               switch (action) {
