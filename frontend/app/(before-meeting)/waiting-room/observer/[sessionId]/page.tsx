@@ -27,6 +27,11 @@ export default function ObserverWaitingRoom() {
   const router = useRouter();
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [observerList, setObserverList] = useState<
+    { name: string; email: string }[]
+  >([]);
+  const [activeTab, setActiveTab] = useState<string>("list");
+  const [meEmail, setMeEmail] = useState<string>("");
 
   useEffect(() => {
     if (!sessionId) return;
@@ -76,6 +81,40 @@ export default function ObserverWaitingRoom() {
       s.disconnect();
     };
   }, [router, sessionId]);
+
+  // read current observer identity to avoid showing self in lists
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem("liveSessionUser")
+        ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
+        : {};
+      setMeEmail(saved?.email || "");
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // listen for observer list updates
+  useEffect(() => {
+    if (!socket) return;
+    const onList = (p: { observers?: { name: string; email: string }[] }) => {
+      const list = Array.isArray(p?.observers) ? p.observers : [];
+      setObserverList(list);
+    };
+    socket.on("observer:list", onList);
+    socket.emit(
+      "observer:list:get",
+      {},
+      (resp?: { observers?: { name: string; email: string }[] }) => {
+        const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
+        setObserverList(list);
+      }
+    );
+    return () => {
+      socket.off("observer:list", onList);
+    };
+  }, [socket]);
 
   return (
     <div className="min-h-screen dashboard_sidebar_bg">
@@ -149,12 +188,121 @@ export default function ObserverWaitingRoom() {
                 </Button>
               </div>
               <div className="p-2">
-                <ObserverChatPanel
-                  socket={socket}
-                  sessionId={sessionId}
-                  me={{ email: "", name: "", role: "Observer" }}
-                  isStreaming={false}
-                />
+                {/* New tabs: Observer List & Observer Chat */}
+                <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden flex flex-col">
+                  <div className="flex-1 flex min-h-0 flex-col">
+                    <div className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2 flex items-center p-2">
+                      <button
+                        type="button"
+                        data-tab="list"
+                        className={`rounded-full text-sm px-4 cursor-pointer shadow-sm ${
+                          activeTab === "list"
+                            ? "bg-custom-dark-blue-1 text-white"
+                            : "bg-transparent border-custom-dark-blue-1 text-custom-dark-blue-1"
+                        }`}
+                        onClick={() => setActiveTab("list")}
+                      >
+                        Observer List
+                      </button>
+                      <button
+                        type="button"
+                        data-tab="chat"
+                        className={`rounded-full cursor-pointer text-sm px-4  shadow-sm ml-2 ${
+                          activeTab === "chat"
+                            ? "bg-custom-dark-blue-1 text-white"
+                            : "bg-transparent border-custom-dark-blue-1 text-custom-dark-blue-1"
+                        }`}
+                        onClick={() => setActiveTab("chat")}
+                      >
+                        Observer Chat
+                      </button>
+                    </div>
+
+                    <div data-observer-panel className="p-2 flex-1 min-h-0">
+                      <div
+                        data-tabcontent="list"
+                        style={{
+                          display: activeTab === "list" ? "block" : "none",
+                        }}
+                        className="h-[36vh] overflow-y-auto bg-white rounded p-2"
+                      >
+                        <div className="space-y-2">
+                          {observerList.filter(
+                            (o) => (o.email || "") !== meEmail
+                          ).length === 0 ? (
+                            <div className="text-sm text-gray-500">
+                              No observers yet.
+                            </div>
+                          ) : (
+                            observerList
+                              .filter((o) => (o.email || "") !== meEmail)
+                              .map((o) => {
+                                const label = o.name || o.email || "Observer";
+                                return (
+                                  <div
+                                    key={`${label}-${o.email}`}
+                                    className="flex items-center justify-start gap-2 rounded px-2 py-1"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-medium truncate">
+                                        {label}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        data-tabcontent="chat"
+                        style={{
+                          display: activeTab === "chat" ? "block" : "none",
+                        }}
+                        className="h-[36vh] overflow-y-auto bg-white rounded p-2"
+                      >
+                        <div className="space-y-2">
+                          {observerList.filter(
+                            (o) => (o.email || "") !== meEmail
+                          ).length === 0 ? (
+                            <div className="text-sm text-gray-500">
+                              No observers yet.
+                            </div>
+                          ) : (
+                            observerList
+                              .filter((o) => (o.email || "") !== meEmail)
+                              .map((o) => {
+                                const label = o.name || o.email || "Observer";
+                                return (
+                                  <div
+                                    key={`${label}-${o.email}`}
+                                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-medium truncate">
+                                        {label}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                                      aria-label={`Chat with ${label}`}
+                                      title={`Chat with ${label}`}
+                                      onClick={() =>
+                                        toast(`${label} chat clicked`)
+                                      }
+                                    >
+                                      <MessageSquare className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                );
+                              })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </aside>
