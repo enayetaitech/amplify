@@ -435,7 +435,9 @@ export default function Meeting() {
     const s = window.__meetingSocket;
     if (!s) return;
     const onStopped = () => {
-      toast.info("Streaming stopped. You are being taken to the observation room.");
+      toast.info(
+        "Streaming stopped. You are being taken to the observation room."
+      );
       router.replace(`/waiting-room/observer/${sessionId}`);
     };
     s.on("observer:stream:stopped", onStopped);
@@ -635,17 +637,20 @@ export default function Meeting() {
                 </button>
               )}
             <div className="relative">
-              <div
-                className={`absolute border inset-0 rounded-lg bg-white p-3 overflow-auto transition-opacity ${
-                  isBreakoutOverlayOpen
-                    ? "z-30 opacity-100"
-                    : "z-[-1] opacity-0 pointer-events-none"
-                }`}
-                aria-hidden={!isBreakoutOverlayOpen}
-              >
-                <h4 className="font-semibold mb-2">Breakouts</h4>
-                <BreakoutsPanel sessionId={String(sessionId)} role={role} />
-              </div>
+              {featureFlags.breakoutsEnabled &&
+                (role === "admin" || role === "moderator") && (
+                  <div
+                    className={`absolute border inset-0 rounded-lg bg-white p-3 overflow-auto transition-opacity ${
+                      isBreakoutOverlayOpen
+                        ? "z-30 opacity-100"
+                        : "z-[-1] opacity-0 pointer-events-none"
+                    }`}
+                    aria-hidden={!isBreakoutOverlayOpen}
+                  >
+                    <h4 className="font-semibold mb-2">Breakouts</h4>
+                    <BreakoutsPanel sessionId={String(sessionId)} role={role} />
+                  </div>
+                )}
               <ParticipantsPanel
                 role={role}
                 socket={socketRef.current}
