@@ -45,6 +45,10 @@ export default function ObserverWaitingRoom() {
   const [dmText, setDmText] = useState<string>("");
   const [isGroupChat, setIsGroupChat] = useState<boolean>(false);
   const [groupText, setGroupText] = useState<string>("");
+  const [unreadGroupCount, setUnreadGroupCount] = useState<number>(0);
+  const [unreadDmCounts, setUnreadDmCounts] = useState<Record<string, number>>(
+    {}
+  );
 
   const { send, getHistory, messagesByThread, makeThreadKey, messagesByScope } =
     useChat({
@@ -140,6 +144,61 @@ export default function ObserverWaitingRoom() {
       socket.off("observer:list", onList);
     };
   }, [socket]);
+
+  // Track unread messages for group chat
+  useEffect(() => {
+    if (!socket) return;
+
+    const onNewMessage = (payload: {
+      scope: string;
+      message: { email?: string; senderEmail?: string; [key: string]: unknown };
+    }) => {
+      const { scope, message } = payload || {};
+      if (!scope || !message) return;
+
+      if (scope === "observer_wait_group") {
+        // Only count as unread if group chat is not currently open
+        if (!isGroupChat) {
+          setUnreadGroupCount((prev) => prev + 1);
+        }
+      } else if (scope === "observer_wait_dm") {
+        // Only count as unread if this DM thread is not currently open
+        const senderEmail = (
+          message.email ||
+          message.senderEmail ||
+          ""
+        ).toLowerCase();
+        const isFromMe = senderEmail === me.email.toLowerCase();
+        if (!isFromMe && selectedObserverEmail !== senderEmail) {
+          setUnreadDmCounts((prev) => ({
+            ...prev,
+            [senderEmail]: (prev[senderEmail] || 0) + 1,
+          }));
+        }
+      }
+    };
+
+    socket.on("chat:new", onNewMessage);
+    return () => {
+      socket.off("chat:new", onNewMessage);
+    };
+  }, [socket, isGroupChat, selectedObserverEmail, me.email]);
+
+  // Reset unread counts when opening chats
+  useEffect(() => {
+    if (isGroupChat) {
+      setUnreadGroupCount(0);
+    }
+  }, [isGroupChat]);
+
+  useEffect(() => {
+    if (selectedObserverEmail) {
+      setUnreadDmCounts((prev) => ({
+        ...prev,
+        [selectedObserverEmail.toLowerCase()]: 0,
+      }));
+    }
+  }, [selectedObserverEmail]);
 
   return (
     <div className="min-h-screen dashboard_sidebar_bg">
@@ -480,18 +539,27 @@ export default function ObserverWaitingRoom() {
                                     Group Chat
                                   </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                                  aria-label={`Open group chat`}
-                                  title={`Open group chat`}
-                                  onClick={() => {
-                                    setIsGroupChat(true);
-                                    getHistory("observer_wait_group");
-                                  }}
-                                >
-                                  <MessageSquare className="h-4 w-4" />
-                                </button>
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                                    aria-label={`Open group chat`}
+                                    title={`Open group chat`}
+                                    onClick={() => {
+                                      setIsGroupChat(true);
+                                      getHistory("observer_wait_group");
+                                    }}
+                                  >
+                                    <MessageSquare className="h-4 w-4" />
+                                  </button>
+                                  {unreadGroupCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                      {unreadGroupCount > 99
+                                        ? "99+"
+                                        : unreadGroupCount}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               {observerList
                                 .filter((o) => (o.email || "") !== meEmail)
@@ -507,23 +575,38 @@ export default function ObserverWaitingRoom() {
                                           {label}
                                         </div>
                                       </div>
-                                      <button
-                                        type="button"
-                                        className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                                        aria-label={`Chat with ${label}`}
-                                        title={`Chat with ${label}`}
-                                        onClick={() => {
-                                          setSelectedObserverEmail(o.email);
-                                          setSelectedObserverName(label);
-                                          getHistory("observer_wait_dm", {
-                                            withEmail: (
-                                              o.email || ""
-                                            ).toLowerCase(),
-                                          });
-                                        }}
-                                      >
-                                        <MessageSquare className="h-4 w-4" />
-                                      </button>
+                                      <div className="relative">
+                                        <button
+                                          type="button"
+                                          className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                                          aria-label={`Chat with ${label}`}
+                                          title={`Chat with ${label}`}
+                                          onClick={() => {
+                                            setSelectedObserverEmail(o.email);
+                                            setSelectedObserverName(label);
+                                            getHistory("observer_wait_dm", {
+                                              withEmail: (
+                                                o.email || ""
+                                              ).toLowerCase(),
+                                            });
+                                          }}
+                                        >
+                                          <MessageSquare className="h-4 w-4" />
+                                        </button>
+                                        {unreadDmCounts[
+                                          (o.email || "").toLowerCase()
+                                        ] > 0 && (
+                                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                            {unreadDmCounts[
+                                              (o.email || "").toLowerCase()
+                                            ] > 99
+                                              ? "99+"
+                                              : unreadDmCounts[
+                                                  (o.email || "").toLowerCase()
+                                                ]}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -559,10 +642,117 @@ export default function ObserverWaitingRoom() {
                 <div className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2 flex items-center p-2">
                   <div className="text-sm font-semibold">Observers</div>
                 </div>
-                {!selectedObserverEmail ? (
+                {isGroupChat ? (
+                  <div className="p-2 flex-1 min-h-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold truncate">
+                        Observer Group Chat
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label="Back"
+                        onClick={() => {
+                          setIsGroupChat(false);
+                        }}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="h-[52vh] overflow-y-auto bg-white rounded p-2">
+                      <div className="space-y-1 text-sm">
+                        {(messagesByScope["observer_wait_group"] || []).map(
+                          (m, i) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+                              <div className="min-w-0">
+                                <div className="text-[12px] text-gray-600">
+                                  <span className="font-medium text-gray-900">
+                                    {m.senderName ||
+                                      m.name ||
+                                      m.email ||
+                                      m.senderEmail ||
+                                      ""}
+                                  </span>
+                                  <span className="ml-2 text-[11px] text-gray-400">
+                                    {new Date(
+                                      String(m.timestamp)
+                                    ).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                                <div className="whitespace-pre-wrap text-sm">
+                                  {m.content}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        className="flex-1 h-9 rounded border px-3 text-sm"
+                        value={groupText}
+                        onChange={(e) => setGroupText(e.target.value)}
+                        placeholder="Write a group message"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            const txt = groupText.trim();
+                            if (!txt) return;
+                            send("observer_wait_group", txt).then((ack) => {
+                              if (ack.ok) setGroupText("");
+                            });
+                          }
+                        }}
+                      />
+                      <Button
+                        size="icon"
+                        aria-label="Send message"
+                        onClick={() => {
+                          const txt = groupText.trim();
+                          if (!txt) return;
+                          send("observer_wait_group", txt).then((ack) => {
+                            if (ack.ok) setGroupText("");
+                          });
+                        }}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : !selectedObserverEmail ? (
                   <div className="p-2 flex-1 min-h-0">
                     <div className="h-[56vh] overflow-y-auto bg-white rounded p-2">
                       <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2 rounded px-2 py-1 border-b mb-1">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              Group Chat
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                              aria-label={`Open group chat`}
+                              title={`Open group chat`}
+                              onClick={() => {
+                                setIsGroupChat(true);
+                                getHistory("observer_wait_group");
+                              }}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </button>
+                            {unreadGroupCount > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                {unreadGroupCount > 99
+                                  ? "99+"
+                                  : unreadGroupCount}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                         {observerList.filter((o) => (o.email || "") !== meEmail)
                           .length === 0 ? (
                           <div className="text-sm text-gray-500">
@@ -583,23 +773,38 @@ export default function ObserverWaitingRoom() {
                                       {label}
                                     </div>
                                   </div>
-                                  <button
-                                    type="button"
-                                    className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                                    aria-label={`Chat with ${label}`}
-                                    title={`Chat with ${label}`}
-                                    onClick={() => {
-                                      setSelectedObserverEmail(o.email);
-                                      setSelectedObserverName(label);
-                                      getHistory("observer_wait_dm", {
-                                        withEmail: (
-                                          o.email || ""
-                                        ).toLowerCase(),
-                                      });
-                                    }}
-                                  >
-                                    <MessageSquare className="h-4 w-4" />
-                                  </button>
+                                  <div className="relative">
+                                    <button
+                                      type="button"
+                                      className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                                      aria-label={`Chat with ${label}`}
+                                      title={`Chat with ${label}`}
+                                      onClick={() => {
+                                        setSelectedObserverEmail(o.email);
+                                        setSelectedObserverName(label);
+                                        getHistory("observer_wait_dm", {
+                                          withEmail: (
+                                            o.email || ""
+                                          ).toLowerCase(),
+                                        });
+                                      }}
+                                    >
+                                      <MessageSquare className="h-4 w-4" />
+                                    </button>
+                                    {unreadDmCounts[
+                                      (o.email || "").toLowerCase()
+                                    ] > 0 && (
+                                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                        {unreadDmCounts[
+                                          (o.email || "").toLowerCase()
+                                        ] > 99
+                                          ? "99+"
+                                          : unreadDmCounts[
+                                              (o.email || "").toLowerCase()
+                                            ]}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })
