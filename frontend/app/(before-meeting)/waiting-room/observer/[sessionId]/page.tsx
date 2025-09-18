@@ -17,10 +17,12 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Video,
+  ArrowLeft,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
-import ObserverChatPanel from "components/meeting/ObserverChatPanel";
 import { Socket } from "socket.io-client";
+import useChat from "hooks/useChat";
 
 export default function ObserverWaitingRoom() {
   const { sessionId } = useParams() as { sessionId: string };
@@ -32,6 +34,21 @@ export default function ObserverWaitingRoom() {
   >([]);
   const [activeTab, setActiveTab] = useState<string>("list");
   const [meEmail, setMeEmail] = useState<string>("");
+  const [me, setMe] = useState<{
+    email: string;
+    name: string;
+    role: "Observer";
+  }>({ email: "", name: "", role: "Observer" });
+  const [selectedObserverEmail, setSelectedObserverEmail] =
+    useState<string>("");
+  const [selectedObserverName, setSelectedObserverName] = useState<string>("");
+  const [dmText, setDmText] = useState<string>("");
+
+  const { send, getHistory, messagesByThread, makeThreadKey } = useChat({
+    socket,
+    sessionId,
+    my: me,
+  });
 
   useEffect(() => {
     if (!sessionId) return;
@@ -90,6 +107,11 @@ export default function ObserverWaitingRoom() {
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
       setMeEmail(saved?.email || "");
+      setMe({
+        email: saved?.email || "",
+        name: saved?.name || saved?.email || "Observer",
+        role: "Observer",
+      });
     } catch {
       // ignore
     }
@@ -189,7 +211,7 @@ export default function ObserverWaitingRoom() {
               </div>
               <div className="p-2">
                 {/* New tabs: Observer List & Observer Chat */}
-                <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden flex flex-col">
+                <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[85vh] min-h-[40vh] overflow-hidden flex flex-col">
                   <div className="flex-1 flex min-h-0 flex-col">
                     <div className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2 flex items-center p-2">
                       <button
@@ -224,7 +246,7 @@ export default function ObserverWaitingRoom() {
                         style={{
                           display: activeTab === "list" ? "block" : "none",
                         }}
-                        className="h-[36vh] overflow-y-auto bg-white rounded p-2"
+                        className="h-[80vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
                           {observerList.filter(
@@ -259,64 +281,147 @@ export default function ObserverWaitingRoom() {
                         style={{
                           display: activeTab === "chat" ? "block" : "none",
                         }}
-                        className="h-[36vh] overflow-y-auto bg-white rounded p-2"
+                        className="h-[70vh] overflow-hidden bg-white rounded p-2"
                       >
-                        <div className="space-y-2">
-                          {/* Group chat row (before participant names) */}
-                          <div className="flex items-center justify-between gap-2 rounded px-2 py-1">
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium truncate">
-                                Group Chat
+                        {selectedObserverEmail ? (
+                          <div className="flex flex-col h-full">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-sm font-semibold truncate">
+                                Chat with {selectedObserverName}
                               </div>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                aria-label="Back"
+                                onClick={() => {
+                                  setSelectedObserverEmail("");
+                                  setSelectedObserverName("");
+                                }}
+                              >
+                                <ArrowLeft className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <button
-                              type="button"
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                              aria-label="Open group chat"
-                              title="Open group chat"
-                              onClick={() => toast("Group chat clicked")}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </button>
-                          </div>
-
-                          {observerList.filter(
-                            (o) => (o.email || "") !== meEmail
-                          ).length === 0 ? (
-                            <div className="text-sm text-gray-500">
-                              No observers yet.
-                            </div>
-                          ) : (
-                            observerList
-                              .filter((o) => (o.email || "") !== meEmail)
-                              .map((o) => {
-                                const label = o.name || o.email || "Observer";
-                                return (
+                            <div className="flex-1 min-h-0 overflow-y-auto rounded border p-2">
+                              <div className="space-y-1 text-sm">
+                                {(
+                                  messagesByThread[
+                                    makeThreadKey(
+                                      "observer_wait_dm",
+                                      me.email,
+                                      selectedObserverEmail
+                                    )
+                                  ] || []
+                                ).map((m, i) => (
                                   <div
-                                    key={`${label}-${o.email}`}
-                                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                                    key={i}
+                                    className="flex items-start gap-2"
                                   >
+                                    <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
                                     <div className="min-w-0">
-                                      <div className="text-sm font-medium truncate">
-                                        {label}
+                                      <div className="text-[12px] text-gray-600">
+                                        <span className="font-medium text-gray-900">
+                                          {m.senderName ||
+                                            m.name ||
+                                            m.email ||
+                                            m.senderEmail ||
+                                            ""}
+                                        </span>
+                                        <span className="ml-2 text-[11px] text-gray-400">
+                                          {new Date(
+                                            String(m.timestamp)
+                                          ).toLocaleTimeString()}
+                                        </span>
+                                      </div>
+                                      <div className="whitespace-pre-wrap text-sm">
+                                        {m.content}
                                       </div>
                                     </div>
-                                    <button
-                                      type="button"
-                                      className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                                      aria-label={`Chat with ${label}`}
-                                      title={`Chat with ${label}`}
-                                      onClick={() =>
-                                        toast(`${label} chat clicked`)
-                                      }
-                                    >
-                                      <MessageSquare className="h-4 w-4" />
-                                    </button>
                                   </div>
-                                );
-                              })
-                          )}
-                        </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <input
+                                className="flex-1 h-9 rounded border px-3 text-sm"
+                                value={dmText}
+                                onChange={(e) => setDmText(e.target.value)}
+                                placeholder="Write a private message"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    const t = selectedObserverEmail
+                                      .trim()
+                                      .toLowerCase();
+                                    const txt = dmText.trim();
+                                    if (!t || !txt) return;
+                                    send("observer_wait_dm", txt, t).then(
+                                      (ack) => {
+                                        if (ack.ok) setDmText("");
+                                      }
+                                    );
+                                  }
+                                }}
+                              />
+                              <Button
+                                size="icon"
+                                aria-label="Send message"
+                                onClick={() => {
+                                  const t = selectedObserverEmail
+                                    .trim()
+                                    .toLowerCase();
+                                  const txt = dmText.trim();
+                                  if (!t || !txt) return;
+                                  send("observer_wait_dm", txt, t).then(
+                                    (ack) => {
+                                      if (ack.ok) setDmText("");
+                                    }
+                                  );
+                                }}
+                              >
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-full overflow-y-auto rounded p-1">
+                            <div className="space-y-2">
+                              {observerList
+                                .filter((o) => (o.email || "") !== meEmail)
+                                .map((o) => {
+                                  const label = o.name || o.email || "Observer";
+                                  return (
+                                    <div
+                                      key={`${label}-${o.email}`}
+                                      className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-medium truncate">
+                                          {label}
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                                        aria-label={`Chat with ${label}`}
+                                        title={`Chat with ${label}`}
+                                        onClick={() => {
+                                          setSelectedObserverEmail(o.email);
+                                          setSelectedObserverName(label);
+                                          getHistory("observer_wait_dm", {
+                                            withEmail: (
+                                              o.email || ""
+                                            ).toLowerCase(),
+                                          });
+                                        }}
+                                      >
+                                        <MessageSquare className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -341,12 +446,152 @@ export default function ObserverWaitingRoom() {
             <SheetTitle>Observation Room Chat</SheetTitle>
           </SheetHeader>
           <div className="p-2">
-            <ObserverChatPanel
-              socket={socket}
-              sessionId={sessionId}
-              me={{ email: "", name: "", role: "Observer" }}
-              isStreaming={false}
-            />
+            <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[70vh] min-h-[40vh] overflow-hidden flex flex-col">
+              <div className="flex-1 flex min-h-0 flex-col">
+                <div className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2 flex items-center p-2">
+                  <div className="text-sm font-semibold">Observers</div>
+                </div>
+                {!selectedObserverEmail ? (
+                  <div className="p-2 flex-1 min-h-0">
+                    <div className="h-[56vh] overflow-y-auto bg-white rounded p-2">
+                      <div className="space-y-2">
+                        {observerList.filter((o) => (o.email || "") !== meEmail)
+                          .length === 0 ? (
+                          <div className="text-sm text-gray-500">
+                            No observers yet.
+                          </div>
+                        ) : (
+                          observerList
+                            .filter((o) => (o.email || "") !== meEmail)
+                            .map((o) => {
+                              const label = o.name || o.email || "Observer";
+                              return (
+                                <div
+                                  key={`${label}-${o.email}`}
+                                  className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium truncate">
+                                      {label}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
+                                    aria-label={`Chat with ${label}`}
+                                    title={`Chat with ${label}`}
+                                    onClick={() => {
+                                      setSelectedObserverEmail(o.email);
+                                      setSelectedObserverName(label);
+                                      getHistory("observer_wait_dm", {
+                                        withEmail: (
+                                          o.email || ""
+                                        ).toLowerCase(),
+                                      });
+                                    }}
+                                  >
+                                    <MessageSquare className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2 flex-1 min-h-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold truncate">
+                        Chat with {selectedObserverName}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label="Back"
+                        onClick={() => {
+                          setSelectedObserverEmail("");
+                          setSelectedObserverName("");
+                        }}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="h-[52vh] overflow-y-auto bg-white rounded p-2">
+                      <div className="space-y-1 text-sm">
+                        {(
+                          messagesByThread[
+                            makeThreadKey(
+                              "observer_wait_dm",
+                              me.email,
+                              selectedObserverEmail
+                            )
+                          ] || []
+                        ).map((m, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+                            <div className="min-w-0">
+                              <div className="text-[12px] text-gray-600">
+                                <span className="font-medium text-gray-900">
+                                  {m.senderName ||
+                                    m.name ||
+                                    m.email ||
+                                    m.senderEmail ||
+                                    ""}
+                                </span>
+                                <span className="ml-2 text-[11px] text-gray-400">
+                                  {new Date(
+                                    String(m.timestamp)
+                                  ).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <div className="whitespace-pre-wrap text-sm">
+                                {m.content}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        className="flex-1 h-9 rounded border px-3 text-sm"
+                        value={dmText}
+                        onChange={(e) => setDmText(e.target.value)}
+                        placeholder="Write a private message"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            const t = selectedObserverEmail
+                              .trim()
+                              .toLowerCase();
+                            const txt = dmText.trim();
+                            if (!t || !txt) return;
+                            send("observer_wait_dm", txt, t).then((ack) => {
+                              if (ack.ok) setDmText("");
+                            });
+                          }
+                        }}
+                      />
+                      <Button
+                        size="icon"
+                        aria-label="Send message"
+                        onClick={() => {
+                          const t = selectedObserverEmail.trim().toLowerCase();
+                          const txt = dmText.trim();
+                          if (!t || !txt) return;
+                          send("observer_wait_dm", txt, t).then((ack) => {
+                            if (ack.ok) setDmText("");
+                          });
+                        }}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
