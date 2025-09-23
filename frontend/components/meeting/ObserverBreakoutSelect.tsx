@@ -11,18 +11,10 @@ import {
   ChevronRight,
   Eye,
   MessageSquare,
-  FileText,
 } from "lucide-react";
-import { Button } from "components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardAction,
-  CardContent,
-} from "components/ui/card";
 import { toast } from "sonner";
-import ObserverChatPanel from "./ObserverChatPanel";
+import DocumentHub from "./rightSideBar/DocumentHub";
+// import ObserverChatPanel from "./ObserverChatPanel";
 
 export default function ObserverBreakoutSelect({
   sessionId,
@@ -503,77 +495,12 @@ export default function ObserverBreakoutSelect({
                 </div>
               </TabsContent>
               <TabsContent value="chat">
-                <ObserverChatPanel
-                  socket={meetingSocket || null}
-                  sessionId={sessionId}
-                  me={{ email: "", name: "", role: "Observer" }}
-                  isStreaming={!!url}
-                />
+                <h1>Yet to implement</h1>
               </TabsContent>
             </Tabs>
           </div>
-          <Card className="border-none shadow-none">
-            <CardHeader className="px-3 flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm text-[#00293C]">
-                <FileText className="h-4 w-4" />
-                DOCUMENT HUB
-              </CardTitle>
-              <CardAction>
-                <Button
-                  variant="orange"
-                  className="text-sm px-4 py-[1px] rounded-full"
-                  onClick={() => toast("Yet to develop")}
-                >
-                  Upload File
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <Separator />
-            <CardContent className="px-3 pb-3">
-              <div className="bg-custom-gray-2 rounded-xl p-2">
-                <div className="flex items-center justify-between px-3 text-[12px] text-gray-600">
-                  <span>Name</span>
-                  <span>Size</span>
-                </div>
-                <div className="mt-2 rounded-lg bg-custom-gray-2 p-2">
-                  <div className="flex items-center justify-between px-2 py-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="h-4 w-4 shrink-0" />
-                      <span className="truncate text-sm">
-                        PRO_FILES_01: Introduction...
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-600">5.2MB</span>
-                      <button
-                        type="button"
-                        className="text-red-500 cursor-pointer"
-                        aria-label="Delete file"
-                        onClick={() => toast("Yet to develop")}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                        >
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6" />
-                          <path d="M14 11v6" />
-                          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+
+          <DocumentHub />
         </aside>
       )}
       {!isRightOpen && (

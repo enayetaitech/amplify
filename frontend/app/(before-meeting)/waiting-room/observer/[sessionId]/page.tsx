@@ -19,7 +19,7 @@ import {
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
-import ObserverChatPanel from "components/meeting/ObserverChatPanel";
+
 import { Socket } from "socket.io-client";
 
 export default function ObserverWaitingRoom() {
@@ -33,7 +33,14 @@ export default function ObserverWaitingRoom() {
   const [activeTab, setActiveTab] = useState<string>("list");
   const [meEmail, setMeEmail] = useState<string>("");
 
+  console.log(observerList, meEmail);
+
   useEffect(() => {
+    // Effect: establish socket connection for this observer session
+    // - Connects to the socket server with role=Observer and saved user info
+    // - Listens for "observer:stream:started" to navigate to the streaming page
+    // - Listens for participant admission announcements and shows toasts
+    // - Cleans up listeners and disconnects the socket on unmount or sessionId change
     if (!sessionId) return;
 
     const saved =
@@ -82,7 +89,10 @@ export default function ObserverWaitingRoom() {
     };
   }, [router, sessionId]);
 
-  // read current observer identity to avoid showing self in lists
+  // Effect: load current observer identity from localStorage
+  // - Reads `liveSessionUser` from localStorage to set `meEmail`
+  // - Used to avoid showing the current observer in the observer list
+  // - Runs once on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -95,7 +105,10 @@ export default function ObserverWaitingRoom() {
     }
   }, []);
 
-  // listen for observer list updates
+  // Effect: subscribe to observer list updates via socket
+  // - Registers a handler for the "observer:list" event to update `observerList`
+  // - Requests the current list via "observer:list:get" and sets the result
+  // - Cleans up the event listener when the socket instance changes or on unmount
   useEffect(() => {
     if (!socket) return;
     const onList = (p: { observers?: { name: string; email: string }[] }) => {
@@ -133,11 +146,7 @@ export default function ObserverWaitingRoom() {
                 Observer View
               </span>
             </div>
-            {/* <div className="text-center hidden lg:block">
-          <h1 className="text-lg lg:text-xl font-semibold tracking-wide">
-            MEETING 01 - PROJECT NAME
-          </h1>
-        </div> */}
+
             <div className="flex items-center justify-between gap-2">
               <Button
                 variant="ghost"
@@ -227,31 +236,7 @@ export default function ObserverWaitingRoom() {
                         className="h-[36vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
-                          {observerList.filter(
-                            (o) => (o.email || "") !== meEmail
-                          ).length === 0 ? (
-                            <div className="text-sm text-gray-500">
-                              No observers yet.
-                            </div>
-                          ) : (
-                            observerList
-                              .filter((o) => (o.email || "") !== meEmail)
-                              .map((o) => {
-                                const label = o.name || o.email || "Observer";
-                                return (
-                                  <div
-                                    key={`${label}-${o.email}`}
-                                    className="flex items-center justify-start gap-2 rounded px-2 py-1"
-                                  >
-                                    <div className="min-w-0">
-                                      <div className="text-sm font-medium truncate">
-                                        {label}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })
-                          )}
+                          <h1>Yet to implement</h1>
                         </div>
                       </div>
                       <div
@@ -262,60 +247,7 @@ export default function ObserverWaitingRoom() {
                         className="h-[36vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
-                          {/* Group chat row (before participant names) */}
-                          <div className="flex items-center justify-between gap-2 rounded px-2 py-1">
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium truncate">
-                                Group Chat
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                              aria-label="Open group chat"
-                              title="Open group chat"
-                              onClick={() => toast("Group chat clicked")}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </button>
-                          </div>
-
-                          {observerList.filter(
-                            (o) => (o.email || "") !== meEmail
-                          ).length === 0 ? (
-                            <div className="text-sm text-gray-500">
-                              No observers yet.
-                            </div>
-                          ) : (
-                            observerList
-                              .filter((o) => (o.email || "") !== meEmail)
-                              .map((o) => {
-                                const label = o.name || o.email || "Observer";
-                                return (
-                                  <div
-                                    key={`${label}-${o.email}`}
-                                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
-                                  >
-                                    <div className="min-w-0">
-                                      <div className="text-sm font-medium truncate">
-                                        {label}
-                                      </div>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                                      aria-label={`Chat with ${label}`}
-                                      title={`Chat with ${label}`}
-                                      onClick={() =>
-                                        toast(`${label} chat clicked`)
-                                      }
-                                    >
-                                      <MessageSquare className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                );
-                              })
-                          )}
+                          <h1>Yet to implement</h1>
                         </div>
                       </div>
                     </div>
@@ -341,12 +273,7 @@ export default function ObserverWaitingRoom() {
             <SheetTitle>Observation Room Chat</SheetTitle>
           </SheetHeader>
           <div className="p-2">
-            <ObserverChatPanel
-              socket={socket}
-              sessionId={sessionId}
-              me={{ email: "", name: "", role: "Observer" }}
-              isStreaming={false}
-            />
+            <h1>Yet to implement</h1>
           </div>
         </SheetContent>
       </Sheet>
