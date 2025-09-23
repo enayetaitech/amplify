@@ -3,7 +3,7 @@ import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { MessageSquare, Send, X } from "lucide-react";
 import { ChevronRight } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { formatDisplayName } from "lib/utils";
 import type { Socket } from "socket.io-client";
 import DocumentHub from "./DocumentHub";
@@ -40,6 +40,18 @@ const MainRightSidebar = ({
     name?: string;
   } | null>(null);
   const [showGroupChatObs, setShowGroupChatObs] = useState(false);
+  type DmMessage = {
+    email: string;
+    senderName?: string;
+    role?: string;
+    content: string;
+    timestamp?: string | Date;
+    toEmail?: string;
+  };
+  const [dmMessages, setDmMessages] = useState<DmMessage[]>([]);
+  const [dmText, setDmText] = useState("");
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const meLower = (me?.email || "").toLowerCase();
   // prevent unused var linter errors
   // referencing these ensures they are treated as used until needed
   void Backroom;
@@ -48,6 +60,48 @@ const MainRightSidebar = ({
   void me;
   void backroomDefaultTarget;
   void setBackroomDefaultTarget;
+  // Load DM history when selecting an observer (moderator/admin side)
+  useEffect(() => {
+    if (!socket) return;
+    if (!selectedObserver || showGroupChatObs) {
+      setDmMessages([]);
+      return;
+    }
+    setLoadingHistory(true);
+    socket.emit(
+      "chat:history:get",
+      {
+        scope: "stream_dm_obs_mod",
+        thread: { withEmail: selectedObserver.email },
+        limit: 100,
+      },
+      (resp?: { items?: DmMessage[] }) => {
+        const items = Array.isArray(resp?.items) ? resp!.items! : [];
+        setDmMessages(items);
+        setLoadingHistory(false);
+      }
+    );
+  }, [socket, selectedObserver, showGroupChatObs]);
+
+  // Live updates for DM
+  useEffect(() => {
+    if (!socket) return;
+    const onNew = (p: { scope?: string; message?: DmMessage }) => {
+      if (!p?.scope || p.scope !== "stream_dm_obs_mod" || !p?.message) return;
+      if (!selectedObserver) return;
+      const from = (p.message.email || "").toLowerCase();
+      const to = (p.message.toEmail || "").toLowerCase();
+      const peer = (selectedObserver.email || "").toLowerCase();
+      const match =
+        (from === meLower && to === peer) || (from === peer && to === meLower);
+      if (!match) return;
+      setDmMessages((prev) => [...prev, p.message as DmMessage]);
+    };
+    socket.on("chat:new", onNew);
+    return () => {
+      socket.off("chat:new", onNew);
+    };
+  }, [socket, selectedObserver, meLower]);
   return (
     <aside className="relative col-span-3 h-full rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
       <button
@@ -171,6 +225,7 @@ const MainRightSidebar = ({
                                   name: o.name,
                                 });
                                 setShowGroupChatObs(false);
+                                setDmMessages([]);
                               }}
                             >
                               <div className="flex items-center gap-2 min-w-0">
@@ -240,15 +295,83 @@ const MainRightSidebar = ({
                     </Button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2">
-                    <div className="space-y-1 text-sm">
-                      <div className="text-gray-500">
-                        UI only (not functional).
+                    {loadingHistory ? (
+                      <div className="text-sm text-gray-500">Loading…</div>
+                    ) : (
+                      <div className="space-y-1 text-sm">
+                        {dmMessages.length === 0 ? (
+                          <div className="text-gray-500">No messages yet.</div>
+                        ) : (
+                          dmMessages.map((m, idx) => {
+                            const fromMe =
+                              (m.email || "").toLowerCase() === meLower;
+                            return (
+                              <div
+                                key={idx}
+                                className={`max-w-[85%] rounded px-2 py-1 ${
+                                  fromMe
+                                    ? "ml-auto bg-blue-50"
+                                    : "mr-auto bg-gray-50"
+                                }`}
+                              >
+                                {!fromMe && (
+                                  <div className="text-[11px] text-gray-500">
+                                    {m.senderName || m.email}
+                                  </div>
+                                )}
+                                <div className="whitespace-pre-wrap">
+                                  {m.content}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
                   <div className="p-2 flex items-center gap-2 border-t">
-                    <Input placeholder="Type a message..." disabled />
-                    <Button size="sm" className="h-8 w-8 p-0" disabled>
+                    <Input
+                      placeholder="Type a message..."
+                      value={dmText}
+                      onChange={(e) => setDmText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (!selectedObserver) return;
+                          const scope = "stream_dm_obs_mod"; // moderator/admin → observer
+                          socket?.emit(
+                            "chat:send",
+                            {
+                              scope,
+                              content: dmText.trim(),
+                              toEmail: selectedObserver.email,
+                            },
+                            (ack?: { ok?: boolean; error?: string }) => {
+                              if (ack?.ok) setDmText("");
+                            }
+                          );
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        if (!selectedObserver) return;
+                        const scope = "stream_dm_obs_mod";
+                        socket?.emit(
+                          "chat:send",
+                          {
+                            scope,
+                            content: dmText.trim(),
+                            toEmail: selectedObserver.email,
+                          },
+                          (ack?: { ok?: boolean; error?: string }) => {
+                            if (ack?.ok) setDmText("");
+                          }
+                        );
+                      }}
+                    >
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>

@@ -55,6 +55,19 @@ export default function ObserverBreakoutSelect({
     name?: string;
   } | null>(null);
   const [showGroupChatObs, setShowGroupChatObs] = useState(false);
+  type DmScope = "stream_dm_obs_mod" | "stream_dm_obs_obs";
+  type DmMessage = {
+    email: string;
+    senderName?: string;
+    role?: string;
+    content: string;
+    timestamp?: string | Date;
+    toEmail?: string;
+  };
+  const [dmMessages, setDmMessages] = useState<DmMessage[]>([]);
+  const [dmText, setDmText] = useState("");
+  const [dmScope, setDmScope] = useState<DmScope | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // derive current user's email (observer) to hide self from lists
   const { user } = useGlobalContext();
@@ -230,6 +243,89 @@ export default function ObserverBreakoutSelect({
       s.off("moderator:list", onMods);
     };
   }, [meetingSocket]);
+
+  // Compute whether selected peer is moderator
+  const selectedIsModerator = useMemo(() => {
+    if (!selectedObserver) return false;
+    const sel = (selectedObserver.email || "").toLowerCase();
+    return moderatorList.some((m) => (m.email || "").toLowerCase() === sel);
+  }, [selectedObserver, moderatorList]);
+
+  // Load DM history when selecting a peer
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    if (!selectedObserver || showGroupChatObs) {
+      setDmMessages([]);
+      setDmScope(null);
+      return;
+    }
+    const scope: DmScope = selectedIsModerator
+      ? "stream_dm_obs_mod"
+      : "stream_dm_obs_obs";
+    setDmScope(scope);
+    setLoadingHistory(true);
+    try {
+      s.emit(
+        "chat:history:get",
+        {
+          scope,
+          thread: { withEmail: selectedObserver.email },
+          limit: 100,
+        },
+        (resp?: { items?: DmMessage[] }) => {
+          const items = Array.isArray(resp?.items) ? resp!.items! : [];
+          setDmMessages(items);
+          setLoadingHistory(false);
+        }
+      );
+    } catch {
+      setDmMessages([]);
+      setLoadingHistory(false);
+    }
+  }, [meetingSocket, selectedObserver, selectedIsModerator, showGroupChatObs]);
+
+  // Live incoming DM messages
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onChatNew = (p: { scope?: string; message?: DmMessage }) => {
+      if (!p?.scope || !p?.message) return;
+      if (!dmScope || p.scope !== dmScope) return;
+      if (!selectedObserver) return;
+      const me = myEmailLower;
+      const peer = (selectedObserver.email || "").toLowerCase();
+      const from = (p.message.email || "").toLowerCase();
+      const to = (p.message.toEmail || "").toLowerCase();
+      const matches =
+        (from === me && to === peer) || (from === peer && to === me);
+      if (!matches) return;
+      setDmMessages((prev) => [...prev, p.message as DmMessage]);
+    };
+    s.on("chat:new", onChatNew);
+    return () => {
+      s.off("chat:new", onChatNew);
+    };
+  }, [meetingSocket, dmScope, selectedObserver, myEmailLower]);
+
+  // Send DM
+  const sendDm = () => {
+    const s = meetingSocket;
+    if (!s || !selectedObserver || !dmScope) return;
+    const text = dmText.trim();
+    if (!text) return;
+    s.emit(
+      "chat:send",
+      { scope: dmScope, content: text, toEmail: selectedObserver.email },
+      (ack?: { ok?: boolean; error?: string }) => {
+        if (ack?.ok) {
+          setDmText("");
+        } else {
+          toast.error(ack?.error || "Failed to send message");
+        }
+      }
+    );
+  };
 
   const mainColSpanClass =
     (isLeftOpen ? 1 : 0) + (isRightOpen ? 1 : 0) === 2
@@ -689,15 +785,60 @@ export default function ObserverBreakoutSelect({
                         </Button>
                       </div>
                       <div className="flex-1 overflow-y-auto p-2">
-                        <div className="space-y-1 text-sm">
-                          <div className="text-gray-500">
-                            UI only (not functional).
+                        {loadingHistory ? (
+                          <div className="text-sm text-gray-500">Loading…</div>
+                        ) : (
+                          <div className="space-y-1 text-sm">
+                            {dmMessages.length === 0 ? (
+                              <div className="text-gray-500">
+                                No messages yet.
+                              </div>
+                            ) : (
+                              dmMessages.map((m, idx) => {
+                                const fromMe =
+                                  (m.email || "").toLowerCase() ===
+                                  myEmailLower;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`max-w-[85%] rounded px-2 py-1 ${
+                                      fromMe
+                                        ? "ml-auto bg-blue-50"
+                                        : "mr-auto bg-gray-50"
+                                    }`}
+                                  >
+                                    {!fromMe && (
+                                      <div className="text-[11px] text-gray-500">
+                                        {m.senderName || m.email}
+                                      </div>
+                                    )}
+                                    <div className="whitespace-pre-wrap">
+                                      {m.content}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
                           </div>
-                        </div>
+                        )}
                       </div>
                       <div className="p-2 flex items-center gap-2 border-t">
-                        <Input placeholder="Type a message..." disabled />
-                        <Button size="sm" className="h-8 w-8 p-0" disabled>
+                        <Input
+                          placeholder="Type a message..."
+                          value={dmText}
+                          onChange={(e) => setDmText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              sendDm();
+                            }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={sendDm}
+                        >
                           <Send className="h-4 w-4" />
                         </Button>
                       </div>
