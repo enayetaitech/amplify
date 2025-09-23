@@ -40,6 +40,11 @@ const MainRightSidebar = ({
     name?: string;
   } | null>(null);
   const [showGroupChatObs, setShowGroupChatObs] = useState(false);
+  // Group chat state (stream_group)
+  type GroupMessage = { senderEmail?: string; name?: string; content: string };
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
+  const [groupText, setGroupText] = useState("");
+  const [groupLoading, setGroupLoading] = useState(false);
   type DmMessage = {
     email: string;
     senderName?: string;
@@ -60,6 +65,34 @@ const MainRightSidebar = ({
   void me;
   void backroomDefaultTarget;
   void setBackroomDefaultTarget;
+  // Group chat: load when opened
+  useEffect(() => {
+    if (!socket) return;
+    if (!showGroupChatObs) return;
+    setGroupLoading(true);
+    socket.emit(
+      "chat:history:get",
+      { scope: "stream_group", limit: 100 },
+      (resp?: { items?: GroupMessage[] }) => {
+        setGroupMessages(Array.isArray(resp?.items) ? resp!.items! : []);
+        setGroupLoading(false);
+      }
+    );
+  }, [socket, showGroupChatObs]);
+
+  // Group chat: live updates
+  useEffect(() => {
+    if (!socket) return;
+    const onNew = (p: { scope?: string; message?: GroupMessage }) => {
+      if (p?.scope !== "stream_group" || !p?.message) return;
+      if (!showGroupChatObs) return;
+      setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+    };
+    socket.on("chat:new", onNew);
+    return () => {
+      socket.off("chat:new", onNew);
+    };
+  }, [socket, showGroupChatObs]);
   // Load DM history when selecting an observer (moderator/admin side)
   useEffect(() => {
     if (!socket) return;
@@ -260,15 +293,65 @@ const MainRightSidebar = ({
                     </Button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2">
-                    <div className="space-y-1 text-sm">
-                      <div className="text-gray-500">
-                        UI only (not functional).
+                    {groupLoading ? (
+                      <div className="text-sm text-gray-500">Loading…</div>
+                    ) : (
+                      <div className="space-y-1 text-sm">
+                        {groupMessages.length === 0 ? (
+                          <div className="text-gray-500">No messages yet.</div>
+                        ) : (
+                          groupMessages.map((m, idx) => (
+                            <div
+                              key={idx}
+                              className="mr-auto bg-gray-50 max-w-[90%] rounded px-2 py-1"
+                            >
+                              <div className="text-[11px] text-gray-500">
+                                {m.name || m.senderEmail}
+                              </div>
+                              <div className="whitespace-pre-wrap">
+                                {m.content}
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
                   <div className="p-2 flex items-center gap-2 border-t">
-                    <Input placeholder="Type a message..." disabled />
-                    <Button size="sm" className="h-8 w-8 p-0" disabled>
+                    <Input
+                      placeholder="Type a message..."
+                      value={groupText}
+                      onChange={(e) => setGroupText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const txt = groupText.trim();
+                          if (!txt) return;
+                          socket?.emit(
+                            "chat:send",
+                            { scope: "stream_group", content: txt },
+                            (ack?: { ok?: boolean; error?: string }) => {
+                              if (ack?.ok) setGroupText("");
+                            }
+                          );
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        const txt = groupText.trim();
+                        if (!txt) return;
+                        socket?.emit(
+                          "chat:send",
+                          { scope: "stream_group", content: txt },
+                          (ack?: { ok?: boolean; error?: string }) => {
+                            if (ack?.ok) setGroupText("");
+                          }
+                        );
+                      }}
+                    >
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
