@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Badge } from "components/ui/badge";
-import { Send } from "lucide-react";
+import { Send, MessageSquare, X } from "lucide-react";
 import useChat, { ChatMessage, ChatScope } from "hooks/useChat";
 import { formatDisplayName } from "lib/utils";
 
@@ -18,7 +18,6 @@ export default function Backroom({
   me,
   defaultDmTarget,
 }: {
-
   socket: Socket | null;
   sessionId: string;
   me: { email: string; name: string; role: UserRole };
@@ -33,13 +32,22 @@ export default function Backroom({
   const [tab, setTab] = useState<"group" | "dm_obs" | "dm_mod">("group");
 
   const [groupText, setGroupText] = useState("");
-  const [dmObsTarget, setDmObsTarget] = useState(defaultDmTarget || "");
-  const [dmObsText, setDmObsText] = useState("");
   const [dmModTarget, setDmModTarget] = useState("");
   const [dmModText, setDmModText] = useState("");
 
+  // Observer list and lightweight UI state for list-first observer chat (UI only)
+  const [observerList, setObserverList] = useState<
+    { name: string; email: string }[]
+  >([]);
+  const [selectedObserver, setSelectedObserver] = useState<{
+    email: string;
+    name?: string;
+  } | null>(null);
+  const [showGroupChatObs, setShowGroupChatObs] = useState(false);
+  // prevent unused var linter errors for UI-only pieces
+  void defaultDmTarget;
+
   const groupRef = useRef<HTMLDivElement | null>(null);
-  const dmObsRef = useRef<HTMLDivElement | null>(null);
   const dmModRef = useRef<HTMLDivElement | null>(null);
 
   const isObserver = me?.role === "Observer";
@@ -52,10 +60,43 @@ export default function Backroom({
     getHistory("stream_group");
   }, [getHistory]);
 
+  // Load observer list for list-first UI (non-functional chat)
   useEffect(() => {
-    if (dmObsTarget.trim())
-      getHistory(dmObsScope, { withEmail: dmObsTarget.trim().toLowerCase() });
-  }, [dmObsTarget, dmObsScope, getHistory]);
+    const s = socket;
+    if (!s) return;
+    const onList = (p?: { observers?: { name: string; email: string }[] }) => {
+      const list = Array.isArray(p?.observers) ? p.observers! : [];
+      setObserverList(list);
+    };
+    s.on("observer:list", onList);
+    s.emit(
+      "observer:list:get",
+      {},
+      (resp?: { observers?: { name: string; email: string }[] }) => {
+        const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
+        setObserverList(list);
+      }
+    );
+    return () => {
+      s.off("observer:list", onList);
+    };
+  }, [socket]);
+
+  // Listen for external open DM requests from MainRightSidebar
+  useEffect(() => {
+    const onOpenDm = (e: Event) => {
+      const ev = e as CustomEvent<{ email: string; name?: string }>;
+      const target = ev.detail;
+      if (!target || !target.email) return;
+      setTab("dm_obs");
+      setSelectedObserver({ email: target.email, name: target.name });
+      setShowGroupChatObs(false);
+    };
+    window.addEventListener("open-backroom-dm", onOpenDm as EventListener);
+    return () => {
+      window.removeEventListener("open-backroom-dm", onOpenDm as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (dmModTarget.trim())
@@ -68,6 +109,7 @@ export default function Backroom({
   const meEmailLower = (me?.email || "").toLowerCase();
   const groupLen = messagesByScope["stream_group"]?.length || 0;
   const dmObsLen = (messagesByScope[dmObsScope] || []).length;
+  void dmObsLen;
   const dmModLen = (messagesByScope["stream_dm_obs_mod"] || []).length;
   const dmObsIncoming = useMemo(() => {
     const dm = messagesByScope[dmObsScope] || [];
@@ -100,10 +142,7 @@ export default function Backroom({
     if (groupRef.current)
       groupRef.current.scrollTop = groupRef.current.scrollHeight;
   }, [groupLen]);
-  useEffect(() => {
-    if (dmObsRef.current)
-      dmObsRef.current.scrollTop = dmObsRef.current.scrollHeight;
-  }, [dmObsLen]);
+  // No auto-scroll for observer DM UI (UI-only)
   useEffect(() => {
     if (dmModRef.current)
       dmModRef.current.scrollTop = dmModRef.current.scrollHeight;
@@ -125,12 +164,7 @@ export default function Backroom({
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
     if (nearBottom) setLastReadGroup(groupLen);
   };
-  const onDmObsScroll = () => {
-    const el = dmObsRef.current;
-    if (!el) return;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
-    if (nearBottom) setLastReadDmObsIncoming(dmObsIncoming);
-  };
+  // No scroll handler for observer DM UI (UI-only)
   const onDmModScroll = () => {
     const el = dmModRef.current;
     if (!el) return;
@@ -144,14 +178,7 @@ export default function Backroom({
     const ack = await send("stream_group", trimmed);
     if (ack.ok) setGroupText("");
   };
-  const sendDmObs = async () => {
-    const trimmed = dmObsText.trim();
-    if (!trimmed) return;
-    const target = dmObsTarget.trim().toLowerCase();
-    if (!target) return;
-    const ack = await send(dmObsScope, trimmed, target);
-    if (ack.ok) setDmObsText("");
-  };
+  // Observer DM sending intentionally omitted (UI-only)
   const sendDmMod = async () => {
     const trimmed = dmModText.trim();
     if (!trimmed) return;
@@ -164,14 +191,7 @@ export default function Backroom({
   const groupItems = (messagesByScope["stream_group"] || []).map((m, i) =>
     renderItem(m, i)
   );
-  const dmObsItems = (messagesByScope[dmObsScope] || [])
-    .filter((m) =>
-      dmObsTarget
-        ? (m.toEmail || "") === dmObsTarget.trim().toLowerCase() ||
-          (m.email || "").toLowerCase() === dmObsTarget.trim().toLowerCase()
-        : true
-    )
-    .map((m, i) => renderItem(m, i));
+  // No items mapping for observer DM UI (UI-only)
   const dmModItems = (messagesByScope["stream_dm_obs_mod"] || [])
     .filter((m) =>
       dmModTarget
@@ -183,8 +203,6 @@ export default function Backroom({
 
   return (
     <div className="flex flex-col">
-     
-
       <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden overflow-x-hidden w-full max-w-full flex flex-col">
         <Tabs
           value={tab}
@@ -276,52 +294,127 @@ export default function Backroom({
           </TabsContent>
 
           <TabsContent value="dm_obs" className="flex-1 min-h-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Input
-                value={dmObsTarget}
-                onChange={(e) => setDmObsTarget(e.target.value)}
-                placeholder={isObserver ? "Observer email" : "Observer email"}
-                onBlur={() =>
-                  dmObsTarget &&
-                  getHistory(dmObsScope, {
-                    withEmail: dmObsTarget.trim().toLowerCase(),
-                  })
-                }
-              />
-            </div>
-            <div
-              ref={dmObsRef}
-              onScroll={onDmObsScroll}
-              className="h-[22vh] overflow-y-auto overflow-x-hidden bg-white rounded p-2"
-            >
-              <div className="space-y-1 text-sm">
-                {dmObsItems.length === 0 ? (
-                  <div className="text-gray-500">No messages yet.</div>
-                ) : (
-                  dmObsItems
-                )}
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <Input
-                value={dmObsText}
-                onChange={(e) => setDmObsText(e.target.value)}
-                placeholder={
-                  isObserver
-                    ? "Write a private message to observer"
-                    : "Write a private message to observer"
-                }
-                className="flex-1 min-w-0"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendDmObs();
-                  }
-                }}
-              />
-              <Button onClick={sendDmObs} size="sm" className="h-8 w-8 p-0">
-                <Send className="h-4 w-4" />
-              </Button>
+            <div className="grid grid-cols-12 gap-2 h-[22vh]">
+              {!selectedObserver && !showGroupChatObs && (
+                <div className="col-span-12 rounded bg-white overflow-y-auto">
+                  <div className="space-y-1 p-2">
+                    {observerList.length === 0 ? (
+                      <div className="text-sm text-gray-500">
+                        No observers yet.
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          onClick={() => {
+                            setShowGroupChatObs(true);
+                            setSelectedObserver(null);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium truncate">
+                              Group Chat
+                            </span>
+                          </div>
+                          <MessageSquare className="h-4 w-4 text-gray-400" />
+                        </div>
+                        {observerList.map((o) => {
+                          const label = o.name
+                            ? formatDisplayName(o.name)
+                            : o.email || "Observer";
+                          return (
+                            <div
+                              key={`${o.email}`}
+                              className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                              onClick={() => {
+                                setSelectedObserver({
+                                  email: o.email,
+                                  name: o.name,
+                                });
+                                setShowGroupChatObs(false);
+                              }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-medium truncate">
+                                  {label}
+                                </span>
+                              </div>
+                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+              {showGroupChatObs && (
+                <div className="col-span-12 rounded bg-white flex flex-col">
+                  <div className="flex items-center justify-between p-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Observer Group Chat
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowGroupChatObs(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-1 text-sm">
+                      <div className="text-gray-500">
+                        UI only (not functional).
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2 flex items-center gap-2 border-t">
+                    <Input placeholder="Type a message..." disabled />
+                    <Button size="sm" className="h-8 w-8 p-0" disabled>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {selectedObserver && !showGroupChatObs && (
+                <div className="col-span-12 rounded bg-white flex flex-col">
+                  <div className="flex items-center justify-between p-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Chat with{" "}
+                        {selectedObserver.name
+                          ? formatDisplayName(selectedObserver.name)
+                          : selectedObserver.email}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedObserver(null)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-1 text-sm">
+                      <div className="text-gray-500">
+                        UI only (not functional).
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2 flex items-center gap-2 border-t">
+                    <Input placeholder="Type a message..." disabled />
+                    <Button size="sm" className="h-8 w-8 p-0" disabled>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 

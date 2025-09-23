@@ -1,8 +1,10 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
-import { MessageSquare } from "lucide-react";
-import { toast } from "sonner";
+import { Input } from "components/ui/input";
+import { Button } from "components/ui/button";
+import { MessageSquare, Send, X } from "lucide-react";
 import { ChevronRight } from "lucide-react";
 import React, { useState } from "react";
+import { formatDisplayName } from "lib/utils";
 import type { Socket } from "socket.io-client";
 import DocumentHub from "./DocumentHub";
 import ObservationRoom from "./ObservationRoom";
@@ -33,6 +35,11 @@ const MainRightSidebar = ({
   const [backroomDefaultTarget, setBackroomDefaultTarget] = useState<
     string | undefined
   >(undefined);
+  const [selectedObserver, setSelectedObserver] = useState<{
+    email: string;
+    name?: string;
+  } | null>(null);
+  const [showGroupChatObs, setShowGroupChatObs] = useState(false);
   // prevent unused var linter errors
   // referencing these ensures they are treated as used until needed
   void Backroom;
@@ -126,33 +133,127 @@ const MainRightSidebar = ({
           </TabsContent>
 
           <TabsContent value="chat">
-            <div className="space-y-2">
-              {observerList.length === 0 && (
-                <div className="text-sm text-gray-500">No observers yet.</div>
+            <div className="grid grid-cols-12 gap-2 h-[22vh]">
+              {!selectedObserver && !showGroupChatObs && (
+                <div className="col-span-12 rounded bg-white overflow-y-auto">
+                  <div className="space-y-1 p-2">
+                    {observerList.length === 0 ? (
+                      <div className="text-sm text-gray-500">
+                        No observers yet.
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          onClick={() => {
+                            setShowGroupChatObs(true);
+                            setSelectedObserver(null);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium truncate">
+                              Group Chat
+                            </span>
+                          </div>
+                          <MessageSquare className="h-4 w-4 text-gray-400" />
+                        </div>
+                        {observerList.map((o) => {
+                          const label = o.name
+                            ? formatDisplayName(o.name)
+                            : o.email || "Observer";
+                          return (
+                            <div
+                              key={`${o.email}`}
+                              className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                              onClick={() => {
+                                setSelectedObserver({
+                                  email: o.email,
+                                  name: o.name,
+                                });
+                                setShowGroupChatObs(false);
+                              }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-medium truncate">
+                                  {label}
+                                </span>
+                              </div>
+                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                </div>
               )}
-              {observerList.map((o) => {
-                const label = o.name || o.email || "Observer";
-                return (
-                  <div
-                    key={`chat-${label}-${o.email}`}
-                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {label}
+              {showGroupChatObs && (
+                <div className="col-span-12 rounded bg-white flex flex-col">
+                  <div className="flex items-center justify-between p-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Observer Group Chat
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowGroupChatObs(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-1 text-sm">
+                      <div className="text-gray-500">
+                        UI only (not functional).
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toast("Yet to implement")}
-                      aria-label={`Chat with ${label}`}
-                      className="p-1 rounded hover:bg-gray-100"
-                    >
-                      <MessageSquare className="h-4 w-4 text-custom-dark-blue-1" />
-                    </button>
                   </div>
-                );
-              })}
+                  <div className="p-2 flex items-center gap-2 border-t">
+                    <Input placeholder="Type a message..." disabled />
+                    <Button size="sm" className="h-8 w-8 p-0" disabled>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {selectedObserver && !showGroupChatObs && (
+                <div className="col-span-12 rounded bg-white flex flex-col">
+                  <div className="flex items-center justify-between p-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Chat with{" "}
+                        {selectedObserver.name
+                          ? formatDisplayName(selectedObserver.name)
+                          : selectedObserver.email}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedObserver(null)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-1 text-sm">
+                      <div className="text-gray-500">
+                        UI only (not functional).
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2 flex items-center gap-2 border-t">
+                    <Input placeholder="Type a message..." disabled />
+                    <Button size="sm" className="h-8 w-8 p-0" disabled>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
