@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import DocumentHub from "./rightSideBar/DocumentHub";
 // import ObserverChatPanel from "./ObserverChatPanel";
 import { formatDisplayName } from "lib/utils";
+import { useGlobalContext } from "context/GlobalContext";
+import { safeLocalGet } from "utils/storage";
 
 export default function ObserverBreakoutSelect({
   sessionId,
@@ -45,11 +47,24 @@ export default function ObserverBreakoutSelect({
   const [observerList, setObserverList] = useState<
     { name: string; email: string }[]
   >([]);
+  const [moderatorList, setModeratorList] = useState<
+    { name: string; email: string; role: string }[]
+  >([]);
   const [selectedObserver, setSelectedObserver] = useState<{
     email: string;
     name?: string;
   } | null>(null);
   const [showGroupChatObs, setShowGroupChatObs] = useState(false);
+
+  // derive current user's email (observer) to hide self from lists
+  const { user } = useGlobalContext();
+  const myEmailLower = useMemo(() => {
+    const emailFromUser = (user?.email as string) || "";
+    if (emailFromUser) return emailFromUser.toLowerCase();
+    const stored = safeLocalGet<{ email?: string }>("liveSessionUser");
+    const e = (stored?.email as string) || "";
+    return e.toLowerCase();
+  }, [user]);
 
   useEffect(() => {
     setOptions((prev) => {
@@ -179,8 +194,15 @@ export default function ObserverBreakoutSelect({
       setObserverList(list);
       setObserverCount(list.length);
     };
+    const onMods = (p: {
+      moderators?: { name: string; email: string; role: string }[];
+    }) => {
+      console.log("Moderator name", p.moderators);
+      setModeratorList(Array.isArray(p?.moderators) ? p.moderators : []);
+    };
     s.on("observer:count", onCount);
     s.on("observer:list", onList);
+    s.on("moderator:list", onMods);
     // initial list
     s.emit(
       "observer:list:get",
@@ -191,9 +213,21 @@ export default function ObserverBreakoutSelect({
         setObserverCount(list.length);
       }
     );
+    s.emit(
+      "moderator:list:get",
+      {},
+      (resp?: {
+        moderators?: { name: string; email: string; role: string }[];
+      }) => {
+        setModeratorList(
+          Array.isArray(resp?.moderators) ? resp!.moderators! : []
+        );
+      }
+    );
     return () => {
       s.off("observer:count", onCount);
       s.off("observer:list", onList);
+      s.off("moderator:list", onMods);
     };
   }, [meetingSocket]);
 
@@ -515,6 +549,43 @@ export default function ObserverBreakoutSelect({
                           </div>
                         ) : (
                           <>
+                            {moderatorList
+                              .filter((m) => {
+                                const nm = (m?.name || "").trim().toLowerCase();
+                                if (nm === "moderator") return false;
+                                if (
+                                  (m?.email || "").toLowerCase() ===
+                                  myEmailLower
+                                )
+                                  return false;
+                                const lbl = (m?.name || m?.email || "").trim();
+                                return lbl.length > 0;
+                              })
+                              .map((m) => {
+                                const label = m.name
+                                  ? formatDisplayName(m.name)
+                                  : m.email || "";
+                                return (
+                                  <div
+                                    key={`${m.email}-${m.role}`}
+                                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                    onClick={() => {
+                                      setSelectedObserver({
+                                        email: m.email,
+                                        name: m.name,
+                                      });
+                                      setShowGroupChatObs(false);
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="text-sm font-medium truncate">
+                                        {label}
+                                      </span>
+                                    </div>
+                                    <MessageSquare className="h-4 w-4 text-gray-400" />
+                                  </div>
+                                );
+                              })}
                             <div
                               className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
                               onClick={() => {
@@ -529,31 +600,37 @@ export default function ObserverBreakoutSelect({
                               </div>
                               <MessageSquare className="h-4 w-4 text-gray-400" />
                             </div>
-                            {observerList.map((o) => {
-                              const label = o.name
-                                ? formatDisplayName(o.name)
-                                : o.email || "Observer";
-                              return (
-                                <div
-                                  key={`${o.email}`}
-                                  className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                  onClick={() => {
-                                    setSelectedObserver({
-                                      email: o.email,
-                                      name: o.name,
-                                    });
-                                    setShowGroupChatObs(false);
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="text-sm font-medium truncate">
-                                      {label}
-                                    </span>
+                            {observerList
+                              .filter(
+                                (o) =>
+                                  (o?.email || "").toLowerCase() !==
+                                  myEmailLower
+                              )
+                              .map((o) => {
+                                const label = o.name
+                                  ? formatDisplayName(o.name)
+                                  : o.email || "Observer";
+                                return (
+                                  <div
+                                    key={`${o.email}`}
+                                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                    onClick={() => {
+                                      setSelectedObserver({
+                                        email: o.email,
+                                        name: o.name,
+                                      });
+                                      setShowGroupChatObs(false);
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="text-sm font-medium truncate">
+                                        {label}
+                                      </span>
+                                    </div>
+                                    <MessageSquare className="h-4 w-4 text-gray-400" />
                                   </div>
-                                  <MessageSquare className="h-4 w-4 text-gray-400" />
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
                           </>
                         )}
                       </div>

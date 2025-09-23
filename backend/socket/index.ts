@@ -51,6 +51,11 @@ const observerInfo = new Map<
   string,
   Map<string, { name: string; email: string }>
 >();
+// Track moderator/admin display info per sessionId -> (socketId -> { name, email, role })
+const moderatorInfo = new Map<
+  string,
+  Map<string, { name: string; email: string; role: "Moderator" | "Admin" }>
+>();
 
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
@@ -115,6 +120,18 @@ export function attachSocket(server: HTTPServer) {
         : [];
       io.to(sessionId).emit("observer:list", { observers });
     };
+    // Helper to emit moderator/admin list (names/emails/role) to the session
+    const emitModeratorList = () => {
+      const m = moderatorInfo.get(sessionId);
+      const moderators = m
+        ? Array.from(m.values()).map((v) => ({
+            name: v.name,
+            email: v.email,
+            role: v.role,
+          }))
+        : [];
+      io.to(sessionId).emit("moderator:list", { moderators });
+    };
 
     // Maintain observer count map only for Observer role
     if (role === "Observer") {
@@ -128,6 +145,18 @@ export function attachSocket(server: HTTPServer) {
       });
       emitObserverCount();
       emitObserverList();
+    }
+
+    // Maintain moderator/admin info map
+    if (role === "Moderator" || role === "Admin") {
+      if (!moderatorInfo.has(sessionId))
+        moderatorInfo.set(sessionId, new Map());
+      moderatorInfo.get(sessionId)!.set(socket.id, {
+        name: name || email || role,
+        email: email || "",
+        role,
+      });
+      emitModeratorList();
     }
 
     // Track email -> socket (only if email present)
@@ -661,6 +690,31 @@ export function attachSocket(server: HTTPServer) {
           ack?.({ observers });
         } catch {
           ack?.({ observers: [] });
+        }
+      }
+    );
+
+    // Provide current moderator/admin list snapshot on demand
+    socket.on(
+      "moderator:list:get",
+      (
+        _payload: {},
+        ack?: (resp: {
+          moderators: { name: string; email: string; role: string }[];
+        }) => void
+      ) => {
+        try {
+          const m = moderatorInfo.get(sessionId);
+          const moderators = m
+            ? Array.from(m.values()).map((v) => ({
+                name: v.name,
+                email: v.email,
+                role: v.role,
+              }))
+            : [];
+          ack?.({ moderators });
+        } catch {
+          ack?.({ moderators: [] });
         }
       }
     );
@@ -1424,6 +1478,23 @@ export function attachSocket(server: HTTPServer) {
           set.delete(socket.id);
           if (set.size === 0) moderatorSockets.delete(sessionId);
         }
+        // remove from moderator/admin info map and emit updated list
+        const infoMap = moderatorInfo.get(sessionId);
+        if (infoMap) {
+          infoMap.delete(socket.id);
+          if (infoMap.size === 0) moderatorInfo.delete(sessionId);
+        }
+        try {
+          const m = moderatorInfo.get(sessionId);
+          const moderators = m
+            ? Array.from(m.values()).map((v) => ({
+                name: v.name,
+                email: v.email,
+                role: v.role,
+              }))
+            : [];
+          io.to(sessionId).emit("moderator:list", { moderators });
+        } catch {}
       }
     });
   });
