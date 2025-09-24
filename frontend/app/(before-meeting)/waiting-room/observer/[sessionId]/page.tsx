@@ -30,6 +30,9 @@ export default function ObserverWaitingRoom() {
   const [observerList, setObserverList] = useState<
     { name: string; email: string }[]
   >([]);
+  const [moderators, setModerators] = useState<
+    { name: string; email: string; role: string }[]
+  >([]);
   const [activeTab, setActiveTab] = useState<string>("list");
   const [meEmail, setMeEmail] = useState<string>("");
 
@@ -125,8 +128,28 @@ export default function ObserverWaitingRoom() {
         setObserverList(list);
       }
     );
+    // Moderators/Admins
+    const onMods = (p: {
+      moderators?: { name: string; email: string; role: string }[];
+    }) => {
+      const list = Array.isArray(p?.moderators) ? p.moderators : [];
+      setModerators(list);
+    };
+    socket.on("moderator:list", onMods);
+    socket.emit(
+      "moderator:list:get",
+      {},
+      (resp?: {
+        moderators?: { name: string; email: string; role: string }[];
+      }) => {
+        const list = Array.isArray(resp?.moderators) ? resp!.moderators! : [];
+
+        setModerators(list);
+      }
+    );
     return () => {
       socket.off("observer:list", onList);
+      socket.off("moderator:list", onMods);
     };
   }, [socket]);
 
@@ -246,7 +269,17 @@ export default function ObserverWaitingRoom() {
                               No observers yet.
                             </div>
                           ) : (
-                            observerList
+                            [
+                              ...observerList,
+                              ...moderators
+                                .filter(
+                                  (m) => (m.name || "").trim() !== "Moderator"
+                                )
+                                .map((m) => ({
+                                  name: `${m.name}`,
+                                  email: m.email,
+                                })),
+                            ]
                               .filter(
                                 (o) =>
                                   (o.email || "").toLowerCase() !==
@@ -287,7 +320,17 @@ export default function ObserverWaitingRoom() {
                               No observers yet.
                             </div>
                           ) : (
-                            observerList
+                            [
+                              ...observerList,
+                              ...moderators
+                                .filter(
+                                  (m) => (m.name || "").trim() !== "Moderator"
+                                )
+                                .map((m) => ({
+                                  name: `${m.name}`,
+                                  email: m.email,
+                                })),
+                            ]
                               .filter(
                                 (o) =>
                                   (o.email || "").toLowerCase() !==
