@@ -44,16 +44,18 @@ const MainRightSidebar = ({
       >
         <ChevronRight className="h-4 w-4" />
       </button>
-      {!isStreaming && <ObservationRoom />}
-      <Backroom
-        isStreaming={isStreaming}
-        observerCount={observerCount}
-        observerList={observerList}
-        socket={socket}
-        me={me}
-      />
+      {isStreaming ? (
+        <Backroom
+          isStreaming={isStreaming}
+          observerCount={observerCount}
+          observerList={observerList}
+          socket={socket}
+          me={me}
+        />
+      ) : (
+        <ObservationRoom />
+      )}
 
-      {/* Document Hub */}
       <DocumentHub />
     </aside>
   );
