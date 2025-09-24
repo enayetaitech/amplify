@@ -298,7 +298,7 @@ const MainRightSidebar = ({
           </TabsContent>
 
           <TabsContent value="chat">
-            <div className="grid grid-cols-12 gap-2 h-[22vh]">
+            <div className="grid grid-cols-12 gap-2 h-[26vh]">
               {!selectedObserver && !showGroupChatObs && (
                 <div className="col-span-12 rounded bg-white overflow-y-auto">
                   <div className="space-y-1 p-2">

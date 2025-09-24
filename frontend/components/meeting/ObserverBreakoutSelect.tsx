@@ -78,6 +78,8 @@ export default function ObserverBreakoutSelect({
   const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
     Record<string, number>
   >({});
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const dmRef = useRef<HTMLDivElement | null>(null);
 
   // derive current user's email (observer) to hide self from lists
   const { user } = useGlobalContext();
@@ -318,6 +320,14 @@ export default function ObserverBreakoutSelect({
     };
   }, [meetingSocket, dmScope, selectedObserver, myEmailLower]);
 
+  // Auto-scroll DM chat
+  useEffect(() => {
+    if (!selectedObserver || showGroupChatObs) return;
+    const el = dmRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [selectedObserver, showGroupChatObs, dmMessages.length, loadingHistory]);
+
   // Global unread for DMs (both obs-obs and obs-mod)
   useEffect(() => {
     const s = meetingSocket;
@@ -405,6 +415,14 @@ export default function ObserverBreakoutSelect({
       s.off("chat:new", onNew);
     };
   }, [meetingSocket, showGroupChatObs]);
+
+  // Auto-scroll group chat
+  useEffect(() => {
+    if (!showGroupChatObs) return;
+    const el = groupRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [showGroupChatObs, groupMessages.length]);
 
   // Group chat: send
   const sendGroup = () => {
@@ -722,7 +740,7 @@ export default function ObserverBreakoutSelect({
                 </div>
               </TabsContent>
               <TabsContent value="chat">
-                <div className="grid grid-cols-12 gap-2 h-[28vh]">
+                <div className="grid grid-cols-12 gap-2 h-[32vh]">
                   {!selectedObserver && !showGroupChatObs && (
                     <div className="col-span-12 rounded bg-white ">
                       <div className="space-y-1 p-2">
@@ -889,7 +907,10 @@ export default function ObserverBreakoutSelect({
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="flex-1 p-2">
+                      <div
+                        ref={groupRef}
+                        className="flex-1 overflow-y-auto p-2"
+                      >
                         {groupLoading ? (
                           <div className="text-sm text-gray-500">Loading…</div>
                         ) : (
@@ -958,7 +979,7 @@ export default function ObserverBreakoutSelect({
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="flex-1  p-2">
+                      <div ref={dmRef} className="flex-1 overflow-y-auto p-2">
                         {loadingHistory ? (
                           <div className="text-sm text-gray-500">Loading…</div>
                         ) : (
