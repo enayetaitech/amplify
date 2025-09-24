@@ -4,7 +4,7 @@ import { Button } from "components/ui/button";
 import { Badge } from "components/ui/badge";
 import { MessageSquare, Send, X } from "lucide-react";
 import { ChevronRight } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { formatDisplayName } from "lib/utils";
 import type { Socket } from "socket.io-client";
 import DocumentHub from "./DocumentHub";
@@ -70,6 +70,8 @@ const MainRightSidebar = ({
   void me;
   void backroomDefaultTarget;
   void setBackroomDefaultTarget;
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const dmRef = useRef<HTMLDivElement | null>(null);
   // Group chat: load when opened
   useEffect(() => {
     if (!socket) return;
@@ -103,6 +105,14 @@ const MainRightSidebar = ({
       socket.off("chat:new", onNew);
     };
   }, [socket, showGroupChatObs]);
+
+  // Auto-scroll group chat when opened or messages appended
+  useEffect(() => {
+    if (!showGroupChatObs) return;
+    const el = groupRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [showGroupChatObs, groupMessages.length]);
   // Load DM history when selecting an observer (moderator/admin side)
   useEffect(() => {
     if (!socket) return;
@@ -146,6 +156,14 @@ const MainRightSidebar = ({
     };
   }, [socket, selectedObserver, meLower]);
 
+  // Auto-scroll DM view when open or messages appended
+  useEffect(() => {
+    if (!selectedObserver || showGroupChatObs) return;
+    const el = dmRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [selectedObserver, showGroupChatObs, dmMessages.length, loadingHistory]);
+
   // DM unread across all observers
   useEffect(() => {
     if (!socket) return;
@@ -181,7 +199,7 @@ const MainRightSidebar = ({
       </button>
       {!isStreaming && <ObservationRoom />}
       {/* Backroom tabs - styled like left sidebar Participants panel */}
-      <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
+      <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold pl-2">Backroom</h3>
           <button
@@ -291,14 +309,14 @@ const MainRightSidebar = ({
                     ) : (
                       <>
                         <div
-                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer "
                           onClick={() => {
                             setShowGroupChatObs(true);
                             setSelectedObserver(null);
                             setGroupUnread(0);
                           }}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 ">
                             <span className="text-sm font-medium truncate">
                               Group Chat
                             </span>
@@ -372,7 +390,7 @@ const MainRightSidebar = ({
                 </div>
               )}
               {showGroupChatObs && (
-                <div className="col-span-12 rounded bg-white flex flex-col">
+                <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
                   <div className="flex items-center justify-between p-2 border-b">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">
@@ -388,7 +406,7 @@ const MainRightSidebar = ({
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-2">
+                  <div ref={groupRef} className="flex-1  p-2">
                     {groupLoading ? (
                       <div className="text-sm text-gray-500">Loading…</div>
                     ) : (
@@ -454,10 +472,10 @@ const MainRightSidebar = ({
                 </div>
               )}
               {selectedObserver && !showGroupChatObs && (
-                <div className="col-span-12 rounded bg-white flex flex-col">
-                  <div className="flex items-center justify-between p-2 border-b">
+                <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
+                  <div className="flex items-center justify-between p-0.5 border-b">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
+                      <span className="text-sm ">
                         Chat with{" "}
                         {selectedObserver.name
                           ? formatDisplayName(selectedObserver.name)
@@ -473,7 +491,7 @@ const MainRightSidebar = ({
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-2">
+                  <div ref={dmRef} className="flex-1  p-0.5">
                     {loadingHistory ? (
                       <div className="text-sm text-gray-500">Loading…</div>
                     ) : (

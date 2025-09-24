@@ -681,7 +681,7 @@ export default function ObserverBreakoutSelect({
               </span>
             </div>
           </div>
-          <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
+          <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
             <Tabs defaultValue="list">
               <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
                 <TabsTrigger
@@ -716,14 +716,6 @@ export default function ObserverBreakoutSelect({
                             {label}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                          aria-label={`Open chat with ${label}`}
-                          title={`Open chat with ${label}`}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </button>
                       </div>
                     );
                   })}
@@ -732,7 +724,7 @@ export default function ObserverBreakoutSelect({
               <TabsContent value="chat">
                 <div className="grid grid-cols-12 gap-2 h-[28vh]">
                   {!selectedObserver && !showGroupChatObs && (
-                    <div className="col-span-12 rounded bg-white overflow-y-auto">
+                    <div className="col-span-12 rounded bg-white ">
                       <div className="space-y-1 p-2">
                         {observerList.length === 0 ? (
                           <div className="text-sm text-gray-500">
@@ -881,7 +873,7 @@ export default function ObserverBreakoutSelect({
                     </div>
                   )}
                   {showGroupChatObs && (
-                    <div className="col-span-12 rounded bg-white flex flex-col">
+                    <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
                       <div className="flex items-center justify-between p-2 border-b">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
@@ -897,7 +889,7 @@ export default function ObserverBreakoutSelect({
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-2">
+                      <div className="flex-1 p-2">
                         {groupLoading ? (
                           <div className="text-sm text-gray-500">Loading…</div>
                         ) : (
@@ -947,7 +939,7 @@ export default function ObserverBreakoutSelect({
                     </div>
                   )}
                   {selectedObserver && !showGroupChatObs && (
-                    <div className="col-span-12 rounded bg-white flex flex-col">
+                    <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
                       <div className="flex items-center justify-between p-2 border-b">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
@@ -966,7 +958,7 @@ export default function ObserverBreakoutSelect({
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-2">
+                      <div className="flex-1  p-2">
                         {loadingHistory ? (
                           <div className="text-sm text-gray-500">Loading…</div>
                         ) : (
