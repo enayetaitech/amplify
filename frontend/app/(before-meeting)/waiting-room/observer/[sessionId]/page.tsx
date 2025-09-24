@@ -121,7 +121,7 @@ export default function ObserverWaitingRoom() {
       {},
       (resp?: { observers?: { name: string; email: string }[] }) => {
         const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
-        console.log('observer list', list)
+        console.log("observer list", list);
         setObserverList(list);
       }
     );
@@ -237,7 +237,37 @@ export default function ObserverWaitingRoom() {
                         className="h-[36vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
-                          <h1>Yet to implement</h1>
+                          {observerList.filter(
+                            (o) =>
+                              (o.email || "").toLowerCase() !==
+                              meEmail.toLowerCase()
+                          ).length === 0 ? (
+                            <div className="text-sm text-gray-500">
+                              No observers yet.
+                            </div>
+                          ) : (
+                            observerList
+                              .filter(
+                                (o) =>
+                                  (o.email || "").toLowerCase() !==
+                                  meEmail.toLowerCase()
+                              )
+                              .map((o, idx) => {
+                                const label = o.name || o.email || "Observer";
+                                return (
+                                  <div
+                                    key={`${label}-${idx}`}
+                                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-medium truncate">
+                                        {label}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                          )}
                         </div>
                       </div>
                       <div
@@ -248,7 +278,44 @@ export default function ObserverWaitingRoom() {
                         className="h-[36vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
-                          <h1>Yet to implement</h1>
+                          {observerList.filter(
+                            (o) =>
+                              (o.email || "").toLowerCase() !==
+                              meEmail.toLowerCase()
+                          ).length === 0 ? (
+                            <div className="text-sm text-gray-500">
+                              No observers yet.
+                            </div>
+                          ) : (
+                            observerList
+                              .filter(
+                                (o) =>
+                                  (o.email || "").toLowerCase() !==
+                                  meEmail.toLowerCase()
+                              )
+                              .map((o, idx) => {
+                                const label = o.name || o.email || "Observer";
+                                return (
+                                  <div
+                                    key={`${label}-${idx}`}
+                                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 ">
+                                      <span className="text-sm font-medium truncate">
+                                        {label}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      aria-label="Open chat"
+                                      className="relative inline-flex items-center justify-center h-6 w-6"
+                                    >
+                                      <MessageSquare className="h-4 w-4 text-gray-400" />
+                                    </button>
+                                  </div>
+                                );
+                              })
+                          )}
                         </div>
                       </div>
                     </div>
