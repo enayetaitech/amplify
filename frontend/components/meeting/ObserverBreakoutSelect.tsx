@@ -7,6 +7,7 @@ import ObserverHlsLayout from "./ObserverHlsLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
+import { Badge } from "components/ui/badge";
 import { Separator } from "components/ui/separator";
 import {
   ChevronLeft,
@@ -73,6 +74,10 @@ export default function ObserverBreakoutSelect({
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState("");
   const [groupLoading, setGroupLoading] = useState(false);
+  const [groupUnread, setGroupUnread] = useState(0);
+  const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
+    Record<string, number>
+  >({});
 
   // derive current user's email (observer) to hide self from lists
   const { user } = useGlobalContext();
@@ -313,6 +318,34 @@ export default function ObserverBreakoutSelect({
     };
   }, [meetingSocket, dmScope, selectedObserver, myEmailLower]);
 
+  // Global unread for DMs (both obs-obs and obs-mod)
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onNew = (p: { scope?: string; message?: DmMessage }) => {
+      if (!p?.scope || !p?.message) return;
+      if (!(p.scope === "stream_dm_obs_mod" || p.scope === "stream_dm_obs_obs"))
+        return;
+      const me = myEmailLower;
+      const from = (p.message.email || "").toLowerCase();
+      const to = (p.message.toEmail || "").toLowerCase();
+      const incomingFromPeer = from !== me;
+      const peer = incomingFromPeer ? from : to;
+      const openPeer = (selectedObserver?.email || "").toLowerCase();
+      const isOpen =
+        !!selectedObserver && peer === openPeer && !showGroupChatObs;
+      if (isOpen) return;
+      setDmUnreadByEmail((prev) => ({
+        ...prev,
+        [peer]: (prev[peer] || 0) + 1,
+      }));
+    };
+    s.on("chat:new", onNew);
+    return () => {
+      s.off("chat:new", onNew);
+    };
+  }, [meetingSocket, selectedObserver, showGroupChatObs, myEmailLower]);
+
   // Send DM
   const sendDm = () => {
     const s = meetingSocket;
@@ -345,6 +378,7 @@ export default function ObserverBreakoutSelect({
         (resp?: { items?: GroupMessage[] }) => {
           setGroupMessages(Array.isArray(resp?.items) ? resp!.items! : []);
           setGroupLoading(false);
+          setGroupUnread(0);
         }
       );
     } catch {
@@ -359,8 +393,12 @@ export default function ObserverBreakoutSelect({
     if (!s) return;
     const onNew = (p: { scope?: string; message?: GroupMessage }) => {
       if (p?.scope !== "stream_group" || !p?.message) return;
-      if (!showGroupChatObs) return;
-      setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+      if (showGroupChatObs) {
+        setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+        setGroupUnread(0);
+      } else {
+        setGroupUnread((x) => x + 1);
+      }
     };
     s.on("chat:new", onNew);
     return () => {
@@ -718,6 +756,8 @@ export default function ObserverBreakoutSelect({
                                 const label = m.name
                                   ? formatDisplayName(m.name)
                                   : m.email || "";
+                                const mKey = (m.email || "").toLowerCase();
+                                const mUnread = dmUnreadByEmail[mKey] || 0;
                                 return (
                                   <div
                                     key={`${m.email}-${m.role}`}
@@ -728,6 +768,10 @@ export default function ObserverBreakoutSelect({
                                         name: m.name,
                                       });
                                       setShowGroupChatObs(false);
+                                      setDmUnreadByEmail((prev) => ({
+                                        ...prev,
+                                        [mKey]: 0,
+                                      }));
                                     }}
                                   >
                                     <div className="flex items-center gap-2 min-w-0">
@@ -735,7 +779,19 @@ export default function ObserverBreakoutSelect({
                                         {label}
                                       </span>
                                     </div>
-                                    <MessageSquare className="h-4 w-4 text-gray-400" />
+                                    <div className="relative inline-flex items-center justify-center h-6 w-6">
+                                      <MessageSquare className="h-4 w-4 text-gray-400" />
+                                      {mUnread > 0 && (
+                                        <span className="absolute -top-1 -right-1">
+                                          <Badge
+                                            variant="destructive"
+                                            className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                          >
+                                            {mUnread}
+                                          </Badge>
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -751,7 +807,19 @@ export default function ObserverBreakoutSelect({
                                   Group Chat
                                 </span>
                               </div>
-                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                              <div className="relative inline-flex items-center justify-center h-6 w-6">
+                                <MessageSquare className="h-4 w-4 text-gray-400" />
+                                {groupUnread > 0 && (
+                                  <span className="absolute -top-1 -right-1">
+                                    <Badge
+                                      variant="destructive"
+                                      className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                    >
+                                      {groupUnread}
+                                    </Badge>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             {observerList
                               .filter(
@@ -763,6 +831,7 @@ export default function ObserverBreakoutSelect({
                                 const label = o.name
                                   ? formatDisplayName(o.name)
                                   : o.email || "Observer";
+                                const oKey = (o.email || "").toLowerCase();
                                 return (
                                   <div
                                     key={`${o.email}`}
@@ -773,6 +842,10 @@ export default function ObserverBreakoutSelect({
                                         name: o.name,
                                       });
                                       setShowGroupChatObs(false);
+                                      setDmUnreadByEmail((prev) => ({
+                                        ...prev,
+                                        [oKey]: 0,
+                                      }));
                                     }}
                                   >
                                     <div className="flex items-center gap-2 min-w-0">
@@ -780,7 +853,25 @@ export default function ObserverBreakoutSelect({
                                         {label}
                                       </span>
                                     </div>
-                                    <MessageSquare className="h-4 w-4 text-gray-400" />
+                                    <div className="relative inline-flex items-center justify-center h-6 w-6">
+                                      <MessageSquare className="h-4 w-4 text-gray-400" />
+                                      {(dmUnreadByEmail[
+                                        (o.email || "").toLowerCase()
+                                      ] || 0) > 0 && (
+                                        <span className="absolute -top-1 -right-1">
+                                          <Badge
+                                            variant="destructive"
+                                            className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                          >
+                                            {
+                                              dmUnreadByEmail[
+                                                (o.email || "").toLowerCase()
+                                              ]
+                                            }
+                                          </Badge>
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}

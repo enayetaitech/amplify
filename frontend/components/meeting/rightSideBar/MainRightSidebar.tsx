@@ -1,6 +1,7 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
+import { Badge } from "components/ui/badge";
 import { MessageSquare, Send, X } from "lucide-react";
 import { ChevronRight } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -45,6 +46,7 @@ const MainRightSidebar = ({
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState("");
   const [groupLoading, setGroupLoading] = useState(false);
+  const [groupUnread, setGroupUnread] = useState(0);
   type DmMessage = {
     email: string;
     senderName?: string;
@@ -57,6 +59,9 @@ const MainRightSidebar = ({
   const [dmText, setDmText] = useState("");
   const [loadingHistory, setLoadingHistory] = useState(false);
   const meLower = (me?.email || "").toLowerCase();
+  const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
+    Record<string, number>
+  >({});
   // prevent unused var linter errors
   // referencing these ensures they are treated as used until needed
   void Backroom;
@@ -76,6 +81,7 @@ const MainRightSidebar = ({
       (resp?: { items?: GroupMessage[] }) => {
         setGroupMessages(Array.isArray(resp?.items) ? resp!.items! : []);
         setGroupLoading(false);
+        setGroupUnread(0);
       }
     );
   }, [socket, showGroupChatObs]);
@@ -85,8 +91,12 @@ const MainRightSidebar = ({
     if (!socket) return;
     const onNew = (p: { scope?: string; message?: GroupMessage }) => {
       if (p?.scope !== "stream_group" || !p?.message) return;
-      if (!showGroupChatObs) return;
-      setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+      if (showGroupChatObs) {
+        setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+        setGroupUnread(0);
+      } else {
+        setGroupUnread((x) => x + 1);
+      }
     };
     socket.on("chat:new", onNew);
     return () => {
@@ -135,6 +145,30 @@ const MainRightSidebar = ({
       socket.off("chat:new", onNew);
     };
   }, [socket, selectedObserver, meLower]);
+
+  // DM unread across all observers
+  useEffect(() => {
+    if (!socket) return;
+    const onNew = (p: { scope?: string; message?: DmMessage }) => {
+      if (!p?.scope || p.scope !== "stream_dm_obs_mod" || !p?.message) return;
+      const from = (p.message.email || "").toLowerCase();
+      const incomingFromObserver = from !== meLower;
+      if (!incomingFromObserver) return; // don't count own messages
+      const peer = from; // sender observer email
+      const openPeer = (selectedObserver?.email || "").toLowerCase();
+      const isOpen =
+        !!selectedObserver && peer === openPeer && !showGroupChatObs;
+      if (isOpen) return; // visible → read
+      setDmUnreadByEmail((prev) => ({
+        ...prev,
+        [peer]: (prev[peer] || 0) + 1,
+      }));
+    };
+    socket.on("chat:new", onNew);
+    return () => {
+      socket.off("chat:new", onNew);
+    };
+  }, [socket, selectedObserver, showGroupChatObs, meLower]);
   return (
     <aside className="relative col-span-3 h-full rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
       <button
@@ -189,6 +223,17 @@ const MainRightSidebar = ({
               className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
             >
               Observer Text
+              {groupUnread +
+                Object.values(dmUnreadByEmail).reduce((a, b) => a + b, 0) >
+                0 && (
+                <Badge
+                  variant="destructive"
+                  className="ml-2 h-5 w-5 p-0 text-[10px] inline-flex items-center justify-center"
+                >
+                  {groupUnread +
+                    Object.values(dmUnreadByEmail).reduce((a, b) => a + b, 0)}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -202,6 +247,8 @@ const MainRightSidebar = ({
                 )}
                 {observerList.map((o) => {
                   const label = o.name || o.email || "Observer";
+                  const emailLower = (o.email || "").toLowerCase();
+                  const unread = dmUnreadByEmail[emailLower] || 0;
                   return (
                     <div
                       key={`${label}-${o.email}`}
@@ -211,6 +258,19 @@ const MainRightSidebar = ({
                         <div className="text-sm font-medium truncate">
                           {label}
                         </div>
+                      </div>
+                      <div className="relative inline-flex items-center justify-center h-6 w-6">
+                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                        {unread > 0 && (
+                          <span className="absolute -top-1 -right-1">
+                            <Badge
+                              variant="destructive"
+                              className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                            >
+                              {unread}
+                            </Badge>
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -235,6 +295,7 @@ const MainRightSidebar = ({
                           onClick={() => {
                             setShowGroupChatObs(true);
                             setSelectedObserver(null);
+                            setGroupUnread(0);
                           }}
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -242,7 +303,19 @@ const MainRightSidebar = ({
                               Group Chat
                             </span>
                           </div>
-                          <MessageSquare className="h-4 w-4 text-gray-400" />
+                          <div className="relative inline-flex items-center justify-center h-6 w-6">
+                            <MessageSquare className="h-4 w-4 text-gray-400" />
+                            {groupUnread > 0 && (
+                              <span className="absolute -top-1 -right-1">
+                                <Badge
+                                  variant="destructive"
+                                  className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                >
+                                  {groupUnread}
+                                </Badge>
+                              </span>
+                            )}
+                          </div>
                         </div>
                         {observerList.map((o) => {
                           const label = o.name
@@ -259,6 +332,11 @@ const MainRightSidebar = ({
                                 });
                                 setShowGroupChatObs(false);
                                 setDmMessages([]);
+                                const k = (o.email || "").toLowerCase();
+                                setDmUnreadByEmail((prev) => ({
+                                  ...prev,
+                                  [k]: 0,
+                                }));
                               }}
                             >
                               <div className="flex items-center gap-2 min-w-0">
@@ -266,7 +344,25 @@ const MainRightSidebar = ({
                                   {label}
                                 </span>
                               </div>
-                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                              <div className="relative inline-flex items-center justify-center h-6 w-6">
+                                <MessageSquare className="h-4 w-4 text-gray-400" />
+                                {(dmUnreadByEmail[
+                                  (o.email || "").toLowerCase()
+                                ] || 0) > 0 && (
+                                  <span className="absolute -top-1 -right-1">
+                                    <Badge
+                                      variant="destructive"
+                                      className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                    >
+                                      {
+                                        dmUnreadByEmail[
+                                          (o.email || "").toLowerCase()
+                                        ]
+                                      }
+                                    </Badge>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
