@@ -121,6 +121,7 @@ export default function ObserverWaitingRoom() {
       {},
       (resp?: { observers?: { name: string; email: string }[] }) => {
         const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
+        console.log('observer list', list)
         setObserverList(list);
       }
     );

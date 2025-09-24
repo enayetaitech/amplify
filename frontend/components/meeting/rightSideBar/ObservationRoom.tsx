@@ -3,8 +3,68 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Badge } from "components/ui/badge";
 import { MessageSquare } from "lucide-react";
 
+type WaitingObserver = { name?: string; email?: string };
+
 const ObservationRoom = () => {
   const [tab, setTab] = useState("list");
+  const [observers, setObservers] =
+    useState<WaitingObserver[]>([]);
+
+  // // Sync local state if parent supplies a list
+  // React.useEffect(() => {
+  //   setObservers(waitingObservers || []);
+  // }, [waitingObservers]);
+
+  // Wire to meeting socket to receive live observer list updates
+  React.useEffect(() => {
+    type MinimalSocket = {
+      on: (
+        event: string,
+        cb: (payload: { observers?: WaitingObserver[] }) => void
+      ) => void;
+      off: (
+        event: string,
+        cb: (payload: { observers?: WaitingObserver[] }) => void
+      ) => void;
+      emit: (
+        event: string,
+        payload: object,
+        ack?: (resp: { observers?: WaitingObserver[] }) => void
+      ) => void;
+    };
+
+    const w = window as Window & { __meetingSocket?: unknown };
+    const maybe = w.__meetingSocket as unknown;
+    const s =
+      maybe &&
+      typeof (maybe as { on?: unknown }).on === "function" &&
+      typeof (maybe as { emit?: unknown }).emit === "function"
+        ? (maybe as MinimalSocket)
+        : undefined;
+    if (!s) return;
+
+    const onObserverList = (payload: { observers?: WaitingObserver[] }) => {
+      setObservers(Array.isArray(payload?.observers) ? payload.observers : []);
+    };
+
+    s.on("observer:list", onObserverList);
+
+    // Request initial observers snapshot
+    try {
+      s.emit(
+        "observer:list:get",
+        {},
+        (resp?: { observers?: WaitingObserver[] }) => {
+          console.log("observer list", resp?.observers);
+          setObservers(Array.isArray(resp?.observers) ? resp!.observers! : []);
+        }
+      );
+    } catch {}
+
+    return () => {
+      s.off("observer:list", onObserverList);
+    };
+  }, []);
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
@@ -31,7 +91,9 @@ const ObservationRoom = () => {
             </svg>
           </span>
           <span>Viewers</span>
-          <span className="ml-1 rounded bg-white/20 px-1">0</span>
+          <span className="ml-1 rounded bg-white/20 px-1">
+            {observers.length}
+          </span>
         </button>
       </div>
 
@@ -59,16 +121,26 @@ const ObservationRoom = () => {
 
         <TabsContent value="list">
           <div className="space-y-2">
-            <div className="text-sm text-gray-500">No observers yet.</div>
-            {/* Example static row (non-interactive) */}
-            {/* <div className="flex items-center justify-between gap-2 rounded px-2 py-1">
-              <div className="min-w-0">
-                <div className="text-sm font-medium truncate">Observer Name</div>
-              </div>
-              <div className="relative inline-flex items-center justify-center h-6 w-6">
-                <MessageSquare className="h-4 w-4 text-gray-400" />
-              </div>
-            </div> */}
+            {observers.length === 0 ? (
+              <div className="text-sm text-gray-500">No observers yet.</div>
+            ) : (
+              observers.map((o, idx) => {
+                const label = o.name || o.email || "Observer";
+                return (
+                  <div
+                    key={`${label}-${idx}`}
+                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {label}
+                      </div>
+                    </div>
+                    
+                  </div>
+                );
+              })
+            )}
           </div>
         </TabsContent>
 
