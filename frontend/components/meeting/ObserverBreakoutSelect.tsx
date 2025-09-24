@@ -422,7 +422,7 @@ export default function ObserverBreakoutSelect({
     const el = groupRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [showGroupChatObs, groupMessages.length]);
+  }, [showGroupChatObs, groupMessages.length, groupLoading]);
 
   // Group chat: send
   const sendGroup = () => {
