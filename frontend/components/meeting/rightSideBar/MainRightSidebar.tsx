@@ -112,7 +112,7 @@ const MainRightSidebar = ({
     const el = groupRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [showGroupChatObs, groupMessages.length]);
+  }, [showGroupChatObs, groupMessages.length, groupLoading]);
   // Load DM history when selecting an observer (moderator/admin side)
   useEffect(() => {
     if (!socket) return;
@@ -406,7 +406,7 @@ const MainRightSidebar = ({
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div ref={groupRef} className="flex-1  p-2">
+                  <div ref={groupRef} className="flex-1 overflow-y-auto p-2">
                     {groupLoading ? (
                       <div className="text-sm text-gray-500">Loading…</div>
                     ) : (
@@ -491,7 +491,7 @@ const MainRightSidebar = ({
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div ref={dmRef} className="flex-1  p-0.5">
+                  <div ref={dmRef} className="flex-1 overflow-y-auto p-0.5">
                     {loadingHistory ? (
                       <div className="text-sm text-gray-500">Loading…</div>
                     ) : (
