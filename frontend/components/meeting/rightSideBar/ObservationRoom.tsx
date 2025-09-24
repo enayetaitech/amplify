@@ -1,14 +1,19 @@
 import React, { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Badge } from "components/ui/badge";
-import { MessageSquare } from "lucide-react";
+import { Button } from "components/ui/button";
+import { Input } from "components/ui/input";
+import { MessageSquare, Send, X } from "lucide-react";
 
 type WaitingObserver = { name?: string; email?: string };
 
 const ObservationRoom = () => {
   const [tab, setTab] = useState("list");
-  const [observers, setObservers] =
-    useState<WaitingObserver[]>([]);
+  const [observers, setObservers] = useState<WaitingObserver[]>([]);
+  const [selectedObserver, setSelectedObserver] = useState<{
+    name?: string;
+    email?: string;
+  } | null>(null);
 
   // // Sync local state if parent supplies a list
   // React.useEffect(() => {
@@ -109,7 +114,7 @@ const ObservationRoom = () => {
             value="chat"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
           >
-            Observer Text
+            Observer Chat
             <Badge
               variant="destructive"
               className="ml-2 h-5 w-5 p-0 text-[10px] inline-flex items-center justify-center"
@@ -136,7 +141,6 @@ const ObservationRoom = () => {
                         {label}
                       </div>
                     </div>
-                    
                   </div>
                 );
               })
@@ -146,57 +150,78 @@ const ObservationRoom = () => {
 
         <TabsContent value="chat">
           <div className="grid grid-cols-12 gap-2 h-[26vh]">
-            <div className="col-span-12 rounded bg-white overflow-y-auto">
-              <div className="space-y-1 p-2">
-                <div className="flex items-center justify-between p-2 rounded">
-                  <div className="flex items-center gap-2 min-w-0 ">
-                    <span className="text-sm font-medium truncate">
-                      Group Chat
+            {!selectedObserver && (
+              <div className="col-span-12 rounded bg-white overflow-y-auto">
+                <div className="space-y-1 p-2">
+                  {observers.length === 0 ? (
+                    <div className="text-sm text-gray-500">
+                      No observers yet.
+                    </div>
+                  ) : (
+                    observers.map((o, idx) => {
+                      const label = o.name || o.email || "Observer";
+                      return (
+                        <div
+                          key={`${label}-${idx}`}
+                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 ">
+                            <span className="text-sm font-medium truncate">
+                              {label}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            aria-label="Open chat"
+                            className="relative inline-flex items-center justify-center h-6 w-6"
+                            onClick={() =>
+                              setSelectedObserver({
+                                name: o.name,
+                                email: o.email,
+                              })
+                            }
+                          >
+                            <MessageSquare className="h-4 w-4 text-gray-400" />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {selectedObserver && (
+              <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
+                <div className="flex items-center justify-between p-0.5 border-b">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm ">
+                      Chat with{" "}
+                      {selectedObserver.name || selectedObserver.email}
                     </span>
                   </div>
-                  <div className="relative inline-flex items-center justify-center h-6 w-6">
-                    <MessageSquare className="h-4 w-4 text-gray-400" />
-                    <span className="absolute -top-1 -right-1">
-                      <Badge
-                        variant="destructive"
-                        className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
-                      >
-                        0
-                      </Badge>
-                    </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedObserver(null)}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-0.5">
+                  <div className="space-y-1 text-sm">
+                    <div className="text-gray-500">No messages yet.</div>
                   </div>
                 </div>
-
-                <div className="text-sm text-gray-500">
-                  No conversations yet.
+                <div className="p-2 flex items-center gap-2 border-t">
+                  <Input placeholder="Type a message..." disabled />
+                  <Button size="sm" className="h-8 w-8 p-0" disabled>
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-            </div>
-
-            {/* Message view skeleton */}
-            {/*
-            <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
-              <div className="flex items-center justify-between p-0.5 border-b">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm ">Chat with Observer</span>
-                </div>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-0.5">
-                <div className="space-y-1 text-sm">
-                  <div className="text-gray-500">No messages yet.</div>
-                </div>
-              </div>
-              <div className="p-2 flex items-center gap-2 border-t">
-                <Input placeholder="Type a message..." />
-                <Button size="sm" className="h-8 w-8 p-0">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            */}
+            )}
           </div>
         </TabsContent>
       </Tabs>
