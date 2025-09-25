@@ -47,6 +47,9 @@ const ObservationRoom = () => {
   const [meEmail, setMeEmail] = useState<string>("");
   const [meRole, setMeRole] = useState<string>("");
   const [showGroupChat, setShowGroupChat] = useState<boolean>(false);
+  const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
+    Record<string, number>
+  >({});
 
   // Group chat state
   type GroupMessage = {
@@ -60,6 +63,7 @@ const ObservationRoom = () => {
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState<string>("");
   const [groupLoading, setGroupLoading] = useState<boolean>(false);
+  const [groupUnread, setGroupUnread] = useState<number>(0);
 
   // Refs for auto-scroll functionality
   const groupRef = useRef<HTMLDivElement | null>(null);
@@ -95,7 +99,12 @@ const ObservationRoom = () => {
       if (data.scope === "observer_wait_group") {
         // Group chat message
         const groupMessage = data.message as GroupMessage;
-        setGroupMessages((prev) => [...prev, groupMessage]);
+        if (showGroupChat) {
+          setGroupMessages((prev) => [...prev, groupMessage]);
+          setGroupUnread(0);
+        } else {
+          setGroupUnread((prev) => prev + 1);
+        }
       } else if (
         selectedObserver &&
         (data.scope === "observer_wait_dm" ||
@@ -128,7 +137,55 @@ const ObservationRoom = () => {
       s.off("observer:list", onObserverList);
       s.off("chat:new", onChatNew);
     };
-  }, [selectedObserver]);
+  }, [selectedObserver, showGroupChat]);
+
+  // DM unread count across all observers
+  React.useEffect(() => {
+    const w = window as Window & { __meetingSocket?: unknown };
+    const maybe = w.__meetingSocket as unknown;
+    const s =
+      maybe &&
+      typeof (maybe as { on?: unknown }).on === "function" &&
+      typeof (maybe as { emit?: unknown }).emit === "function"
+        ? (maybe as MinimalSocket)
+        : undefined;
+    if (!s) return;
+
+    const onNew = (payload: unknown) => {
+      const data = payload as ChatPayload;
+      if (
+        !data?.scope ||
+        (data.scope !== "observer_wait_dm" &&
+          data.scope !== "stream_dm_obs_mod") ||
+        !data?.message
+      )
+        return;
+
+      const message = data.message;
+      const from = (message.email || "").toLowerCase();
+      const meLower = (meEmail || "").toLowerCase();
+
+      // Check if this is an incoming message (not from me)
+      const incomingFromObserver = from !== meLower;
+      if (!incomingFromObserver) return; // don't count own messages
+
+      const peer = from; // sender observer email
+      const openPeer = (selectedObserver?.email || "").toLowerCase();
+      const isOpen = !!selectedObserver && peer === openPeer && !showGroupChat;
+
+      if (isOpen) return; // visible → read
+
+      setDmUnreadByEmail((prev) => ({
+        ...prev,
+        [peer]: (prev[peer] || 0) + 1,
+      }));
+    };
+
+    s.on("chat:new", onNew);
+    return () => {
+      s.off("chat:new", onNew);
+    };
+  }, [selectedObserver, showGroupChat, meEmail]);
 
   // Effect: load current user identity from localStorage
   React.useEffect(() => {
@@ -305,6 +362,7 @@ const ObservationRoom = () => {
               setGroupMessages(data.items);
             }
             setGroupLoading(false);
+            setGroupUnread(0);
           }
         );
       } catch (error) {
@@ -521,12 +579,17 @@ const ObservationRoom = () => {
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
           >
             Observer Chat
-            <Badge
-              variant="destructive"
-              className="ml-2 h-5 w-5 p-0 text-[10px] inline-flex items-center justify-center"
-            >
-              0
-            </Badge>
+            {groupUnread +
+              Object.values(dmUnreadByEmail).reduce((a, b) => a + b, 0) >
+              0 && (
+              <Badge
+                variant="destructive"
+                className="ml-2 h-5 w-5 p-0 text-[10px] inline-flex items-center justify-center"
+              >
+                {groupUnread +
+                  Object.values(dmUnreadByEmail).reduce((a, b) => a + b, 0)}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -569,6 +632,7 @@ const ObservationRoom = () => {
                     onClick={() => {
                       setShowGroupChat(true);
                       setSelectedObserver(null);
+                      setGroupUnread(0);
                     }}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -578,6 +642,16 @@ const ObservationRoom = () => {
                     </div>
                     <div className="relative inline-flex items-center justify-center h-6 w-6">
                       <MessageSquare className="h-4 w-4 text-gray-400" />
+                      {groupUnread > 0 && (
+                        <span className="absolute -top-1 -right-1">
+                          <Badge
+                            variant="destructive"
+                            className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                          >
+                            {groupUnread}
+                          </Badge>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -594,6 +668,8 @@ const ObservationRoom = () => {
                       )
                       .map((o, idx) => {
                         const label = o.name || o.email || "Observer";
+                        const emailLower = (o.email || "").toLowerCase();
+                        const unread = dmUnreadByEmail[emailLower] || 0;
                         return (
                           <div
                             key={`${label}-${idx}`}
@@ -604,6 +680,10 @@ const ObservationRoom = () => {
                                 email: o.email,
                               });
                               setShowGroupChat(false);
+                              setDmUnreadByEmail((prev) => ({
+                                ...prev,
+                                [emailLower]: 0,
+                              }));
                             }}
                           >
                             <div className="flex items-center gap-2 min-w-0 ">
@@ -613,6 +693,16 @@ const ObservationRoom = () => {
                             </div>
                             <div className="relative inline-flex items-center justify-center h-6 w-6">
                               <MessageSquare className="h-4 w-4 text-gray-400" />
+                              {unread > 0 && (
+                                <span className="absolute -top-1 -right-1">
+                                  <Badge
+                                    variant="destructive"
+                                    className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                  >
+                                    {unread}
+                                  </Badge>
+                                </span>
+                              )}
                             </div>
                           </div>
                         );

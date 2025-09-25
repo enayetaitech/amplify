@@ -7,6 +7,7 @@ import { SOCKET_URL } from "constant/socket";
 import Logo from "components/shared/LogoComponent";
 import { Button } from "components/ui/button";
 import { Input } from "components/ui/input";
+import { Badge } from "components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -67,6 +68,9 @@ export default function ObserverWaitingRoom() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState<string>("");
   const [showGroupChat, setShowGroupChat] = useState<boolean>(false);
+  const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
+    Record<string, number>
+  >({});
 
   // Group chat state
   type GroupMessage = {
@@ -80,6 +84,7 @@ export default function ObserverWaitingRoom() {
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState<string>("");
   const [groupLoading, setGroupLoading] = useState<boolean>(false);
+  const [groupUnread, setGroupUnread] = useState<number>(0);
 
   // Refs for auto-scroll functionality
   const groupRef = useRef<HTMLDivElement | null>(null);
@@ -138,7 +143,12 @@ export default function ObserverWaitingRoom() {
       if (payload.scope === "observer_wait_group") {
         // Group chat message
         const groupMessage = payload.message as GroupMessage;
-        setGroupMessages((prev) => [...prev, groupMessage]);
+        if (showGroupChat) {
+          setGroupMessages((prev) => [...prev, groupMessage]);
+          setGroupUnread(0);
+        } else {
+          setGroupUnread((prev) => prev + 1);
+        }
       } else if (
         selectedObserver &&
         (payload.scope === "observer_wait_dm" ||
@@ -165,7 +175,46 @@ export default function ObserverWaitingRoom() {
       s.off("chat:new", onChatNew);
       s.disconnect();
     };
-  }, [router, sessionId, selectedObserver]);
+  }, [router, sessionId, selectedObserver, showGroupChat]);
+
+  // DM unread count across all observers
+  useEffect(() => {
+    if (!socket) return;
+
+    const onNew = (payload: ChatPayload) => {
+      if (
+        !payload?.scope ||
+        (payload.scope !== "observer_wait_dm" &&
+          payload.scope !== "stream_dm_obs_mod") ||
+        !payload?.message
+      )
+        return;
+
+      const message = payload.message;
+      const from = (message.email || "").toLowerCase();
+      const meLower = (meEmail || "").toLowerCase();
+
+      // Check if this is an incoming message (not from me)
+      const incomingFromObserver = from !== meLower;
+      if (!incomingFromObserver) return; // don't count own messages
+
+      const peer = from; // sender observer email
+      const openPeer = (selectedObserver?.email || "").toLowerCase();
+      const isOpen = !!selectedObserver && peer === openPeer && !showGroupChat;
+
+      if (isOpen) return; // visible → read
+
+      setDmUnreadByEmail((prev) => ({
+        ...prev,
+        [peer]: (prev[peer] || 0) + 1,
+      }));
+    };
+
+    socket.on("chat:new", onNew);
+    return () => {
+      socket.off("chat:new", onNew);
+    };
+  }, [socket, selectedObserver, showGroupChat, meEmail]);
 
   // Effect: load current observer identity from localStorage
   // - Reads `liveSessionUser` from localStorage to set `meEmail`
@@ -297,6 +346,7 @@ export default function ObserverWaitingRoom() {
               setGroupMessages(response.items);
             }
             setGroupLoading(false);
+            setGroupUnread(0);
           }
         );
       } catch (error) {
@@ -472,6 +522,23 @@ export default function ObserverWaitingRoom() {
                         onClick={() => setActiveTab("chat")}
                       >
                         Observer Chat
+                        {groupUnread +
+                          Object.values(dmUnreadByEmail).reduce(
+                            (a, b) => a + b,
+                            0
+                          ) >
+                          0 && (
+                          <Badge
+                            variant="destructive"
+                            className="ml-2 h-5 w-5 p-0 text-[10px] inline-flex items-center justify-center"
+                          >
+                            {groupUnread +
+                              Object.values(dmUnreadByEmail).reduce(
+                                (a, b) => a + b,
+                                0
+                              )}
+                          </Badge>
+                        )}
                       </button>
                     </div>
 
@@ -544,6 +611,7 @@ export default function ObserverWaitingRoom() {
                                 onClick={() => {
                                   setShowGroupChat(true);
                                   setSelectedObserver(null);
+                                  setGroupUnread(0);
                                 }}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
@@ -553,6 +621,16 @@ export default function ObserverWaitingRoom() {
                                 </div>
                                 <div className="relative inline-flex items-center justify-center h-6 w-6">
                                   <MessageSquare className="h-4 w-4 text-gray-400" />
+                                  {groupUnread > 0 && (
+                                    <span className="absolute -top-1 -right-1">
+                                      <Badge
+                                        variant="destructive"
+                                        className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                      >
+                                        {groupUnread}
+                                      </Badge>
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
@@ -587,6 +665,11 @@ export default function ObserverWaitingRoom() {
                                   .map((o, idx) => {
                                     const label =
                                       o.name || o.email || "Observer";
+                                    const emailLower = (
+                                      o.email || ""
+                                    ).toLowerCase();
+                                    const unread =
+                                      dmUnreadByEmail[emailLower] || 0;
                                     return (
                                       <div
                                         key={`${label}-${idx}`}
@@ -597,6 +680,10 @@ export default function ObserverWaitingRoom() {
                                             email: o.email,
                                           });
                                           setShowGroupChat(false);
+                                          setDmUnreadByEmail((prev) => ({
+                                            ...prev,
+                                            [emailLower]: 0,
+                                          }));
                                         }}
                                       >
                                         <div className="flex items-center gap-2 min-w-0 ">
@@ -606,6 +693,16 @@ export default function ObserverWaitingRoom() {
                                         </div>
                                         <div className="relative inline-flex items-center justify-center h-6 w-6">
                                           <MessageSquare className="h-4 w-4 text-gray-400" />
+                                          {unread > 0 && (
+                                            <span className="absolute -top-1 -right-1">
+                                              <Badge
+                                                variant="destructive"
+                                                className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                              >
+                                                {unread}
+                                              </Badge>
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                     );
