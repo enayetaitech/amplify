@@ -283,7 +283,8 @@ export default function ObserverWaitingRoom() {
                               .filter(
                                 (o) =>
                                   (o.email || "").toLowerCase() !==
-                                  meEmail.toLowerCase()
+                                    meEmail.toLowerCase() &&
+                                  (o.name || "").toLowerCase() !== "observer"
                               )
                               .map((o, idx) => {
                                 const label = o.name || o.email || "Observer";
@@ -334,7 +335,8 @@ export default function ObserverWaitingRoom() {
                               .filter(
                                 (o) =>
                                   (o.email || "").toLowerCase() !==
-                                  meEmail.toLowerCase()
+                                    meEmail.toLowerCase() &&
+                                  (o.name || "").toLowerCase() !== "observer"
                               )
                               .map((o, idx) => {
                                 const label = o.name || o.email || "Observer";

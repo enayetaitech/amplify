@@ -97,7 +97,11 @@ const ObservationRoom = () => {
           </span>
           <span>Viewers</span>
           <span className="ml-1 rounded bg-white/20 px-1">
-            {observers.length}
+            {
+              observers.filter(
+                (o) => (o.name || "").toLowerCase() !== "observer"
+              ).length
+            }
           </span>
         </button>
       </div>
@@ -126,24 +130,28 @@ const ObservationRoom = () => {
 
         <TabsContent value="list">
           <div className="space-y-2">
-            {observers.length === 0 ? (
+            {observers.filter(
+              (o) => (o.name || "").toLowerCase() !== "observer"
+            ).length === 0 ? (
               <div className="text-sm text-gray-500">No observers yet.</div>
             ) : (
-              observers.map((o, idx) => {
-                const label = o.name || o.email || "Observer";
-                return (
-                  <div
-                    key={`${label}-${idx}`}
-                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {label}
+              observers
+                .filter((o) => (o.name || "").toLowerCase() !== "observer")
+                .map((o, idx) => {
+                  const label = o.name || o.email || "Observer";
+                  return (
+                    <div
+                      key={`${label}-${idx}`}
+                      className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {label}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })
             )}
           </div>
         </TabsContent>
@@ -153,39 +161,45 @@ const ObservationRoom = () => {
             {!selectedObserver && (
               <div className="col-span-12 rounded bg-white overflow-y-auto">
                 <div className="space-y-1 p-2">
-                  {observers.length === 0 ? (
+                  {observers.filter(
+                    (o) => (o.name || "").toLowerCase() !== "observer"
+                  ).length === 0 ? (
                     <div className="text-sm text-gray-500">
                       No observers yet.
                     </div>
                   ) : (
-                    observers.map((o, idx) => {
-                      const label = o.name || o.email || "Observer";
-                      return (
-                        <div
-                          key={`${label}-${idx}`}
-                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 ">
-                            <span className="text-sm font-medium truncate">
-                              {label}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            aria-label="Open chat"
-                            className="relative inline-flex items-center justify-center h-6 w-6"
-                            onClick={() =>
-                              setSelectedObserver({
-                                name: o.name,
-                                email: o.email,
-                              })
-                            }
+                    observers
+                      .filter(
+                        (o) => (o.name || "").toLowerCase() !== "observer"
+                      )
+                      .map((o, idx) => {
+                        const label = o.name || o.email || "Observer";
+                        return (
+                          <div
+                            key={`${label}-${idx}`}
+                            className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
                           >
-                            <MessageSquare className="h-4 w-4 text-gray-400" />
-                          </button>
-                        </div>
-                      );
-                    })
+                            <div className="flex items-center gap-2 min-w-0 ">
+                              <span className="text-sm font-medium truncate">
+                                {label}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              aria-label="Open chat"
+                              className="relative inline-flex items-center justify-center h-6 w-6"
+                              onClick={() =>
+                                setSelectedObserver({
+                                  name: o.name,
+                                  email: o.email,
+                                })
+                              }
+                            >
+                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                            </button>
+                          </div>
+                        );
+                      })
                   )}
                 </div>
               </div>
