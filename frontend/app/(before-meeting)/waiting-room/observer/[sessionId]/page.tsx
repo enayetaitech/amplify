@@ -6,6 +6,7 @@ import { io } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
 import Logo from "components/shared/LogoComponent";
 import { Button } from "components/ui/button";
+import { Input } from "components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -17,6 +18,8 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Video,
+  X,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,6 +38,10 @@ export default function ObserverWaitingRoom() {
   >([]);
   const [activeTab, setActiveTab] = useState<string>("list");
   const [meEmail, setMeEmail] = useState<string>("");
+  const [selectedObserver, setSelectedObserver] = useState<{
+    name?: string;
+    email?: string;
+  } | null>(null);
 
   console.log(observerList, meEmail);
 
@@ -312,54 +319,109 @@ export default function ObserverWaitingRoom() {
                         className="h-[36vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
-                          {observerList.filter(
-                            (o) =>
-                              (o.email || "").toLowerCase() !==
-                              meEmail.toLowerCase()
-                          ).length === 0 ? (
-                            <div className="text-sm text-gray-500">
-                              No observers yet.
-                            </div>
-                          ) : (
-                            [
-                              ...observerList,
-                              ...moderators
-                                .filter(
-                                  (m) => (m.name || "").trim() !== "Moderator"
-                                )
-                                .map((m) => ({
-                                  name: `${m.name}`,
-                                  email: m.email,
-                                })),
-                            ]
-                              .filter(
+                          {!selectedObserver && (
+                            <>
+                              {observerList.filter(
                                 (o) =>
                                   (o.email || "").toLowerCase() !==
-                                    meEmail.toLowerCase() &&
-                                  (o.name || "").toLowerCase() !== "observer"
-                              )
-                              .map((o, idx) => {
-                                const label = o.name || o.email || "Observer";
-                                return (
-                                  <div
-                                    key={`${label}-${idx}`}
-                                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
-                                  >
-                                    <div className="flex items-center gap-2 min-w-0 ">
-                                      <span className="text-sm font-medium truncate">
-                                        {label}
-                                      </span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      aria-label="Open chat"
-                                      className="relative inline-flex items-center justify-center h-6 w-6"
-                                    >
-                                      <MessageSquare className="h-4 w-4 text-gray-400" />
-                                    </button>
+                                  meEmail.toLowerCase()
+                              ).length === 0 ? (
+                                <div className="text-sm text-gray-500">
+                                  No observers yet.
+                                </div>
+                              ) : (
+                                [
+                                  ...observerList,
+                                  ...moderators
+                                    .filter(
+                                      (m) =>
+                                        (m.name || "").trim() !== "Moderator"
+                                    )
+                                    .map((m) => ({
+                                      name: `${m.name}`,
+                                      email: m.email,
+                                    })),
+                                ]
+                                  .filter(
+                                    (o) =>
+                                      (o.email || "").toLowerCase() !==
+                                        meEmail.toLowerCase() &&
+                                      (o.name || "").toLowerCase() !==
+                                        "observer"
+                                  )
+                                  .map((o, idx) => {
+                                    const label =
+                                      o.name || o.email || "Observer";
+                                    return (
+                                      <div
+                                        key={`${label}-${idx}`}
+                                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 ">
+                                          <span className="text-sm font-medium truncate">
+                                            {label}
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          aria-label="Open chat"
+                                          className="relative inline-flex items-center justify-center h-6 w-6"
+                                          onClick={() =>
+                                            setSelectedObserver({
+                                              name: o.name,
+                                              email: o.email,
+                                            })
+                                          }
+                                        >
+                                          <MessageSquare className="h-4 w-4 text-gray-400" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })
+                              )}
+                            </>
+                          )}
+
+                          {selectedObserver && (
+                            <div className="h-full flex flex-col min-h-0">
+                              <div className="flex items-center justify-between p-2 border-b">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">
+                                    Chat with{" "}
+                                    {selectedObserver.name ||
+                                      selectedObserver.email}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedObserver(null)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="flex-1 overflow-y-auto p-2">
+                                <div className="space-y-1 text-sm">
+                                  <div className="text-gray-500">
+                                    No messages yet.
                                   </div>
-                                );
-                              })
+                                </div>
+                              </div>
+                              <div className="p-2 flex items-center gap-2 border-t">
+                                <Input
+                                  placeholder="Type a message..."
+                                  disabled
+                                />
+                                <Button
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  disabled
+                                >
+                                  <Send className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
