@@ -243,8 +243,8 @@ const Backroom = ({
               )}
               {observerList.map((o) => {
                 const label = o.name || o.email || "Observer";
-                const emailLower = (o.email || "").toLowerCase();
-                const unread = dmUnreadByEmail[emailLower] || 0;
+                // const emailLower = (o.email || "").toLowerCase();
+                // const unread = dmUnreadByEmail[emailLower] || 0;
                 return (
                   <div
                     key={`${label}-${o.email}`}
@@ -255,7 +255,7 @@ const Backroom = ({
                         {label}
                       </div>
                     </div>
-                    <div className="relative inline-flex items-center justify-center h-6 w-6">
+                    {/* <div className="relative inline-flex items-center justify-center h-6 w-6">
                       <MessageSquare className="h-4 w-4 text-gray-400" />
                       {unread > 0 && (
                         <span className="absolute -top-1 -right-1">
@@ -267,7 +267,7 @@ const Backroom = ({
                           </Badge>
                         </span>
                       )}
-                    </div>
+                    </div> */}
                   </div>
                 );
               })}

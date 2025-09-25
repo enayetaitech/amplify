@@ -194,29 +194,21 @@ const ObservationRoom = () => {
       const saved = window.localStorage.getItem("liveSessionUser")
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
-      console.log("Loaded user data from localStorage:", saved);
-      console.log("Setting meEmail to:", saved?.email || "");
-      console.log("Setting meRole to:", saved?.role || "");
+    
       setMeEmail(saved?.email || "");
       setMeRole(saved?.role || "");
 
       // Also check if email is in a different localStorage key
       const emailFromStorage = window.localStorage.getItem("userEmail");
       if (emailFromStorage) {
-        console.log(
-          "Found email in separate localStorage key:",
-          emailFromStorage
-        );
+       
         setMeEmail(emailFromStorage);
       }
 
       // Also check if role is in a different localStorage key
       const roleFromStorage = window.localStorage.getItem("userRole");
       if (roleFromStorage) {
-        console.log(
-          "Found role in separate localStorage key:",
-          roleFromStorage
-        );
+       
         setMeRole(roleFromStorage);
       }
 
@@ -233,25 +225,20 @@ const ObservationRoom = () => {
         }
       ).__meetingSocket?.io?.opts?.query;
       if (socketQuery?.role) {
-        console.log("Found role in socket query:", socketQuery.role);
         setMeRole(socketQuery.role);
       }
       if (socketQuery?.email) {
-        console.log("Found email in socket query:", socketQuery.email);
         setMeEmail(socketQuery.email);
       }
 
       // Fallback: if no role found and we're in ObservationRoom, assume Moderator
       if (!saved?.role && !roleFromStorage && !socketQuery?.role) {
-        console.log("No role found, assuming Moderator for ObservationRoom");
         setMeRole("Moderator");
       }
 
       // Fallback: if no email found, try to get it from the socket connection
       if (!saved?.email && !emailFromStorage && !socketQuery?.email) {
-        console.log(
-          "No email found in localStorage or socket query, checking socket connection..."
-        );
+       
         const w = window as Window & { __meetingSocket?: unknown };
         const maybe = w.__meetingSocket as unknown;
         if (
@@ -262,7 +249,6 @@ const ObservationRoom = () => {
           const socketEmail = (
             maybe as { io: { opts: { query: { email: string } } } }
           ).io.opts.query.email;
-          console.log("Found email in socket connection:", socketEmail);
           setMeEmail(socketEmail);
         }
       }
@@ -392,14 +378,9 @@ const ObservationRoom = () => {
 
   // Function to send a message
   const sendMessage = async () => {
-    console.log("sendMessage called", {
-      selectedObserver,
-      messageInput,
-      meRole,
-    });
+ 
 
     if (!selectedObserver || !messageInput.trim()) {
-      console.log("Early return: no observer or empty message");
       return;
     }
 
@@ -412,7 +393,6 @@ const ObservationRoom = () => {
         ? (maybe as MinimalSocket)
         : undefined;
 
-    console.log("Socket check:", { socketExists: !!s, maybe });
 
     if (!s) {
       console.error("No socket available");
@@ -426,10 +406,7 @@ const ObservationRoom = () => {
           ? "stream_dm_obs_mod"
           : "observer_wait_dm";
 
-      console.log("Sending message with scope:", scope, {
-        content: messageInput.trim(),
-        toEmail: selectedObserver.email,
-      });
+  
 
       s.emit(
         "chat:send",
@@ -439,11 +416,9 @@ const ObservationRoom = () => {
           toEmail: selectedObserver.email,
         },
         (response?: unknown) => {
-          console.log("Message send response:", response);
           const data = response as SocketResponse;
           if (data?.ok) {
             setMessageInput("");
-            console.log("Message sent successfully");
           } else {
             console.error("Failed to send message:", data?.error);
           }
@@ -456,26 +431,16 @@ const ObservationRoom = () => {
 
   // Function to send group chat message
   const sendGroupMessage = async () => {
-    console.log("=== sendGroupMessage called ===");
-    console.log("groupText:", groupText);
-    console.log("groupText.trim():", groupText.trim());
+
 
     if (!groupText.trim()) {
-      console.log("Early return: empty groupText");
       return;
     }
 
     const w = window as Window & { __meetingSocket?: unknown };
     const maybe = w.__meetingSocket as unknown;
-    console.log("Socket check - maybe:", maybe);
-    console.log(
-      "Socket check - typeof on:",
-      typeof (maybe as { on?: unknown }).on
-    );
-    console.log(
-      "Socket check - typeof emit:",
-      typeof (maybe as { emit?: unknown }).emit
-    );
+  
+   
 
     const s =
       maybe &&
@@ -484,7 +449,6 @@ const ObservationRoom = () => {
         ? (maybe as MinimalSocket)
         : undefined;
 
-    console.log("Socket s:", s);
     if (!s) {
       console.error("No socket available for group message");
       return;
@@ -498,11 +462,7 @@ const ObservationRoom = () => {
           ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
           : {};
 
-      console.log("=== User info from localStorage ===");
-      console.log("saved:", saved);
-      console.log("saved?.email:", saved?.email);
-      console.log("saved?.name:", saved?.name);
-      console.log("meRole:", meRole);
+     
 
       const payload = {
         scope: "observer_wait_group",
@@ -511,16 +471,14 @@ const ObservationRoom = () => {
         name: saved?.name || "",
       };
 
-      console.log("=== Sending group message payload ===");
-      console.log("payload:", payload);
+
 
       s.emit("chat:send", payload, (response?: unknown) => {
-        console.log("=== Group message send response ===");
-        console.log("response:", response);
+        
         const data = response as SocketResponse;
         if (data?.ok) {
           setGroupText("");
-          console.log("✅ Group message sent successfully");
+        
         } else {
           console.error("❌ Failed to send group message:", data?.error);
         }
