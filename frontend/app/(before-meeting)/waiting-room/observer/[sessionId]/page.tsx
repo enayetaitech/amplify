@@ -42,6 +42,16 @@ export default function ObserverWaitingRoom() {
     name?: string;
     email?: string;
   } | null>(null);
+  const [messages, setMessages] = useState<
+    {
+      email: string;
+      senderName: string;
+      content: string;
+      timestamp: string;
+      toEmail?: string;
+    }[]
+  >([]);
+  const [messageInput, setMessageInput] = useState<string>("");
 
   console.log(observerList, meEmail);
 
@@ -91,13 +101,40 @@ export default function ObserverWaitingRoom() {
     s.on("announce:participant:admitted", onOneAdmitted);
     s.on("announce:participants:admitted", onManyAdmitted);
 
+    // Chat message handling
+    const onChatNew = (payload: {
+      scope: string;
+      message: {
+        email: string;
+        senderName: string;
+        content: string;
+        timestamp: string;
+        toEmail?: string;
+      };
+    }) => {
+      if (payload.scope === "observer_wait_dm" && selectedObserver) {
+        const message = payload.message;
+        const isFromSelectedObserver =
+          message.email?.toLowerCase() ===
+            selectedObserver.email?.toLowerCase() ||
+          message.toEmail?.toLowerCase() ===
+            selectedObserver.email?.toLowerCase();
+
+        if (isFromSelectedObserver) {
+          setMessages((prev) => [...prev, message]);
+        }
+      }
+    };
+    s.on("chat:new", onChatNew);
+
     return () => {
       s.off("observer:stream:started", onStarted);
       s.off("announce:participant:admitted", onOneAdmitted);
       s.off("announce:participants:admitted", onManyAdmitted);
+      s.off("chat:new", onChatNew);
       s.disconnect();
     };
-  }, [router, sessionId]);
+  }, [router, sessionId, selectedObserver]);
 
   // Effect: load current observer identity from localStorage
   // - Reads `liveSessionUser` from localStorage to set `meEmail`
@@ -159,6 +196,71 @@ export default function ObserverWaitingRoom() {
       socket.off("moderator:list", onMods);
     };
   }, [socket]);
+
+  // Effect: load chat history when observer is selected
+  useEffect(() => {
+    if (!socket || !selectedObserver) {
+      setMessages([]);
+      return;
+    }
+
+    const loadChatHistory = async () => {
+      try {
+        socket.emit(
+          "chat:history:get",
+          {
+            scope: "observer_wait_dm",
+            thread: { withEmail: selectedObserver.email },
+            limit: 50,
+          },
+          (response?: {
+            items: {
+              email: string;
+              senderName: string;
+              content: string;
+              timestamp: string;
+              toEmail?: string;
+            }[];
+          }) => {
+            if (response?.items) {
+              setMessages(response.items);
+            }
+          }
+        );
+      } catch (error) {
+        console.error("Failed to load chat history:", error);
+      }
+    };
+
+    loadChatHistory();
+  }, [socket, selectedObserver]);
+
+  // Function to send a message
+  const sendMessage = async () => {
+    if (!socket || !selectedObserver || !messageInput.trim()) return;
+
+    try {
+      socket.emit(
+        "chat:send",
+        {
+          scope: "observer_wait_dm",
+          content: messageInput.trim(),
+          toEmail: selectedObserver.email,
+        },
+        (response?: { ok: boolean; error?: string }) => {
+          if (response?.ok) {
+            setMessageInput("");
+          } else {
+            console.error("Failed to send message:", response?.error);
+            toast.error("Failed to send message");
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    }
+  };
 
   return (
     <div className="min-h-screen dashboard_sidebar_bg">
@@ -402,21 +504,67 @@ export default function ObserverWaitingRoom() {
                                 </Button>
                               </div>
                               <div className="flex-1 overflow-y-auto p-2">
-                                <div className="space-y-1 text-sm">
-                                  <div className="text-gray-500">
-                                    No messages yet.
-                                  </div>
+                                <div className="space-y-2 text-sm">
+                                  {messages.length === 0 ? (
+                                    <div className="text-gray-500">
+                                      No messages yet.
+                                    </div>
+                                  ) : (
+                                    messages.map((message, idx) => {
+                                      const isFromMe =
+                                        message.email?.toLowerCase() ===
+                                        meEmail.toLowerCase();
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className={`flex ${
+                                            isFromMe
+                                              ? "justify-end"
+                                              : "justify-start"
+                                          }`}
+                                        >
+                                          <div
+                                            className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                              isFromMe
+                                                ? "bg-custom-dark-blue-1 text-white"
+                                                : "bg-gray-100 text-gray-900"
+                                            }`}
+                                          >
+                                            <div className="text-xs opacity-70 mb-1">
+                                              {message.senderName ||
+                                                message.email}
+                                            </div>
+                                            <div>{message.content}</div>
+                                            <div className="text-xs opacity-70 mt-1">
+                                              {new Date(
+                                                message.timestamp
+                                              ).toLocaleTimeString()}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  )}
                                 </div>
                               </div>
                               <div className="p-2 flex items-center gap-2 border-t">
                                 <Input
                                   placeholder="Type a message..."
-                                  disabled
+                                  value={messageInput}
+                                  onChange={(e) =>
+                                    setMessageInput(e.target.value)
+                                  }
+                                  onKeyPress={(e) => {
+                                    if (e.key === "Enter") {
+                                      sendMessage();
+                                    }
+                                  }}
                                 />
                                 <Button
                                   size="sm"
                                   className="h-8 w-8 p-0"
-                                  disabled
+                                  onClick={sendMessage}
+                                  disabled={!messageInput.trim()}
                                 >
                                   <Send className="h-4 w-4" />
                                 </Button>

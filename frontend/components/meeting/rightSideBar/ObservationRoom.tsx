@@ -14,6 +14,17 @@ const ObservationRoom = () => {
     name?: string;
     email?: string;
   } | null>(null);
+  const [messages, setMessages] = useState<
+    {
+      email: string;
+      senderName: string;
+      content: string;
+      timestamp: string;
+      toEmail?: string;
+    }[]
+  >([]);
+  const [messageInput, setMessageInput] = useState<string>("");
+  const [meEmail, setMeEmail] = useState<string>("");
 
   // // Sync local state if parent supplies a list
   // React.useEffect(() => {
@@ -22,29 +33,21 @@ const ObservationRoom = () => {
 
   // Wire to meeting socket to receive live observer list updates
   React.useEffect(() => {
-    type MinimalSocket = {
-      on: (
-        event: string,
-        cb: (payload: { observers?: WaitingObserver[] }) => void
-      ) => void;
-      off: (
-        event: string,
-        cb: (payload: { observers?: WaitingObserver[] }) => void
-      ) => void;
-      emit: (
-        event: string,
-        payload: object,
-        ack?: (resp: { observers?: WaitingObserver[] }) => void
-      ) => void;
-    };
-
     const w = window as Window & { __meetingSocket?: unknown };
     const maybe = w.__meetingSocket as unknown;
     const s =
       maybe &&
       typeof (maybe as { on?: unknown }).on === "function" &&
       typeof (maybe as { emit?: unknown }).emit === "function"
-        ? (maybe as MinimalSocket)
+        ? (maybe as {
+            on: (event: string, cb: (payload: any) => void) => void;
+            off: (event: string, cb: (payload: any) => void) => void;
+            emit: (
+              event: string,
+              payload: object,
+              ack?: (resp: any) => void
+            ) => void;
+          })
         : undefined;
     if (!s) return;
 
@@ -53,6 +56,32 @@ const ObservationRoom = () => {
     };
 
     s.on("observer:list", onObserverList);
+
+    // Chat message handling
+    const onChatNew = (payload: {
+      scope: string;
+      message: {
+        email: string;
+        senderName: string;
+        content: string;
+        timestamp: string;
+        toEmail?: string;
+      };
+    }) => {
+      if (payload.scope === "observer_wait_dm" && selectedObserver) {
+        const message = payload.message;
+        const isFromSelectedObserver =
+          message.email?.toLowerCase() ===
+            selectedObserver.email?.toLowerCase() ||
+          message.toEmail?.toLowerCase() ===
+            selectedObserver.email?.toLowerCase();
+
+        if (isFromSelectedObserver) {
+          setMessages((prev) => [...prev, message]);
+        }
+      }
+    };
+    s.on("chat:new", onChatNew);
 
     // Request initial observers snapshot
     try {
@@ -68,8 +97,121 @@ const ObservationRoom = () => {
 
     return () => {
       s.off("observer:list", onObserverList);
+      s.off("chat:new", onChatNew);
     };
+  }, [selectedObserver]);
+
+  // Effect: load current observer identity from localStorage
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem("liveSessionUser")
+        ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
+        : {};
+      setMeEmail(saved?.email || "");
+    } catch {
+      // ignore
+    }
   }, []);
+
+  // Effect: load chat history when observer is selected
+  React.useEffect(() => {
+    if (!selectedObserver) {
+      setMessages([]);
+      return;
+    }
+
+    const w = window as Window & { __meetingSocket?: unknown };
+    const maybe = w.__meetingSocket as unknown;
+    const s =
+      maybe &&
+      typeof (maybe as { on?: unknown }).on === "function" &&
+      typeof (maybe as { emit?: unknown }).emit === "function"
+        ? (maybe as {
+            on: (event: string, cb: (payload: any) => void) => void;
+            off: (event: string, cb: (payload: any) => void) => void;
+            emit: (
+              event: string,
+              payload: object,
+              ack?: (resp: any) => void
+            ) => void;
+          })
+        : undefined;
+    if (!s) return;
+
+    const loadChatHistory = async () => {
+      try {
+        s.emit(
+          "chat:history:get",
+          {
+            scope: "observer_wait_dm",
+            thread: { withEmail: selectedObserver.email },
+            limit: 50,
+          },
+          (response?: {
+            items: {
+              email: string;
+              senderName: string;
+              content: string;
+              timestamp: string;
+              toEmail?: string;
+            }[];
+          }) => {
+            if (response?.items) {
+              setMessages(response.items);
+            }
+          }
+        );
+      } catch (error) {
+        console.error("Failed to load chat history:", error);
+      }
+    };
+
+    loadChatHistory();
+  }, [selectedObserver]);
+
+  // Function to send a message
+  const sendMessage = async () => {
+    if (!selectedObserver || !messageInput.trim()) return;
+
+    const w = window as Window & { __meetingSocket?: unknown };
+    const maybe = w.__meetingSocket as unknown;
+    const s =
+      maybe &&
+      typeof (maybe as { on?: unknown }).on === "function" &&
+      typeof (maybe as { emit?: unknown }).emit === "function"
+        ? (maybe as {
+            on: (event: string, cb: (payload: any) => void) => void;
+            off: (event: string, cb: (payload: any) => void) => void;
+            emit: (
+              event: string,
+              payload: object,
+              ack?: (resp: any) => void
+            ) => void;
+          })
+        : undefined;
+    if (!s) return;
+
+    try {
+      s.emit(
+        "chat:send",
+        {
+          scope: "observer_wait_dm",
+          content: messageInput.trim(),
+          toEmail: selectedObserver.email,
+        },
+        (response?: { ok: boolean; error?: string }) => {
+          if (response?.ok) {
+            setMessageInput("");
+          } else {
+            console.error("Failed to send message:", response?.error);
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
@@ -224,13 +366,61 @@ const ObservationRoom = () => {
                   </Button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-0.5">
-                  <div className="space-y-1 text-sm">
-                    <div className="text-gray-500">No messages yet.</div>
+                  <div className="space-y-2 text-sm">
+                    {messages.length === 0 ? (
+                      <div className="text-gray-500">No messages yet.</div>
+                    ) : (
+                      messages.map((message, idx) => {
+                        const isFromMe =
+                          message.email?.toLowerCase() ===
+                          meEmail.toLowerCase();
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex ${
+                              isFromMe ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                isFromMe
+                                  ? "bg-custom-dark-blue-1 text-white"
+                                  : "bg-gray-100 text-gray-900"
+                              }`}
+                            >
+                              <div className="text-xs opacity-70 mb-1">
+                                {message.senderName || message.email}
+                              </div>
+                              <div>{message.content}</div>
+                              <div className="text-xs opacity-70 mt-1">
+                                {new Date(
+                                  message.timestamp
+                                ).toLocaleTimeString()}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
                 <div className="p-2 flex items-center gap-2 border-t">
-                  <Input placeholder="Type a message..." disabled />
-                  <Button size="sm" className="h-8 w-8 p-0" disabled>
+                  <Input
+                    placeholder="Type a message..."
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        sendMessage();
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={sendMessage}
+                    disabled={!messageInput.trim()}
+                  >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
