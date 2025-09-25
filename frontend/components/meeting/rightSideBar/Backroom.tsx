@@ -6,6 +6,7 @@ import { Badge } from "components/ui/badge";
 import { MessageSquare, Send, X } from "lucide-react";
 import { formatDisplayName } from "lib/utils";
 import type { Socket } from "socket.io-client";
+import RightSidebarHeading from "../RightSidebarHeading";
 
 interface BackroomProps {
   isStreaming: boolean;
@@ -178,34 +179,10 @@ const Backroom = ({
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold pl-2">Backroom</h3>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1"
-          aria-label="Observer count"
-        >
-          <span className="inline-flex h-4 w-4 items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-3.5 w-3.5"
-            >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-          </span>
-          <span>Viewers</span>
-          <span className="ml-1 rounded bg-white/20 px-1">
-            {isStreaming ? observerCount : 0}
-          </span>
-        </button>
-      </div>
+     <RightSidebarHeading
+     title="Backroom"
+     observerCount={isStreaming ? observerCount : 0}
+     />
       <Tabs value={tab} onValueChange={(v) => setTab(v)}>
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger

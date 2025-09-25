@@ -28,7 +28,7 @@ import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridg
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
 
-import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
+import ObserverMeetingView from "components/meeting/observer/ObserverMeetingView";
 import ParticipantChatPanel from "components/meeting/ParticipantChatPanel";
 import MeetingJoinBridge from "components/meeting/MeetingJoinBridge";
 import {
@@ -491,7 +491,7 @@ export default function Meeting() {
   // Observer view
   if (role === "observer") {
     return (
-      <ObserverBreakoutSelect
+      <ObserverMeetingView
         sessionId={String(sessionId)}
         initialMainUrl={hlsUrl}
       />
