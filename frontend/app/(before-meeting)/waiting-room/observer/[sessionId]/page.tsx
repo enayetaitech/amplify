@@ -90,7 +90,7 @@ export default function ObserverWaitingRoom() {
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
 
-  console.log(observerList, meEmail);
+  console.log("Current state:", { observerList, moderators, meEmail });
 
   useEffect(() => {
     // Effect: establish socket connection for this observer session
@@ -257,6 +257,7 @@ export default function ObserverWaitingRoom() {
       moderators?: { name: string; email: string; role: string }[];
     }) => {
       const list = Array.isArray(p?.moderators) ? p.moderators : [];
+      console.log("Moderators received:", list);
       setModerators(list);
     };
     socket.on("moderator:list", onMods);
@@ -267,7 +268,7 @@ export default function ObserverWaitingRoom() {
         moderators?: { name: string; email: string; role: string }[];
       }) => {
         const list = Array.isArray(resp?.moderators) ? resp!.moderators! : [];
-
+        console.log("Moderators from initial request:", list);
         setModerators(list);
       }
     );
@@ -551,48 +552,76 @@ export default function ObserverWaitingRoom() {
                         className="h-[70vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
-                          {observerList.filter(
-                            (o) =>
-                              (o.email || "").toLowerCase() !==
-                              meEmail.toLowerCase()
-                          ).length === 0 ? (
-                            <div className="text-sm text-gray-500">
-                              No observers yet.
-                            </div>
-                          ) : (
-                            [
-                              ...observerList,
-                              ...moderators
-                                .filter(
-                                  (m) => (m.name || "").trim() !== "Moderator"
-                                )
-                                .map((m) => ({
-                                  name: `${m.name}`,
+                          {(() => {
+                            const filteredModerators = moderators
+                              .filter((m) => {
+                                const name = (m.name || "").trim();
+                                const email = (m.email || "").toLowerCase();
+                                const myEmail = meEmail.toLowerCase();
+                                const shouldInclude =
+                                  name !== "Moderator" && email !== myEmail;
+                                console.log(`Moderator filter check:`, {
+                                  name: m.name,
                                   email: m.email,
-                                })),
-                            ]
-                              .filter(
-                                (o) =>
-                                  (o.email || "").toLowerCase() !==
-                                    meEmail.toLowerCase() &&
-                                  (o.name || "").toLowerCase() !== "observer"
-                              )
-                              .map((o, idx) => {
-                                const label = o.name || o.email || "Observer";
-                                return (
-                                  <div
-                                    key={`${label}-${idx}`}
-                                    className="flex items-center justify-between gap-2 rounded px-2 py-1"
-                                  >
-                                    <div className="min-w-0">
-                                      <div className="text-sm font-medium truncate">
-                                        {label}
-                                      </div>
+                                  role: m.role,
+                                  shouldInclude,
+                                  reason:
+                                    name === "Moderator"
+                                      ? "name is 'Moderator'"
+                                      : email === myEmail
+                                      ? "is current user"
+                                      : "passed",
+                                });
+                                return shouldInclude;
+                              })
+                              .map((m) => ({
+                                name: m.name || m.email || "Moderator",
+                                email: m.email,
+                              }));
+                            console.log(
+                              "Filtered moderators for observer list:",
+                              filteredModerators
+                            );
+
+                            const allPeople = [
+                              ...observerList,
+                              ...filteredModerators,
+                            ].filter(
+                              (o) =>
+                                (o.email || "").toLowerCase() !==
+                                  meEmail.toLowerCase() &&
+                                (o.name || "").toLowerCase() !== "observer"
+                            );
+
+                            if (allPeople.length === 0) {
+                              return (
+                                <div className="text-sm text-gray-500">
+                                  No observers or moderators yet.
+                                </div>
+                              );
+                            }
+
+                            return allPeople.map((o, idx) => {
+                              const label = o.name || o.email || "Observer";
+                              console.log("Displaying observer/moderator:", {
+                                name: o.name,
+                                email: o.email,
+                                label,
+                              });
+                              return (
+                                <div
+                                  key={`${label}-${idx}`}
+                                  className="flex items-center justify-between gap-2 rounded px-2 py-1"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium truncate">
+                                      {label}
                                     </div>
                                   </div>
-                                );
-                              })
-                          )}
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                       <div
@@ -634,80 +663,107 @@ export default function ObserverWaitingRoom() {
                                 </div>
                               </div>
 
-                              {observerList.filter(
-                                (o) =>
-                                  (o.email || "").toLowerCase() !==
-                                  meEmail.toLowerCase()
-                              ).length === 0 ? (
-                                <div className="text-sm text-gray-500">
-                                  No observers yet.
-                                </div>
-                              ) : (
-                                [
-                                  ...observerList,
-                                  ...moderators
-                                    .filter(
-                                      (m) =>
-                                        (m.name || "").trim() !== "Moderator"
-                                    )
-                                    .map((m) => ({
-                                      name: `${m.name}`,
-                                      email: m.email,
-                                    })),
-                                ]
-                                  .filter(
-                                    (o) =>
-                                      (o.email || "").toLowerCase() !==
-                                        meEmail.toLowerCase() &&
-                                      (o.name || "").toLowerCase() !==
-                                        "observer"
-                                  )
-                                  .map((o, idx) => {
-                                    const label =
-                                      o.name || o.email || "Observer";
-                                    const emailLower = (
-                                      o.email || ""
-                                    ).toLowerCase();
-                                    const unread =
-                                      dmUnreadByEmail[emailLower] || 0;
-                                    return (
-                                      <div
-                                        key={`${label}-${idx}`}
-                                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                        onClick={() => {
-                                          setSelectedObserver({
-                                            name: o.name,
-                                            email: o.email,
-                                          });
-                                          setShowGroupChat(false);
-                                          setDmUnreadByEmail((prev) => ({
-                                            ...prev,
-                                            [emailLower]: 0,
-                                          }));
-                                        }}
-                                      >
-                                        <div className="flex items-center gap-2 min-w-0 ">
-                                          <span className="text-sm font-medium truncate">
-                                            {label}
-                                          </span>
-                                        </div>
-                                        <div className="relative inline-flex items-center justify-center h-6 w-6">
-                                          <MessageSquare className="h-4 w-4 text-gray-400" />
-                                          {unread > 0 && (
-                                            <span className="absolute -top-1 -right-1">
-                                              <Badge
-                                                variant="destructive"
-                                                className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
-                                              >
-                                                {unread}
-                                              </Badge>
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
+                              {(() => {
+                                const filteredModerators = moderators
+                                  .filter((m) => {
+                                    const name = (m.name || "").trim();
+                                    const email = (m.email || "").toLowerCase();
+                                    const myEmail = meEmail.toLowerCase();
+                                    const shouldInclude =
+                                      name !== "Moderator" && email !== myEmail;
+                                    console.log(
+                                      `Chat Moderator filter check:`,
+                                      {
+                                        name: m.name,
+                                        email: m.email,
+                                        role: m.role,
+                                        shouldInclude,
+                                        reason:
+                                          name === "Moderator"
+                                            ? "name is 'Moderator'"
+                                            : email === myEmail
+                                            ? "is current user"
+                                            : "passed",
+                                      }
                                     );
+                                    return shouldInclude;
                                   })
-                              )}
+                                  .map((m) => ({
+                                    name: m.name || m.email || "Moderator",
+                                    email: m.email,
+                                  }));
+                                console.log(
+                                  "Filtered moderators for chat list:",
+                                  filteredModerators
+                                );
+
+                                const allPeople = [
+                                  ...observerList,
+                                  ...filteredModerators,
+                                ].filter(
+                                  (o) =>
+                                    (o.email || "").toLowerCase() !==
+                                      meEmail.toLowerCase() &&
+                                    (o.name || "").toLowerCase() !== "observer"
+                                );
+
+                                if (allPeople.length === 0) {
+                                  return (
+                                    <div className="text-sm text-gray-500">
+                                      No observers or moderators yet.
+                                    </div>
+                                  );
+                                }
+
+                                return allPeople.map((o, idx) => {
+                                  const label = o.name || o.email || "Observer";
+                                  const emailLower = (
+                                    o.email || ""
+                                  ).toLowerCase();
+                                  const unread =
+                                    dmUnreadByEmail[emailLower] || 0;
+                                  console.log(
+                                    "Displaying chat observer/moderator:",
+                                    { name: o.name, email: o.email, label }
+                                  );
+                                  return (
+                                    <div
+                                      key={`${label}-${idx}`}
+                                      className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                      onClick={() => {
+                                        setSelectedObserver({
+                                          name: o.name,
+                                          email: o.email,
+                                        });
+                                        setShowGroupChat(false);
+                                        setDmUnreadByEmail((prev) => ({
+                                          ...prev,
+                                          [emailLower]: 0,
+                                        }));
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0 ">
+                                        <span className="text-sm font-medium truncate">
+                                          {label}
+                                        </span>
+                                      </div>
+                                      <div className="relative inline-flex items-center justify-center h-6 w-6">
+                                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                                        {unread > 0 && (
+                                          <span className="absolute -top-1 -right-1">
+                                            <Badge
+                                              variant="destructive"
+                                              className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                            >
+                                              {unread}
+                                            </Badge>
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
                             </>
                           )}
 
