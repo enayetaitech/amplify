@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
@@ -71,6 +71,7 @@ export default function ObserverWaitingRoom() {
   // Group chat state
   type GroupMessage = {
     senderEmail?: string;
+    email?: string;
     name?: string;
     senderName?: string;
     content: string;
@@ -79,6 +80,10 @@ export default function ObserverWaitingRoom() {
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState<string>("");
   const [groupLoading, setGroupLoading] = useState<boolean>(false);
+
+  // Refs for auto-scroll functionality
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const dmRef = useRef<HTMLDivElement | null>(null);
 
   console.log(observerList, meEmail);
 
@@ -303,6 +308,22 @@ export default function ObserverWaitingRoom() {
     loadGroupChatHistory();
   }, [socket, showGroupChat]);
 
+  // Auto-scroll group chat when opened or messages appended
+  useEffect(() => {
+    if (!showGroupChat) return;
+    const el = groupRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [showGroupChat, groupMessages.length, groupLoading]);
+
+  // Auto-scroll DM view when open or messages appended
+  useEffect(() => {
+    if (!selectedObserver || showGroupChat) return;
+    const el = dmRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [selectedObserver, showGroupChat, messages.length]);
+
   // Function to send a message
   const sendMessage = async () => {
     if (!socket || !selectedObserver || !messageInput.trim()) return;
@@ -425,7 +446,7 @@ export default function ObserverWaitingRoom() {
               </div>
               <div className="p-2">
                 {/* New tabs: Observer List & Observer Chat */}
-                <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden flex flex-col">
+                <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[80vh] overflow-auto flex flex-col">
                   <div className="flex-1 flex min-h-0 flex-col">
                     <div className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2 flex items-center p-2">
                       <button
@@ -460,7 +481,7 @@ export default function ObserverWaitingRoom() {
                         style={{
                           display: activeTab === "list" ? "block" : "none",
                         }}
-                        className="h-[36vh] overflow-y-auto bg-white rounded p-2"
+                        className="h-[70vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
                           {observerList.filter(
@@ -512,7 +533,7 @@ export default function ObserverWaitingRoom() {
                         style={{
                           display: activeTab === "chat" ? "block" : "none",
                         }}
-                        className="h-[36vh] overflow-y-auto bg-white rounded p-2"
+                        className="h-[70vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
                           {!selectedObserver && !showGroupChat && (
@@ -594,7 +615,7 @@ export default function ObserverWaitingRoom() {
                           )}
 
                           {showGroupChat && (
-                            <div className="h-full flex flex-col min-h-0">
+                            <div className="h-full flex flex-col min-h-0 overflow-y-auto">
                               <div className="flex items-center justify-between p-2 border-b">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-medium">
@@ -610,7 +631,10 @@ export default function ObserverWaitingRoom() {
                                   <X className="h-4 w-4" />
                                 </Button>
                               </div>
-                              <div className="flex-1 overflow-y-auto p-2">
+                              <div
+                                ref={groupRef}
+                                className="flex-1 overflow-y-auto p-2"
+                              >
                                 {groupLoading ? (
                                   <div className="text-sm text-gray-500">
                                     Loading...
@@ -629,7 +653,9 @@ export default function ObserverWaitingRoom() {
                                         );
                                         const isFromMe =
                                           message.senderEmail?.toLowerCase() ===
-                                          meEmail.toLowerCase();
+                                            meEmail.toLowerCase() ||
+                                          message.email?.toLowerCase() ===
+                                            meEmail.toLowerCase();
                                         const senderName =
                                           message.name ||
                                           message.senderEmail ||
@@ -698,7 +724,7 @@ export default function ObserverWaitingRoom() {
                           )}
 
                           {selectedObserver && (
-                            <div className="h-full flex flex-col min-h-0">
+                            <div className="h-full flex flex-col min-h-0 overflow-y-auto">
                               <div className="flex items-center justify-between p-2 border-b">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-medium">
@@ -719,7 +745,10 @@ export default function ObserverWaitingRoom() {
                                   <X className="h-4 w-4" />
                                 </Button>
                               </div>
-                              <div className="flex-1 overflow-y-auto p-2">
+                              <div
+                                ref={dmRef}
+                                className="flex-1 overflow-y-auto p-2"
+                              >
                                 <div className="space-y-2 text-sm">
                                   {messages.length === 0 ? (
                                     <div className="text-gray-500">

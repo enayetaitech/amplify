@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Badge } from "components/ui/badge";
 import { Button } from "components/ui/button";
@@ -51,6 +51,7 @@ const ObservationRoom = () => {
   // Group chat state
   type GroupMessage = {
     senderEmail?: string;
+    email?: string;
     name?: string;
     senderName?: string;
     content: string;
@@ -59,6 +60,10 @@ const ObservationRoom = () => {
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState<string>("");
   const [groupLoading, setGroupLoading] = useState<boolean>(false);
+
+  // Refs for auto-scroll functionality
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const dmRef = useRef<HTMLDivElement | null>(null);
 
   // // Sync local state if parent supplies a list
   // React.useEffect(() => {
@@ -133,8 +138,20 @@ const ObservationRoom = () => {
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
       console.log("Loaded user data from localStorage:", saved);
+      console.log("Setting meEmail to:", saved?.email || "");
+      console.log("Setting meRole to:", saved?.role || "");
       setMeEmail(saved?.email || "");
       setMeRole(saved?.role || "");
+
+      // Also check if email is in a different localStorage key
+      const emailFromStorage = window.localStorage.getItem("userEmail");
+      if (emailFromStorage) {
+        console.log(
+          "Found email in separate localStorage key:",
+          emailFromStorage
+        );
+        setMeEmail(emailFromStorage);
+      }
 
       // Also check if role is in a different localStorage key
       const roleFromStorage = window.localStorage.getItem("userRole");
@@ -146,21 +163,51 @@ const ObservationRoom = () => {
         setMeRole(roleFromStorage);
       }
 
-      // Check if we can determine role from socket query params
+      // Check if we can determine role and email from socket query params
       const socketQuery = (
         window as Window & {
-          __meetingSocket?: { io?: { opts?: { query?: { role?: string } } } };
+          __meetingSocket?: {
+            io?: {
+              opts?: {
+                query?: { role?: string; email?: string; name?: string };
+              };
+            };
+          };
         }
       ).__meetingSocket?.io?.opts?.query;
       if (socketQuery?.role) {
         console.log("Found role in socket query:", socketQuery.role);
         setMeRole(socketQuery.role);
       }
+      if (socketQuery?.email) {
+        console.log("Found email in socket query:", socketQuery.email);
+        setMeEmail(socketQuery.email);
+      }
 
       // Fallback: if no role found and we're in ObservationRoom, assume Moderator
       if (!saved?.role && !roleFromStorage && !socketQuery?.role) {
         console.log("No role found, assuming Moderator for ObservationRoom");
         setMeRole("Moderator");
+      }
+
+      // Fallback: if no email found, try to get it from the socket connection
+      if (!saved?.email && !emailFromStorage && !socketQuery?.email) {
+        console.log(
+          "No email found in localStorage or socket query, checking socket connection..."
+        );
+        const w = window as Window & { __meetingSocket?: unknown };
+        const maybe = w.__meetingSocket as unknown;
+        if (
+          maybe &&
+          typeof (maybe as { io?: { opts?: { query?: { email?: string } } } })
+            .io?.opts?.query?.email === "string"
+        ) {
+          const socketEmail = (
+            maybe as { io: { opts: { query: { email: string } } } }
+          ).io.opts.query.email;
+          console.log("Found email in socket connection:", socketEmail);
+          setMeEmail(socketEmail);
+        }
       }
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -268,6 +315,22 @@ const ObservationRoom = () => {
 
     loadGroupChatHistory();
   }, [showGroupChat]);
+
+  // Auto-scroll group chat when opened or messages appended
+  useEffect(() => {
+    if (!showGroupChat) return;
+    const el = groupRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [showGroupChat, groupMessages.length, groupLoading]);
+
+  // Auto-scroll DM view when open or messages appended
+  useEffect(() => {
+    if (!selectedObserver || showGroupChat) return;
+    const el = dmRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [selectedObserver, showGroupChat, messages.length]);
 
   // Function to send a message
   const sendMessage = async () => {
@@ -413,10 +476,7 @@ const ObservationRoom = () => {
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold pl-2">Observation Room</h3>
-        {/* Debug role display */}
-        <div className="text-xs text-gray-500">
-          Role: {meRole || "Unknown"} | Email: {meEmail || "Unknown"}
-        </div>
+
         <button
           type="button"
           className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1"
@@ -579,7 +639,7 @@ const ObservationRoom = () => {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-0.5">
+                <div ref={groupRef} className="flex-1 overflow-y-auto p-0.5">
                   {groupLoading ? (
                     <div className="text-sm text-gray-500">Loading...</div>
                   ) : (
@@ -589,9 +649,31 @@ const ObservationRoom = () => {
                       ) : (
                         groupMessages.map((message, idx) => {
                           console.log("Group message data:", message);
+                          console.log("=== Email matching debug ===");
+                          console.log("meEmail:", meEmail);
+                          console.log(
+                            "message.senderEmail:",
+                            message.senderEmail
+                          );
+                          console.log("message.email:", message.email);
+                          console.log(
+                            "senderEmail match:",
+                            message.senderEmail?.toLowerCase() ===
+                              meEmail.toLowerCase()
+                          );
+                          console.log(
+                            "email match:",
+                            message.email?.toLowerCase() ===
+                              meEmail.toLowerCase()
+                          );
+
                           const isFromMe =
                             message.senderEmail?.toLowerCase() ===
-                            meEmail.toLowerCase();
+                              meEmail.toLowerCase() ||
+                            message.email?.toLowerCase() ===
+                              meEmail.toLowerCase();
+                          console.log("Final isFromMe:", isFromMe);
+
                           const senderName =
                             message.name ||
                             message.senderEmail ||
@@ -684,7 +766,7 @@ const ObservationRoom = () => {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-0.5">
+                <div ref={dmRef} className="flex-1 overflow-y-auto p-0.5">
                   <div className="space-y-2 text-sm">
                     {messages.length === 0 ? (
                       <div className="text-gray-500">No messages yet.</div>
