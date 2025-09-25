@@ -229,7 +229,13 @@ export function attachSocket(server: HTTPServer) {
       for (const sid of set) io.to(sid).emit(event, payload);
     }
 
-    type ChatSendPayload = { scope: string; content: string; toEmail?: string };
+    type ChatSendPayload = {
+      scope: string;
+      content: string;
+      toEmail?: string;
+      email?: string;
+      name?: string;
+    };
     type ChatHistoryPayload = {
       scope: string;
       thread?: { withEmail?: string };
@@ -242,14 +248,45 @@ export function attachSocket(server: HTTPServer) {
         payload: ChatSendPayload,
         ack?: (r: { ok: boolean; error?: string }) => void
       ) => {
-        try {
-          const { scope, content } = payload || {};
-          if (!scope || !content || !content.trim())
-            return ack?.({ ok: false, error: "bad_request" });
-          const liveId = await ensureLiveIdFor(sessionId);
+        console.log("=== Backend chat:send received ===");
+        console.log("sessionId:", sessionId);
+        console.log("role:", role);
+        console.log("email (from socket):", email);
+        console.log("name (from socket):", name);
+        console.log("payload:", payload);
 
-          const lowerSender = (email || "").toLowerCase();
+        try {
+          const {
+            scope,
+            content,
+            email: payloadEmail,
+            name: payloadName,
+          } = payload || {};
+
+          console.log("=== Parsed payload ===");
+          console.log("scope:", scope);
+          console.log("content:", content);
+          console.log("payloadEmail:", payloadEmail);
+          console.log("payloadName:", payloadName);
+
+          if (!scope || !content || !content.trim()) {
+            console.log("❌ Bad request: missing scope or content");
+            return ack?.({ ok: false, error: "bad_request" });
+          }
+
+          const liveId = await ensureLiveIdFor(sessionId);
+          console.log("liveId:", liveId);
+
+          // Use payload email/name if provided, otherwise fall back to socket connection
+          const senderEmail = payloadEmail || email;
+          const senderName = payloadName || name;
+          const lowerSender = (senderEmail || "").toLowerCase();
           const now = new Date();
+
+          console.log("=== Final sender info ===");
+          console.log("senderEmail:", senderEmail);
+          console.log("senderName:", senderName);
+          console.log("lowerSender:", lowerSender);
 
           const emitNew = (target: string | string[] | null, message: any) => {
             if (!target) return;
@@ -274,8 +311,8 @@ export function attachSocket(server: HTTPServer) {
                 return ack?.({ ok: false, error: "forbidden" });
               const doc = {
                 sessionId: liveId,
-                email,
-                senderName: name || email,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
                 role: role === "Admin" ? "Moderator" : (role as any),
                 content,
                 timestamp: now,
@@ -322,8 +359,8 @@ export function attachSocket(server: HTTPServer) {
                 return ack?.({ ok: false, error: "forbidden" });
               const saved = await (GroupMsgNamed || GroupMessageModel).create({
                 sessionId: liveId,
-                senderEmail: email,
-                name: name || email,
+                senderEmail: senderEmail,
+                name: senderName || senderEmail,
                 content,
                 scope,
               });
@@ -350,8 +387,8 @@ export function attachSocket(server: HTTPServer) {
                 return ack?.({ ok: false, error: "forbidden" });
               const doc = {
                 sessionId: liveId,
-                email,
-                senderName: name || email,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
                 role: role === "Admin" ? "Moderator" : (role as any),
                 content,
                 timestamp: now,
@@ -391,8 +428,8 @@ export function attachSocket(server: HTTPServer) {
                 return ack?.({ ok: false, error: "toEmail_required" });
               const saved = await ParticipantMeetingChatModel.create({
                 sessionId: liveId,
-                email,
-                senderName: name || email,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
                 role: "Moderator",
                 content,
                 timestamp: now,
@@ -405,21 +442,52 @@ export function attachSocket(server: HTTPServer) {
               return ack?.({ ok: true });
             }
             case "observer_wait_group": {
-              if (role !== "Observer")
+              console.log("=== Processing observer_wait_group ===");
+              console.log("role:", role);
+              console.log(
+                "role check:",
+                ["Observer", "Moderator", "Admin"].includes(role)
+              );
+
+              if (!["Observer", "Moderator", "Admin"].includes(role)) {
+                console.log(
+                  "❌ Forbidden: role not allowed for observer_wait_group"
+                );
                 return ack?.({ ok: false, error: "forbidden" });
-              const saved = await ObserverWaitingRoomChatModel.create({
+              }
+
+              console.log("✅ Role check passed, creating message");
+              const dbRole = role === "Admin" ? "Moderator" : role;
+              console.log("Role conversion:", role, "->", dbRole);
+              console.log("Creating message with:", {
                 sessionId: liveId,
-                email,
-                senderName: name || email,
-                role: "Observer",
+                email: senderEmail,
+                senderName: senderName || senderEmail,
+                role: dbRole,
                 content,
                 timestamp: now,
                 scope,
               });
+
+              const saved = await ObserverWaitingRoomChatModel.create({
+                sessionId: liveId,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
+                role: role === "Admin" ? "Moderator" : role,
+                content,
+                timestamp: now,
+                scope,
+              });
+
+              console.log("✅ Message created successfully:", saved.toObject());
+              console.log("Emitting to rooms.observer:", rooms.observer);
+
               io.to(rooms.observer).emit("chat:new", {
                 scope,
                 message: saved.toObject(),
               });
+
+              console.log("✅ Message emitted successfully");
               return ack?.({ ok: true });
             }
             case "observer_wait_dm": {
@@ -430,8 +498,8 @@ export function attachSocket(server: HTTPServer) {
                 return ack?.({ ok: false, error: "toEmail_required" });
               const saved = await ObserverWaitingRoomChatModel.create({
                 sessionId: liveId,
-                email,
-                senderName: name || email,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
                 role: "Observer",
                 content,
                 timestamp: now,
@@ -456,8 +524,8 @@ export function attachSocket(server: HTTPServer) {
                 ObsGroupMsgNamed || ObserverGroupMessageModel
               ).create({
                 sessionId: liveId,
-                senderEmail: email,
-                name: name || email,
+                senderEmail: senderEmail,
+                name: senderName || senderEmail,
                 content,
                 scope,
               });
@@ -475,8 +543,8 @@ export function attachSocket(server: HTTPServer) {
                 return ack?.({ ok: false, error: "toEmail_required" });
               const saved = await ObserverWaitingRoomChatModel.create({
                 sessionId: liveId,
-                email,
-                senderName: name || email,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
                 role: "Observer",
                 content,
                 timestamp: now,
@@ -502,8 +570,8 @@ export function attachSocket(server: HTTPServer) {
                 return ack?.({ ok: false, error: "toEmail_required" });
               const saved = await ObserverWaitingRoomChatModel.create({
                 sessionId: liveId,
-                email,
-                senderName: name || email,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
                 role: role === "Observer" ? "Observer" : "Moderator",
                 content,
                 timestamp: now,

@@ -66,6 +66,19 @@ export default function ObserverWaitingRoom() {
   } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState<string>("");
+  const [showGroupChat, setShowGroupChat] = useState<boolean>(false);
+
+  // Group chat state
+  type GroupMessage = {
+    senderEmail?: string;
+    name?: string;
+    senderName?: string;
+    content: string;
+    timestamp?: string;
+  };
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
+  const [groupText, setGroupText] = useState<string>("");
+  const [groupLoading, setGroupLoading] = useState<boolean>(false);
 
   console.log(observerList, meEmail);
 
@@ -117,7 +130,11 @@ export default function ObserverWaitingRoom() {
 
     // Chat message handling
     const onChatNew = (payload: ChatPayload) => {
-      if (
+      if (payload.scope === "observer_wait_group") {
+        // Group chat message
+        const groupMessage = payload.message as GroupMessage;
+        setGroupMessages((prev) => [...prev, groupMessage]);
+      } else if (
         selectedObserver &&
         (payload.scope === "observer_wait_dm" ||
           payload.scope === "stream_dm_obs_mod")
@@ -254,6 +271,38 @@ export default function ObserverWaitingRoom() {
     loadChatHistory();
   }, [socket, selectedObserver]);
 
+  // Effect: load group chat history when group chat is opened
+  useEffect(() => {
+    if (!socket || !showGroupChat) {
+      setGroupMessages([]);
+      return;
+    }
+
+    const loadGroupChatHistory = async () => {
+      try {
+        setGroupLoading(true);
+        socket.emit(
+          "chat:history:get",
+          {
+            scope: "observer_wait_group",
+            limit: 50,
+          },
+          (response?: { items: GroupMessage[] }) => {
+            if (response?.items) {
+              setGroupMessages(response.items);
+            }
+            setGroupLoading(false);
+          }
+        );
+      } catch (error) {
+        console.error("Failed to load group chat history:", error);
+        setGroupLoading(false);
+      }
+    };
+
+    loadGroupChatHistory();
+  }, [socket, showGroupChat]);
+
   // Function to send a message
   const sendMessage = async () => {
     if (!socket || !selectedObserver || !messageInput.trim()) return;
@@ -278,6 +327,32 @@ export default function ObserverWaitingRoom() {
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
+    }
+  };
+
+  // Function to send group chat message
+  const sendGroupMessage = async () => {
+    if (!socket || !groupText.trim()) return;
+
+    try {
+      socket.emit(
+        "chat:send",
+        {
+          scope: "observer_wait_group",
+          content: groupText.trim(),
+        },
+        (response?: SocketResponse) => {
+          if (response?.ok) {
+            setGroupText("");
+          } else {
+            console.error("Failed to send group message:", response?.error);
+            toast.error("Failed to send group message");
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error sending group message:", error);
+      toast.error("Failed to send group message");
     }
   };
 
@@ -440,8 +515,26 @@ export default function ObserverWaitingRoom() {
                         className="h-[36vh] overflow-y-auto bg-white rounded p-2"
                       >
                         <div className="space-y-2">
-                          {!selectedObserver && (
+                          {!selectedObserver && !showGroupChat && (
                             <>
+                              {/* Group Chat Option */}
+                              <div
+                                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                onClick={() => {
+                                  setShowGroupChat(true);
+                                  setSelectedObserver(null);
+                                }}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-sm font-medium truncate">
+                                    Group Chat
+                                  </span>
+                                </div>
+                                <div className="relative inline-flex items-center justify-center h-6 w-6">
+                                  <MessageSquare className="h-4 w-4 text-gray-400" />
+                                </div>
+                              </div>
+
                               {observerList.filter(
                                 (o) =>
                                   (o.email || "").toLowerCase() !==
@@ -476,31 +569,132 @@ export default function ObserverWaitingRoom() {
                                     return (
                                       <div
                                         key={`${label}-${idx}`}
-                                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
+                                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                        onClick={() => {
+                                          setSelectedObserver({
+                                            name: o.name,
+                                            email: o.email,
+                                          });
+                                          setShowGroupChat(false);
+                                        }}
                                       >
                                         <div className="flex items-center gap-2 min-w-0 ">
                                           <span className="text-sm font-medium truncate">
                                             {label}
                                           </span>
                                         </div>
-                                        <button
-                                          type="button"
-                                          aria-label="Open chat"
-                                          className="relative inline-flex items-center justify-center h-6 w-6"
-                                          onClick={() =>
-                                            setSelectedObserver({
-                                              name: o.name,
-                                              email: o.email,
-                                            })
-                                          }
-                                        >
+                                        <div className="relative inline-flex items-center justify-center h-6 w-6">
                                           <MessageSquare className="h-4 w-4 text-gray-400" />
-                                        </button>
+                                        </div>
                                       </div>
                                     );
                                   })
                               )}
                             </>
+                          )}
+
+                          {showGroupChat && (
+                            <div className="h-full flex flex-col min-h-0">
+                              <div className="flex items-center justify-between p-2 border-b">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">
+                                    Observer Group Chat
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowGroupChat(false)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="flex-1 overflow-y-auto p-2">
+                                {groupLoading ? (
+                                  <div className="text-sm text-gray-500">
+                                    Loading...
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2 text-sm">
+                                    {groupMessages.length === 0 ? (
+                                      <div className="text-gray-500">
+                                        No messages yet.
+                                      </div>
+                                    ) : (
+                                      groupMessages.map((message, idx) => {
+                                        console.log(
+                                          "Group message data (waiting room):",
+                                          message
+                                        );
+                                        const isFromMe =
+                                          message.senderEmail?.toLowerCase() ===
+                                          meEmail.toLowerCase();
+                                        const senderName =
+                                          message.name ||
+                                          message.senderEmail ||
+                                          message.senderName ||
+                                          "Unknown";
+                                        console.log(
+                                          "Sender name resolved (waiting room):",
+                                          senderName
+                                        );
+                                        return (
+                                          <div
+                                            key={idx}
+                                            className={`flex ${
+                                              isFromMe
+                                                ? "justify-end"
+                                                : "justify-start"
+                                            }`}
+                                          >
+                                            <div
+                                              className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                                isFromMe
+                                                  ? "bg-custom-dark-blue-1 text-white"
+                                                  : "bg-gray-100 text-gray-900"
+                                              }`}
+                                            >
+                                              <div className="text-xs opacity-70 mb-1">
+                                                {senderName}
+                                              </div>
+                                              <div>{message.content}</div>
+                                              <div className="text-xs opacity-70 mt-1">
+                                                {message.timestamp
+                                                  ? new Date(
+                                                      message.timestamp
+                                                    ).toLocaleTimeString()
+                                                  : "Just now"}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-2 flex items-center gap-2 border-t">
+                                <Input
+                                  placeholder="Type a message..."
+                                  value={groupText}
+                                  onChange={(e) => setGroupText(e.target.value)}
+                                  onKeyPress={(e) => {
+                                    if (e.key === "Enter") {
+                                      sendGroupMessage();
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={sendGroupMessage}
+                                  disabled={!groupText.trim()}
+                                >
+                                  <Send className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           )}
 
                           {selectedObserver && (
@@ -516,7 +710,10 @@ export default function ObserverWaitingRoom() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => setSelectedObserver(null)}
+                                  onClick={() => {
+                                    setSelectedObserver(null);
+                                    setShowGroupChat(false);
+                                  }}
                                   className="h-6 w-6 p-0"
                                 >
                                   <X className="h-4 w-4" />
