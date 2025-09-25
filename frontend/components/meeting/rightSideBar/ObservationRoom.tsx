@@ -7,6 +7,34 @@ import { MessageSquare, Send, X } from "lucide-react";
 
 type WaitingObserver = { name?: string; email?: string };
 
+type ChatMessage = {
+  email: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  toEmail?: string;
+};
+
+type ChatPayload = {
+  scope: string;
+  message: ChatMessage;
+};
+
+type ChatHistoryResponse = {
+  items: ChatMessage[];
+};
+
+type SocketResponse = {
+  ok: boolean;
+  error?: string;
+};
+
+type MinimalSocket = {
+  on: (event: string, cb: (payload: unknown) => void) => void;
+  off: (event: string, cb: (payload: unknown) => void) => void;
+  emit: (event: string, payload: object, ack?: (resp: unknown) => void) => void;
+};
+
 const ObservationRoom = () => {
   const [tab, setTab] = useState("list");
   const [observers, setObservers] = useState<WaitingObserver[]>([]);
@@ -14,15 +42,7 @@ const ObservationRoom = () => {
     name?: string;
     email?: string;
   } | null>(null);
-  const [messages, setMessages] = useState<
-    {
-      email: string;
-      senderName: string;
-      content: string;
-      timestamp: string;
-      toEmail?: string;
-    }[]
-  >([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState<string>("");
   const [meEmail, setMeEmail] = useState<string>("");
 
@@ -39,37 +59,22 @@ const ObservationRoom = () => {
       maybe &&
       typeof (maybe as { on?: unknown }).on === "function" &&
       typeof (maybe as { emit?: unknown }).emit === "function"
-        ? (maybe as {
-            on: (event: string, cb: (payload: any) => void) => void;
-            off: (event: string, cb: (payload: any) => void) => void;
-            emit: (
-              event: string,
-              payload: object,
-              ack?: (resp: any) => void
-            ) => void;
-          })
+        ? (maybe as MinimalSocket)
         : undefined;
     if (!s) return;
 
-    const onObserverList = (payload: { observers?: WaitingObserver[] }) => {
-      setObservers(Array.isArray(payload?.observers) ? payload.observers : []);
+    const onObserverList = (payload: unknown) => {
+      const data = payload as { observers?: WaitingObserver[] };
+      setObservers(Array.isArray(data?.observers) ? data.observers : []);
     };
 
     s.on("observer:list", onObserverList);
 
     // Chat message handling
-    const onChatNew = (payload: {
-      scope: string;
-      message: {
-        email: string;
-        senderName: string;
-        content: string;
-        timestamp: string;
-        toEmail?: string;
-      };
-    }) => {
-      if (payload.scope === "observer_wait_dm" && selectedObserver) {
-        const message = payload.message;
+    const onChatNew = (payload: unknown) => {
+      const data = payload as ChatPayload;
+      if (data.scope === "observer_wait_dm" && selectedObserver) {
+        const message = data.message;
         const isFromSelectedObserver =
           message.email?.toLowerCase() ===
             selectedObserver.email?.toLowerCase() ||
@@ -85,14 +90,11 @@ const ObservationRoom = () => {
 
     // Request initial observers snapshot
     try {
-      s.emit(
-        "observer:list:get",
-        {},
-        (resp?: { observers?: WaitingObserver[] }) => {
-          console.log("observer list", resp?.observers);
-          setObservers(Array.isArray(resp?.observers) ? resp!.observers! : []);
-        }
-      );
+      s.emit("observer:list:get", {}, (resp?: unknown) => {
+        const data = resp as { observers?: WaitingObserver[] };
+        console.log("observer list", data?.observers);
+        setObservers(Array.isArray(data?.observers) ? data.observers! : []);
+      });
     } catch {}
 
     return () => {
@@ -127,15 +129,7 @@ const ObservationRoom = () => {
       maybe &&
       typeof (maybe as { on?: unknown }).on === "function" &&
       typeof (maybe as { emit?: unknown }).emit === "function"
-        ? (maybe as {
-            on: (event: string, cb: (payload: any) => void) => void;
-            off: (event: string, cb: (payload: any) => void) => void;
-            emit: (
-              event: string,
-              payload: object,
-              ack?: (resp: any) => void
-            ) => void;
-          })
+        ? (maybe as MinimalSocket)
         : undefined;
     if (!s) return;
 
@@ -148,17 +142,10 @@ const ObservationRoom = () => {
             thread: { withEmail: selectedObserver.email },
             limit: 50,
           },
-          (response?: {
-            items: {
-              email: string;
-              senderName: string;
-              content: string;
-              timestamp: string;
-              toEmail?: string;
-            }[];
-          }) => {
-            if (response?.items) {
-              setMessages(response.items);
+          (response?: unknown) => {
+            const data = response as ChatHistoryResponse;
+            if (data?.items) {
+              setMessages(data.items);
             }
           }
         );
@@ -180,15 +167,7 @@ const ObservationRoom = () => {
       maybe &&
       typeof (maybe as { on?: unknown }).on === "function" &&
       typeof (maybe as { emit?: unknown }).emit === "function"
-        ? (maybe as {
-            on: (event: string, cb: (payload: any) => void) => void;
-            off: (event: string, cb: (payload: any) => void) => void;
-            emit: (
-              event: string,
-              payload: object,
-              ack?: (resp: any) => void
-            ) => void;
-          })
+        ? (maybe as MinimalSocket)
         : undefined;
     if (!s) return;
 
@@ -200,11 +179,12 @@ const ObservationRoom = () => {
           content: messageInput.trim(),
           toEmail: selectedObserver.email,
         },
-        (response?: { ok: boolean; error?: string }) => {
-          if (response?.ok) {
+        (response?: unknown) => {
+          const data = response as SocketResponse;
+          if (data?.ok) {
             setMessageInput("");
           } else {
-            console.error("Failed to send message:", response?.error);
+            console.error("Failed to send message:", data?.error);
           }
         }
       );

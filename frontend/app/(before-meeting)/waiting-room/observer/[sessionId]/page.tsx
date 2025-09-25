@@ -25,6 +25,28 @@ import { toast } from "sonner";
 
 import { Socket } from "socket.io-client";
 
+type ChatMessage = {
+  email: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  toEmail?: string;
+};
+
+type ChatPayload = {
+  scope: string;
+  message: ChatMessage;
+};
+
+type ChatHistoryResponse = {
+  items: ChatMessage[];
+};
+
+type SocketResponse = {
+  ok: boolean;
+  error?: string;
+};
+
 export default function ObserverWaitingRoom() {
   const { sessionId } = useParams() as { sessionId: string };
   const router = useRouter();
@@ -42,15 +64,7 @@ export default function ObserverWaitingRoom() {
     name?: string;
     email?: string;
   } | null>(null);
-  const [messages, setMessages] = useState<
-    {
-      email: string;
-      senderName: string;
-      content: string;
-      timestamp: string;
-      toEmail?: string;
-    }[]
-  >([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState<string>("");
 
   console.log(observerList, meEmail);
@@ -102,16 +116,7 @@ export default function ObserverWaitingRoom() {
     s.on("announce:participants:admitted", onManyAdmitted);
 
     // Chat message handling
-    const onChatNew = (payload: {
-      scope: string;
-      message: {
-        email: string;
-        senderName: string;
-        content: string;
-        timestamp: string;
-        toEmail?: string;
-      };
-    }) => {
+    const onChatNew = (payload: ChatPayload) => {
       if (payload.scope === "observer_wait_dm" && selectedObserver) {
         const message = payload.message;
         const isFromSelectedObserver =
@@ -213,15 +218,7 @@ export default function ObserverWaitingRoom() {
             thread: { withEmail: selectedObserver.email },
             limit: 50,
           },
-          (response?: {
-            items: {
-              email: string;
-              senderName: string;
-              content: string;
-              timestamp: string;
-              toEmail?: string;
-            }[];
-          }) => {
+          (response?: ChatHistoryResponse) => {
             if (response?.items) {
               setMessages(response.items);
             }
@@ -247,7 +244,7 @@ export default function ObserverWaitingRoom() {
           content: messageInput.trim(),
           toEmail: selectedObserver.email,
         },
-        (response?: { ok: boolean; error?: string }) => {
+        (response?: SocketResponse) => {
           if (response?.ok) {
             setMessageInput("");
           } else {
