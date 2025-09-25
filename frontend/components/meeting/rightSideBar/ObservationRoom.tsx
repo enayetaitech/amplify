@@ -45,6 +45,7 @@ const ObservationRoom = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState<string>("");
   const [meEmail, setMeEmail] = useState<string>("");
+  const [meRole, setMeRole] = useState<string>("");
 
   // // Sync local state if parent supplies a list
   // React.useEffect(() => {
@@ -73,7 +74,11 @@ const ObservationRoom = () => {
     // Chat message handling
     const onChatNew = (payload: unknown) => {
       const data = payload as ChatPayload;
-      if (data.scope === "observer_wait_dm" && selectedObserver) {
+      if (
+        selectedObserver &&
+        (data.scope === "observer_wait_dm" ||
+          data.scope === "stream_dm_obs_mod")
+      ) {
         const message = data.message;
         const isFromSelectedObserver =
           message.email?.toLowerCase() ===
@@ -103,16 +108,45 @@ const ObservationRoom = () => {
     };
   }, [selectedObserver]);
 
-  // Effect: load current observer identity from localStorage
+  // Effect: load current user identity from localStorage
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const saved = window.localStorage.getItem("liveSessionUser")
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
+      console.log("Loaded user data from localStorage:", saved);
       setMeEmail(saved?.email || "");
-    } catch {
-      // ignore
+      setMeRole(saved?.role || "");
+
+      // Also check if role is in a different localStorage key
+      const roleFromStorage = window.localStorage.getItem("userRole");
+      if (roleFromStorage) {
+        console.log(
+          "Found role in separate localStorage key:",
+          roleFromStorage
+        );
+        setMeRole(roleFromStorage);
+      }
+
+      // Check if we can determine role from socket query params
+      const socketQuery = (
+        window as Window & {
+          __meetingSocket?: { io?: { opts?: { query?: { role?: string } } } };
+        }
+      ).__meetingSocket?.io?.opts?.query;
+      if (socketQuery?.role) {
+        console.log("Found role in socket query:", socketQuery.role);
+        setMeRole(socketQuery.role);
+      }
+
+      // Fallback: if no role found and we're in ObservationRoom, assume Moderator
+      if (!saved?.role && !roleFromStorage && !socketQuery?.role) {
+        console.log("No role found, assuming Moderator for ObservationRoom");
+        setMeRole("Moderator");
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
     }
   }, []);
 
@@ -135,31 +169,58 @@ const ObservationRoom = () => {
 
     const loadChatHistory = async () => {
       try {
-        s.emit(
-          "chat:history:get",
-          {
-            scope: "observer_wait_dm",
-            thread: { withEmail: selectedObserver.email },
-            limit: 50,
-          },
-          (response?: unknown) => {
-            const data = response as ChatHistoryResponse;
-            if (data?.items) {
-              setMessages(data.items);
+        // Load messages from both scopes to see the complete conversation
+        const scopes = ["observer_wait_dm", "stream_dm_obs_mod"];
+        let allMessages: ChatMessage[] = [];
+        let loadedScopes = 0;
+
+        scopes.forEach((scope) => {
+          s.emit(
+            "chat:history:get",
+            {
+              scope: scope,
+              thread: { withEmail: selectedObserver.email },
+              limit: 50,
+            },
+            (response?: unknown) => {
+              const data = response as ChatHistoryResponse;
+              if (data?.items) {
+                allMessages = [...allMessages, ...data.items];
+              }
+              loadedScopes++;
+
+              // When both scopes are loaded, sort by timestamp and set messages
+              if (loadedScopes === scopes.length) {
+                allMessages.sort(
+                  (a, b) =>
+                    new Date(a.timestamp).getTime() -
+                    new Date(b.timestamp).getTime()
+                );
+                setMessages(allMessages);
+              }
             }
-          }
-        );
+          );
+        });
       } catch (error) {
         console.error("Failed to load chat history:", error);
       }
     };
 
     loadChatHistory();
-  }, [selectedObserver]);
+  }, [selectedObserver, meRole]);
 
   // Function to send a message
   const sendMessage = async () => {
-    if (!selectedObserver || !messageInput.trim()) return;
+    console.log("sendMessage called", {
+      selectedObserver,
+      messageInput,
+      meRole,
+    });
+
+    if (!selectedObserver || !messageInput.trim()) {
+      console.log("Early return: no observer or empty message");
+      return;
+    }
 
     const w = window as Window & { __meetingSocket?: unknown };
     const maybe = w.__meetingSocket as unknown;
@@ -169,20 +230,39 @@ const ObservationRoom = () => {
       typeof (maybe as { emit?: unknown }).emit === "function"
         ? (maybe as MinimalSocket)
         : undefined;
-    if (!s) return;
+
+    console.log("Socket check:", { socketExists: !!s, maybe });
+
+    if (!s) {
+      console.error("No socket available");
+      return;
+    }
 
     try {
+      // Determine the appropriate scope based on current user role
+      const scope =
+        meRole === "Moderator" || meRole === "Admin"
+          ? "stream_dm_obs_mod"
+          : "observer_wait_dm";
+
+      console.log("Sending message with scope:", scope, {
+        content: messageInput.trim(),
+        toEmail: selectedObserver.email,
+      });
+
       s.emit(
         "chat:send",
         {
-          scope: "observer_wait_dm",
+          scope: scope,
           content: messageInput.trim(),
           toEmail: selectedObserver.email,
         },
         (response?: unknown) => {
+          console.log("Message send response:", response);
           const data = response as SocketResponse;
           if (data?.ok) {
             setMessageInput("");
+            console.log("Message sent successfully");
           } else {
             console.error("Failed to send message:", data?.error);
           }
@@ -197,6 +277,10 @@ const ObservationRoom = () => {
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold pl-2">Observation Room</h3>
+        {/* Debug role display */}
+        <div className="text-xs text-gray-500">
+          Role: {meRole || "Unknown"} | Email: {meEmail || "Unknown"}
+        </div>
         <button
           type="button"
           className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1"
@@ -332,8 +416,13 @@ const ObservationRoom = () => {
                 <div className="flex items-center justify-between p-0.5 border-b">
                   <div className="flex items-center gap-2">
                     <span className="text-sm ">
-                      Chat with{" "}
-                      {selectedObserver.name || selectedObserver.email}
+                      {meRole === "Moderator" || meRole === "Admin"
+                        ? `Message Observer: ${
+                            selectedObserver.name || selectedObserver.email
+                          }`
+                        : `Chat with ${
+                            selectedObserver.name || selectedObserver.email
+                          }`}
                     </span>
                   </div>
                   <Button
@@ -386,11 +475,16 @@ const ObservationRoom = () => {
                 </div>
                 <div className="p-2 flex items-center gap-2 border-t">
                   <Input
-                    placeholder="Type a message..."
+                    placeholder={
+                      meRole === "Moderator" || meRole === "Admin"
+                        ? "Send message to observer..."
+                        : "Type a message..."
+                    }
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyPress={(e) => {
                       if (e.key === "Enter") {
+                        console.log("Enter key pressed");
                         sendMessage();
                       }
                     }}
@@ -398,7 +492,10 @@ const ObservationRoom = () => {
                   <Button
                     size="sm"
                     className="h-8 w-8 p-0"
-                    onClick={sendMessage}
+                    onClick={() => {
+                      console.log("Send button clicked");
+                      sendMessage();
+                    }}
                     disabled={!messageInput.trim()}
                   >
                     <Send className="h-4 w-4" />

@@ -117,7 +117,11 @@ export default function ObserverWaitingRoom() {
 
     // Chat message handling
     const onChatNew = (payload: ChatPayload) => {
-      if (payload.scope === "observer_wait_dm" && selectedObserver) {
+      if (
+        selectedObserver &&
+        (payload.scope === "observer_wait_dm" ||
+          payload.scope === "stream_dm_obs_mod")
+      ) {
         const message = payload.message;
         const isFromSelectedObserver =
           message.email?.toLowerCase() ===
@@ -211,19 +215,37 @@ export default function ObserverWaitingRoom() {
 
     const loadChatHistory = async () => {
       try {
-        socket.emit(
-          "chat:history:get",
-          {
-            scope: "observer_wait_dm",
-            thread: { withEmail: selectedObserver.email },
-            limit: 50,
-          },
-          (response?: ChatHistoryResponse) => {
-            if (response?.items) {
-              setMessages(response.items);
+        // Load messages from both observer-to-observer and moderator-to-observer scopes
+        const scopes = ["observer_wait_dm", "stream_dm_obs_mod"];
+        let allMessages: ChatMessage[] = [];
+        let loadedScopes = 0;
+
+        scopes.forEach((scope) => {
+          socket.emit(
+            "chat:history:get",
+            {
+              scope: scope,
+              thread: { withEmail: selectedObserver.email },
+              limit: 50,
+            },
+            (response?: ChatHistoryResponse) => {
+              if (response?.items) {
+                allMessages = [...allMessages, ...response.items];
+              }
+              loadedScopes++;
+
+              // When both scopes are loaded, sort by timestamp and set messages
+              if (loadedScopes === scopes.length) {
+                allMessages.sort(
+                  (a, b) =>
+                    new Date(a.timestamp).getTime() -
+                    new Date(b.timestamp).getTime()
+                );
+                setMessages(allMessages);
+              }
             }
-          }
-        );
+          );
+        });
       } catch (error) {
         console.error("Failed to load chat history:", error);
       }
