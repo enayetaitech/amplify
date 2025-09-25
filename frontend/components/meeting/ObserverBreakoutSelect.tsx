@@ -75,11 +75,24 @@ export default function ObserverBreakoutSelect({
   const [groupText, setGroupText] = useState("");
   const [groupLoading, setGroupLoading] = useState(false);
   const [groupUnread, setGroupUnread] = useState(0);
+
+  // Participant group chat state (meeting_group)
+  type ParticipantGroupMessage = {
+    senderEmail?: string;
+    name?: string;
+    content: string;
+    timestamp?: Date;
+  };
+  const [participantGroupMessages, setParticipantGroupMessages] = useState<
+    ParticipantGroupMessage[]
+  >([]);
+  const [participantGroupLoading, setParticipantGroupLoading] = useState(false);
   const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
     Record<string, number>
   >({});
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
+  const participantGroupRef = useRef<HTMLDivElement | null>(null);
 
   // derive current user's email (observer) to hide self from lists
   const { user } = useGlobalContext();
@@ -416,6 +429,48 @@ export default function ObserverBreakoutSelect({
     };
   }, [meetingSocket, showGroupChatObs]);
 
+  // Participant group chat: load history when component mounts
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    setParticipantGroupLoading(true);
+    try {
+      s.emit(
+        "chat:history:get",
+        { scope: "meeting_group", limit: 100 },
+        (resp?: { items?: ParticipantGroupMessage[] }) => {
+          setParticipantGroupMessages(
+            Array.isArray(resp?.items) ? resp!.items! : []
+          );
+          setParticipantGroupLoading(false);
+        }
+      );
+    } catch {
+      setParticipantGroupMessages([]);
+      setParticipantGroupLoading(false);
+    }
+  }, [meetingSocket]);
+
+  // Participant group chat: live updates
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onNew = (p: {
+      scope?: string;
+      message?: ParticipantGroupMessage;
+    }) => {
+      if (p?.scope !== "meeting_group" || !p?.message) return;
+      setParticipantGroupMessages((prev) => [
+        ...prev,
+        p.message as ParticipantGroupMessage,
+      ]);
+    };
+    s.on("chat:new", onNew);
+    return () => {
+      s.off("chat:new", onNew);
+    };
+  }, [meetingSocket]);
+
   // Auto-scroll group chat
   useEffect(() => {
     if (!showGroupChatObs) return;
@@ -423,6 +478,13 @@ export default function ObserverBreakoutSelect({
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [showGroupChatObs, groupMessages.length, groupLoading]);
+
+  // Auto-scroll participant group chat
+  useEffect(() => {
+    const el = participantGroupRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [participantGroupMessages.length, participantGroupLoading]);
 
   // Group chat: send
   const sendGroup = () => {
@@ -628,8 +690,47 @@ export default function ObserverBreakoutSelect({
                 </div>
               </TabsContent>
               <TabsContent value="pchat">
-                <div className="text-sm text-gray-500">
-                  Participant chat will appear here.
+                <div className="flex flex-col h-[30vh] min-h-0">
+                  <div className="flex items-center justify-between p-2 border-b bg-gray-50 rounded-t">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Participant Group Chat
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500">Read-only</div>
+                  </div>
+                  <div
+                    ref={participantGroupRef}
+                    className="flex-1 overflow-y-auto p-2 bg-white"
+                  >
+                    {participantGroupLoading ? (
+                      <div className="text-sm text-gray-500">
+                        Loading chat history...
+                      </div>
+                    ) : (
+                      <div className="space-y-1 text-sm">
+                        {participantGroupMessages.length === 0 ? (
+                          <div className="text-gray-500">
+                            No participant messages yet.
+                          </div>
+                        ) : (
+                          participantGroupMessages.map((m, idx) => (
+                            <div
+                              key={idx}
+                              className="mr-auto bg-gray-50 max-w-[90%] rounded px-2 py-1"
+                            >
+                              <div className="text-[11px] text-gray-500">
+                                {m.name || m.senderEmail || "Participant"}
+                              </div>
+                              <div className="whitespace-pre-wrap">
+                                {m.content}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>
