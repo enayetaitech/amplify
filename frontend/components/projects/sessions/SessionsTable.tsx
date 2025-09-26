@@ -90,7 +90,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                 "Participant Count",
                 "Observer Count",
                 "Final Session Minutes",
-                "Lunch",
+                "Launch",
               ].map((col) => (
                 <TableHead
                   key={col}
