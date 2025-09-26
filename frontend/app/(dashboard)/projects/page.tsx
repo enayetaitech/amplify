@@ -27,6 +27,8 @@ const Projects: React.FC = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
   const limit = 10;
+  const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | undefined>(undefined);
   // Modal state
   const [activeShareType, setActiveShareType] = useState<
     "observer" | "participant" | null
@@ -45,12 +47,13 @@ const Projects: React.FC = () => {
     tag: tagTerm,
     from: fromISO,
     to: toISO,
+    sortBy,
+    sortDir,
   });
 
   if (!userId) {
     return <p>User not found or not authenticated.</p>;
   }
-
 
   if (error) {
     toast.error(error instanceof Error ? error.message : "Unknown error");
@@ -89,6 +92,13 @@ const Projects: React.FC = () => {
               <ProjectsTable
                 filteredProjects={projects}
                 isLoading={isLoading}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortChange={(column, dir) => {
+                  setSortBy(column);
+                  setSortDir(dir);
+                  setPage(1);
+                }}
                 // ← here is the “row click” navigation:
                 onRowClick={(projectId: string) => {
                   router.push(`/view-project/${projectId}`);

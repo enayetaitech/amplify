@@ -278,6 +278,8 @@ export const getProjectByUserId = async (
     limit = 10,
     from,
     to,
+    sortBy,
+    sortDir,
   } = req.query;
 
   if (!userId) {
@@ -394,7 +396,41 @@ export const getProjectByUserId = async (
         },
       },
     },
-    { $sort: { earliestSession: 1, name: 1 } },
+    // dynamic, safe sort stage based on query params
+    (() => {
+      // normalize incoming sort params
+      const sortByStr = typeof sortBy === "string" ? sortBy : undefined;
+      const sortDirStr = sortDir === "desc" ? "desc" : "asc";
+      const sortDirNum = sortDirStr === "desc" ? -1 : 1;
+
+      // whitelist fields that are safe to sort by in aggregation
+      const allowedSortFields = new Set([
+        "name",
+        "earliestSession",
+        "createdAt",
+        "status",
+      ]);
+
+      // build sort object: primary = requested, secondary = fallback
+      const sortObj: Record<string, number> = {};
+      if (sortByStr && allowedSortFields.has(sortByStr)) {
+        if (sortByStr === "earliestSession") {
+          sortObj["earliestSession"] = sortDirNum;
+          // tie-breaker
+          sortObj["name"] = 1;
+        } else {
+          // default to sorting by requested field, then earliestSession
+          sortObj[sortByStr] = sortDirNum;
+          sortObj["earliestSession"] = 1;
+        }
+      } else {
+        // original default: earliestSession then name
+        sortObj["earliestSession"] = 1;
+        sortObj["name"] = 1;
+      }
+
+      return { $sort: sortObj } as PipelineStage;
+    })(),
     { $skip: skip },
     { $limit: limitNum },
   ];

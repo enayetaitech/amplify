@@ -14,6 +14,8 @@ export interface UseProjectsParams {
   tag?: string;
   from?: string;
   to?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 export interface UseProjectsResult {
@@ -35,36 +37,50 @@ export function useProjects({
   page,
   limit = 10,
   search = "",
-  tag="",
-  from, to
+  tag = "",
+  from,
+  to,
+  sortBy,
+  sortDir,
 }: UseProjectsParams): UseProjectsResult {
-  const {
-    data,
-    error,
-    isLoading,
-    isError,
-  } = useQuery<
+  const { data, error, isLoading, isError } = useQuery<
     { data: IProject[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["projects", userId, page, search, tag, from, to],
+    queryKey: [
+      "projects",
+      userId,
+      page,
+      search,
+      tag,
+      from,
+      to,
+      sortBy,
+      sortDir,
+    ],
     queryFn: () =>
       api
         .get<{
           data: IProject[];
           meta: IPaginationMeta;
         }>(`/api/v1/projects/get-project-by-userId/${userId}`, {
-          params: { page, limit, search, tag, from, to },
+          params: { page, limit, search, tag, from, to, sortBy, sortDir },
         })
         .then((res) => res.data),
 
     placeholderData: keepPreviousData,
-
   });
 
   return {
     projects: data?.data ?? [],
-    meta: data?.meta ?? { totalItems: 0, totalPages: 0, page, limit, hasPrev: false, hasNext: false },
+    meta: data?.meta ?? {
+      totalItems: 0,
+      totalPages: 0,
+      page,
+      limit,
+      hasPrev: false,
+      hasNext: false,
+    },
     isLoading,
     isError,
     error: isError ? error : undefined,

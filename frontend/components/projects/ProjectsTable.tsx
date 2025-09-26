@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "components/ui/table";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import ProjectRow from "./ProjectRow";
 
 interface ProjectsTableProps {
@@ -16,6 +17,10 @@ interface ProjectsTableProps {
   isLoading: boolean;
   onRowClick: (projectId: string) => void;
   onShareClick: (project: IProject, type: "observer" | "participant") => void;
+  // server-side sort props
+  sortBy?: string | undefined;
+  sortDir?: "asc" | "desc" | undefined;
+  onSortChange?: (column: string, dir: "asc" | "desc" | undefined) => void;
 }
 
 const ProjectsTable: React.FC<ProjectsTableProps> = ({
@@ -23,13 +28,46 @@ const ProjectsTable: React.FC<ProjectsTableProps> = ({
   isLoading,
   onRowClick,
   onShareClick,
+  sortBy,
+  sortDir,
+  onSortChange,
 }) => {
+  const handleToggleSortByName = () => {
+    if (!onSortChange) return;
+    // toggle between asc/desc; if currently not sorting by name, set asc
+    const newDir: "asc" | "desc" =
+      sortBy === "name" && sortDir === "asc" ? "desc" : "asc";
+    onSortChange("name", newDir);
+  };
+
   return (
     <div className="bg-white shadow-all-sides overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="flex-1">Project Name</TableHead>
+            <TableHead
+              className="flex-1 cursor-pointer"
+              onClick={handleToggleSortByName}
+              role="columnheader"
+              aria-sort={
+                sortBy === "name"
+                  ? sortDir === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              <div className="flex items-center gap-2">
+                Project Name
+                {sortBy === "name" && sortDir === "asc" ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : sortBy === "name" && sortDir === "desc" ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronUp className="w-4 h-4 opacity-40" />
+                )}
+              </div>
+            </TableHead>
             <TableHead>Tags</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Start Date</TableHead>
@@ -58,7 +96,7 @@ const ProjectsTable: React.FC<ProjectsTableProps> = ({
                   </TableCell>
                 </TableRow>
               ))
-            : filteredProjects.map((project) => (
+            : filteredProjects.map((project: IProject) => (
                 <ProjectRow
                   key={project._id}
                   project={project}
