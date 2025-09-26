@@ -195,7 +195,7 @@ const Backroom = ({
             value="chat"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
           >
-            Observer Text
+            Observer Chat
             {groupUnread +
               Object.values(dmUnreadByEmail).reduce((a, b) => a + b, 0) >
               0 && (

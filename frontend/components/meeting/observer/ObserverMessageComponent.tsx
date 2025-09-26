@@ -76,6 +76,11 @@ export default function ObserverMessageComponent({
   setDmText,
   sendDm,
 }: Props) {
+  const totalDmUnread = Object.values(dmUnreadByEmail || {}).reduce(
+    (s, v) => s + (v || 0),
+    0
+  );
+  const totalObserverUnread = totalDmUnread + (groupUnread || 0);
   return (
     <>
       <RightSidebarHeading title="Backroom" observerCount={observerCount} />
@@ -90,9 +95,14 @@ export default function ObserverMessageComponent({
             </TabsTrigger>
             <TabsTrigger
               value="chat"
-              className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+              className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
             >
               Observer Text
+              {totalObserverUnread > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
+                  {totalObserverUnread}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="list">
@@ -168,10 +178,7 @@ export default function ObserverMessageComponent({
                                   <MessageSquare className="h-4 w-4 text-gray-400" />
                                   {mUnread > 0 && (
                                     <span className="absolute -top-1 -right-1">
-                                      <Badge
-                                        variant="destructive"
-                                        className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
-                                      >
+                                      <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
                                         {mUnread}
                                       </Badge>
                                     </span>
@@ -196,10 +203,7 @@ export default function ObserverMessageComponent({
                             <MessageSquare className="h-4 w-4 text-gray-400" />
                             {groupUnread > 0 && (
                               <span className="absolute -top-1 -right-1">
-                                <Badge
-                                  variant="destructive"
-                                  className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
-                                >
+                                <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
                                   {groupUnread}
                                 </Badge>
                               </span>
