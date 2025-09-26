@@ -4,27 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import api from "lib/api";
 import type { Socket } from "socket.io-client";
 import ObserverHlsLayout from "./ObserverHlsLayout";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+// extracted messaging UI uses Tabs/Input/Button/Badge internally
 import { Separator } from "components/ui/separator";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  MessageSquare,
-  FileText,
-} from "lucide-react";
-import { Button } from "components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardAction,
-  CardContent,
-} from "components/ui/card";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import ObserverChatPanel from "./ObserverChatPanel";
+import DocumentHub from "../rightSideBar/DocumentHub";
+// import ObserverChatPanel from "./ObserverChatPanel";
+// formatDisplayName now used in extracted component
+import { useGlobalContext } from "context/GlobalContext";
+import { safeLocalGet } from "utils/storage";
+import ParticipantMessageInObserverLeftSidebar from "./ParticipantMessageInObserverLeftSidebar";
+import ObserverBreakoutSelect from "./ObserverBreakoutSelect";
+import ObserverMessageComponent from "./ObserverMessageComponent";
 
-export default function ObserverBreakoutSelect({
+export default function ObserverMeetingView({
   sessionId,
   initialMainUrl,
 }: {
@@ -48,6 +41,60 @@ export default function ObserverBreakoutSelect({
   const [observerList, setObserverList] = useState<
     { name: string; email: string }[]
   >([]);
+  const [moderatorList, setModeratorList] = useState<
+    { name: string; email: string; role: string }[]
+  >([]);
+  const [selectedObserver, setSelectedObserver] = useState<{
+    email: string;
+    name?: string;
+  } | null>(null);
+  const [showGroupChatObs, setShowGroupChatObs] = useState(false);
+  type DmScope = "stream_dm_obs_mod" | "stream_dm_obs_obs";
+  type DmMessage = {
+    email: string;
+    senderName?: string;
+    role?: string;
+    content: string;
+    timestamp?: string | Date;
+    toEmail?: string;
+  };
+  const [dmMessages, setDmMessages] = useState<DmMessage[]>([]);
+  const [dmText, setDmText] = useState("");
+  const [dmScope, setDmScope] = useState<DmScope | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  // Group chat state (stream_group)
+  type GroupMessage = { senderEmail?: string; name?: string; content: string };
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
+  const [groupText, setGroupText] = useState("");
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [groupUnread, setGroupUnread] = useState(0);
+
+  // Participant group chat state (meeting_group)
+  type ParticipantGroupMessage = {
+    senderEmail?: string;
+    name?: string;
+    content: string;
+    timestamp?: Date;
+  };
+  const [participantGroupMessages, setParticipantGroupMessages] = useState<
+    ParticipantGroupMessage[]
+  >([]);
+  const [participantGroupLoading, setParticipantGroupLoading] = useState(false);
+  const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
+    Record<string, number>
+  >({});
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const dmRef = useRef<HTMLDivElement | null>(null);
+
+  // derive current user's email (observer) to hide self from lists
+  const { user } = useGlobalContext();
+  const myEmailLower = useMemo(() => {
+    const emailFromUser = (user?.email as string) || "";
+    if (emailFromUser) return emailFromUser.toLowerCase();
+    const stored = safeLocalGet<{ email?: string }>("liveSessionUser");
+    const e = (stored?.email as string) || "";
+    return e.toLowerCase();
+  }, [user]);
 
   useEffect(() => {
     setOptions((prev) => {
@@ -177,8 +224,15 @@ export default function ObserverBreakoutSelect({
       setObserverList(list);
       setObserverCount(list.length);
     };
+    const onMods = (p: {
+      moderators?: { name: string; email: string; role: string }[];
+    }) => {
+      console.log("Moderator name", p.moderators);
+      setModeratorList(Array.isArray(p?.moderators) ? p.moderators : []);
+    };
     s.on("observer:count", onCount);
     s.on("observer:list", onList);
+    s.on("moderator:list", onMods);
     // initial list
     s.emit(
       "observer:list:get",
@@ -189,11 +243,249 @@ export default function ObserverBreakoutSelect({
         setObserverCount(list.length);
       }
     );
+    s.emit(
+      "moderator:list:get",
+      {},
+      (resp?: {
+        moderators?: { name: string; email: string; role: string }[];
+      }) => {
+        setModeratorList(
+          Array.isArray(resp?.moderators) ? resp!.moderators! : []
+        );
+      }
+    );
     return () => {
       s.off("observer:count", onCount);
       s.off("observer:list", onList);
+      s.off("moderator:list", onMods);
     };
   }, [meetingSocket]);
+
+  // Compute whether selected peer is moderator
+  const selectedIsModerator = useMemo(() => {
+    if (!selectedObserver) return false;
+    const sel = (selectedObserver.email || "").toLowerCase();
+    return moderatorList.some((m) => (m.email || "").toLowerCase() === sel);
+  }, [selectedObserver, moderatorList]);
+
+  // Load DM history when selecting a peer
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    if (!selectedObserver || showGroupChatObs) {
+      setDmMessages([]);
+      setDmScope(null);
+      return;
+    }
+    const scope: DmScope = selectedIsModerator
+      ? "stream_dm_obs_mod"
+      : "stream_dm_obs_obs";
+    setDmScope(scope);
+    setLoadingHistory(true);
+    try {
+      s.emit(
+        "chat:history:get",
+        {
+          scope,
+          thread: { withEmail: selectedObserver.email },
+          limit: 100,
+        },
+        (resp?: { items?: DmMessage[] }) => {
+          const items = Array.isArray(resp?.items) ? resp!.items! : [];
+          setDmMessages(items);
+          setLoadingHistory(false);
+        }
+      );
+    } catch {
+      setDmMessages([]);
+      setLoadingHistory(false);
+    }
+  }, [meetingSocket, selectedObserver, selectedIsModerator, showGroupChatObs]);
+
+  // Live incoming DM messages
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onChatNew = (p: { scope?: string; message?: DmMessage }) => {
+      if (!p?.scope || !p?.message) return;
+      if (!dmScope || p.scope !== dmScope) return;
+      if (!selectedObserver) return;
+      const me = myEmailLower;
+      const peer = (selectedObserver.email || "").toLowerCase();
+      const from = (p.message.email || "").toLowerCase();
+      const to = (p.message.toEmail || "").toLowerCase();
+      const matches =
+        (from === me && to === peer) || (from === peer && to === me);
+      if (!matches) return;
+      setDmMessages((prev) => [...prev, p.message as DmMessage]);
+    };
+    s.on("chat:new", onChatNew);
+    return () => {
+      s.off("chat:new", onChatNew);
+    };
+  }, [meetingSocket, dmScope, selectedObserver, myEmailLower]);
+
+  // Auto-scroll DM chat
+  useEffect(() => {
+    if (!selectedObserver || showGroupChatObs) return;
+    const el = dmRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [selectedObserver, showGroupChatObs, dmMessages.length, loadingHistory]);
+
+  // Global unread for DMs (both obs-obs and obs-mod)
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onNew = (p: { scope?: string; message?: DmMessage }) => {
+      if (!p?.scope || !p?.message) return;
+      if (!(p.scope === "stream_dm_obs_mod" || p.scope === "stream_dm_obs_obs"))
+        return;
+      const me = myEmailLower;
+      const from = (p.message.email || "").toLowerCase();
+      const to = (p.message.toEmail || "").toLowerCase();
+      const incomingFromPeer = from !== me;
+      const peer = incomingFromPeer ? from : to;
+      const openPeer = (selectedObserver?.email || "").toLowerCase();
+      const isOpen =
+        !!selectedObserver && peer === openPeer && !showGroupChatObs;
+      if (isOpen) return;
+      setDmUnreadByEmail((prev) => ({
+        ...prev,
+        [peer]: (prev[peer] || 0) + 1,
+      }));
+    };
+    s.on("chat:new", onNew);
+    return () => {
+      s.off("chat:new", onNew);
+    };
+  }, [meetingSocket, selectedObserver, showGroupChatObs, myEmailLower]);
+
+  // Send DM
+  const sendDm = () => {
+    const s = meetingSocket;
+    if (!s || !selectedObserver || !dmScope) return;
+    const text = dmText.trim();
+    if (!text) return;
+    s.emit(
+      "chat:send",
+      { scope: dmScope, content: text, toEmail: selectedObserver.email },
+      (ack?: { ok?: boolean; error?: string }) => {
+        if (ack?.ok) {
+          setDmText("");
+        } else {
+          toast.error(ack?.error || "Failed to send message");
+        }
+      }
+    );
+  };
+
+  // Group chat: load history when opened
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    if (!showGroupChatObs) return;
+    setGroupLoading(true);
+    try {
+      s.emit(
+        "chat:history:get",
+        { scope: "stream_group", limit: 100 },
+        (resp?: { items?: GroupMessage[] }) => {
+          setGroupMessages(Array.isArray(resp?.items) ? resp!.items! : []);
+          setGroupLoading(false);
+          setGroupUnread(0);
+        }
+      );
+    } catch {
+      setGroupMessages([]);
+      setGroupLoading(false);
+    }
+  }, [meetingSocket, showGroupChatObs]);
+
+  // Group chat: live updates
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onNew = (p: { scope?: string; message?: GroupMessage }) => {
+      if (p?.scope !== "stream_group" || !p?.message) return;
+      if (showGroupChatObs) {
+        setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+        setGroupUnread(0);
+      } else {
+        setGroupUnread((x) => x + 1);
+      }
+    };
+    s.on("chat:new", onNew);
+    return () => {
+      s.off("chat:new", onNew);
+    };
+  }, [meetingSocket, showGroupChatObs]);
+
+  // Participant group chat: load history when component mounts
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    setParticipantGroupLoading(true);
+    try {
+      s.emit(
+        "chat:history:get",
+        { scope: "meeting_group", limit: 100 },
+        (resp?: { items?: ParticipantGroupMessage[] }) => {
+          setParticipantGroupMessages(
+            Array.isArray(resp?.items) ? resp!.items! : []
+          );
+          setParticipantGroupLoading(false);
+        }
+      );
+    } catch {
+      setParticipantGroupMessages([]);
+      setParticipantGroupLoading(false);
+    }
+  }, [meetingSocket]);
+
+  // Participant group chat: live updates
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const onNew = (p: {
+      scope?: string;
+      message?: ParticipantGroupMessage;
+    }) => {
+      if (p?.scope !== "meeting_group" || !p?.message) return;
+      setParticipantGroupMessages((prev) => [
+        ...prev,
+        p.message as ParticipantGroupMessage,
+      ]);
+    };
+    s.on("chat:new", onNew);
+    return () => {
+      s.off("chat:new", onNew);
+    };
+  }, [meetingSocket]);
+
+  // Auto-scroll group chat
+  useEffect(() => {
+    if (!showGroupChatObs) return;
+    const el = groupRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [showGroupChatObs, groupMessages.length, groupLoading]);
+
+  // Group chat: send
+  const sendGroup = () => {
+    const s = meetingSocket;
+    if (!s) return;
+    const txt = groupText.trim();
+    if (!txt) return;
+    s.emit(
+      "chat:send",
+      { scope: "stream_group", content: txt },
+      (ack?: { ok?: boolean; error?: string }) => {
+        if (ack?.ok) setGroupText("");
+        else toast.error(ack?.error || "Failed to send message");
+      }
+    );
+  };
 
   const mainColSpanClass =
     (isLeftOpen ? 1 : 0) + (isRightOpen ? 1 : 0) === 2
@@ -351,67 +643,22 @@ export default function ObserverBreakoutSelect({
             <ChevronLeft className="h-4 w-4" />
           </button>
           {/* Upper: Participants tabs */}
-          <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
-            <h3 className="font-semibold mb-2">Participants</h3>
-            <Tabs defaultValue="plist">
-              <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
-                <TabsTrigger
-                  value="plist"
-                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
-                >
-                  Participant List
-                </TabsTrigger>
-                <TabsTrigger
-                  value="pchat"
-                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
-                >
-                  Participant Chat
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="plist">
-                <div className="space-y-2">
-                  {participants.length === 0 && (
-                    <div className="text-sm text-gray-500">
-                      No participants yet.
-                    </div>
-                  )}
-                  {participants.map((p) => (
-                    <div key={p.identity} className="text-sm">
-                      {p.name}
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-              <TabsContent value="pchat">
-                <div className="text-sm text-gray-500">
-                  Participant chat will appear here.
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
+          <ParticipantMessageInObserverLeftSidebar
+            participants={participants}
+            participantGroupMessages={participantGroupMessages}
+            participantGroupLoading={participantGroupLoading}
+          />
 
           {hasBreakouts && <Separator className="my-2" />}
 
-          {/* Lower: Breakouts selection (existing functionality) */}
+          {/* Lower: Breakouts selection */}
           {hasBreakouts && (
-            <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
-              <h3 className="font-semibold mb-2">Breakouts</h3>
-              <label className="block text-sm mb-1">Choose a room</label>
-              <select
-                className="border rounded px-2 py-1 text-black w-full"
-                value={selected}
-                onChange={(e) => setSelected(e.target.value)}
-              >
-                {options.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <div className="text-xs text-gray-500 mt-2">
-                {url ? "Streaming available" : "No live stream for this room"}
-              </div>
-            </div>
+            <ObserverBreakoutSelect
+              options={options}
+              selected={selected}
+              setSelected={setSelected}
+              url={url}
+            />
           )}
         </div>
       )}
@@ -425,6 +672,7 @@ export default function ObserverBreakoutSelect({
           <ChevronRight className="h-4 w-4" />
         </button>
       )}
+
       <div className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}>
         {url ? (
           <ObserverHlsLayout hlsUrl={url} />
@@ -432,6 +680,7 @@ export default function ObserverBreakoutSelect({
           <div className="m-auto text-gray-500">No live stream…</div>
         )}
       </div>
+
       {isRightOpen && (
         <aside className="relative col-span-3 h-[100dvh] rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
           <button
@@ -442,138 +691,33 @@ export default function ObserverBreakoutSelect({
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold pl-5">Backroom</h3>
-            <div className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1">
-              <span className="inline-flex h-4 w-4 items-center justify-center">
-                <Eye className="h-3.5 w-3.5" />
-              </span>
-              <span>Viewers</span>
-              <span className="ml-1 rounded bg-white/20 px-1">
-                {observerCount}
-              </span>
-            </div>
-          </div>
-          <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
-            <Tabs defaultValue="list">
-              <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
-                <TabsTrigger
-                  value="list"
-                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
-                >
-                  Observer List
-                </TabsTrigger>
-                <TabsTrigger
-                  value="chat"
-                  className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
-                >
-                  Observer Text
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="list">
-                <div className="space-y-2">
-                  {observerList.length === 0 && (
-                    <div className="text-sm text-gray-500">
-                      No observers yet.
-                    </div>
-                  )}
-                  {observerList.map((o) => {
-                    const label = o.name || o.email || "Observer";
-                    return (
-                      <div
-                        key={`${label}-${o.email}`}
-                        className="flex items-center justify-between gap-2 rounded px-2 py-1"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {label}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-md cursor-pointer"
-                          aria-label={`Open chat with ${label}`}
-                          title={`Open chat with ${label}`}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </TabsContent>
-              <TabsContent value="chat">
-                <ObserverChatPanel
-                  socket={meetingSocket || null}
-                  sessionId={sessionId}
-                  me={{ email: "", name: "", role: "Observer" }}
-                  isStreaming={!!url}
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
-          <Card className="border-none shadow-none">
-            <CardHeader className="px-3 flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm text-[#00293C]">
-                <FileText className="h-4 w-4" />
-                DOCUMENT HUB
-              </CardTitle>
-              <CardAction>
-                <Button
-                  variant="orange"
-                  className="text-sm px-4 py-[1px] rounded-full"
-                  onClick={() => toast("Yet to develop")}
-                >
-                  Upload File
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <Separator />
-            <CardContent className="px-3 pb-3">
-              <div className="bg-custom-gray-2 rounded-xl p-2">
-                <div className="flex items-center justify-between px-3 text-[12px] text-gray-600">
-                  <span>Name</span>
-                  <span>Size</span>
-                </div>
-                <div className="mt-2 rounded-lg bg-custom-gray-2 p-2">
-                  <div className="flex items-center justify-between px-2 py-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="h-4 w-4 shrink-0" />
-                      <span className="truncate text-sm">
-                        PRO_FILES_01: Introduction...
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-600">5.2MB</span>
-                      <button
-                        type="button"
-                        className="text-red-500 cursor-pointer"
-                        aria-label="Delete file"
-                        onClick={() => toast("Yet to develop")}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                        >
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6" />
-                          <path d="M14 11v6" />
-                          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ObserverMessageComponent
+            observerCount={observerCount}
+            observerList={observerList}
+            moderatorList={moderatorList}
+            myEmailLower={myEmailLower}
+            dmUnreadByEmail={dmUnreadByEmail}
+            setDmUnreadByEmail={setDmUnreadByEmail}
+            selectedObserver={selectedObserver}
+            setSelectedObserver={setSelectedObserver}
+            showGroupChatObs={showGroupChatObs}
+            setShowGroupChatObs={setShowGroupChatObs}
+            groupUnread={groupUnread}
+            groupRef={groupRef}
+            groupLoading={groupLoading}
+            groupMessages={groupMessages}
+            groupText={groupText}
+            setGroupText={setGroupText}
+            sendGroup={sendGroup}
+            dmRef={dmRef}
+            loadingHistory={loadingHistory}
+            dmMessages={dmMessages}
+            dmText={dmText}
+            setDmText={setDmText}
+            sendDm={sendDm}
+          />
+
+          <DocumentHub />
         </aside>
       )}
       {!isRightOpen && (

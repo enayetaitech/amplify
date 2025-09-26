@@ -28,8 +28,7 @@ import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridg
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
 
-import ModeratorChatPanel from "components/meeting/ModeratorChatPanel";
-import ObserverBreakoutSelect from "components/meeting/ObserverBreakoutSelect";
+import ObserverMeetingView from "components/meeting/observer/ObserverMeetingView";
 import ParticipantChatPanel from "components/meeting/ParticipantChatPanel";
 import MeetingJoinBridge from "components/meeting/MeetingJoinBridge";
 import {
@@ -39,24 +38,11 @@ import {
   Play,
   Square,
   LayoutGrid,
-  MessageSquare,
-  Folder,
-  Trash2,
-  FileText,
   LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "components/shared/LogoComponent";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardAction,
-  CardContent,
-} from "components/ui/card";
 import { Button } from "components/ui/button";
-import { Separator } from "components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,6 +66,7 @@ import {
   normalizeUiRole,
   normalizeServerRole,
 } from "constant/roles";
+import MainRightSidebar from "components/meeting/rightSideBar/MainRightSidebar";
 
 type LocalJoinUser = {
   name?: string;
@@ -504,7 +491,7 @@ export default function Meeting() {
   // Observer view
   if (role === "observer") {
     return (
-      <ObserverBreakoutSelect
+      <ObserverMeetingView
         sessionId={String(sessionId)}
         initialMainUrl={hlsUrl}
       />
@@ -730,175 +717,15 @@ export default function Meeting() {
 
         {/* RIGHT: observer chat/media hub — hide for participants. For participants, show their chat panel on the left sidebar above waiting room. */}
         {role !== "participant" && isRightOpen && (
-          <aside className="relative col-span-3 h-full rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
-            <button
-              type="button"
-              onClick={() => setIsRightOpen(false)}
-              className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
-              aria-label="Collapse right panel"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold pl-5">Backroom</h3>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-full bg-black text-white text-xs px-3 py-1"
-                aria-label="Observer count"
-              >
-                <span className="inline-flex h-4 w-4 items-center justify-center">
-                  {/* eye icon */}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-3.5 w-3.5"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                </span>
-                <span>Viewers</span>
-                <span className="ml-1 rounded bg-white/20 px-1">
-                  {isStreaming ? observerCount : 0}
-                </span>
-              </button>
-            </div>
-            {/* Backroom tabs - styled like left sidebar Participants panel */}
-            <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
-              <Tabs defaultValue="list">
-                <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
-                  <TabsTrigger
-                    value="list"
-                    className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
-                  >
-                    Observer List
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="chat"
-                    className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
-                  >
-                    Observer Text
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="list">
-                  {!isStreaming ? (
-                    <div className="text-sm text-gray-500">Not Streaming</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {observerList.length === 0 && (
-                        <div className="text-sm text-gray-500">
-                          No observers yet.
-                        </div>
-                      )}
-                      {observerList.map((o) => {
-                        const label = o.name || o.email || "Observer";
-                        return (
-                          <div
-                            key={`${label}-${o.email}`}
-                            className="flex items-center justify-between gap-2  rounded px-2 py-1"
-                          >
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium truncate">
-                                {label}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md   cursor-pointer"
-                              aria-label={`Open chat with ${label}`}
-                              title={`Open chat with ${label}`}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="chat">
-                  {(role as UiRole) === "participant" ? (
-                    <ParticipantChatPanel
-                      socket={socketRef.current}
-                      sessionId={String(sessionId)}
-                      me={{
-                        email: my?.email || "",
-                        name: my?.name || "",
-                        role: serverRole,
-                      }}
-                    />
-                  ) : (
-                    <ModeratorChatPanel
-                      socket={socketRef.current}
-                      sessionId={String(sessionId)}
-                      me={{
-                        email: my?.email || "",
-                        name: my?.name || "",
-                        role: serverRole,
-                      }}
-                    />
-                  )}
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* Document Hub */}
-            <Card className=" border-none shadow-none">
-              <CardHeader className=" px-3 flex items-center justify-between">
-                <CardTitle className="flex  items-center gap-2 text-sm text-[#00293C]">
-                  <FileText className="h-4 w-4" />
-                  DOCUMENT HUB
-                </CardTitle>
-                <CardAction>
-                  <Button
-                    variant="orange"
-                    className="text-sm px-4 py-[1px] rounded-full"
-                    onClick={() => toast("Yet to implement")}
-                  >
-                    Upload File
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              <Separator className="" />
-
-              <CardContent className="px-3 pb-3">
-                <div className="bg-custom-gray-2 rounded-xl  p-2">
-                  <div className="flex items-center justify-between px-3 text-[12px] text-gray-600">
-                    <span>Name</span>
-                    <span>Size</span>
-                  </div>
-                  <div className="mt-2 rounded-lg bg-custom-gray-2 p-2">
-                    <div className="flex items-center justify-between px-2 py-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Folder className="h-4 w-4 shrink-0" />
-                        <span className="truncate text-sm">
-                          PRO_FILES_01: Introduction...
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-600">5.2MB</span>
-                        <button
-                          type="button"
-                          className="text-red-500 cursor-pointer"
-                          aria-label="Delete file"
-                          onClick={() => toast("Yet to implement")}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
+          <MainRightSidebar
+            setIsRightOpen={setIsRightOpen}
+            isStreaming={isStreaming}
+            observerCount={observerCount}
+            observerList={observerList}
+            sessionId={String(sessionId)}
+            socket={socketRef.current}
+            me={{ email: my.email, name: my.name, role: my.role }}
+          />
         )}
       </div>
     </LiveKitRoom>
