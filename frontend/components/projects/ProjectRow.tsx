@@ -3,10 +3,7 @@
 
 import React from "react";
 import { IProject } from "@shared/interface/ProjectInterface";
-import {
-  TableRow,
-  TableCell,
-} from "components/ui/table";
+import { TableRow, TableCell } from "components/ui/table";
 import { Badge } from "components/ui/badge";
 import CustomButton from "components/shared/CustomButton";
 import { getFirstSessionDate } from "utils/getFirstSessionDate";
@@ -25,6 +22,16 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
 }) => {
   const firstDate = getFirstSessionDate(project);
 
+  const statusColors: Record<string, string> = {
+    Draft: "#ff7014",
+    Active: "#75d481",
+    Archive: "#696969",
+    Paused: "#fcd860",
+    Closed: "#b44d79",
+  };
+
+  const statusColor = statusColors[project.status] || "#696969";
+
   return (
     <TableRow
       // Entire row is clickable:
@@ -32,39 +39,41 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
       onClick={() => onRowClick(project._id)}
     >
       {/* 1) Project Name */}
-      <TableCell className="flex-1">
-        {project.name}
-      </TableCell>
+      <TableCell className="flex-1">{project.name}</TableCell>
 
       {/* 2) Tags */}
       <TableCell className="flex flex-wrap gap-1">
-           {project.tags && project.tags.length > 0 ? (
-          project.tags.map((tag) => (
-            <Badge
-              key={tag._id}
-              style={{
-                backgroundColor: tag.color,
-                color: "#fff",  
-              }}
-              className="px-2 py-0.5 rounded"
-            >
-              {tag.title}
-            </Badge>
-          ))
-        ) : (
-          "—"
-        )}
+        {project.tags && project.tags.length > 0
+          ? project.tags.map((tag) => (
+              <Badge
+                key={tag._id}
+                style={{
+                  backgroundColor: tag.color,
+                  color: "#fff",
+                }}
+                className="px-2 py-0.5 rounded"
+              >
+                {tag.title}
+              </Badge>
+            ))
+          : "—"}
       </TableCell>
 
       {/* 3) Status */}
       <TableCell>
-        <Badge variant="outline">{project.status}</Badge>
+        <Badge
+          variant="outline"
+          style={{
+            borderColor: statusColor,
+            color: statusColor,
+          }}
+        >
+          {project.status}
+        </Badge>
       </TableCell>
 
       {/* 4) First Session / Start Date */}
-      <TableCell>
-        {firstDate ? format(firstDate, "MM/dd/yyyy") : "—"}
-      </TableCell>
+      <TableCell>{firstDate ? format(firstDate, "MM/dd/yyyy") : "—"}</TableCell>
 
       {/* 5) Share Buttons: stop propagation so row click still works */}
       <TableCell
