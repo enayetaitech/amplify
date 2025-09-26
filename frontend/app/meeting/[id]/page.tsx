@@ -27,7 +27,6 @@ import ForceMuteSelfBridge from "components/meeting/ForceMuteSelfBridge";
 import ForceCameraOffSelfBridge from "components/meeting/ForceCameraOffSelfBridge";
 import RegisterIdentityBridge from "components/meeting/RegisterIdentityBridge";
 import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
-
 import ObserverMeetingView from "components/meeting/observer/ObserverMeetingView";
 import ParticipantChatPanel from "components/meeting/ParticipantChatPanel";
 import MeetingJoinBridge from "components/meeting/MeetingJoinBridge";
@@ -390,7 +389,7 @@ export default function Meeting() {
       } else if (role === "admin" || role === "moderator") {
         router.push("/projects");
       } else {
-        router.replace("/participant-left");
+        router.replace("/meeting-ended");
       }
     };
     s.on("meeting:ended", onMeetingEnded);
