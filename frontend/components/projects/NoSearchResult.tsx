@@ -10,8 +10,8 @@ interface NoSearchResultProps {
 const NoSearchResult = ({ className }: NoSearchResultProps) => {
   return (
     <div className={cn("flex justify-center items-center", className)}>
-      <div className="flex flex-col justify-center items-center gap-5 pt-32">
-        <FolderSearch className="h-48 w-48 text-gray-200" />
+      <div className="flex flex-col justify-center items-center gap-5 pt-12">
+        <FolderSearch className="h-20 w-20 text-gray-200" />
         <h1 className="text-blue-900 text-4xl font-bold text-center">
           NO RESULTS FOUND
         </h1>
