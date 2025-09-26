@@ -101,7 +101,6 @@ export const createProjectByExternalAdmin = async (
     totalCreditsNeeded,
   } = req.body;
 
-
   if (!userId || !projectData) {
     throw new ErrorHandler("User ID and project data are required", 400);
   }
@@ -127,7 +126,7 @@ export const createProjectByExternalAdmin = async (
     // Validate defaultTimeZone presence and validity
     const displayTz = projectData?.defaultTimeZone as string | undefined;
     const ianaTz = resolveToIana(displayTz);
-    
+
     if (!displayTz || !ianaTz) {
       throw new ErrorHandler(
         "A valid project time zone is required (use a listed option like '(UTC-05) Eastern Time' or a valid IANA zone).",
@@ -170,7 +169,6 @@ export const createProjectByExternalAdmin = async (
     // Populate tags outside the transaction (optional)
     // !This should be uncommented once the tag collection is created
     // const populatedProject = await ProjectModel.findById(createdProject[0]._id).populate("tags");
-
 
     // ---- Send the confirmation email below ---- //
 
@@ -282,7 +280,6 @@ export const getProjectByUserId = async (
     to,
   } = req.query;
 
-
   if (!userId) {
     return next(new ErrorHandler("User ID is required", 400));
   }
@@ -291,10 +288,17 @@ export const getProjectByUserId = async (
   const pageNum = Math.max(Number(page), 1);
   const limitNum = Math.max(Number(limit), 1);
   const skip = (pageNum - 1) * limitNum;
-  let fromDate: Date | undefined;
-  let toDate: Date | undefined;
-  if (typeof from === "string") fromDate = new Date(from);
-  if (typeof to === "string") toDate = new Date(to);
+  // Convert incoming from/to to epoch millis to compare against Session.startAtEpoch
+  let fromEpoch: number | undefined;
+  let toEpoch: number | undefined;
+  if (typeof from === "string") {
+    const d = new Date(from);
+    if (!isNaN(d.getTime())) fromEpoch = d.getTime();
+  }
+  if (typeof to === "string") {
+    const d = new Date(to);
+    if (!isNaN(d.getTime())) toEpoch = d.getTime();
+  }
 
   const searchRegex = new RegExp(search as string, "i");
   const tagRegex = new RegExp(tag as string, "i");
@@ -342,13 +346,14 @@ export const getProjectByUserId = async (
         as: "meetingObjects",
       },
     },
-    ...(fromDate || toDate
+    // Filter by sessions (meetingObjects) start time window when provided
+    ...(fromEpoch || toEpoch
       ? [
           {
             $match: {
-              startDate: {
-                ...(fromDate ? { $gte: fromDate } : {}),
-                ...(toDate ? { $lte: toDate } : {}),
+              "meetingObjects.startAtEpoch": {
+                ...(fromEpoch !== undefined ? { $gte: fromEpoch } : {}),
+                ...(toEpoch !== undefined ? { $lte: toEpoch } : {}),
               },
             },
           },
@@ -370,7 +375,26 @@ export const getProjectByUserId = async (
       },
     },
     { $replaceRoot: { newRoot: "$doc" } },
-    { $sort: { name: 1 } },
+    // Compute earliest session startAtEpoch (if any) and sort by it, then name
+    {
+      $addFields: {
+        earliestSession: {
+          $cond: {
+            if: { $gt: [{ $size: { $ifNull: ["$meetingObjects", []] } }, 0] },
+            then: { $min: "$meetingObjects.startAtEpoch" },
+            else: null,
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        earliestSession: {
+          $ifNull: ["$earliestSession", Number.MAX_SAFE_INTEGER],
+        },
+      },
+    },
+    { $sort: { earliestSession: 1, name: 1 } },
     { $skip: skip },
     { $limit: limitNum },
   ];
@@ -399,13 +423,13 @@ export const getProjectByUserId = async (
         as: "meetingObjects",
       },
     },
-    ...(fromDate || toDate
+    ...(fromEpoch || toEpoch
       ? [
           {
             $match: {
-              startDate: {
-                ...(fromDate ? { $gte: fromDate } : {}),
-                ...(toDate ? { $lte: toDate } : {}),
+              "meetingObjects.startAtEpoch": {
+                ...(fromEpoch !== undefined ? { $gte: fromEpoch } : {}),
+                ...(toEpoch !== undefined ? { $lte: toEpoch } : {}),
               },
             },
           },
@@ -508,7 +532,6 @@ export const editProject = async (
   if (description) {
     project.description = description;
   }
-
 
   // Save the updated project.
   const updatedProject = await project.save();
