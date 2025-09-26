@@ -12,6 +12,7 @@ export interface UseProjectsParams {
   limit?: number;
   search?: string;
   tag?: string;
+  status?: string;
   from?: string;
   to?: string;
   sortBy?: string;
@@ -38,6 +39,7 @@ export function useProjects({
   limit = 10,
   search = "",
   tag = "",
+  status,
   from,
   to,
   sortBy,
@@ -53,6 +55,7 @@ export function useProjects({
       page,
       search,
       tag,
+      status,
       from,
       to,
       sortBy,
@@ -64,7 +67,17 @@ export function useProjects({
           data: IProject[];
           meta: IPaginationMeta;
         }>(`/api/v1/projects/get-project-by-userId/${userId}`, {
-          params: { page, limit, search, tag, from, to, sortBy, sortDir },
+          params: {
+            page,
+            limit,
+            search,
+            tag,
+            status,
+            from,
+            to,
+            sortBy,
+            sortDir,
+          },
         })
         .then((res) => res.data),
 

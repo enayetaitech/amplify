@@ -24,6 +24,9 @@ const Projects: React.FC = () => {
   const userId = user?._id;
   const [searchTerm, setSearchTerm] = useState("");
   const [tagTerm, setTagTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(
+    undefined
+  );
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -45,6 +48,7 @@ const Projects: React.FC = () => {
     limit,
     search: searchTerm,
     tag: tagTerm,
+    status: statusFilter,
     from: fromISO,
     to: toISO,
     sortBy,
@@ -80,6 +84,11 @@ const Projects: React.FC = () => {
         dateRange={dateRange}
         onDateRangeChange={(r) => {
           setDateRange(r);
+          setPage(1);
+        }}
+        status={statusFilter}
+        onStatusChange={(s) => {
+          setStatusFilter(s);
           setPage(1);
         }}
       />

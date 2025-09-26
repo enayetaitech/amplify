@@ -6,6 +6,13 @@ import { Input } from "components/ui/input";
 import { SearchIcon, CalendarIcon, TagIcon } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "components/ui/popover";
 import { Button } from "components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "components/ui/select";
 import { format } from "date-fns";
 
 export interface DateRange {
@@ -20,6 +27,8 @@ interface ProjectsFilterProps {
   onTagSearchChange: (val: string) => void;
   dateRange?: DateRange;
   onDateRangeChange: (range: DateRange | undefined) => void;
+  status?: string | undefined;
+  onStatusChange: (status: string | undefined) => void;
 }
 
 const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
@@ -29,6 +38,8 @@ const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
   onTagSearchChange,
   dateRange,
   onDateRangeChange,
+  status,
+  onStatusChange,
 }) => {
   // NOTE: Replaced the DayPicker with native date inputs below. The
   // DayPicker handler is no longer used but kept here commented in case
@@ -77,6 +88,28 @@ const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
           onChange={(e) => onTagSearchChange(e.target.value)}
         />
         <TagIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      </div>
+
+      {/* Status dropdown */}
+      <div className="w-[180px]">
+        <Select
+          value={status ?? "__all__"}
+          onValueChange={(val) =>
+            onStatusChange(val === "__all__" ? undefined : val)
+          }
+        >
+          <SelectTrigger className="rounded-none">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All</SelectItem>
+            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+            <SelectItem value="Closed">Closed</SelectItem>
+            <SelectItem value="Archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Date-range picker */}
