@@ -6,6 +6,7 @@ import ProjectFormModel, {
 import User from "../model/UserModel";
 import ErrorHandler from "../utils/ErrorHandler";
 import ProjectModel, { IProjectDocument } from "../model/ProjectModel";
+import { TagModel } from "../model/TagModel";
 import { resolveToIana } from "../processors/session/sessionTimeConflictChecker";
 import mongoose, { PipelineStage, Types } from "mongoose";
 import {
@@ -324,7 +325,7 @@ export const getProjectByUserId = async (
 
   const tagMatch: PipelineStage.Match = {
     $match: {
-      ...(tag ? { "tags.name": { $regex: tagRegex } } : {}),
+      ...(tag ? { "tags.title": { $regex: tagRegex } } : {}),
     },
   };
   const aggregationPipeline: PipelineStage[] = [
@@ -602,4 +603,59 @@ export const toggleRecordingAccess = async (
     "Recording access toggled successfully",
     200
   );
+};
+
+export const updateProjectTags = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const {
+      projectId,
+      tagsToAdd = [],
+      tagsToRemove = [],
+    } = req.body as {
+      projectId: string;
+      tagsToAdd?: string[];
+      tagsToRemove?: string[];
+    };
+
+    if (!projectId) {
+      return next(new ErrorHandler("Project ID is required", 400));
+    }
+
+    const project = await ProjectModel.findById(projectId);
+    if (!project) {
+      return next(new ErrorHandler("Project not found", 404));
+    }
+
+    // Ensure tags exist before adding
+    if (Array.isArray(tagsToAdd) && tagsToAdd.length > 0) {
+      const validAddIds = await TagModel.find({
+        _id: { $in: tagsToAdd },
+      }).distinct("_id");
+      if (validAddIds.length > 0) {
+        await ProjectModel.updateOne(
+          { _id: projectId },
+          { $addToSet: { tags: { $each: validAddIds } } }
+        );
+      }
+    }
+
+    if (Array.isArray(tagsToRemove) && tagsToRemove.length > 0) {
+      await ProjectModel.updateOne(
+        { _id: projectId },
+        { $pull: { tags: { $in: tagsToRemove } } }
+      );
+    }
+
+    const updated = await ProjectModel.findById(projectId)
+      .populate(PROJECT_POPULATE)
+      .exec();
+
+    sendResponse(res, updated, "Project tags updated", 200);
+  } catch (error) {
+    next(error);
+  }
 };
