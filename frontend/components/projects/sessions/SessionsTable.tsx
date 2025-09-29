@@ -28,6 +28,12 @@ export interface SessionsTableProps {
     action: "edit" | "delete" | "duplicate",
     session: ISession
   ) => void;
+  sortBy: "title" | "startAtEpoch";
+  sortOrder: "asc" | "desc";
+  onSortChange: (
+    field: "title" | "startAtEpoch",
+    order: "asc" | "desc"
+  ) => void;
 }
 
 // helper to format Date+Time in Pacific with the “Pacific” label
@@ -59,6 +65,9 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   onModerate,
   onObserve,
   onAction,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -77,31 +86,77 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
 
+  function handleHeaderClick(field: "title" | "startAtEpoch"): void {
+    const nextOrder: "asc" | "desc" =
+      sortBy === field && sortOrder === "asc" ? "desc" : "asc";
+    onSortChange(field, nextOrder);
+  }
+
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto">
       <div className="bg-white rounded-lg shadow-lg">
         <Table className="min-w-full divide-y divide-gray-200 ">
           <TableHeader>
             <TableRow className="">
-              {[
-                "Session Title",
-                "Start Date & Time",
-                "Service Type",
-                "Participant Count",
-                "Observer Count",
-                "Final Session Minutes",
-                "Launch",
-              ].map((col) => (
-                <TableHead
-                  key={col}
-                  className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words"
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <button
+                  type="button"
+                  className="inline-flex items-center space-x-1 cursor-pointer"
+                  onClick={() => handleHeaderClick("title")}
                 >
-                  <div className="inline-flex items-center space-x-1">
-                    <span>{col}</span>
-                    <ChevronsUpDown className="h-4 w-4 text-gray-400" />
-                  </div>
-                </TableHead>
-              ))}
+                  <span>Session Title</span>
+                  <ChevronsUpDown
+                    className={
+                      "h-4 w-4 " +
+                      (sortBy === "title"
+                        ? "text-custom-dark-blue-1"
+                        : "text-gray-400")
+                    }
+                  />
+                </button>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <button
+                  type="button"
+                  className="inline-flex items-center space-x-1 cursor-pointer"
+                  onClick={() => handleHeaderClick("startAtEpoch")}
+                >
+                  <span>Start Date & Time</span>
+                  <ChevronsUpDown
+                    className={
+                      "h-4 w-4 " +
+                      (sortBy === "startAtEpoch"
+                        ? "text-custom-dark-blue-1"
+                        : "text-gray-400")
+                    }
+                  />
+                </button>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Service Type</span>
+                </div>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Participant Count</span>
+                </div>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Observer Count</span>
+                </div>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Final Session Minutes</span>
+                </div>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Launch</span>
+                </div>
+              </TableHead>
               <TableHead className="px-6 py-3" />
             </TableRow>
           </TableHeader>

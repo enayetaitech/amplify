@@ -181,10 +181,21 @@ export const getSessionsByProject = async (
 
     const skip = (page - 1) * limit;
 
+    // ── sorting params ──────────────────────────────────────────
+    const sortByRaw = (req.query.sortBy as string) || "startAtEpoch";
+    const sortOrderRaw = (req.query.sortOrder as string) || "asc";
+    const allowedSortFields = new Set(["title", "startAtEpoch"]);
+    const sortField = allowedSortFields.has(sortByRaw)
+      ? sortByRaw
+      : "startAtEpoch";
+    const sortDir = sortOrderRaw === "desc" ? -1 : 1;
+    const sortSpec: Record<string, 1 | -1> =
+      sortField === "title" ? { title: sortDir } : { startAtEpoch: sortDir };
+
     // ── parallel queries: data + count ─────────────────────────
     const [sessions, total] = await Promise.all([
       SessionModel.find({ projectId })
-        .sort({ date: 1, startTime: 1 })
+        .sort(sortSpec)
         .skip(skip)
         .limit(limit)
         .populate(SESSION_POPULATE)

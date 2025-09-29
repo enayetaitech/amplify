@@ -46,6 +46,10 @@ const Sessions = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"title" | "startAtEpoch">(
+    "startAtEpoch"
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
@@ -69,12 +73,12 @@ const Sessions = () => {
     { data: ISession[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["sessions", projectId, page],
+    queryKey: ["sessions", projectId, page, sortBy, sortOrder],
     queryFn: () =>
       api
         .get<{ data: ISession[]; meta: IPaginationMeta }>(
           `/api/v1/sessions/project/${projectId}`,
-          { params: { page, limit } }
+          { params: { page, limit, sortBy, sortOrder } }
         )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
@@ -326,6 +330,13 @@ const Sessions = () => {
             sessions={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={(field, order) => {
+              setSortBy(field);
+              setSortOrder(order);
+              setPage(1);
+            }}
             // onRowClick={(id) => router.push(`/session-details/${id}`)}
             onModerate={handleModerateClick}
             onObserve={handleObserveClick}
