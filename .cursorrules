@@ -1,0 +1,76 @@
+### Project shape
+
+- **monorepo**: `frontend` (Next.js 15, React 19, Tailwind v4, shadcn/ui), `backend` (Express 5, Mongoose), `shared` (TypeScript lib with project references), root `tsconfig.base.json`.
+- **aliases**
+  - frontend: `@/*` → project root, `@shared/*` → `../shared/*`
+  - backend: `@shared/*` → `../shared/dist/*`
+  - root: `@shared/*`, `@backend/*`, `@frontend/*`
+
+### How to run
+
+- **shared**: `cd shared && npx tsc -b -w`
+- **backend**: `cd backend && npm run dev`
+- **frontend**: `cd frontend && npm run dev`
+- Build order: `shared` → `backend`/`frontend`.
+
+### Global coding conventions
+
+- **TypeScript**: never use `any`. Prefer `unknown`, generics, and `z.infer<...>`.
+- **Imports**
+  - frontend: do not import Node-only modules from `@shared/*`. Import types/interfaces/utils that are browser-safe.
+  - Prefer path aliases over long relative paths.
+- **Validation**
+  - Use `zod` for all input validation. Frontend forms: `react-hook-form` + `@hookform/resolvers/zod`.
+  - Backend: validate at route/controller boundary with `zod.safeParse`.
+- **Errors**
+  - frontend: display `error.message` (Axios interceptor maps backend message).
+  - backend: use centralized error middleware and return `{ message }` consistently.
+- **UI**
+  - Use shadcn/ui components from `frontend/components/ui` and `lucide-react` icons only.
+  - Tailwind for styling; avoid additional UI libs.
+- **React/Next**
+  - Prefer Server Components; add `use client` only when necessary.
+  - Use `next/image` and keep `images.domains` in sync with `frontend/next.config.ts`.
+- **Networking**
+  - Always use `frontend/lib/api.ts` Axios instance (withCredentials + refresh flow).
+  - Use `SOCKET_URL` from `frontend/constant/socket.ts` for websockets.
+- **Auth**
+  - Skip silent refresh for auth endpoints per `AUTH_ROUTES_REGEX` in `frontend/lib/api.ts`.
+  - Rely on httpOnly cookies; do not store tokens in JS.
+
+### Directory-specific rules
+
+- **frontend**
+  - New UI: `components/ui` (shadcn) or feature directories under `components`.
+  - Forms: `react-hook-form` + zod; schemas go in `frontend/schemas`.
+  - Data fetching: prefer server-side; use `@tanstack/react-query` via `provider/TanstackProvider.tsx` for client-side.
+  - Keep client components minimal; colocate small state locally.
+- **backend**
+  - Controllers stay thin; move business logic into services.
+  - Validate `req.body/params/query` with `zod` before services/models.
+  - Return consistent shapes via helpers in `backend/utils/responseHelpers.ts`.
+  - Keep CORS allowlist aligned with `config.frontend_base_url`; `credentials: true`.
+- **shared**
+  - Only browser-safe utilities/types should be imported by the frontend.
+  - Build emits to `shared/dist`. Backend can import from compiled dist at runtime.
+
+### Env and config
+
+- frontend: use `NEXT_PUBLIC_BACKEND_BASE_URL`; never hardcode API URLs.
+- backend: secrets and URLs live in `backend/config/index.ts` or environment; never inline.
+
+### PR/commit expectations
+
+- Keep edits minimal and scoped to a single logical area.
+- Include a short rationale if changing shared contracts/types.
+
+### Performance and safety
+
+- Avoid unnecessary client components and large client bundles.
+- Guard dynamic data with zod before use to prevent runtime crashes.
+- For lists and realtime, use React Query with stable keys and cache invalidation.
+
+### Workspace policies
+
+- Implement exactly what is requested; do not add extras without approval.
+- After delivering an edit, optionally suggest clear follow-ups and ask permission before generating more edits.
