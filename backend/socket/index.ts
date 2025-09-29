@@ -2,6 +2,7 @@
 import type { Server as HTTPServer } from "http";
 import { Server, Socket } from "socket.io";
 import { setIo } from "./bus";
+import { getOrInitWb } from "./whiteboardState";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 
@@ -93,10 +94,13 @@ export function attachSocket(server: HTTPServer) {
       waiting: `waiting::${sessionId}`,
       meeting: `meeting::${sessionId}`, // future milestones
       observer: `observer::${sessionId}`, // future milestones
+      whiteboard: `wb::${sessionId}`,
     };
 
     // Join waiting room by default; participant/observer wait here
     socket.join(rooms.waiting);
+    // Join whiteboard room for this session for WB events
+    socket.join(rooms.whiteboard);
 
     if (["Observer", "Moderator", "Admin"].includes(role)) {
       socket.join(rooms.observer);
@@ -169,6 +173,44 @@ export function attachSocket(server: HTTPServer) {
     if (sessionId) {
       socket.join(sessionId);
     }
+    // Emit current whiteboard state to this socket on connect
+    try {
+      const wb = getOrInitWb(sessionId);
+      socket.emit("wb:state", {
+        open: wb.open,
+        sessionKey: wb.sessionKey,
+        rolesAllowed: Array.from(wb.rolesAllowed),
+      });
+    } catch {}
+
+    // Whiteboard events
+    socket.on(
+      "wb:patch",
+      (env: { v: 1; sessionKey: string; seq?: number; patch: unknown }) => {
+        try {
+          const wb = getOrInitWb(sessionId);
+          if (!wb.open) return;
+          if (!env || env.sessionKey !== wb.sessionKey) return;
+          // Only Participant/Moderator/Admin can draw
+          const canDraw =
+            role === "Participant" || role === "Moderator" || role === "Admin";
+          if (!canDraw) return;
+          const drawRole = role as Exclude<Role, "Observer">;
+          if (!wb.rolesAllowed.has(drawRole)) return;
+          // Broadcast to room
+          io.to(rooms.whiteboard).emit("wb:patch", env);
+        } catch {}
+      }
+    );
+
+    socket.on("wb:clear", () => {
+      try {
+        if (!(role === "Moderator" || role === "Admin")) return;
+        const wb = getOrInitWb(sessionId);
+        if (!wb.open) return;
+        io.to(rooms.whiteboard).emit("wb:clear");
+      } catch {}
+    });
     // Initial payload (lists)
     socket.on("join-room", async (_payload, ack?: (rooms: JoinAck) => void) => {
       const state = await listState(sessionId);

@@ -12,6 +12,7 @@ import pollRoutes from "./poll/PollRoutes";
 import liveSessionRoutes from "./liveSession/LiveSessionRoutes";
 import livekitRoutes from "./livekit/livekit.routes";
 import waitingRoomRoutes from "./waitingRoom/WaitingRoomRoutes";
+import whiteboardRoutes from "./whiteboard/WhiteboardRoutes";
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/liveSessions", route: liveSessionRoutes },
   { path: "/livekit", route: livekitRoutes },
   { path: "/waiting-room", route: waitingRoomRoutes },
+  { path: "/wb", route: whiteboardRoutes },
 ];
 
 // Loop through and mount each route
