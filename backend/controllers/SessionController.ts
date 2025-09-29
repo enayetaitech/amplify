@@ -25,7 +25,6 @@ export const createSessions = async (
 ): Promise<void> => {
   const { projectId, sessions } = req.body;
 
-
   // 1. Basic payload validation
   if (!Array.isArray(sessions) || sessions.length === 0 || !projectId) {
     return next(
@@ -182,16 +181,115 @@ export const getSessionsByProject = async (
 
     const skip = (page - 1) * limit;
 
+    // ── sorting params ──────────────────────────────────────────
+    const sortByRaw = (req.query.sortBy as string) || "startAtEpoch";
+    const sortOrderRaw = (req.query.sortOrder as string) || "asc";
+    const allowedSortFields = new Set(["title", "startAtEpoch", "moderator"]);
+    const sortField = allowedSortFields.has(sortByRaw)
+      ? sortByRaw
+      : "startAtEpoch";
+    const sortDir = sortOrderRaw === "desc" ? -1 : 1;
+    const sortSpec: Record<string, 1 | -1> =
+      sortField === "title" ? { title: sortDir } : { startAtEpoch: sortDir };
+
     // ── parallel queries: data + count ─────────────────────────
-    const [sessions, total] = await Promise.all([
-      SessionModel.find({ projectId })
-        .sort({ date: 1, startTime: 1 })
+    const totalPromise = SessionModel.countDocuments({ projectId });
+
+    let sessions: any[];
+    if (sortField === "moderator") {
+      // Use aggregation to sort by the first moderator's name alphabetically (lastName, firstName)
+      sessions = await SessionModel.aggregate([
+        {
+          $match: {
+            projectId: new (mongoose as any).Types.ObjectId(projectId),
+          },
+        },
+        {
+          $lookup: {
+            from: "moderators",
+            localField: "moderators",
+            foreignField: "_id",
+            as: "moderators",
+          },
+        },
+        {
+          $addFields: {
+            _mods: { $ifNull: ["$moderators", []] },
+          },
+        },
+        {
+          $addFields: {
+            _firstMod: { $arrayElemAt: ["$_mods", 0] },
+          },
+        },
+        {
+          $addFields: {
+            moderatorNames: {
+              $map: {
+                input: "$_mods",
+                as: "m",
+                in: {
+                  $concat: [
+                    { $ifNull: ["$$m.firstName", ""] },
+                    " ",
+                    { $ifNull: ["$$m.lastName", ""] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
+            _firstModName: {
+              $concat: [
+                { $toLower: { $ifNull: ["$_firstMod.lastName", ""] } },
+                " ",
+                { $toLower: { $ifNull: ["$_firstMod.firstName", ""] } },
+              ],
+            },
+          },
+        },
+        // join project to shape `projectId` like populate select { service }
+        {
+          $lookup: {
+            from: "projects",
+            localField: "projectId",
+            foreignField: "_id",
+            as: "_project",
+          },
+        },
+        { $unwind: { path: "$_project", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            projectId: {
+              _id: "$_project._id",
+              service: "$_project.service",
+            },
+          },
+        },
+        { $sort: { _firstModName: sortDir } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            _mods: 0,
+            _firstMod: 0,
+            _firstModName: 0,
+            _project: 0,
+          },
+        },
+      ]).exec();
+    } else {
+      sessions = await SessionModel.find({ projectId })
+        .sort(sortSpec)
         .skip(skip)
         .limit(limit)
         .populate(SESSION_POPULATE)
-        .lean(),
-      SessionModel.countDocuments({ projectId }),
-    ]);
+        .lean();
+    }
+
+    const total = await totalPromise;
 
     // ── build meta payload ─────────────────────────────────────
     const totalPages = Math.ceil(total / limit);
@@ -391,8 +489,6 @@ export const updateSession = async (
       "startTime",
       "duration",
       "moderators",
-      "timeZone",
-      "breakoutRoom",
     ] as const;
 
     // 3. Build an updates object only with allowed fields
@@ -402,6 +498,21 @@ export const updateSession = async (
       if (req.body[key] !== undefined) {
         updates[key] = req.body[key];
       }
+    }
+
+    // 3a. Explicitly block forbidden fields from this endpoint
+    if (req.body.timeZone !== undefined) {
+      return next(
+        new ErrorHandler(
+          "Project timezone is locked and cannot be changed",
+          400
+        )
+      );
+    }
+    if (req.body.breakoutRoom !== undefined) {
+      return next(
+        new ErrorHandler("Breakout room cannot be edited from this screen", 400)
+      );
     }
 
     // 4. If nothing to update, reject
@@ -422,19 +533,17 @@ export const updateSession = async (
     const newDate = updates.date ?? original.date;
     const newStartTime = updates.startTime ?? original.startTime;
     const newDuration = updates.duration ?? original.duration;
-    // Enforce project-level timezone lock
-    if (
-      updates.timeZone !== undefined &&
-      updates.timeZone !== project.defaultTimeZone
-    ) {
+    // Enforce project-level timezone lock (always use project default)
+    const newTzLabel = project.defaultTimeZone as string;
+    const newTz = resolveToIana(newTzLabel);
+    if (!newTz) {
       return next(
         new ErrorHandler(
-          "Project timezone is locked and cannot be changed",
+          `Project time zone "${newTzLabel}" is not recognized.`,
           400
         )
       );
     }
-    const newTz = project.defaultTimeZone;
 
     // 7. Fetch all other sessions in this project
     const otherSessions = await SessionModel.find({
@@ -443,11 +552,29 @@ export const updateSession = async (
     });
 
     // 8. Compute epochs with strict DST policy
-    const startNew = toTimestampStrict(newDate, newStartTime, newTz);
+    // Normalize dates to YYYY-MM-DD in the project's IANA zone to avoid
+    // inconsistencies between stored Date objects (UTC) and the project's zone.
+    const normNewDate =
+      typeof newDate === "string"
+        ? newDate
+        : require("luxon")
+            .DateTime.fromJSDate(newDate)
+            .setZone(newTz)
+            .toISODate();
+
+    const startNew = toTimestampStrict(normNewDate, newStartTime, newTz);
     const endNew = startNew + newDuration * 60_000;
 
     for (const ex of otherSessions) {
-      const startEx = toTimestampStrict(ex.date, ex.startTime, ex.timeZone);
+      const exIana = resolveToIana(ex.timeZone) ?? newTz;
+      const normExDate =
+        typeof ex.date === "string"
+          ? ex.date
+          : require("luxon")
+              .DateTime.fromJSDate(ex.date)
+              .setZone(exIana)
+              .toISODate();
+      const startEx = toTimestampStrict(normExDate, ex.startTime, exIana);
       const endEx = startEx + ex.duration * 60_000;
       if (startNew < endEx && startEx < endNew) {
         console.warn(
@@ -474,7 +601,7 @@ export const updateSession = async (
       {
         new: true,
       }
-    );
+    ).populate(SESSION_POPULATE);
 
     // 10. If not found, 404
     if (!updated) {

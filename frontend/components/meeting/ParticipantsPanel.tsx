@@ -21,7 +21,6 @@ import type { Socket } from "socket.io-client";
 import type { UiRole } from "constant/roles";
 import useChat from "hooks/useChat";
 import { Input } from "components/ui/input";
-import { Badge } from "components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -212,6 +211,9 @@ export default function ParticipantsPanel({
     }
   }, [showGroupChat, groupLen]);
   const unreadGroup = Math.max(0, groupLen - lastReadGroupCount);
+  const totalParticipantUnreadCount =
+    Object.values(participantUnreadMap).reduce((sum, count) => sum + count, 0) +
+    unreadGroup;
 
   // Close the open actions menu when clicking/touching outside of it
   useEffect(() => {
@@ -314,9 +316,14 @@ export default function ParticipantsPanel({
           </TabsTrigger>
           <TabsTrigger
             value="chat"
-            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+            className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
           >
             Participant Chat
+            {totalParticipantUnreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
+                {totalParticipantUnreadCount}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -403,11 +410,6 @@ export default function ParticipantsPanel({
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{label}</div>
-                    {email && (
-                      <div className="text-[11px] text-gray-500 truncate">
-                        {email}
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -697,20 +699,19 @@ export default function ParticipantsPanel({
                           setLastReadGroupCount(groupLen);
                         }}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 ">
                           <span className="text-sm font-medium truncate">
                             Group Chat
                           </span>
+                        </div>
+                        <div className="relative">
+                          <MessageSquare className="h-4 w-4 text-gray-400" />
                           {unreadGroup > 0 && (
-                            <Badge
-                              variant="destructive"
-                              className="h-5 w-5 p-0 text-xs flex items-center justify-center"
-                            >
+                            <span className="absolute -top-1 -right-2 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
                               {unreadGroup}
-                            </Badge>
+                            </span>
                           )}
                         </div>
-                        <MessageSquare className="h-4 w-4 text-gray-400" />
                       </div>
                       {remotes.map((p) => {
                         const email = participantEmail(p);
@@ -743,16 +744,16 @@ export default function ParticipantsPanel({
                                   (no email)
                                 </span>
                               )}
-                              {email && unread > 0 && (
-                                <Badge
-                                  variant="destructive"
-                                  className="h-5 w-5 p-0 text-xs flex items-center justify-center"
-                                >
-                                  {unread}
-                                </Badge>
-                              )}
                             </div>
+                            <div className="relative">
                             <MessageSquare className="h-4 w-4 text-gray-400" />
+                              {email && unread > 0 && (
+                                <span className="absolute -top-1 -right-2 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
+                                  {unread}
+                                </span>
+                              )}
+
+                            </div>
                           </div>
                         );
                       })}

@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "components/ui/dialog";
 import { Input } from "components/ui/input";
 import { Badge } from "components/ui/badge";
@@ -51,7 +52,11 @@ export default function CreateTagModal({
   const [title, setTitle] = useState("");
   const [color, setColor] = useState(COLORS[0]);
 
-  const create = useMutation<ApiResponse<ITag>, AxiosError<ApiResponse<{ message: string }>>, Partial<ITag>>({
+  const create = useMutation<
+    ApiResponse<ITag>,
+    AxiosError<ApiResponse<{ message: string }>>,
+    Partial<ITag>
+  >({
     mutationFn: async (payload) => {
       const res = await api.post<ApiResponse<ITag>>("/api/v1/tags", payload);
       return res.data;
@@ -63,19 +68,15 @@ export default function CreateTagModal({
       setTitle("");
       setColor(COLORS[0]);
     },
-     onError: (err) => {
-    
-    const msg =
-      err.response?.data?.message ??
-      err.message;
-    console.error("Error creating tag:", err);
-    toast.error(msg);
-  },
+    onError: (err) => {
+      const msg = err.response?.data?.message ?? err.message;
+      console.error("Error creating tag:", err);
+      toast.error(msg);
+    },
   });
 
   const handleSave = () => {
-      
-const trimmed = title.trim();
+    const trimmed = title.trim();
 
     create.mutate({
       title: trimmed,
@@ -85,22 +86,25 @@ const trimmed = title.trim();
     });
   };
 
-    const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVal = e.target.value;
     if (newVal.length <= 30) {
       setTitle(newVal);
     } else {
       toast.error("Tag name cannot exceed 30 characters");
     }
- };
+  };
 
-  const isSaving = create.isPending
+  const isSaving = create.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Create Tag</DialogTitle>
+          <DialogDescription>
+            Set a name and color for your new tag.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -113,8 +117,8 @@ const trimmed = title.trim();
               placeholder="Tag name"
               disabled={isSaving}
             />
-                       <p className="mt-1 text-xs text-gray-500">
-             {title.length}/30 characters
+            <p className="mt-1 text-xs text-gray-500">
+              {title.length}/30 characters
             </p>
           </div>
 
@@ -154,7 +158,6 @@ const trimmed = title.trim();
           >
             {isSaving ? "Saving…" : "Save"}
           </CustomButton>
-         
         </DialogFooter>
       </DialogContent>
     </Dialog>

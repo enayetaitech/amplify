@@ -90,8 +90,6 @@ export default function ObserverWaitingRoom() {
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
 
-  console.log("Current state:", { observerList, moderators, meEmail });
-
   useEffect(() => {
     // Effect: establish socket connection for this observer session
     // - Connects to the socket server with role=Observer and saved user info
@@ -248,7 +246,7 @@ export default function ObserverWaitingRoom() {
       {},
       (resp?: { observers?: { name: string; email: string }[] }) => {
         const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
-        console.log("observer list", list);
+
         setObserverList(list);
       }
     );
@@ -257,7 +255,7 @@ export default function ObserverWaitingRoom() {
       moderators?: { name: string; email: string; role: string }[];
     }) => {
       const list = Array.isArray(p?.moderators) ? p.moderators : [];
-      console.log("Moderators received:", list);
+
       setModerators(list);
     };
     socket.on("moderator:list", onMods);
@@ -268,7 +266,7 @@ export default function ObserverWaitingRoom() {
         moderators?: { name: string; email: string; role: string }[];
       }) => {
         const list = Array.isArray(resp?.moderators) ? resp!.moderators! : [];
-        console.log("Moderators from initial request:", list);
+
         setModerators(list);
       }
     );
@@ -522,24 +520,23 @@ export default function ObserverWaitingRoom() {
                         }`}
                         onClick={() => setActiveTab("chat")}
                       >
-                        Observer Chat
-                        {groupUnread +
-                          Object.values(dmUnreadByEmail).reduce(
-                            (a, b) => a + b,
-                            0
-                          ) >
-                          0 && (
-                          <Badge
-                            variant="destructive"
-                            className="ml-2 h-5 w-5 p-0 text-[10px] inline-flex items-center justify-center"
-                          >
-                            {groupUnread +
-                              Object.values(dmUnreadByEmail).reduce(
-                                (a, b) => a + b,
-                                0
-                              )}
-                          </Badge>
-                        )}
+                        <span className="relative inline-flex items-center">
+                          <span>Observer Chat</span>
+                          {groupUnread +
+                            Object.values(dmUnreadByEmail).reduce(
+                              (a, b) => a + b,
+                              0
+                            ) >
+                            0 && (
+                            <span className="absolute -top-1 -right-4 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
+                              {groupUnread +
+                                Object.values(dmUnreadByEmail).reduce(
+                                  (a, b) => a + b,
+                                  0
+                                )}
+                            </span>
+                          )}
+                        </span>
                       </button>
                     </div>
 
@@ -560,28 +557,13 @@ export default function ObserverWaitingRoom() {
                                 const myEmail = meEmail.toLowerCase();
                                 const shouldInclude =
                                   name !== "Moderator" && email !== myEmail;
-                                console.log(`Moderator filter check:`, {
-                                  name: m.name,
-                                  email: m.email,
-                                  role: m.role,
-                                  shouldInclude,
-                                  reason:
-                                    name === "Moderator"
-                                      ? "name is 'Moderator'"
-                                      : email === myEmail
-                                      ? "is current user"
-                                      : "passed",
-                                });
+
                                 return shouldInclude;
                               })
                               .map((m) => ({
                                 name: m.name || m.email || "Moderator",
                                 email: m.email,
                               }));
-                            console.log(
-                              "Filtered moderators for observer list:",
-                              filteredModerators
-                            );
 
                             const allPeople = [
                               ...observerList,
@@ -603,11 +585,7 @@ export default function ObserverWaitingRoom() {
 
                             return allPeople.map((o, idx) => {
                               const label = o.name || o.email || "Observer";
-                              console.log("Displaying observer/moderator:", {
-                                name: o.name,
-                                email: o.email,
-                                label,
-                              });
+
                               return (
                                 <div
                                   key={`${label}-${idx}`}
@@ -671,31 +649,13 @@ export default function ObserverWaitingRoom() {
                                     const myEmail = meEmail.toLowerCase();
                                     const shouldInclude =
                                       name !== "Moderator" && email !== myEmail;
-                                    console.log(
-                                      `Chat Moderator filter check:`,
-                                      {
-                                        name: m.name,
-                                        email: m.email,
-                                        role: m.role,
-                                        shouldInclude,
-                                        reason:
-                                          name === "Moderator"
-                                            ? "name is 'Moderator'"
-                                            : email === myEmail
-                                            ? "is current user"
-                                            : "passed",
-                                      }
-                                    );
+
                                     return shouldInclude;
                                   })
                                   .map((m) => ({
                                     name: m.name || m.email || "Moderator",
                                     email: m.email,
                                   }));
-                                console.log(
-                                  "Filtered moderators for chat list:",
-                                  filteredModerators
-                                );
 
                                 const allPeople = [
                                   ...observerList,
@@ -722,10 +682,7 @@ export default function ObserverWaitingRoom() {
                                   ).toLowerCase();
                                   const unread =
                                     dmUnreadByEmail[emailLower] || 0;
-                                  console.log(
-                                    "Displaying chat observer/moderator:",
-                                    { name: o.name, email: o.email, label }
-                                  );
+
                                   return (
                                     <div
                                       key={`${label}-${idx}`}
@@ -800,10 +757,6 @@ export default function ObserverWaitingRoom() {
                                       </div>
                                     ) : (
                                       groupMessages.map((message, idx) => {
-                                        console.log(
-                                          "Group message data (waiting room):",
-                                          message
-                                        );
                                         const isFromMe =
                                           message.senderEmail?.toLowerCase() ===
                                             meEmail.toLowerCase() ||
@@ -814,10 +767,7 @@ export default function ObserverWaitingRoom() {
                                           message.senderEmail ||
                                           message.senderName ||
                                           "Unknown";
-                                        console.log(
-                                          "Sender name resolved (waiting room):",
-                                          senderName
-                                        );
+
                                         return (
                                           <div
                                             key={idx}
@@ -993,8 +943,276 @@ export default function ObserverWaitingRoom() {
           <SheetHeader className="px-4 py-3 border-b">
             <SheetTitle>Observation Room Chat</SheetTitle>
           </SheetHeader>
-          <div className="p-2">
-            <h1>Yet to implement</h1>
+          <div className="p-2 h-[80vh] flex flex-col">
+            <div className="flex-1 overflow-y-auto bg-white rounded p-2">
+              {/* Mobile: show list or chat similar to desktop */}
+              {!selectedObserver && !showGroupChat && (
+                <div className="space-y-2">
+                  <div
+                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                    onClick={() => {
+                      setShowGroupChat(true);
+                      setSelectedObserver(null);
+                      setGroupUnread(0);
+                    }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium truncate">
+                        Group Chat
+                      </span>
+                    </div>
+                    <div className="relative inline-flex items-center justify-center h-6 w-6">
+                      <MessageSquare className="h-4 w-4 text-gray-400" />
+                      {groupUnread > 0 && (
+                        <span className="absolute -top-1 -right-1">
+                          <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
+                            {groupUnread}
+                          </Badge>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const filteredModerators = moderators
+                      .filter((m) => {
+                        const name = (m.name || "").trim();
+                        const email = (m.email || "").toLowerCase();
+                        const myEmail = meEmail.toLowerCase();
+                        return name !== "Moderator" && email !== myEmail;
+                      })
+                      .map((m) => ({
+                        name: m.name || m.email || "Moderator",
+                        email: m.email,
+                      }));
+
+                    const allPeople = [
+                      ...observerList,
+                      ...filteredModerators,
+                    ].filter(
+                      (o) =>
+                        (o.email || "").toLowerCase() !==
+                          meEmail.toLowerCase() &&
+                        (o.name || "").toLowerCase() !== "observer"
+                    );
+
+                    return allPeople.map((o, idx) => {
+                      const label = o.name || o.email || "Observer";
+                      const emailLower = (o.email || "").toLowerCase();
+                      const unread = dmUnreadByEmail[emailLower] || 0;
+                      return (
+                        <div
+                          key={`${label}-${idx}`}
+                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          onClick={() => {
+                            setSelectedObserver({
+                              name: o.name,
+                              email: o.email,
+                            });
+                            setShowGroupChat(false);
+                            setDmUnreadByEmail((prev) => ({
+                              ...prev,
+                              [emailLower]: 0,
+                            }));
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 ">
+                            <span className="text-sm font-medium truncate">
+                              {label}
+                            </span>
+                          </div>
+                          <div className="relative inline-flex items-center justify-center h-6 w-6">
+                            <MessageSquare className="h-4 w-4 text-gray-400" />
+                            {unread > 0 && (
+                              <span className="absolute -top-1 -right-1">
+                                <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
+                                  {unread}
+                                </Badge>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+
+              {showGroupChat && (
+                <div className="h-full flex flex-col min-h-0 overflow-y-auto">
+                  <div className="flex items-center justify-between p-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Observer Group Chat
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowGroupChat(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div ref={groupRef} className="flex-1 overflow-y-auto p-2">
+                    {groupLoading ? (
+                      <div className="text-sm text-gray-500">Loading...</div>
+                    ) : (
+                      <div className="space-y-2 text-sm">
+                        {groupMessages.length === 0 ? (
+                          <div className="text-gray-500">No messages yet.</div>
+                        ) : (
+                          groupMessages.map((message, idx) => {
+                            const isFromMe =
+                              message.senderEmail?.toLowerCase() ===
+                                meEmail.toLowerCase() ||
+                              message.email?.toLowerCase() ===
+                                meEmail.toLowerCase();
+                            const senderName =
+                              message.name ||
+                              message.senderEmail ||
+                              message.senderName ||
+                              "Unknown";
+                            return (
+                              <div
+                                key={idx}
+                                className={`flex ${
+                                  isFromMe ? "justify-end" : "justify-start"
+                                }`}
+                              >
+                                <div
+                                  className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                    isFromMe
+                                      ? "bg-custom-dark-blue-1 text-white"
+                                      : "bg-gray-100 text-gray-900"
+                                  }`}
+                                >
+                                  <div className="text-xs opacity-70 mb-1">
+                                    {senderName}
+                                  </div>
+                                  <div>{message.content}</div>
+                                  <div className="text-xs opacity-70 mt-1">
+                                    {message.timestamp
+                                      ? new Date(
+                                          message.timestamp
+                                        ).toLocaleTimeString()
+                                      : "Just now"}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2 flex items-center gap-2 border-t">
+                    <Input
+                      placeholder="Type a message..."
+                      value={groupText}
+                      onChange={(e) => setGroupText(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") sendGroupMessage();
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={sendGroupMessage}
+                      disabled={!groupText.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedObserver && (
+                <div className="h-full flex flex-col min-h-0 overflow-y-auto">
+                  <div className="flex items-center justify-between p-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Chat with{" "}
+                        {selectedObserver.name || selectedObserver.email}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedObserver(null);
+                        setShowGroupChat(false);
+                      }}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div ref={dmRef} className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-2 text-sm">
+                      {messages.length === 0 ? (
+                        <div className="text-gray-500">No messages yet.</div>
+                      ) : (
+                        messages.map((message, idx) => {
+                          const isFromMe =
+                            message.email?.toLowerCase() ===
+                            meEmail.toLowerCase();
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex ${
+                                isFromMe ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              <div
+                                className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                  isFromMe
+                                    ? "bg-custom-dark-blue-1 text-white"
+                                    : "bg-gray-100 text-gray-900"
+                                }`}
+                              >
+                                {!isFromMe && (
+                                  <div className="text-[11px] text-gray-500">
+                                    {message.senderName || message.email}
+                                  </div>
+                                )}
+                                <div className="whitespace-pre-wrap">
+                                  {message.content}
+                                </div>
+                                <div className="text-xs opacity-70 mt-1">
+                                  {new Date(
+                                    message.timestamp
+                                  ).toLocaleTimeString()}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-2 flex items-center gap-2 border-t">
+                    <Input
+                      placeholder="Type a message..."
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") sendMessage();
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={sendMessage}
+                      disabled={!messageInput.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </SheetContent>
       </Sheet>

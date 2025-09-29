@@ -1,23 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "components/ui/dialog";
+// removed shadcn Dialog for a custom modal overlay
 import { Badge } from "components/ui/badge";
 import { Plus, XIcon } from "lucide-react";
 import { ITag } from "@shared/interface/TagInterface";
 import api from "lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import CreateTagModal from "./CreateTagModal";
-import CustomButton from "components/shared/CustomButton";
 import { toast } from "sonner";
 import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
-import { useParams } from "next/navigation";
+// import { useParams } from "next/navigation";
+import { useGlobalContext } from "context/GlobalContext";
+import { Button } from "components/ui/button";
+import { Input } from "components/ui/input";
 
 interface TagModalProps {
   projectId: string;
@@ -32,41 +29,78 @@ export default function TagModal({
   onOpenChange,
   existingTags,
 }: TagModalProps) {
-  const { id } = useParams();
+  // keep params if needed later; currently not used after switch to user-level tags
+  // const { id } = useParams();
   const queryClient = useQueryClient();
   const [selectedTags, setSelectedTags] = useState<ITag[]>(existingTags);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const { user } = useGlobalContext();
+  const [tagSearch, setTagSearch] = useState("");
 
   // For confirmation dialog
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<ITag | null>(null);
 
-  // Fetch all available tags
-  const { data: allTags = [] } = useQuery<ITag[]>({
-    queryKey: ["tags"],
+  // Fetch all available tags for this user (central tag list)
+  const { data: userTags = [] } = useQuery<ITag[]>({
+    queryKey: ["user-tags", user?._id],
+    enabled: Boolean(user?._id),
     queryFn: async () => {
       const res = await api.get<ApiResponse<ITag[]>>(
-        `/api/v1/tags/project/${id}`
+        `/api/v1/tags/user/${user!._id}`
       );
       return res.data.data;
     },
   });
 
-  // Delete a tag globally
-  const deleteTag = useMutation<void, Error, string>({
-    mutationFn: async (tagId) => {
-      await api.delete(`/api/v1/tags/${tagId}`);
+  const assignableTags = userTags.filter(
+    (t) => !selectedTags.some((st) => st._id === t._id)
+  );
+
+  const filteredTags = React.useMemo(() => {
+    const q = tagSearch.trim().toLowerCase();
+    if (!q) return assignableTags;
+    return assignableTags.filter((t) => t.title.toLowerCase().includes(q));
+  }, [assignableTags, tagSearch]);
+
+  useEffect(() => {
+    if (!isPickerOpen) setTagSearch("");
+  }, [isPickerOpen]);
+
+  // Assign a tag to the project
+  const assignTag = useMutation<void, Error, ITag>({
+    mutationFn: async (tag) => {
+      await api.patch(`/api/v1/projects/update-tags`, {
+        projectId,
+        tagsToAdd: [tag._id],
+      });
     },
-    onSuccess: (_, tagId) => {
-      // Remove from local selection
-      setSelectedTags((st) => st.filter((t) => t._id !== tagId));
-      // Re-fetch tags list and project
-      queryClient.invalidateQueries({ queryKey: ["tags"] });
+    onSuccess: (_, tag) => {
+      setSelectedTags((st) => [...st, tag]);
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-      toast.success("Tag deleted");
+      toast.success("Tag assigned to project");
     },
     onError: (err) => {
-      toast.error(`Failed to delete tag: ${err.message}`);
+      toast.error(`Failed to assign tag: ${err.message}`);
+    },
+  });
+
+  // Remove a tag from the project (unassign only)
+  const unassignTag = useMutation<void, Error, string>({
+    mutationFn: async (tagId) => {
+      await api.patch(`/api/v1/projects/update-tags`, {
+        projectId,
+        tagsToRemove: [tagId],
+      });
+    },
+    onSuccess: (_, tagId) => {
+      setSelectedTags((st) => st.filter((t) => t._id !== tagId));
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      toast.success("Tag removed from project");
+    },
+    onError: (err) => {
+      toast.error(`Failed to remove tag: ${err.message}`);
     },
   });
 
@@ -75,9 +109,14 @@ export default function TagModal({
     if (open) setSelectedTags(existingTags);
   }, [open, existingTags]);
 
-  // when a new tag is created, add it to both caches + selection
+  // when a new tag is created, add it to user cache + selection
   const handleNewTag = (tag: ITag) => {
-    queryClient.setQueryData<ITag[]>(["tags"], (old = []) => [...old, tag]);
+    if (user?._id) {
+      queryClient.setQueryData<ITag[]>(["user-tags", user._id], (old = []) => [
+        ...old,
+        tag,
+      ]);
+    }
     setSelectedTags((st) => [...st, tag]);
     setIsCreateOpen(false);
   };
@@ -89,7 +128,7 @@ export default function TagModal({
 
   const handleConfirmYes = () => {
     if (tagToDelete) {
-      deleteTag.mutate(tagToDelete._id);
+      unassignTag.mutate(tagToDelete._id);
       setTagToDelete(null);
     }
     setConfirmOpen(false);
@@ -102,62 +141,122 @@ export default function TagModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <div className="flex justify-between items-center pt-5">
-              <DialogTitle className="text-custom-dark-blue-1">
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => onOpenChange(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-lg m-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-custom-dark-blue-1 text-lg font-semibold">
                 Assign Tags
-              </DialogTitle>
-              <CustomButton
-                icon={<Plus />}
-                className="bg-custom-teal 
-            hover:bg-custom-dark-blue-1
-            "
-                onClick={() => setIsCreateOpen(true)}
-              >
-                Add New Tag
-              </CustomButton>
+              </h2>
+              <XIcon
+                className="h-5 w-5 cursor-pointer"
+                onClick={() => onOpenChange(false)}
+              />
             </div>
-          </DialogHeader>
 
-          {/* Currently assigned tags */}
-          <div className="flex flex-wrap gap-2 mb-4 pt-5">
-            {selectedTags.map((tag) => (
-              <Badge
-                key={tag._id}
-                className="flex items-center text-white p-1 pl-2"
-                style={{ backgroundColor: tag.color }}
+            <div className="mt-4 flex items-center gap-2">
+              <Button
+                className=" bg-custom-teal hover:bg-custom-dark-blue-1"
+                onClick={() => setIsPickerOpen((v) => !v)}
               >
-                {tag.title}
-                <XIcon
-                  onClick={() => handleDeleteClick(tag)}
-                  className="ml-1 h-4 w-4 cursor-pointer"
-                  style={{ pointerEvents: "all" }}
-                />
-              </Badge>
-            ))}
-            {!selectedTags.length && (
-              <p className="text-sm text-gray-500">No tags assigned</p>
-            )}
-          </div>
+                Add Tag
+              </Button>
+            </div>
 
-          {/* Quick-add from existing */}
-          <div className="flex flex-wrap gap-2 mb-4 max-h-40 overflow-auto">
-            {allTags
-              .filter((t) => !selectedTags.some((st) => st._id === t._id))
-              .map((tag) => (
+            {isPickerOpen && (
+              <div
+                className="mt-1 w-full bg-white shadow-sm rounded-lg transition-all duration-200 ease-out"
+                style={{ animation: "dropdownFade 150ms ease-out" }}
+              >
+                <div className="p-2 border-b">
+                  <Input
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                    placeholder="Search tags"
+                  />
+                </div>
+                <div className="max-h-56 overflow-auto p-2">
+                  {filteredTags.length === 0 ? (
+                    <p className="px-1 py-2 text-sm text-gray-500">
+                      No tags found
+                    </p>
+                  ) : (
+                    filteredTags.map((tag) => (
+                      <div
+                        key={tag._id}
+                        className="flex items-center gap-2 px-2 py-1 c"
+                        onClick={() => {
+                          assignTag.mutate(tag);
+                          setIsPickerOpen(false);
+                        }}
+                      >
+                        <Badge
+                          className="flex items-center w-full text-white p-1 pl-2 cursor-pointer"
+                          style={{ backgroundColor: tag.color }}
+                        >
+                          {tag.title}
+                        </Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="border-t p-2">
+                  <Button
+                    className="w-full bg-custom-teal hover:bg-custom-dark-blue-1"
+                    onClick={() => {
+                      setIsPickerOpen(false);
+                      setIsCreateOpen(true);
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Create tag
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <h1 className="text-sm font-semibold">Existing Tags: </h1>
+              {selectedTags.map((tag) => (
                 <Badge
                   key={tag._id}
-                  className="cursor-pointer hover:bg-blue-200"
-                  onClick={() => setSelectedTags((st) => [...st, tag])}
+                  className="flex items-center text-white p-1 pl-2"
+                  style={{ backgroundColor: tag.color }}
                 >
                   {tag.title}
+                  <XIcon
+                    onClick={() => handleDeleteClick(tag)}
+                    className="ml-1 h-4 w-4 cursor-pointer"
+                    style={{ pointerEvents: "all" }}
+                  />
                 </Badge>
               ))}
+              {!selectedTags.length && (
+                <p className="text-sm text-gray-500">No tags assigned</p>
+              )}
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
+      <style jsx>{`
+        @keyframes dropdownFade {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
       {/* nested create-tag dialog */}
       <CreateTagModal
         projectId={projectId}
@@ -170,8 +269,8 @@ export default function TagModal({
         open={confirmOpen}
         onCancel={handleConfirmCancel}
         onYes={handleConfirmYes}
-        heading="Delete Tag?"
-        text={`Are you sure you want to delete “${tagToDelete?.title}”? This cannot be undone.`}
+        heading="Remove Tag from Project?"
+        text={`Are you sure you want to remove “${tagToDelete?.title}” from this project?`}
       />
     </>
   );

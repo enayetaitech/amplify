@@ -46,6 +46,10 @@ const Sessions = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"title" | "startAtEpoch" | "moderator">(
+    "startAtEpoch"
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [sessionToEdit, setSessionToEdit] = useState<ISession | null>(null);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
@@ -69,12 +73,12 @@ const Sessions = () => {
     { data: ISession[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["sessions", projectId, page],
+    queryKey: ["sessions", projectId, page, sortBy, sortOrder],
     queryFn: () =>
       api
         .get<{ data: ISession[]; meta: IPaginationMeta }>(
           `/api/v1/sessions/project/${projectId}`,
-          { params: { page, limit } }
+          { params: { page, limit, sortBy, sortOrder } }
         )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
@@ -326,6 +330,13 @@ const Sessions = () => {
             sessions={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={(field, order) => {
+              setSortBy(field);
+              setSortOrder(order);
+              setPage(1);
+            }}
             // onRowClick={(id) => router.push(`/session-details/${id}`)}
             onModerate={handleModerateClick}
             onObserve={handleObserveClick}
@@ -357,6 +368,42 @@ const Sessions = () => {
         session={sessionToEdit}
         onClose={() => setOpenEditModal(false)}
         onSave={(values) => {
+          // Simple overlap precheck with currently loaded page (exclude the edited one)
+          try {
+            const current = data?.data || [];
+            const others = current.filter((s) => s._id !== sessionToEdit?._id);
+            const parseToUtcMs = (
+              dateStr: string,
+              timeStr: string
+            ): number | null => {
+              if (!dateStr || !timeStr) return null;
+              const [y, m, d] = dateStr.split("-").map(Number);
+              const [hh, mm] = timeStr.split(":").map(Number);
+              if ([y, m, d, hh, mm].some((n) => Number.isNaN(n))) return null;
+              return Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0);
+            };
+            const startNew = parseToUtcMs(values.date, values.startTime);
+            const endNew =
+              startNew !== null ? startNew + values.duration * 60 * 1000 : null;
+            if (startNew !== null && endNew !== null) {
+              for (const ex of others) {
+                const startEx = parseToUtcMs(
+                  new Date(ex.date).toISOString().slice(0, 10),
+                  ex.startTime
+                );
+                const endEx =
+                  startEx !== null ? startEx + ex.duration * 60 * 1000 : null;
+                if (startEx !== null && endEx !== null) {
+                  if (startNew < endEx && startEx < endNew) {
+                    toast.error(
+                      `Time conflict with existing session "${ex.title}" on this page.`
+                    );
+                    return;
+                  }
+                }
+              }
+            }
+          } catch {}
           if (sessionToEdit) {
             editSession.mutate({ id: sessionToEdit._id, values });
           }

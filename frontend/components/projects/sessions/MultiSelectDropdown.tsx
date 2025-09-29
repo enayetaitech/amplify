@@ -5,7 +5,7 @@ interface MultiSelectDropdownProps {
   moderators: IModerator[];
   selected: string[];
   onChange: (selectedIds: string[]) => void;
-   disabled?: boolean; 
+  disabled?: boolean;
 }
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -46,8 +46,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   return (
     <div className="relative w-full min-w-[250px]" ref={dropdownRef}>
       <div
-       onClick={() => !disabled && setIsOpen((prev) => !prev)}
-         className={
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        className={
           "border border-gray-300 rounded px-3 py-2 text-sm " +
           (disabled
             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
@@ -58,7 +58,10 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute z-20 w-full bg-white border rounded shadow max-h-60 overflow-y-auto mt-1">
+        <div
+          className="absolute z-50 w-full bg-white border rounded shadow mt-1 overflow-y-auto"
+          style={{ maxHeight: "40vh" }}
+        >
           {moderators.map((mod) => {
             const isChecked = selected.includes(mod._id!);
             return (
