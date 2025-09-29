@@ -184,7 +184,7 @@ export const getSessionsByProject = async (
     // ── sorting params ──────────────────────────────────────────
     const sortByRaw = (req.query.sortBy as string) || "startAtEpoch";
     const sortOrderRaw = (req.query.sortOrder as string) || "asc";
-    const allowedSortFields = new Set(["title", "startAtEpoch"]);
+    const allowedSortFields = new Set(["title", "startAtEpoch", "moderator"]);
     const sortField = allowedSortFields.has(sortByRaw)
       ? sortByRaw
       : "startAtEpoch";
@@ -193,15 +193,103 @@ export const getSessionsByProject = async (
       sortField === "title" ? { title: sortDir } : { startAtEpoch: sortDir };
 
     // ── parallel queries: data + count ─────────────────────────
-    const [sessions, total] = await Promise.all([
-      SessionModel.find({ projectId })
+    const totalPromise = SessionModel.countDocuments({ projectId });
+
+    let sessions: any[];
+    if (sortField === "moderator") {
+      // Use aggregation to sort by the first moderator's name alphabetically (lastName, firstName)
+      sessions = await SessionModel.aggregate([
+        {
+          $match: {
+            projectId: new (mongoose as any).Types.ObjectId(projectId),
+          },
+        },
+        {
+          $lookup: {
+            from: "moderators",
+            localField: "moderators",
+            foreignField: "_id",
+            as: "moderators",
+          },
+        },
+        {
+          $addFields: {
+            _mods: { $ifNull: ["$moderators", []] },
+          },
+        },
+        {
+          $addFields: {
+            _firstMod: { $arrayElemAt: ["$_mods", 0] },
+          },
+        },
+        {
+          $addFields: {
+            moderatorNames: {
+              $map: {
+                input: "$_mods",
+                as: "m",
+                in: {
+                  $concat: [
+                    { $ifNull: ["$$m.firstName", ""] },
+                    " ",
+                    { $ifNull: ["$$m.lastName", ""] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
+            _firstModName: {
+              $concat: [
+                { $toLower: { $ifNull: ["$_firstMod.lastName", ""] } },
+                " ",
+                { $toLower: { $ifNull: ["$_firstMod.firstName", ""] } },
+              ],
+            },
+          },
+        },
+        // join project to shape `projectId` like populate select { service }
+        {
+          $lookup: {
+            from: "projects",
+            localField: "projectId",
+            foreignField: "_id",
+            as: "_project",
+          },
+        },
+        { $unwind: { path: "$_project", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            projectId: {
+              _id: "$_project._id",
+              service: "$_project.service",
+            },
+          },
+        },
+        { $sort: { _firstModName: sortDir } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            _mods: 0,
+            _firstMod: 0,
+            _firstModName: 0,
+            _project: 0,
+          },
+        },
+      ]).exec();
+    } else {
+      sessions = await SessionModel.find({ projectId })
         .sort(sortSpec)
         .skip(skip)
         .limit(limit)
         .populate(SESSION_POPULATE)
-        .lean(),
-      SessionModel.countDocuments({ projectId }),
-    ]);
+        .lean();
+    }
+
+    const total = await totalPromise;
 
     // ── build meta payload ─────────────────────────────────────
     const totalPages = Math.ceil(total / limit);

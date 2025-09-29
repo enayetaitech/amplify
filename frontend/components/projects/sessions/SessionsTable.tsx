@@ -28,10 +28,10 @@ export interface SessionsTableProps {
     action: "edit" | "delete" | "duplicate",
     session: ISession
   ) => void;
-  sortBy: "title" | "startAtEpoch";
+  sortBy: "title" | "startAtEpoch" | "moderator";
   sortOrder: "asc" | "desc";
   onSortChange: (
-    field: "title" | "startAtEpoch",
+    field: "title" | "startAtEpoch" | "moderator",
     order: "asc" | "desc"
   ) => void;
 }
@@ -86,7 +86,9 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
 
-  function handleHeaderClick(field: "title" | "startAtEpoch"): void {
+  function handleHeaderClick(
+    field: "title" | "startAtEpoch" | "moderator"
+  ): void {
     const nextOrder: "asc" | "desc" =
       sortBy === field && sortOrder === "asc" ? "desc" : "asc";
     onSortChange(field, nextOrder);
@@ -133,9 +135,21 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                 </button>
               </TableHead>
               <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
-                <div className="inline-flex items-center space-x-1">
-                  <span>Service Type</span>
-                </div>
+                <button
+                  type="button"
+                  className="inline-flex items-center space-x-1 cursor-pointer"
+                  onClick={() => handleHeaderClick("moderator")}
+                >
+                  <span>Moderator</span>
+                  <ChevronsUpDown
+                    className={
+                      "h-4 w-4 " +
+                      (sortBy === "moderator"
+                        ? "text-custom-dark-blue-1"
+                        : "text-gray-400")
+                    }
+                  />
+                </button>
               </TableHead>
               <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
                 <div className="inline-flex items-center space-x-1">
@@ -175,10 +189,46 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   {formatDateTimeWithZone(s.date, s.startTime, s.timeZone)}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {" "}
-                  {typeof s.projectId !== "string"
-                    ? (s.projectId as { service: string }).service
-                    : ""}
+                  {(() => {
+                    const sortDir = sortBy === "moderator" ? sortOrder : "asc";
+                    const mods = (s as unknown as { moderators?: unknown })
+                      .moderators;
+                    if (Array.isArray(mods) && mods.length > 0) {
+                      const entries = (
+                        mods as Array<{ firstName?: string; lastName?: string }>
+                      )
+                        .map((m) => ({
+                          first: (m.firstName || "").trim(),
+                          last: (m.lastName || "").trim(),
+                        }))
+                        .map((m) => ({
+                          key: `${m.last.toLowerCase()} ${m.first.toLowerCase()}`,
+                          label: `${m.first} ${m.last}`.trim(),
+                        }));
+                      entries.sort((a, b) =>
+                        sortDir === "desc"
+                          ? b.key.localeCompare(a.key)
+                          : a.key.localeCompare(b.key)
+                      );
+                      const labels = entries
+                        .map((e) => e.label)
+                        .filter(Boolean);
+                      return labels.length > 0 ? labels.join(", ") : "—";
+                    }
+                    const fallback = (
+                      s as unknown as { moderatorNames?: string[] }
+                    ).moderatorNames;
+                    if (Array.isArray(fallback) && fallback.length > 0) {
+                      const arr = [...fallback];
+                      arr.sort((a, b) =>
+                        sortDir === "desc"
+                          ? b.toLowerCase().localeCompare(a.toLowerCase())
+                          : a.toLowerCase().localeCompare(b.toLowerCase())
+                      );
+                      return arr.join(", ");
+                    }
+                    return "—";
+                  })()}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {/* participant count */}

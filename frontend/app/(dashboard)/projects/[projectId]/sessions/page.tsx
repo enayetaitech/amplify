@@ -46,7 +46,7 @@ const Sessions = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<"title" | "startAtEpoch">(
+  const [sortBy, setSortBy] = useState<"title" | "startAtEpoch" | "moderator">(
     "startAtEpoch"
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");

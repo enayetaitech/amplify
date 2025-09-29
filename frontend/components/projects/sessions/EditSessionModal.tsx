@@ -81,6 +81,34 @@ export default function EditSessionModal({
     placeholderData: keepPreviousData,
   });
 
+  // Normalize moderators into a string[] of moderator IDs in case
+  // the incoming session has populated moderator objects
+  function normalizeModeratorIds(input: unknown): string[] {
+    if (!Array.isArray(input)) return [];
+    const extractId = (item: unknown): string | null => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const rec = item as Record<string, unknown>;
+        const v = rec["_id"];
+        if (typeof v === "string") return v;
+      }
+      return null;
+    };
+    const ids = input
+      .map((it) => extractId(it))
+      .filter((v): v is string => typeof v === "string");
+    // de-duplicate while preserving order
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const id of ids) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        unique.push(id);
+      }
+    }
+    return unique;
+  }
+
   // Replace RHF with local controlled state to make debugging straightforward
   const [values, setValues] = useState<EditSessionValues>({
     title: session?.title ?? "",
@@ -89,7 +117,7 @@ export default function EditSessionModal({
       : new Date().toISOString().slice(0, 10),
     startTime: session?.startTime ?? "",
     duration: session?.duration ?? 30,
-    moderators: session?.moderators ?? [],
+    moderators: normalizeModeratorIds(session?.moderators as unknown),
   });
 
   React.useEffect(() => {
@@ -99,7 +127,7 @@ export default function EditSessionModal({
         date: new Date(session.date).toISOString().slice(0, 10),
         startTime: session.startTime,
         duration: session.duration,
-        moderators: session.moderators,
+        moderators: normalizeModeratorIds(session.moderators as unknown),
       });
     }
   }, [session]);
@@ -145,7 +173,7 @@ export default function EditSessionModal({
         aria-modal="true"
         aria-labelledby="edit-session-title"
         aria-describedby="edit-session-desc"
-        className="fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] sm:max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg bg-background p-6 shadow-lg"
+        className="fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] sm:max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg bg-background p-6 shadow-lg max-h-[90vh] overflow-y-auto"
       >
         <button
           type="button"
