@@ -37,48 +37,50 @@ const DISPLAY_TZ_TO_IANA: Record<string, string> = {
   "Buenos Aires": "America/Argentina/Buenos_Aires",
   "(UTC-04) Buenos Aires": "America/Argentina/Buenos_Aires",
 
-  "Paris": "Europe/Paris",
+  Paris: "Europe/Paris",
   "(UTC+01) Paris": "Europe/Paris",
 
-  "Athens": "Europe/Athens",
+  Athens: "Europe/Athens",
   "(UTC+02) Athens": "Europe/Athens",
 
-  "Moscow": "Europe/Moscow",
+  Moscow: "Europe/Moscow",
   "(UTC+03) Moscow": "Europe/Moscow",
 
-  "Dubai": "Asia/Dubai",
+  Dubai: "Asia/Dubai",
   "(UTC+04) Dubai": "Asia/Dubai",
 
-  "Pakistan": "Asia/Karachi",
+  Pakistan: "Asia/Karachi",
   "(UTC+05) Pakistan": "Asia/Karachi",
 
-  "Delhi": "Asia/Kolkata",
+  Delhi: "Asia/Kolkata",
   "(UTC+05.5) Delhi": "Asia/Kolkata",
 
-  "Bangladesh": "Asia/Dhaka",
+  Bangladesh: "Asia/Dhaka",
   "(UTC+06) Bangladesh": "Asia/Dhaka",
 
-  "Bangkok": "Asia/Bangkok",
+  Bangkok: "Asia/Bangkok",
   "(UTC+07) Bangkok": "Asia/Bangkok",
 
-  "Beijing": "Asia/Shanghai",
+  Beijing: "Asia/Shanghai",
   "(UTC+08) Beijing": "Asia/Shanghai",
 
-  "Tokyo": "Asia/Tokyo",
+  Tokyo: "Asia/Tokyo",
   "(UTC+09) Tokyo": "Asia/Tokyo",
 
-  "Sydney": "Australia/Sydney",
+  Sydney: "Australia/Sydney",
   "(UTC+10) Sydney": "Australia/Sydney",
 
   "Solomon Islands": "Pacific/Guadalcanal",
   "(UTC+11) Solomon Islands": "Pacific/Guadalcanal",
 
-  "Auckland": "Pacific/Auckland",
+  Auckland: "Pacific/Auckland",
   "(UTC+12) Auckland": "Pacific/Auckland",
 };
 
 /** Try to resolve a UI timezone label to an IANA zone. */
-export const resolveToIana = (tzLabel: string | undefined | null): string | null => {
+export const resolveToIana = (
+  tzLabel: string | undefined | null
+): string | null => {
   if (!tzLabel) return null;
 
   // If caller already gave an IANA zone, accept it.
@@ -113,7 +115,8 @@ export const toTimestamp = (
   const dateISO =
     typeof dateVal === "string"
       ? dateVal
-      : DateTime.fromJSDate(dateVal).toISODate()!;
+      : // interpret stored Date in the target zone to avoid server-local shifts
+        DateTime.fromJSDate(dateVal).setZone(timeZone).toISODate()!;
 
   const dt = DateTime.fromISO(`${dateISO}T${timeStr}`, { zone: timeZone });
   if (!dt.isValid) {
@@ -140,9 +143,11 @@ export const toTimestampStrict = (
   timeZone: string
 ): number => {
   // Normalize date to “YYYY-MM-DD”
-  const dateISO = typeof dateVal === "string"
-  ? DateTime.fromISO(dateVal).toISODate()! 
-  : DateTime.fromJSDate(dateVal).toISODate()!;
+  const dateISO =
+    typeof dateVal === "string"
+      ? DateTime.fromISO(dateVal).toISODate()!
+      : // interpret stored Date in the target zone to avoid server-local shifts
+        DateTime.fromJSDate(dateVal).setZone(timeZone).toISODate()!;
 
   // First attempt: Luxon will flag nonexistent times as invalid
   const dt = DateTime.fromISO(`${dateISO}T${timeStr}`, { zone: timeZone });

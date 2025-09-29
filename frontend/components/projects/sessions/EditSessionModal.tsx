@@ -2,25 +2,11 @@
 "use client";
 
 import * as React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogFooter,
-} from "components/ui/dialog";
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "components/ui/form";
+import { X } from "lucide-react";
+// using controlled inputs instead of react-hook-form
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { ISession } from "@shared/interface/SessionInterface";
 import {
   Select,
@@ -31,48 +17,22 @@ import {
 } from "components/ui/select";
 import { durations } from "constant";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { IProject } from "@shared/interface/ProjectInterface";
 import api from "lib/api";
 import { toast } from "sonner";
-import { Switch } from "components/ui/switch";
-import { Info } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "components/ui/tooltip";
+import MultiSelectDropdown from "./MultiSelectDropdown";
+import { IModerator } from "@shared/interface/ModeratorInterface";
 import { businessDaysBetween } from "utils/countDaysBetween";
-import {
-  alphanumericSingleSpace,
-  noLeadingSpace,
-  noMultipleSpaces,
-  validate,
-} from "schemas/validators";
 
-// 1️⃣ Define a Zod schema matching your ISession fields including timeZone
-const editSessionSchema = z.object({
-  title: z
-    .string()
-    .min(1, "Title is required")
-    .refine(noLeadingSpace, {
-      message: "Cannot start with a space",
-    })
-    .refine(noMultipleSpaces, {
-      message: "Cannot have multiple spaces in a row",
-    })
-    .refine(alphanumericSingleSpace, {
-      message: "Only letters/numbers and single spaces allowed",
-    }),
-  date: z.string(),
-  startTime: z.string(),
-  duration: z.number().min(1, "Duration must be at least 1 minute"),
-  timeZone: z.string().min(1, "Time zone is required"),
-  breakoutRoom: z.boolean(),
-});
-
-export type EditSessionValues = z.infer<typeof editSessionSchema>;
+// Local form value type (kept exported for callers)
+export type EditSessionValues = {
+  title: string;
+  date: string;
+  startTime: string;
+  duration: number;
+  moderators: string[];
+};
 
 interface EditSessionModalProps {
   open: boolean;
@@ -94,6 +54,8 @@ export default function EditSessionModal({
     throw new Error("projectId is required and must be a string");
   }
   const projectId = params.projectId;
+  console.log("project id", projectId);
+  console.log("session", session);
 
   const { data: project } = useQuery<IProject, Error>({
     queryKey: ["project", projectId],
@@ -104,38 +66,49 @@ export default function EditSessionModal({
     enabled: Boolean(projectId),
   });
 
-  const form = useForm<EditSessionValues>({
-    resolver: zodResolver(editSessionSchema),
-    defaultValues: {
-      title: session?.title ?? "",
-      date: session
-        ? new Date(session.date).toISOString().slice(0, 10)
-        : new Date().toISOString().slice(0, 10),
-      startTime: session?.startTime ?? "",
-      duration: session?.duration ?? 30,
-      timeZone: session?.timeZone ?? "",
-      breakoutRoom: session?.breakoutRoom ?? false,
-    },
+  // Load available moderators for the project (mirror Add flow)
+  const { data: moderatorsData } = useQuery<
+    { data: IModerator[]; meta: { totalItems: number } },
+    Error
+  >({
+    queryKey: ["moderators", projectId],
+    queryFn: () =>
+      api
+        .get(`/api/v1/moderators/project/${projectId}`, {
+          params: { page: 1, limit: 100 },
+        })
+        .then((res) => res.data),
+    placeholderData: keepPreviousData,
   });
 
-  const { handleSubmit, control, reset } = form;
+  // Replace RHF with local controlled state to make debugging straightforward
+  const [values, setValues] = useState<EditSessionValues>({
+    title: session?.title ?? "",
+    date: session
+      ? new Date(session.date).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
+    startTime: session?.startTime ?? "",
+    duration: session?.duration ?? 30,
+    moderators: session?.moderators ?? [],
+  });
 
   React.useEffect(() => {
     if (session) {
-      reset({
+      setValues({
         title: session.title,
         date: new Date(session.date).toISOString().slice(0, 10),
         startTime: session.startTime,
         duration: session.duration,
-        timeZone: session.timeZone,
-        breakoutRoom: session.breakoutRoom,
+        moderators: session.moderators,
       });
     }
-  }, [session, reset]);
+  }, [session]);
 
   // count business days between today and `target`
 
   const onSubmit = (data: EditSessionValues) => {
+    console.log("data", data);
+    console.log("on submit clicked");
     // only enforce for Concierge
     if (project?.service === "Concierge") {
       const selDate = new Date(data.date);
@@ -151,165 +124,131 @@ export default function EditSessionModal({
     onSave(data);
   };
 
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="w-full max-w-[calc(100%-2rem)] sm:max-w-lg ">
-        <DialogTitle>Edit Session</DialogTitle>
-        <Form {...form}>
-          <form
-            id="edit-session-form"
-            onSubmit={handleSubmit(onSubmit)}
-            className="space-y-4"
-          >
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Session title"
-                      {...field}
-                      disabled={isSaving}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (
-                          !validate(v, [
-                            noLeadingSpace,
-                            noMultipleSpaces,
-                            alphanumericSingleSpace,
-                          ])
-                        ) {
-                          toast.error(
-                            "Only letters/numbers + single spaces; no edge/multiple spaces allowed."
-                          );
-                          return;
-                        }
-                        field.onChange(e);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-session-title"
+        aria-describedby="edit-session-desc"
+        className="fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] sm:max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg bg-background p-6 shadow-lg"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <h2
+          id="edit-session-title"
+          className="text-lg leading-none font-semibold"
+        >
+          Edit Session
+        </h2>
+        <p id="edit-session-desc" className="text-sm text-muted-foreground">
+          Update session details. Project time zone is locked; breakout room is
+          not editable here.
+        </p>
+        <form
+          id="edit-session-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            console.log("form submit click");
+            onSubmit(values);
+          }}
+          className="space-y-4"
+        >
+          <div className="grid gap-2">
+            <label className="font-medium">Title</label>
+            <Input
+              placeholder="Session title"
+              value={values.title}
+              disabled={isSaving}
+              onChange={(e) => setValues({ ...values, title: e.target.value })}
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="date"
-                      disabled={isSaving}
-                      {...field}
-                      min={new Date().toISOString().split("T")[0]}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div className="grid gap-2">
+            <label className="font-medium">Date</label>
+            <Input
+              type="date"
+              disabled={isSaving}
+              value={values.date}
+              onChange={(e) => setValues({ ...values, date: e.target.value })}
+              min={new Date().toISOString().split("T")[0]}
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="startTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Start Time</FormLabel>
-                  <FormControl>
-                    <Input type="time" {...field} disabled={isSaving} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div className="grid gap-2">
+            <label className="font-medium">Start Time</label>
+            <Input
+              type="time"
+              value={values.startTime}
+              disabled={isSaving}
+              onChange={(e) =>
+                setValues({ ...values, startTime: e.target.value })
+              }
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="duration"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duration</FormLabel>
-                  <FormControl>
-                    <Select
-                      value={String(field.value)}
-                      onValueChange={(val) => field.onChange(Number(val))}
-                      disabled={isSaving}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select duration" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {durations.map((d) => (
-                          <SelectItem key={d.minutes} value={String(d.minutes)}>
-                            {d.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div className="grid gap-2">
+            <label className="font-medium">Duration</label>
+            <Select
+              value={String(values.duration)}
+              onValueChange={(val) =>
+                setValues({ ...values, duration: Number(val) })
+              }
+              disabled={isSaving}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent>
+                {durations.map((d) => (
+                  <SelectItem key={d.minutes} value={String(d.minutes)}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <label className="font-medium">Moderators</label>
+            <MultiSelectDropdown
+              moderators={moderatorsData?.data || []}
+              selected={values.moderators}
+              onChange={(ids) => setValues({ ...values, moderators: ids })}
+              disabled={isSaving}
             />
+          </div>
 
-         
-
-            <FormField
-              control={control}
-              name="breakoutRoom"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between px-1 py-2">
-                  <div className="flex justify-start item-center gap-2">
-                    <FormLabel className="mb-0">
-                      Do you need breakout room functionality?
-                    </FormLabel>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info
-                            size={16}
-                            className="text-muted-foreground cursor-pointer"
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs bg-white text-black shadow-sm">
-                          Breakout rooms allow you to split participants into
-                          separate rooms during your session for smaller group
-                          discussions or activities. The moderator can only be
-                          present in one room at a time, but all breakout rooms
-                          will be streamed to the backroom for observers to view
-                          and will be recorded.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={isSaving}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </form>
-        </Form>
-
-        <DialogFooter className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form="edit-session-form" disabled={isSaving}>
-            {isSaving ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={onClose} type="button">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

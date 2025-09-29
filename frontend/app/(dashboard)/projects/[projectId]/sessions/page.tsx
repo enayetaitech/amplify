@@ -357,6 +357,42 @@ const Sessions = () => {
         session={sessionToEdit}
         onClose={() => setOpenEditModal(false)}
         onSave={(values) => {
+          // Simple overlap precheck with currently loaded page (exclude the edited one)
+          try {
+            const current = data?.data || [];
+            const others = current.filter((s) => s._id !== sessionToEdit?._id);
+            const parseToUtcMs = (
+              dateStr: string,
+              timeStr: string
+            ): number | null => {
+              if (!dateStr || !timeStr) return null;
+              const [y, m, d] = dateStr.split("-").map(Number);
+              const [hh, mm] = timeStr.split(":").map(Number);
+              if ([y, m, d, hh, mm].some((n) => Number.isNaN(n))) return null;
+              return Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0);
+            };
+            const startNew = parseToUtcMs(values.date, values.startTime);
+            const endNew =
+              startNew !== null ? startNew + values.duration * 60 * 1000 : null;
+            if (startNew !== null && endNew !== null) {
+              for (const ex of others) {
+                const startEx = parseToUtcMs(
+                  new Date(ex.date).toISOString().slice(0, 10),
+                  ex.startTime
+                );
+                const endEx =
+                  startEx !== null ? startEx + ex.duration * 60 * 1000 : null;
+                if (startEx !== null && endEx !== null) {
+                  if (startNew < endEx && startEx < endNew) {
+                    toast.error(
+                      `Time conflict with existing session "${ex.title}" on this page.`
+                    );
+                    return;
+                  }
+                }
+              }
+            }
+          } catch {}
           if (sessionToEdit) {
             editSession.mutate({ id: sessionToEdit._id, values });
           }
