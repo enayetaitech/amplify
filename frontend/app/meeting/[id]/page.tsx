@@ -66,6 +66,7 @@ import {
   normalizeServerRole,
 } from "constant/roles";
 import MainRightSidebar from "components/meeting/rightSideBar/MainRightSidebar";
+import WhiteboardPanel from "components/whiteboard/WhiteboardPanel";
 
 type LocalJoinUser = {
   name?: string;
@@ -233,6 +234,7 @@ export default function Meeting() {
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [observerCount, setObserverCount] = useState(0);
@@ -532,15 +534,27 @@ export default function Meeting() {
             </button>
             <button
               type="button"
-              onClick={() => toast("Features not developed yet")}
+              onClick={() => setIsWhiteboardOpen((v) => !v)}
               className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
               aria-label="Whiteboard"
             >
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
                 <PenTool className="h-3.5 w-3.5 text-white" />
               </span>
-              <span>Whiteboard</span>
+              <span>
+                {isWhiteboardOpen ? "Close Whiteboard" : "Whiteboard"}
+              </span>
             </button>
+
+            {isWhiteboardOpen && (
+              <div className="mb-3">
+                <WhiteboardPanel
+                  sessionId={String(sessionId)}
+                  socket={socketRef.current}
+                  role={serverRole}
+                />
+              </div>
+            )}
 
             {(role === "admin" || role === "moderator") && (
               <button
