@@ -546,15 +546,7 @@ export default function Meeting() {
               </span>
             </button>
 
-            {isWhiteboardOpen && (
-              <div className="mb-3">
-                <WhiteboardPanel
-                  sessionId={String(sessionId)}
-                  socket={socketRef.current}
-                  role={serverRole}
-                />
-              </div>
-            )}
+            {/* Whiteboard panel moved to main area when open; left sidebar no longer hosts it */}
 
             {(role === "admin" || role === "moderator") && (
               <button
@@ -722,6 +714,22 @@ export default function Meeting() {
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
             <Stage role={role} />
+            {/* When whiteboard open, render panel in main area with layout: 20% video left, 80% whiteboard */}
+            {isWhiteboardOpen && (
+              <div className="mt-4 flex h-full gap-4">
+                <div className="w-1/5">
+                  {/* small video tile(s) — reuse Stage area or show main participant */}
+                  <Stage role={role} />
+                </div>
+                <div className="w-4/5">
+                  <WhiteboardPanel
+                    sessionId={String(sessionId)}
+                    socket={socketRef.current}
+                    role={serverRole}
+                  />
+                </div>
+              </div>
+            )}
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
             </div>

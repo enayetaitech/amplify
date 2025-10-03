@@ -486,6 +486,29 @@ export function attachSocket(server: HTTPServer) {
       }
     );
 
+    // Moderator/Admin opens/closes whiteboard panel for everyone
+    socket.on(
+      "whiteboard:panel:open",
+      async (
+        payload: { open: boolean },
+        ack?: (r: { ok: boolean }) => void
+      ) => {
+        try {
+          if (!(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false });
+          const open = Boolean(payload?.open);
+          // broadcast to all in meeting room to open/close whiteboard panel
+          io.to(rooms.meeting).emit("whiteboard:panel:open", {
+            open,
+            by: { name: name || email || "", email: email || "", role },
+          });
+          return ack?.({ ok: true });
+        } catch {
+          return ack?.({ ok: false });
+        }
+      }
+    );
+
     // Cache LiveSession _id for persistence
     const liveIdCache = new Map<string, Types.ObjectId>();
     async function ensureLiveIdFor(
