@@ -62,6 +62,11 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const isDrawingRef = useRef(false);
     const currentStrokeRef = useRef<Stroke | null>(null);
+    const [typing, setTyping] = useState<{
+      active: boolean;
+      from: Point | null;
+      text: string;
+    }>({ active: false, from: null, text: "" });
 
     const [tool, setTool] = useState<Tool>(propTool || "pencil");
     const [color, setColor] = useState<string>(propColor || "#111827");
@@ -118,6 +123,26 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       // draw each stroke
       for (const s of strokes) {
         drawStroke(ctx, s);
+      }
+
+      // draw live typing overlay
+      if (typing.active && typing.from) {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.font = `${Math.max(12, (propSize ?? size) * 4)}px sans-serif`;
+        const text = typing.text || "";
+        ctx.fillText(text, typing.from.x, typing.from.y);
+        // caret
+        const metrics = ctx.measureText(text);
+        const caretX = typing.from.x + metrics.width + 1;
+        const caretY = typing.from.y;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(caretX, caretY - Math.max(10, (propSize ?? size) * 3));
+        ctx.lineTo(caretX, caretY + 3);
+        ctx.stroke();
+        ctx.restore();
       }
     }
 
@@ -206,27 +231,36 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       setRedoStack([]);
 
       const id = String(Date.now()) + Math.random().toString(36).slice(2, 7);
+      if (tool === "text") {
+        // If already typing, commit current text before starting a new one
+        if (typing.active) {
+          if ((typing.text || "").trim() && typing.from) {
+            const s: Stroke = {
+              id,
+              tool: "text",
+              color,
+              size: Math.max(4, size),
+              from: typing.from,
+              text: typing.text,
+            };
+            setStrokes((p) => [...p, s]);
+            if (propsOnStrokeCreated) propsOnStrokeCreated(s);
+          }
+        }
+        setTyping({ active: true, from: pt, text: "" });
+        // focus canvas to receive keystrokes
+        try {
+          canvasRef.current?.focus();
+        } catch {}
+        isDrawingRef.current = false;
+        currentStrokeRef.current = null;
+        return;
+      }
+
       if (tool === "pencil" || tool === "eraser") {
         const s: Stroke = { id, tool, color, size, points: [pt] };
         currentStrokeRef.current = s;
         setStrokes((p) => [...p, s]);
-      } else if (tool === "text") {
-        const txt = window.prompt("Text:") || "";
-        if (txt.trim()) {
-          const s: Stroke = {
-            id,
-            tool,
-            color,
-            size: Math.max(4, size),
-            from: pt,
-            text: txt,
-          };
-          setStrokes((p) => [...p, s]);
-          // Text strokes are completed immediately, so notify parent now
-          if (propsOnStrokeCreated) propsOnStrokeCreated(s);
-        }
-        isDrawingRef.current = false;
-        currentStrokeRef.current = null;
       } else {
         // shapes
         const s: Stroke = { id, tool, color, size, from: pt, to: pt };
@@ -240,6 +274,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       const pt = pointerToPoint(e);
       const cur = currentStrokeRef.current;
       if (!cur) return;
+      if (tool === "text") return;
       if (cur.tool === "pencil" || cur.tool === "eraser") {
         cur.points = [...(cur.points || []), pt];
         // update last stroke
@@ -267,6 +302,64 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
         propsOnStrokeCreated(last);
       }
       currentStrokeRef.current = null;
+    }
+
+    function handleKeyDown(e: React.KeyboardEvent<HTMLCanvasElement>) {
+      if (readOnly) return;
+      if (!typing.active) return;
+      const key = e.key;
+      if (key === "Enter") {
+        e.preventDefault();
+        if ((typing.text || "").trim() && typing.from) {
+          const id =
+            String(Date.now()) + Math.random().toString(36).slice(2, 7);
+          const s: Stroke = {
+            id,
+            tool: "text",
+            color,
+            size: Math.max(4, size),
+            from: typing.from,
+            text: typing.text,
+          };
+          setStrokes((p) => [...p, s]);
+          if (propsOnStrokeCreated) propsOnStrokeCreated(s);
+        }
+        setTyping({ active: false, from: null, text: "" });
+        return;
+      }
+      if (key === "Escape") {
+        e.preventDefault();
+        setTyping({ active: false, from: null, text: "" });
+        return;
+      }
+      if (key === "Backspace") {
+        e.preventDefault();
+        setTyping((t) => ({ ...t, text: (t.text || "").slice(0, -1) }));
+        return;
+      }
+      if (key.length === 1) {
+        // regular character
+        e.preventDefault();
+        setTyping((t) => ({ ...t, text: (t.text || "") + key }));
+      }
+    }
+
+    function handleBlur() {
+      if (!typing.active) return;
+      if ((typing.text || "").trim() && typing.from) {
+        const id = String(Date.now()) + Math.random().toString(36).slice(2, 7);
+        const s: Stroke = {
+          id,
+          tool: "text",
+          color,
+          size: Math.max(4, size),
+          from: typing.from,
+          text: typing.text,
+        };
+        setStrokes((p) => [...p, s]);
+        if (propsOnStrokeCreated) propsOnStrokeCreated(s);
+      }
+      setTyping({ active: false, from: null, text: "" });
     }
 
     // expose imperative methods for parent integration
@@ -339,10 +432,13 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       <div className="border rounded bg-white">
         <canvas
           ref={canvasRef}
+          tabIndex={0}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
         />
       </div>
     );
