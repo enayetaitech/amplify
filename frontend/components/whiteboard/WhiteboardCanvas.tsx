@@ -44,6 +44,8 @@ export type WhiteboardCanvasHandle = {
   addRemoteStroke?: (s: Stroke) => void;
   revokeSeqs?: (seqs: number[]) => void;
   assignSeq?: (localId: string, seq: number) => void;
+  getUndoTarget?: () => Stroke | null;
+  popRedoTarget?: () => Stroke | null;
 };
 
 const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
@@ -74,7 +76,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
     const [size, setSize] = useState<number>(propSize ?? 3);
 
     const [strokes, setStrokes] = useState<Stroke[]>([]);
-    const [, setRedoStack] = useState<Stroke[]>([]); // keep setter for API but avoid unused var
+    const [redoStack, setRedoStack] = useState<Stroke[]>([]);
 
     // sync external props
     useEffect(() => {
@@ -164,6 +166,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
     }
 
     function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
+      if (s.revoked) return;
       if (s.tool === "pencil") {
         ctx.save();
         ctx.globalCompositeOperation = "source-over";
@@ -405,9 +408,15 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
     function undo() {
       setStrokes((prev) => {
         if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
+        // find last non-revoked stroke
+        let idx = prev.length - 1;
+        while (idx >= 0 && prev[idx]?.revoked) idx--;
+        if (idx < 0) return prev;
+        const last = prev[idx];
         setRedoStack((r) => [last, ...r]);
-        return prev.slice(0, prev.length - 1);
+        const copy = prev.slice();
+        copy.splice(idx, 1);
+        return copy;
       });
     }
 
@@ -443,6 +452,19 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       addRemoteStroke,
       revokeSeqs,
       assignSeq,
+      getUndoTarget: () => {
+        for (let i = strokes.length - 1; i >= 0; i--) {
+          const st = strokes[i];
+          if (!st.revoked) return st;
+        }
+        return null;
+      },
+      popRedoTarget: () => {
+        if (redoStack.length === 0) return null;
+        const [first, ...rest] = redoStack;
+        setRedoStack(rest);
+        return first;
+      },
     }));
 
     return (

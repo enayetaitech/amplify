@@ -98,41 +98,65 @@ export default function WhiteboardPanel({
           setColor={setColor}
           size={size}
           setSize={setSize}
-          onUndo={() => canvasRef.current?.undo()}
-          onRedo={() => canvasRef.current?.redo()}
-          onClear={() => canvasRef.current?.clear()}
-          onExport={async () => {
-            try {
-              // fallback: query DOM
-              const dom = document.querySelector(
-                ".border.rounded.bg-white canvas"
-              ) as HTMLCanvasElement | null;
-              const canvasEl = dom;
-              if (!canvasEl || !socket) return;
-              const dataUrl = canvasEl.toDataURL("image/png");
-              // convert dataUrl to blob
-              const res = await fetch(dataUrl);
-              const blob = await res.blob();
-              const fd = new FormData();
-              fd.append("file", blob, `whiteboard_${Date.now()}.png`);
-              fd.append("width", String(canvasEl.width));
-              fd.append("height", String(canvasEl.height));
-              // takenBy: try read from localStorage
-              const raw = localStorage.getItem("liveSessionUser");
-              const meLocal = raw ? JSON.parse(raw) : undefined;
-              if (meLocal && meLocal._id)
-                fd.append("takenBy", String(meLocal._id));
-
-              // post to snapshot endpoint
-              const base = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || "";
-              await fetch(`${base}/api/v1/whiteboard/${sessionId}/snapshot`, {
-                method: "POST",
-                body: fd,
-                credentials: "include",
-              });
-            } catch {
-              // ignore
+          onUndo={() => {
+            const s = canvasRef.current?.getUndoTarget?.();
+            if (s && s.seq && socket) {
+              socket.emit(
+                "whiteboard:stroke:revoke",
+                { sessionId, seqs: [s.seq] },
+                () => {}
+              );
+            } else {
+              canvasRef.current?.undo();
             }
+          }}
+          onRedo={() => {
+            const redo = canvasRef.current?.popRedoTarget?.();
+            if (redo && socket) {
+              // add locally first so author filter on broadcast doesn't hide it
+              try {
+                canvasRef.current?.addRemoteStroke?.(redo);
+              } catch {}
+              const payload = {
+                sessionId,
+                tool: redo.tool,
+                shape:
+                  redo.tool === "pencil" || redo.tool === "eraser"
+                    ? "free"
+                    : redo.tool,
+                color: redo.color,
+                size: redo.size,
+                points: redo.points,
+                from: redo.from,
+                to: redo.to,
+                text: redo.text,
+              };
+              socket.emit(
+                "whiteboard:stroke:add",
+                payload,
+                (ack: { ok?: boolean; seq?: number } | undefined) => {
+                  try {
+                    if (ack?.ok && typeof ack.seq === "number") {
+                      canvasRef.current?.assignSeq?.(redo.id, ack.seq);
+                    }
+                  } catch {}
+                }
+              );
+            } else {
+              canvasRef.current?.redo();
+            }
+          }}
+          onClear={() => {
+            if (socket && (role === "Moderator" || role === "Admin")) {
+              socket.emit("whiteboard:clear", { sessionId }, () => {});
+            } else {
+              canvasRef.current?.clear();
+            }
+          }}
+          onExport={() => {
+            try {
+              canvasRef.current?.exportPNG();
+            } catch {}
           }}
           locked={locked}
           onToggleLock={(l: boolean) => {
