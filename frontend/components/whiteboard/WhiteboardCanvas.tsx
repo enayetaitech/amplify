@@ -67,6 +67,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       from: Point | null;
       text: string;
     }>({ active: false, from: null, text: "" });
+    const [caretVisible, setCaretVisible] = useState(true);
 
     const [tool, setTool] = useState<Tool>(propTool || "pencil");
     const [color, setColor] = useState<string>(propColor || "#111827");
@@ -109,6 +110,20 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [strokes]);
 
+    // blink caret while typing and trigger redraws for live typing
+    useEffect(() => {
+      if (!typing.active) return;
+      const id = setInterval(() => {
+        setCaretVisible((v) => !v);
+      }, 500);
+      return () => clearInterval(id);
+    }, [typing.active]);
+
+    useEffect(() => {
+      if (typing.active) redraw();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [typing, caretVisible, color, propSize, size]);
+
     function redraw() {
       const c = canvasRef.current;
       if (!c) return;
@@ -133,15 +148,17 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
         const text = typing.text || "";
         ctx.fillText(text, typing.from.x, typing.from.y);
         // caret
-        const metrics = ctx.measureText(text);
-        const caretX = typing.from.x + metrics.width + 1;
-        const caretY = typing.from.y;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(caretX, caretY - Math.max(10, (propSize ?? size) * 3));
-        ctx.lineTo(caretX, caretY + 3);
-        ctx.stroke();
+        if (caretVisible) {
+          const metrics = ctx.measureText(text);
+          const caretX = typing.from.x + metrics.width + 1;
+          const caretY = typing.from.y;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(caretX, caretY - Math.max(10, (propSize ?? size) * 3));
+          ctx.lineTo(caretX, caretY + 3);
+          ctx.stroke();
+        }
         ctx.restore();
       }
     }
