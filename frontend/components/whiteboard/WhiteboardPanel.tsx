@@ -158,10 +158,12 @@ export default function WhiteboardPanel({
           const payload = {
             sessionId,
             tool: s.tool,
-            shape: s.tool === "pencil" ? "free" : s.tool,
+            shape: s.tool === "pencil" || s.tool === "eraser" ? "free" : s.tool,
             color: s.color,
             size: s.size,
             points: s.points,
+            from: s.from,
+            to: s.to,
             text: s.text,
           };
           socket.emit(

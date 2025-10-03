@@ -11,6 +11,8 @@ export interface WhiteboardStrokeDoc extends Document {
   color: string;
   size: number;
   points: { x: number; y: number }[];
+  from?: { x: number; y: number };
+  to?: { x: number; y: number };
   text?: string;
   ts: Date;
   revoked?: boolean;
@@ -23,16 +25,28 @@ const WhiteboardStrokeSchema = new Schema<WhiteboardStrokeDoc>(
     seq: { type: Number, required: true, index: true },
     author: { identity: String, name: String, role: String },
     tool: String,
-    shape: { type: String, enum: ["free", "line", "rect", "circle", "text"], default: "free" },
+    shape: {
+      type: String,
+      enum: ["free", "line", "rect", "circle", "text"],
+      default: "free",
+    },
     color: String,
     size: Number,
     points: [{ x: Number, y: Number }],
+    from: { x: Number, y: Number },
+    to: { x: Number, y: Number },
     text: String,
     ts: { type: Date, default: () => new Date(), index: true },
     revoked: { type: Boolean, default: false },
   },
   { timestamps: false }
 );
-WhiteboardStrokeSchema.index({ roomName: 1, sessionId: 1, seq: 1 }, { unique: true });
+WhiteboardStrokeSchema.index(
+  { roomName: 1, sessionId: 1, seq: 1 },
+  { unique: true }
+);
 
-export default model<WhiteboardStrokeDoc>("WhiteboardStroke", WhiteboardStrokeSchema);
+export default model<WhiteboardStrokeDoc>(
+  "WhiteboardStroke",
+  WhiteboardStrokeSchema
+);

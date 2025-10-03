@@ -303,6 +303,8 @@ export function attachSocket(server: HTTPServer) {
               color: data.color,
               size: data.size,
               points: data.points || [],
+              from: (data as any).from || undefined,
+              to: (data as any).to || undefined,
               text: data.text,
             };
 

@@ -14,6 +14,8 @@ export const WhiteboardStrokeAddSchema = z.object({
   color: z.string().min(1),
   size: z.number().min(0),
   points: z.array(PointSchema).optional(),
+  from: PointSchema.optional(),
+  to: PointSchema.optional(),
   text: z.string().optional(),
 });
 

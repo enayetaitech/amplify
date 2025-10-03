@@ -560,7 +560,9 @@ export default function Meeting() {
                   s.emit(
                     "whiteboard:visibility:set",
                     { sessionId: String(sessionId), open: next },
-                    (_ack?: { ok?: boolean; error?: string }) => {}
+                    (_ack?: { ok?: boolean; error?: string }) => {
+                      console.log(_ack)
+                    }
                   );
                   // Optimistic update; will be confirmed by broadcast
                   setIsWhiteboardOpen(next);
