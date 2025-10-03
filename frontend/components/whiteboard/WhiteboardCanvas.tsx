@@ -222,6 +222,8 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
             text: txt,
           };
           setStrokes((p) => [...p, s]);
+          // Text strokes are completed immediately, so notify parent now
+          if (propsOnStrokeCreated) propsOnStrokeCreated(s);
         }
         isDrawingRef.current = false;
         currentStrokeRef.current = null;
