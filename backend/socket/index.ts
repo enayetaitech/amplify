@@ -497,11 +497,21 @@ export function attachSocket(server: HTTPServer) {
           if (!(role === "Moderator" || role === "Admin"))
             return ack?.({ ok: false });
           const open = Boolean(payload?.open);
+          console.log("Server received whiteboard:panel:open:", {
+            sessionId,
+            open,
+            role,
+            name,
+          });
           // broadcast to all in meeting room to open/close whiteboard panel
           io.to(rooms.meeting).emit("whiteboard:panel:open", {
+            sessionId: String(sessionId),
             open,
             by: { name: name || email || "", email: email || "", role },
           });
+          console.log(
+            "Server broadcasted whiteboard:panel:open to meeting room"
+          );
           return ack?.({ ok: true });
         } catch {
           return ack?.({ ok: false });

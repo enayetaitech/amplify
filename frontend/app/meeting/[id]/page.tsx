@@ -396,11 +396,26 @@ export default function Meeting() {
     };
     s.on("meeting:ended", onMeetingEnded);
 
+    // Whiteboard panel open/close broadcast
+    s.on("whiteboard:panel:open", (p: { sessionId: string; open: boolean }) => {
+      console.log("Received whiteboard:panel:open event:", {
+        p,
+        currentSessionId: sessionId,
+      });
+      if (p.sessionId === sessionId) {
+        console.log("Updating whiteboard state to:", p.open);
+        setIsWhiteboardOpen(p.open);
+      } else {
+        console.log("Session ID mismatch, ignoring event");
+      }
+    });
+
     return () => {
       s.off("meeting:ended", onMeetingEnded);
       s.off("meeting:force-mute");
       s.off("meeting:force-camera-off");
       s.off("observer:list");
+      s.off("whiteboard:panel:open");
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
@@ -532,19 +547,33 @@ export default function Meeting() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => setIsWhiteboardOpen((v) => !v)}
-              className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
-              aria-label="Whiteboard"
-            >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
-                <PenTool className="h-3.5 w-3.5 text-white" />
-              </span>
-              <span>
-                {isWhiteboardOpen ? "Close Whiteboard" : "Whiteboard"}
-              </span>
-            </button>
+            {/* Whiteboard button only for moderators/admins */}
+            {(role === "admin" || role === "moderator") && (
+              <button
+                type="button"
+                onClick={() => {
+                  const newState = !isWhiteboardOpen;
+                  console.log("Moderator clicking whiteboard button:", {
+                    newState,
+                    sessionId,
+                  });
+                  setIsWhiteboardOpen(newState);
+                  socketRef.current?.emit("whiteboard:panel:open", {
+                    sessionId: String(sessionId),
+                    open: newState,
+                  });
+                }}
+                className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                aria-label="Whiteboard"
+              >
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                  <PenTool className="h-3.5 w-3.5 text-white" />
+                </span>
+                <span>
+                  {isWhiteboardOpen ? "Close Whiteboard" : "Whiteboard"}
+                </span>
+              </button>
+            )}
 
             {/* Whiteboard panel moved to main area when open; left sidebar no longer hosts it */}
 
