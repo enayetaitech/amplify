@@ -370,6 +370,23 @@ export default function Meeting() {
       } catch {}
     });
 
+    // Whiteboard visibility: seed current value and listen for changes
+    try {
+      s.emit(
+        "whiteboard:visibility:get",
+        { sessionId: String(sessionId) },
+        (resp?: { open?: boolean }) => {
+          setIsWhiteboardOpen(Boolean(resp?.open));
+        }
+      );
+    } catch {}
+    const onWbVisibility = (p: { sessionId?: string; open?: boolean }) => {
+      if (p?.sessionId === String(sessionId)) {
+        setIsWhiteboardOpen(Boolean(p?.open));
+      }
+    };
+    s.on("whiteboard:visibility:changed", onWbVisibility);
+
     // initial snapshot of observers
     s.emit(
       "observer:list:get",
@@ -401,6 +418,7 @@ export default function Meeting() {
       s.off("meeting:force-mute");
       s.off("meeting:force-camera-off");
       s.off("observer:list");
+      s.off("whiteboard:visibility:changed", onWbVisibility);
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
@@ -532,19 +550,32 @@ export default function Meeting() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => setIsWhiteboardOpen((v) => !v)}
-              className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
-              aria-label="Whiteboard"
-            >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
-                <PenTool className="h-3.5 w-3.5 text-white" />
-              </span>
-              <span>
-                {isWhiteboardOpen ? "Close Whiteboard" : "Whiteboard"}
-              </span>
-            </button>
+            {(role === "admin" || role === "moderator") && (
+              <button
+                type="button"
+                onClick={() => {
+                  const s = socketRef.current;
+                  if (!s) return;
+                  const next = !isWhiteboardOpen;
+                  s.emit(
+                    "whiteboard:visibility:set",
+                    { sessionId: String(sessionId), open: next },
+                    (_ack?: { ok?: boolean; error?: string }) => {}
+                  );
+                  // Optimistic update; will be confirmed by broadcast
+                  setIsWhiteboardOpen(next);
+                }}
+                className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                aria-label="Whiteboard"
+              >
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                  <PenTool className="h-3.5 w-3.5 text-white" />
+                </span>
+                <span>
+                  {isWhiteboardOpen ? "Close Whiteboard" : "Open Whiteboard"}
+                </span>
+              </button>
+            )}
 
             {isWhiteboardOpen && (
               <div className="mb-3">

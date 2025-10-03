@@ -46,6 +46,14 @@ export const WhiteboardLockSchema = z.object({
   locked: z.boolean(),
 });
 
+// Whether the whiteboard panel should be visible in the meeting UI
+export const WhiteboardVisibilitySchema = z.object({
+  sessionId: z.string().min(1),
+  open: z.boolean(),
+});
+
+export type WhiteboardVisibility = z.infer<typeof WhiteboardVisibilitySchema>;
+
 export type WhiteboardJoin = z.infer<typeof WhiteboardJoinSchema>;
 export type WhiteboardStrokeAdd = z.infer<typeof WhiteboardStrokeAddSchema>;
 export type WhiteboardStrokeRevoke = z.infer<

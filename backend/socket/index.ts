@@ -45,6 +45,7 @@ import {
   WhiteboardClearSchema,
   WhiteboardCursorUpdateSchema,
   WhiteboardLockSchema,
+  WhiteboardVisibilitySchema,
 } from "../schemas/whiteboardSchemas";
 
 // In-memory map to find a participant socket by email within a session
@@ -71,6 +72,9 @@ const whiteboardLocks = new Map<
   string,
   { locked: boolean; by?: { socketId: string; name?: string; role?: Role } }
 >();
+
+// Track whiteboard visibility per meeting session
+const whiteboardVisibility = new Map<string, boolean>();
 
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
@@ -482,6 +486,62 @@ export function attachSocket(server: HTTPServer) {
           return ack?.({ ok: true });
         } catch (e: any) {
           return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Whiteboard visibility: set (Moderator/Admin)
+    socket.on(
+      "whiteboard:visibility:set",
+      async (
+        payload: unknown,
+        ack?: (r: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          const parsed = WhiteboardVisibilitySchema.safeParse(payload);
+          if (!parsed.success)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const { sessionId: wbSessionId, open } = parsed.data;
+
+          if (!(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false, error: "forbidden" });
+
+          whiteboardVisibility.set(wbSessionId, !!open);
+
+          io.to(rooms.meeting).emit("whiteboard:visibility:changed", {
+            sessionId: wbSessionId,
+            open: !!open,
+          });
+          if (await isStreamingActive(sessionId)) {
+            io.to(rooms.observer).emit("whiteboard:visibility:changed", {
+              sessionId: wbSessionId,
+              open: !!open,
+            });
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Whiteboard visibility: get (any role)
+    socket.on(
+      "whiteboard:visibility:get",
+      (payload: unknown, ack?: (r: { open: boolean }) => void) => {
+        try {
+          const parsed = WhiteboardVisibilitySchema.pick({
+            sessionId: true,
+          }).safeParse(payload);
+          if (!parsed.success) return ack?.({ open: false });
+          const { sessionId: wbSessionId } = parsed.data as {
+            sessionId: string;
+          };
+          const open = whiteboardVisibility.get(wbSessionId) ?? false;
+          return ack?.({ open });
+        } catch {
+          return ack?.({ open: false });
         }
       }
     );
