@@ -713,7 +713,23 @@ export default function Meeting() {
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
-            <Stage role={role} />
+            {!isWhiteboardOpen ? (
+              <Stage role={role} />
+            ) : (
+              <div className="mt-4 flex h-full gap-4">
+                <div className="w-1/5">
+                  {/* small video tile(s) */}
+                  <Stage role={role} />
+                </div>
+                <div className="w-4/5">
+                  <WhiteboardPanel
+                    sessionId={String(sessionId)}
+                    socket={socketRef.current}
+                    role={serverRole}
+                  />
+                </div>
+              </div>
+            )}
             {/* When whiteboard open, render panel in main area with layout: 20% video left, 80% whiteboard */}
             {isWhiteboardOpen && (
               <div className="mt-4 flex h-full gap-4">
