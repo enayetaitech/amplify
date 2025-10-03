@@ -67,6 +67,7 @@ import {
 } from "constant/roles";
 import MainRightSidebar from "components/meeting/rightSideBar/MainRightSidebar";
 import WhiteboardPanel from "components/whiteboard/WhiteboardPanel";
+import VideoFilmstrip from "components/meeting/VideoFilmstrip";
 
 type LocalJoinUser = {
   name?: string;
@@ -561,7 +562,7 @@ export default function Meeting() {
                     "whiteboard:visibility:set",
                     { sessionId: String(sessionId), open: next },
                     (_ack?: { ok?: boolean; error?: string }) => {
-                      console.log(_ack)
+                      console.log(_ack);
                     }
                   );
                   // Optimistic update; will be confirmed by broadcast
@@ -579,15 +580,7 @@ export default function Meeting() {
               </button>
             )}
 
-            {isWhiteboardOpen && (
-              <div className="mb-3">
-                <WhiteboardPanel
-                  sessionId={String(sessionId)}
-                  socket={socketRef.current}
-                  role={serverRole}
-                />
-              </div>
-            )}
+            {/* Whiteboard content moved to main area for side-by-side layout */}
 
             {(role === "admin" || role === "moderator") && (
               <button
@@ -754,7 +747,26 @@ export default function Meeting() {
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
-            <Stage role={role} />
+            {isWhiteboardOpen ? (
+              <div className="flex-1 min-h-0 flex gap-3">
+                <div className="flex-[4] min-w-0 min-h-0 rounded bg-white p-2 flex flex-col h-full">
+                  <div className="flex-1 min-h-0">
+                    <WhiteboardPanel
+                      sessionId={String(sessionId)}
+                      socket={socketRef.current}
+                      role={serverRole}
+                    />
+                  </div>
+                </div>
+                <div className="flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
+                  <div className="h-full">
+                    <VideoFilmstrip />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Stage role={role} />
+            )}
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
             </div>

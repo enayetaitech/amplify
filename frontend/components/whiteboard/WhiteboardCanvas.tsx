@@ -468,7 +468,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
     }));
 
     return (
-      <div className="border rounded bg-white">
+      <div className="border rounded bg-white overflow-hidden">
         <canvas
           ref={canvasRef}
           tabIndex={0}

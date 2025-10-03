@@ -53,7 +53,7 @@ export default function WhiteboardToolbar({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button
         disabled={disabled}
         variant={tool === "pencil" ? "secondary" : "ghost"}
@@ -116,7 +116,7 @@ export default function WhiteboardToolbar({
           max={40}
           value={size}
           onChange={(e) => !disabled && setSize(Number(e.target.value))}
-          className="w-28"
+          className="w-24 sm:w-32 md:w-40 lg:w-56"
           disabled={disabled}
         />
       </div>
