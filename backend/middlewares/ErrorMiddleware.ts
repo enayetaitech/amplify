@@ -8,6 +8,11 @@ const errorMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
+  // log before mutation/classification; req.log is added by pino-http
+  try {
+    // best-effort structured error log
+    (req as any).log?.error({ err }, "Unhandled error");
+  } catch {}
   // Set default values if not provided
   err.statusCode = err.statusCode || 500;
   err.message = err.message || "Internal Server Error";
