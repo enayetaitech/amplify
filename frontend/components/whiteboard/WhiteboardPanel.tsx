@@ -116,8 +116,8 @@ export default function WhiteboardPanel({
       const tStyle = toolbar ? window.getComputedStyle(toolbar) : null;
       const toolbarMB = tStyle ? parseFloat(tStyle.marginBottom || "0") : 0;
 
-      const borderFudge = 4; // account for canvas wrapper borders
-      const w = Math.max(300, Math.floor(rect.width - padX));
+      const borderFudge = 6; // account for borders/rounding
+      const w = Math.max(300, Math.floor(rect.width - padX - borderFudge));
       const h = Math.max(
         200,
         Math.floor(rect.height - padY - toolbarH - toolbarMB - borderFudge)
@@ -127,6 +127,9 @@ export default function WhiteboardPanel({
     measure();
     const ro = new ResizeObserver(() => measure());
     ro.observe(el);
+    // also listen to window resize because sidebars can change overall layout
+    const onWin = () => measure();
+    window.addEventListener("resize", onWin);
     return () => ro.disconnect();
   }, []);
 

@@ -90,17 +90,22 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       if (propSize !== undefined) setSize(propSize);
     }, [propSize]);
 
-    // initialize canvas for DPR
+    // initialize canvas for DPR, recalc whenever size changes
     useEffect(() => {
       const c = canvasRef.current;
       if (!c) return;
-      const dpr = window.devicePixelRatio || 1;
-      c.width = Math.floor(width * dpr);
-      c.height = Math.floor(height * dpr);
-      c.style.width = `${width}px`;
-      c.style.height = `${height}px`;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const cssW = Math.max(1, width);
+      const cssH = Math.max(1, height);
+      const pxW = Math.floor(cssW * dpr);
+      const pxH = Math.floor(cssH * dpr);
+      if (c.width !== pxW) c.width = pxW;
+      if (c.height !== pxH) c.height = pxH;
+      c.style.width = `${cssW}px`;
+      c.style.height = `${cssH}px`;
       const ctx = c.getContext("2d");
       if (!ctx) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
       ctx.lineCap = "round";
       redraw();
@@ -473,10 +478,11 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
     }));
 
     return (
-      <div className="border rounded bg-white overflow-hidden">
+      <div className="border rounded bg-white overflow-hidden w-full h-full">
         <canvas
           ref={canvasRef}
           tabIndex={0}
+          style={{ width: "100%", height: "100%" }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
