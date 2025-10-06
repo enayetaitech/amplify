@@ -196,6 +196,70 @@ export default function WhiteboardPanel({
         } catch {}
       } catch {}
     }
+    // expose a way for outer UI to force-stop publishing immediately
+    (
+      globalThis as unknown as { __wbStopPublish?: () => Promise<void> }
+    ).__wbStopPublish = async () => {
+      try {
+        if (keepAliveRef.current) {
+          clearInterval(keepAliveRef.current);
+          keepAliveRef.current = null;
+        }
+      } catch {}
+      try {
+        if (room) {
+          // Try to find and unpublish any local publication that looks like the whiteboard/screen-share
+          try {
+            const pubs: Array<{
+              track?: MediaStreamTrack;
+              trackName?: string;
+              name?: string;
+              source?: string;
+            }> =
+              (
+                room.localParticipant as unknown as {
+                  getTrackPublications?: () => Array<{
+                    track?: MediaStreamTrack;
+                    trackName?: string;
+                    name?: string;
+                    source?: string;
+                  }>;
+                }
+              ).getTrackPublications?.() || [];
+            for (const p of pubs) {
+              try {
+                const name = p.trackName || p.name || "";
+                // unpublish whiteboard publication
+                if (name === "whiteboard") {
+                  const t = p.track as MediaStreamTrack | undefined;
+                  if (t) {
+                    try {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      await (room.localParticipant as any).unpublishTrack(
+                        t as MediaStreamTrack,
+                        true
+                      );
+                    } catch {}
+                  }
+                }
+              } catch {}
+            }
+          } catch {}
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (room.localParticipant as any).setScreenShareEnabled?.(false);
+          } catch {}
+        }
+      } catch {}
+      try {
+        whiteboardTrackRef.current?.stop();
+      } catch {}
+      whiteboardTrackRef.current = null;
+      try {
+        whiteboardMediaTrackRef.current?.stop();
+      } catch {}
+      whiteboardMediaTrackRef.current = null;
+    };
 
     // Start on mount and when canvas size changes (recapture)
     startPublish();

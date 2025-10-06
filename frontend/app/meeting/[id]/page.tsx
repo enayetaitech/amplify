@@ -396,7 +396,17 @@ export default function Meeting() {
     } catch {}
     const onWbVisibility = (p: { sessionId?: string; open?: boolean }) => {
       if (p?.sessionId === String(sessionId)) {
-        setIsWhiteboardOpen(Boolean(p?.open));
+        const open = Boolean(p?.open);
+        setIsWhiteboardOpen(open);
+        // If whiteboard was closed, ensure any published canvas track is stopped locally
+        if (!open) {
+          try {
+            const fn = (
+              globalThis as unknown as { __wbStopPublish?: () => Promise<void> }
+            ).__wbStopPublish;
+            if (typeof fn === "function") fn();
+          } catch {}
+        }
       }
     };
     s.on("whiteboard:visibility:changed", onWbVisibility);
@@ -580,6 +590,17 @@ export default function Meeting() {
                       console.log(_ack);
                     }
                   );
+                  // If closing locally, stop publishing immediately so host UI clears
+                  if (!next) {
+                    try {
+                      const fn = (
+                        globalThis as unknown as {
+                          __wbStopPublish?: () => Promise<void>;
+                        }
+                      ).__wbStopPublish;
+                      if (typeof fn === "function") fn();
+                    } catch {}
+                  }
                   // Optimistic update; will be confirmed by broadcast
                   setIsWhiteboardOpen(next);
                 }}

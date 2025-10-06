@@ -42,24 +42,48 @@ export default function BreakoutsPanel({
 
   const canManage = role === "admin" || role === "moderator";
 
-  // Poll breakouts
+  // Breakouts: fetch once; then refresh via socket event. Fallback to light polling if no socket.
   useEffect(() => {
-    let t: ReturnType<typeof setTimeout> | null = null;
-    const load = async () => {
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const fetchBreakouts = async () => {
       try {
         const res = await api.get<{ data: { items: BreakoutItem[] } }>(
           `/api/v1/livekit/${sessionId}/breakouts`
         );
-        setBreakouts(res.data?.data?.items || []);
+        const items = res.data?.data?.items || [];
+        if (!cancelled) setBreakouts(items);
       } catch {
         // ignore
-      } finally {
-        t = setTimeout(load, 3000);
       }
     };
-    load();
+
+    // initial load
+    fetchBreakouts();
+
+    // prefer existing meeting socket if available
+    const existing: Socket | undefined = (
+      globalThis as unknown as { __meetingSocket?: Socket }
+    ).__meetingSocket;
+    const s: Socket | null = existing || null;
+
+    if (s) {
+      const onChanged = () => {
+        fetchBreakouts();
+      };
+      s.on("breakouts:changed", onChanged);
+      return () => {
+        cancelled = true;
+        s?.off("breakouts:changed", onChanged);
+      };
+    }
+
+    // fallback: light polling only when socket is not available
+    interval = setInterval(fetchBreakouts, 5000);
     return () => {
-      if (t) clearTimeout(t);
+      cancelled = true;
+      if (interval) clearInterval(interval);
     };
   }, [sessionId]);
 

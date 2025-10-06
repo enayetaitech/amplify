@@ -8,13 +8,13 @@ import { Label } from "components/ui/label";
 import {
   PenTool,
   Eraser,
+  Minus,
   Square,
   Circle,
   Type,
   Lock,
   Unlock,
-  ArrowLeft,
-  ArrowRight,
+  RotateCcw,
   Trash,
   Download,
 } from "lucide-react";
@@ -52,6 +52,7 @@ export default function WhiteboardToolbar({
   canLock: boolean; // moderator/admin
   disabled?: boolean;
 }) {
+  void onRedo;
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
@@ -73,7 +74,7 @@ export default function WhiteboardToolbar({
         variant={tool === "line" ? "secondary" : "ghost"}
         onClick={() => setTool("line")}
       >
-        <Square className="h-4 w-4" />
+        <Minus className="h-4 w-4" />
       </Button>
       <Button
         disabled={disabled}
@@ -122,10 +123,7 @@ export default function WhiteboardToolbar({
       </div>
 
       <Button onClick={onUndo} disabled={disabled}>
-        <ArrowLeft className="h-4 w-4" />
-      </Button>
-      <Button onClick={onRedo} disabled={disabled}>
-        <ArrowRight className="h-4 w-4" />
+        <RotateCcw className="h-4 w-4" />
       </Button>
       <Button onClick={onClear} disabled={disabled}>
         <Trash className="h-4 w-4" />
