@@ -46,6 +46,7 @@ export type WhiteboardCanvasHandle = {
   assignSeq?: (localId: string, seq: number) => void;
   getUndoTarget?: () => Stroke | null;
   popRedoTarget?: () => Stroke | null;
+  getCanvasElement?: () => HTMLCanvasElement | null;
 };
 
 const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
@@ -135,6 +136,9 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, c.width, c.height);
+      // ensure opaque background so canvas capture isn't black/transparent in HLS
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, c.width, c.height);
       ctx.restore();
 
       // draw each stroke
@@ -465,6 +469,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
         setRedoStack(rest);
         return first;
       },
+      getCanvasElement: () => canvasRef.current,
     }));
 
     return (

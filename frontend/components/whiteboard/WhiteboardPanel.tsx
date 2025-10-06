@@ -5,6 +5,8 @@ import type { Tool, Stroke, WhiteboardCanvasHandle } from "./WhiteboardCanvas";
 import type { Socket } from "socket.io-client";
 import WhiteboardCanvas from "./WhiteboardCanvas";
 import WhiteboardToolbar from "./WhiteboardToolbar";
+import { useRoomContext } from "@livekit/components-react";
+import { LocalVideoTrack, Track } from "livekit-client";
 
 export default function WhiteboardPanel({
   sessionId,
@@ -25,6 +27,10 @@ export default function WhiteboardPanel({
     w: 1200,
     h: 700,
   });
+  const room = useRoomContext();
+  const whiteboardTrackRef = useRef<LocalVideoTrack | null>(null);
+  const whiteboardMediaTrackRef = useRef<MediaStreamTrack | null>(null);
+  const keepAliveRef = useRef<number | null>(null);
 
   // compute current user info on demand to avoid effect dependency issues
 
@@ -125,6 +131,97 @@ export default function WhiteboardPanel({
   }, []);
 
   const canLock = role === "Moderator" || role === "Admin";
+
+  // Publish canvas as a LiveKit video track (so HLS/recording includes it)
+  useEffect(() => {
+    async function startPublish() {
+      try {
+        if (!room) return;
+        if (!(role === "Moderator" || role === "Admin")) return;
+        const canvasEl = canvasRef.current?.getCanvasElement?.();
+        if (!canvasEl) return;
+
+        // If already publishing, stop first (handle resize recapture)
+        if (whiteboardTrackRef.current) {
+          try {
+            room.localParticipant.unpublishTrack(
+              whiteboardTrackRef.current,
+              true
+            );
+          } catch {}
+          try {
+            whiteboardTrackRef.current.stop();
+          } catch {}
+          whiteboardTrackRef.current = null;
+        }
+        if (whiteboardMediaTrackRef.current) {
+          try {
+            whiteboardMediaTrackRef.current.stop();
+          } catch {}
+          whiteboardMediaTrackRef.current = null;
+        }
+
+        const stream = canvasEl.captureStream(20); // ~20 fps is enough for drawings
+        const mediaTrack = stream.getVideoTracks()[0];
+        if (!mediaTrack) return;
+        whiteboardMediaTrackRef.current = mediaTrack;
+        const localTrack = new LocalVideoTrack(mediaTrack);
+        whiteboardTrackRef.current = localTrack;
+        await room.localParticipant.publishTrack(localTrack, {
+          name: "whiteboard",
+          source: Track.Source.ScreenShare,
+        });
+
+        // Heartbeat: toggle a 1px dot so encoders see periodic changes
+        try {
+          const ctx = canvasEl.getContext("2d");
+          if (ctx) {
+            let toggle = false;
+            keepAliveRef.current = window.setInterval(() => {
+              try {
+                const px = Math.max(1, canvasEl.clientWidth) - 1;
+                const py = Math.max(1, canvasEl.clientHeight) - 1;
+                ctx.save();
+                ctx.globalCompositeOperation = "source-over";
+                ctx.fillStyle = toggle ? "#ffffff" : "#fefefe";
+                ctx.fillRect(px, py, 1, 1);
+                ctx.restore();
+                toggle = !toggle;
+              } catch {}
+            }, 1000);
+          }
+        } catch {}
+      } catch {}
+    }
+
+    // Start on mount and when canvas size changes (recapture)
+    startPublish();
+
+    return () => {
+      if (keepAliveRef.current) {
+        try {
+          clearInterval(keepAliveRef.current);
+        } catch {}
+        keepAliveRef.current = null;
+      }
+      try {
+        if (room && whiteboardTrackRef.current) {
+          room.localParticipant.unpublishTrack(
+            whiteboardTrackRef.current,
+            true
+          );
+        }
+      } catch {}
+      try {
+        whiteboardTrackRef.current?.stop();
+      } catch {}
+      whiteboardTrackRef.current = null;
+      try {
+        whiteboardMediaTrackRef.current?.stop();
+      } catch {}
+      whiteboardMediaTrackRef.current = null;
+    };
+  }, [room, role, dims.w, dims.h]);
 
   return (
     <div

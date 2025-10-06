@@ -257,7 +257,7 @@ export async function startHlsEgress(roomName: string): Promise<{
   const info = await egress.startRoomCompositeEgress(
     roomName,
     { segments },
-    { layout: "grid" }
+    { layout: "screen_share" }
   );
 
   return {
