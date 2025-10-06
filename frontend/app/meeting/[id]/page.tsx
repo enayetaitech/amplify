@@ -287,7 +287,20 @@ export default function Meeting() {
           setHlsUrl(u);
         } catch {
           router.replace(`/waiting-room/observer/${sessionId}`);
+          return;
         }
+
+        // Additionally fetch a subscribe-only token so we can render a filmstrip
+        try {
+          const lkToken = await fetchLiveKitToken(
+            sessionId as string,
+            serverRole
+          );
+          if (lkToken) {
+            setToken(lkToken);
+            setWsUrl(process.env.NEXT_PUBLIC_LIVEKIT_URL!);
+          }
+        } catch {}
       })();
       return;
     }
@@ -514,6 +527,8 @@ export default function Meeting() {
       <ObserverMeetingView
         sessionId={String(sessionId)}
         initialMainUrl={hlsUrl}
+        lkToken={token}
+        wsUrl={wsUrl}
       />
     );
   }

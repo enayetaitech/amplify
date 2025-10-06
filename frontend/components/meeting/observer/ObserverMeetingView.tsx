@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import api from "lib/api";
 import type { Socket } from "socket.io-client";
 import ObserverHlsLayout from "./ObserverHlsLayout";
+
 // extracted messaging UI uses Tabs/Input/Button/Badge internally
 import { Separator } from "components/ui/separator";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -20,9 +21,13 @@ import ObserverMessageComponent from "./ObserverMessageComponent";
 export default function ObserverMeetingView({
   sessionId,
   initialMainUrl,
+  lkToken,
+  wsUrl,
 }: {
   sessionId: string;
   initialMainUrl: string | null;
+  lkToken: string | null;
+  wsUrl: string | null;
 }) {
   type ParticipantItem = { identity: string; name: string };
   const [options, setOptions] = useState<
@@ -69,6 +74,8 @@ export default function ObserverMeetingView({
   const [groupLoading, setGroupLoading] = useState(false);
   const [groupUnread, setGroupUnread] = useState(0);
 
+  void lkToken;
+  void wsUrl;
   // Participant group chat state (meeting_group)
   type ParticipantGroupMessage = {
     senderEmail?: string;
