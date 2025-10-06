@@ -29,6 +29,10 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/liveSessions", route: liveSessionRoutes },
   { path: "/livekit", route: livekitRoutes },
   { path: "/waiting-room", route: waitingRoomRoutes },
+  {
+    path: "/whiteboard",
+    route: require("./whiteboard/WhiteboardRoutes").default,
+  },
 ];
 
 // Loop through and mount each route

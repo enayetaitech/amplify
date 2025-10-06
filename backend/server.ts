@@ -1,5 +1,6 @@
 // src/server.ts
 import express from "express";
+import type { RequestHandler } from "express";
 import config from "./config/index";
 import connectDB from "./config/db";
 import errorMiddleware from "./middlewares/ErrorMiddleware";
@@ -7,12 +8,25 @@ import mainRoutes from "./routes/index";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { deviceInfoMiddleware } from "./middlewares/deviceInfo";
+import httpLogger from "./middlewares/httpLogger";
 import http from "http";
 import { attachSocket } from "./socket/index";
 import { rescheduleAllBreakoutTimers } from "./services/breakoutScheduler";
+import { baseLogger } from "./utils/logger";
 
 const app = express();
-console.log("Starting server...", config.frontend_base_url);
+baseLogger.info(
+  { frontendBaseUrl: config.frontend_base_url },
+  "Starting server"
+);
+
+process.on("unhandledRejection", (err) => {
+  baseLogger.error({ err }, "Unhandled promise rejection");
+});
+
+process.on("uncaughtException", (err) => {
+  baseLogger.fatal({ err }, "Uncaught exception");
+});
 // ✅ CORS config
 const allowedOrigins = [
   config.frontend_base_url as string,
@@ -33,11 +47,12 @@ app.use(
 );
 
 // Middleware to parse JSON bodies
-app.use(express.json());
-app.use(cookieParser());
+app.use(express.json() as unknown as RequestHandler);
+app.use(cookieParser() as unknown as RequestHandler);
 app.set("trust proxy", true);
 // this must come before any route that needs deviceInfo
-app.use(deviceInfoMiddleware);
+app.use(...deviceInfoMiddleware);
+app.use(httpLogger);
 
 // Example route
 app.get("/", (req, res) => {
@@ -45,11 +60,7 @@ app.get("/", (req, res) => {
   res.send("Hello World!, " + bucket);
 });
 
-app.use((req, res, next) => {
-  console.log(`[${req.method}] ${req.url}`);
-  // console.log('Body:', req.body);
-  next();
-});
+// request logging handled by httpLogger
 
 // Place your other routes here
 app.use("/api/v1", mainRoutes);
@@ -67,14 +78,14 @@ attachSocket(server);
 const PORT = config.port || 8008;
 server.listen(PORT, async () => {
   await connectDB();
-  console.log(`Server is running on port ${PORT}`);
+  baseLogger.info({ port: PORT }, "Server is running");
   try {
     await rescheduleAllBreakoutTimers();
-    console.log("Breakout timers rescheduled");
+    baseLogger.info("Breakout timers rescheduled");
   } catch (e) {
-    console.warn(
-      "Failed to reschedule breakout timers",
-      (e as any)?.message || e
+    baseLogger.warn(
+      { err: e instanceof Error ? e : { message: String(e) } },
+      "Failed to reschedule breakout timers"
     );
   }
 });

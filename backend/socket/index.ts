@@ -37,6 +37,16 @@ import ObserverGroupMessageModel, {
   ObserverGroupMessageModel as ObsGroupMsgNamed,
 } from "../model/ObserverGroupMessage";
 import { ObserverWaitingRoomChatModel } from "../model/ObserverWaitingRoomChatModel";
+import WhiteboardStroke from "../model/WhiteboardStroke";
+import {
+  WhiteboardJoinSchema,
+  WhiteboardStrokeAddSchema,
+  WhiteboardStrokeRevokeSchema,
+  WhiteboardClearSchema,
+  WhiteboardCursorUpdateSchema,
+  WhiteboardLockSchema,
+  WhiteboardVisibilitySchema,
+} from "../schemas/whiteboardSchemas";
 
 // In-memory map to find a participant socket by email within a session
 // sessionId -> (email -> socketId)
@@ -56,6 +66,15 @@ const moderatorInfo = new Map<
   string,
   Map<string, { name: string; email: string; role: "Moderator" | "Admin" }>
 >();
+
+// Track whiteboard lock state per whiteboard sessionId -> { locked, by }
+const whiteboardLocks = new Map<
+  string,
+  { locked: boolean; by?: { socketId: string; name?: string; role?: Role } }
+>();
+
+// Track whiteboard visibility per meeting session
+const whiteboardVisibility = new Map<string, boolean>();
 
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
@@ -183,6 +202,351 @@ export function attachSocket(server: HTTPServer) {
     // Explicitly join/leave the meeting chat room when client enters/leaves the meeting UI
     socket.on("meeting:join", () => socket.join(rooms.meeting));
     socket.on("meeting:leave", () => socket.leave(rooms.meeting));
+
+    // Whiteboard: join and seed recent strokes
+    socket.on(
+      "whiteboard:join",
+      async (
+        payload: unknown,
+        ack?: (resp: { nextSeq: number; recentStrokes: any[] }) => void
+      ) => {
+        try {
+          const parsed = WhiteboardJoinSchema.safeParse(payload);
+          if (!parsed.success) return ack?.({ nextSeq: 0, recentStrokes: [] });
+          const { sessionId: wbSessionId } = parsed.data;
+
+          // allow join only if they have a sessionId (we already validated socket query)
+          socket.join(rooms.meeting);
+
+          // Fetch recent strokes for seeding — limit to last 200
+          const recentStrokes = await WhiteboardStroke.find({
+            sessionId: wbSessionId,
+            revoked: { $ne: true },
+          })
+            .sort({ seq: -1 })
+            .limit(200)
+            .lean();
+
+          // compute nextSeq from highest seq or 1
+          const highest = recentStrokes.length > 0 ? recentStrokes[0].seq : 0;
+          const nextSeq = highest + 1;
+
+          // return strokes in ascending order for client consumption
+          const recentAsc = recentStrokes.reverse();
+          ack?.({ nextSeq, recentStrokes: recentAsc });
+
+          // If streaming is active, also ensure observers can hear/see strokes via meeting room broadcasts
+        } catch (e) {
+          try {
+            ack?.({ nextSeq: 0, recentStrokes: [] });
+          } catch {}
+        }
+      }
+    );
+
+    // Add a stroke: server assigns seq, persists, then broadcasts
+    socket.on(
+      "whiteboard:stroke:add",
+      async (
+        payload: unknown,
+        ack?: (resp: {
+          ok: boolean;
+          error?: string;
+          seq?: number;
+          clientSeq?: number;
+        }) => void
+      ) => {
+        try {
+          const parsed = WhiteboardStrokeAddSchema.safeParse(payload);
+          if (!parsed.success)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const data = parsed.data;
+
+          // Role check: observers cannot add strokes
+          if (role === "Observer")
+            return ack?.({ ok: false, error: "forbidden" });
+
+          // Enforce lock: if locked and the actor is not Moderator/Admin, reject
+          const lockState = whiteboardLocks.get(data.sessionId);
+          if (lockState?.locked && !(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false, error: "locked" });
+
+          // Determine roomName from session DB (if needed) or use sessionId as roomName
+          // For now, use sessionId string provided as db sessionId field
+
+          // Atomic seq assignment: find current max seq and increment. This is not perfectly atomic under high concurrency,
+          // but the unique index on (roomName, sessionId, seq) will protect against duplicates — we retry up to 2 times.
+          let attempts = 0;
+          const maxRetries = 2;
+          let saved: any = null;
+          while (attempts <= maxRetries) {
+            attempts++;
+            // find current highest seq
+            const last = await WhiteboardStroke.findOne({
+              sessionId: data.sessionId,
+            })
+              .sort({ seq: -1 })
+              .lean();
+            const nextSeq = (last?.seq || 0) + 1;
+
+            const doc: any = {
+              roomName: String(sessionId),
+              sessionId: data.sessionId,
+              seq: nextSeq,
+              author: {
+                identity: name || email || "",
+                name: name || email || "",
+                role,
+              },
+              tool: data.tool,
+              shape: data.shape,
+              color: data.color,
+              size: data.size,
+              points: data.points || [],
+              from: (data as any).from || undefined,
+              to: (data as any).to || undefined,
+              text: data.text,
+            };
+
+            try {
+              saved = await WhiteboardStroke.create(doc);
+              // broadcast to meeting room (includes participants and moderators). Observers hearing stream will also get it via rooms.observer if streaming active
+              io.to(rooms.meeting).emit(
+                "whiteboard:stroke:new",
+                saved.toObject()
+              );
+              if (await isStreamingActive(sessionId)) {
+                io.to(rooms.observer).emit(
+                  "whiteboard:stroke:new",
+                  saved.toObject()
+                );
+              }
+              return ack?.({ ok: true, seq: nextSeq });
+            } catch (e: any) {
+              // If duplicate key error on unique index, retry
+              const msg = String(e?.message || "");
+              if (msg.includes("duplicate key") && attempts <= maxRetries) {
+                // retry loop
+                continue;
+              }
+              return ack?.({ ok: false, error: e?.message || "db_error" });
+            }
+          }
+
+          return ack?.({ ok: false, error: "seq_assignment_failed" });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Revoke strokes (mark revoked=true)
+    socket.on(
+      "whiteboard:stroke:revoke",
+      async (
+        payload: unknown,
+        ack?: (r: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          const parsed = WhiteboardStrokeRevokeSchema.safeParse(payload);
+          if (!parsed.success)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const { sessionId: wbSessionId, seqs } = parsed.data;
+
+          // Only moderators/admins may revoke (optionally allow author self-revoke in future)
+          if (!(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false, error: "forbidden" });
+
+          await WhiteboardStroke.updateMany(
+            { sessionId: wbSessionId, seq: { $in: seqs } },
+            { $set: { revoked: true } }
+          );
+
+          io.to(rooms.meeting).emit("whiteboard:stroke:revoked", { seqs });
+          if (await isStreamingActive(sessionId)) {
+            io.to(rooms.observer).emit("whiteboard:stroke:revoked", { seqs });
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Clear whiteboard (mark all strokes revoked for a session)
+    socket.on(
+      "whiteboard:clear",
+      async (
+        payload: unknown,
+        ack?: (r: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          const parsed = WhiteboardClearSchema.safeParse(payload);
+          if (!parsed.success)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const { sessionId: wbSessionId } = parsed.data;
+
+          if (!(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false, error: "forbidden" });
+
+          await WhiteboardStroke.updateMany(
+            { sessionId: wbSessionId, revoked: { $ne: true } },
+            { $set: { revoked: true } }
+          );
+
+          io.to(rooms.meeting).emit("whiteboard:cleared", {});
+          if (await isStreamingActive(sessionId)) {
+            io.to(rooms.observer).emit("whiteboard:cleared", {});
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Cursor updates (ephemeral) - throttle to ~20Hz per socket
+    {
+      let lastCursorTs = 0;
+      const minIntervalMs = 50; // 20 Hz == 50ms
+      socket.on("whiteboard:cursor:update", (payload: unknown) => {
+        try {
+          const now = Date.now();
+          if (now - lastCursorTs < minIntervalMs) return; // drop to throttle
+          const parsed = WhiteboardCursorUpdateSchema.safeParse(payload);
+          if (!parsed.success) return;
+          lastCursorTs = now;
+          const { sessionId: wbSessionId, x, y, color } = parsed.data;
+          // Broadcast cursor to meeting room (observers see only when streaming active)
+          io.to(rooms.meeting).emit("whiteboard:cursor:updated", {
+            sessionId: wbSessionId,
+            socketId: socket.id,
+            x,
+            y,
+            color: color || null,
+            name: name || email || "",
+          });
+          // When streaming active, also notify observers
+          (async () => {
+            try {
+              if (await isStreamingActive(sessionId)) {
+                io.to(rooms.observer).emit("whiteboard:cursor:updated", {
+                  sessionId: wbSessionId,
+                  socketId: socket.id,
+                  x,
+                  y,
+                  color: color || null,
+                  name: name || email || "",
+                });
+              }
+            } catch {}
+          })();
+        } catch {}
+      });
+    }
+
+    // Whiteboard lock/unlock (Moderator/Admin)
+    socket.on(
+      "whiteboard:lock",
+      async (
+        payload: unknown,
+        ack?: (r: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          const parsed = WhiteboardLockSchema.safeParse(payload);
+          if (!parsed.success)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const { sessionId: wbSessionId, locked } = parsed.data;
+
+          if (!(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false, error: "forbidden" });
+
+          if (locked) {
+            whiteboardLocks.set(wbSessionId, {
+              locked: true,
+              by: { socketId: socket.id, name: name || email || "", role },
+            });
+          } else {
+            whiteboardLocks.delete(wbSessionId);
+          }
+
+          io.to(rooms.meeting).emit("whiteboard:lock:changed", {
+            sessionId: wbSessionId,
+            locked,
+            by: locked ? { name: name || email || "", role } : null,
+          });
+          if (await isStreamingActive(sessionId)) {
+            io.to(rooms.observer).emit("whiteboard:lock:changed", {
+              sessionId: wbSessionId,
+              locked,
+              by: locked ? { name: name || email || "", role } : null,
+            });
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Whiteboard visibility: set (Moderator/Admin)
+    socket.on(
+      "whiteboard:visibility:set",
+      async (
+        payload: unknown,
+        ack?: (r: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          const parsed = WhiteboardVisibilitySchema.safeParse(payload);
+          if (!parsed.success)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const { sessionId: wbSessionId, open } = parsed.data;
+
+          if (!(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false, error: "forbidden" });
+
+          whiteboardVisibility.set(wbSessionId, !!open);
+
+          io.to(rooms.meeting).emit("whiteboard:visibility:changed", {
+            sessionId: wbSessionId,
+            open: !!open,
+          });
+          if (await isStreamingActive(sessionId)) {
+            io.to(rooms.observer).emit("whiteboard:visibility:changed", {
+              sessionId: wbSessionId,
+              open: !!open,
+            });
+          }
+
+          return ack?.({ ok: true });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    // Whiteboard visibility: get (any role)
+    socket.on(
+      "whiteboard:visibility:get",
+      (payload: unknown, ack?: (r: { open: boolean }) => void) => {
+        try {
+          const parsed = WhiteboardVisibilitySchema.pick({
+            sessionId: true,
+          }).safeParse(payload);
+          if (!parsed.success) return ack?.({ open: false });
+          const { sessionId: wbSessionId } = parsed.data as {
+            sessionId: string;
+          };
+          const open = whiteboardVisibility.get(wbSessionId) ?? false;
+          return ack?.({ open });
+        } catch {
+          return ack?.({ open: false });
+        }
+      }
+    );
 
     // Cache LiveSession _id for persistence
     const liveIdCache = new Map<string, Types.ObjectId>();

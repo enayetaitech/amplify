@@ -66,6 +66,8 @@ import {
   normalizeServerRole,
 } from "constant/roles";
 import MainRightSidebar from "components/meeting/rightSideBar/MainRightSidebar";
+import WhiteboardPanel from "components/whiteboard/WhiteboardPanel";
+import VideoFilmstrip from "components/meeting/VideoFilmstrip";
 
 type LocalJoinUser = {
   name?: string;
@@ -233,6 +235,7 @@ export default function Meeting() {
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [observerCount, setObserverCount] = useState(0);
@@ -284,7 +287,20 @@ export default function Meeting() {
           setHlsUrl(u);
         } catch {
           router.replace(`/waiting-room/observer/${sessionId}`);
+          return;
         }
+
+        // Additionally fetch a subscribe-only token so we can render a filmstrip
+        try {
+          const lkToken = await fetchLiveKitToken(
+            sessionId as string,
+            serverRole
+          );
+          if (lkToken) {
+            setToken(lkToken);
+            setWsUrl(process.env.NEXT_PUBLIC_LIVEKIT_URL!);
+          }
+        } catch {}
       })();
       return;
     }
@@ -368,6 +384,33 @@ export default function Meeting() {
       } catch {}
     });
 
+    // Whiteboard visibility: seed current value and listen for changes
+    try {
+      s.emit(
+        "whiteboard:visibility:get",
+        { sessionId: String(sessionId) },
+        (resp?: { open?: boolean }) => {
+          setIsWhiteboardOpen(Boolean(resp?.open));
+        }
+      );
+    } catch {}
+    const onWbVisibility = (p: { sessionId?: string; open?: boolean }) => {
+      if (p?.sessionId === String(sessionId)) {
+        const open = Boolean(p?.open);
+        setIsWhiteboardOpen(open);
+        // If whiteboard was closed, ensure any published canvas track is stopped locally
+        if (!open) {
+          try {
+            const fn = (
+              globalThis as unknown as { __wbStopPublish?: () => Promise<void> }
+            ).__wbStopPublish;
+            if (typeof fn === "function") fn();
+          } catch {}
+        }
+      }
+    };
+    s.on("whiteboard:visibility:changed", onWbVisibility);
+
     // initial snapshot of observers
     s.emit(
       "observer:list:get",
@@ -399,6 +442,7 @@ export default function Meeting() {
       s.off("meeting:force-mute");
       s.off("meeting:force-camera-off");
       s.off("observer:list");
+      s.off("whiteboard:visibility:changed", onWbVisibility);
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
@@ -493,6 +537,8 @@ export default function Meeting() {
       <ObserverMeetingView
         sessionId={String(sessionId)}
         initialMainUrl={hlsUrl}
+        lkToken={token}
+        wsUrl={wsUrl}
       />
     );
   }
@@ -530,17 +576,47 @@ export default function Meeting() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => toast("Features not developed yet")}
-              className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
-              aria-label="Whiteboard"
-            >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
-                <PenTool className="h-3.5 w-3.5 text-white" />
-              </span>
-              <span>Whiteboard</span>
-            </button>
+            {(role === "admin" || role === "moderator") && (
+              <button
+                type="button"
+                onClick={() => {
+                  const s = socketRef.current;
+                  if (!s) return;
+                  const next = !isWhiteboardOpen;
+                  s.emit(
+                    "whiteboard:visibility:set",
+                    { sessionId: String(sessionId), open: next },
+                    (_ack?: { ok?: boolean; error?: string }) => {
+                      console.log(_ack);
+                    }
+                  );
+                  // If closing locally, stop publishing immediately so host UI clears
+                  if (!next) {
+                    try {
+                      const fn = (
+                        globalThis as unknown as {
+                          __wbStopPublish?: () => Promise<void>;
+                        }
+                      ).__wbStopPublish;
+                      if (typeof fn === "function") fn();
+                    } catch {}
+                  }
+                  // Optimistic update; will be confirmed by broadcast
+                  setIsWhiteboardOpen(next);
+                }}
+                className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                aria-label="Whiteboard"
+              >
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                  <PenTool className="h-3.5 w-3.5 text-white" />
+                </span>
+                <span>
+                  {isWhiteboardOpen ? "Close Whiteboard" : "Open Whiteboard"}
+                </span>
+              </button>
+            )}
+
+            {/* Whiteboard content moved to main area for side-by-side layout */}
 
             {(role === "admin" || role === "moderator") && (
               <button
@@ -707,7 +783,26 @@ export default function Meeting() {
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
-            <Stage role={role} />
+            {isWhiteboardOpen ? (
+              <div className="flex-1 min-h-0 flex gap-3">
+                <div className="flex-[4] min-w-0 min-h-0 rounded bg-white p-2 flex flex-col h-full">
+                  <div className="flex-1 min-h-0">
+                    <WhiteboardPanel
+                      sessionId={String(sessionId)}
+                      socket={socketRef.current}
+                      role={serverRole}
+                    />
+                  </div>
+                </div>
+                <div className="flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
+                  <div className="h-full">
+                    <VideoFilmstrip />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Stage role={role} />
+            )}
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
             </div>
