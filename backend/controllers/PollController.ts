@@ -274,6 +274,13 @@ export const duplicatePoll = async (
  */
 export const launchPoll = async (req: any, res: any, next: any) => {
   try {
+    // Host permission: only Admin or Moderator may launch
+    const actor = (req as any).user;
+    if (!actor || !["Admin", "Moderator"].includes(actor.role))
+      return next(
+        new ErrorHandler("Only Admin or Moderator can launch polls", 403)
+      );
+
     const parsed = zLaunchPayload.safeParse(req.body);
     if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
     const { sessionId, settings } = parsed.data;
@@ -301,6 +308,13 @@ export const launchPoll = async (req: any, res: any, next: any) => {
  */
 export const stopPoll = async (req: any, res: any, next: any) => {
   try {
+    // Host permission: only Admin or Moderator may stop
+    const actor = (req as any).user;
+    if (!actor || !["Admin", "Moderator"].includes(actor.role))
+      return next(
+        new ErrorHandler("Only Admin or Moderator can stop polls", 403)
+      );
+
     const parsed = zStopPayload.safeParse(req.body);
     if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
     const { sessionId } = parsed.data;
