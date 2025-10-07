@@ -30,6 +30,8 @@ import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
 import ObserverMeetingView from "components/meeting/observer/ObserverMeetingView";
 import ParticipantChatPanel from "components/meeting/ParticipantChatPanel";
 import MeetingJoinBridge from "components/meeting/MeetingJoinBridge";
+import PollsPanel from "components/meeting/PollsPanel";
+import ActivePoll from "components/meeting/ActivePoll";
 import {
   ChevronLeft,
   ChevronRight,
@@ -242,6 +244,7 @@ export default function Meeting() {
   const [observerList, setObserverList] = useState<
     { name: string; email: string }[]
   >([]);
+  const [sessionProjectId, setSessionProjectId] = useState<string | null>(null);
   const [isBreakoutOverlayOpen, setIsBreakoutOverlayOpen] = useState(false);
 
   // 🔌 single meeting socket for this page
@@ -315,6 +318,20 @@ export default function Meeting() {
       setWsUrl(url);
     })();
   }, [sessionId, role, serverRole, router]);
+
+  // fetch session metadata to get projectId for polls panel
+  useEffect(() => {
+    if (!sessionId) return;
+    (async () => {
+      try {
+        const res = await api.get(`/api/v1/sessions/${sessionId}`);
+        const sess = res.data?.data;
+        if (sess && sess.projectId) setSessionProjectId(String(sess.projectId));
+      } catch {
+        // ignore
+      }
+    })();
+  }, [sessionId]);
 
   // Connect socket (once we know session)
   useEffect(() => {
@@ -720,12 +737,24 @@ export default function Meeting() {
                 sessionId={String(sessionId)}
               />
               <ModeratorWaitingPanel />
+              {/* Polls: participant or host */}
+              <div className="mt-2">
+                <ActivePoll sessionId={String(sessionId)} user={user} />
+              </div>
               {(role as UiRole) === "participant" && (
                 <div className="mt-2">
                   <ParticipantChatPanel
                     socket={socketRef.current}
                     sessionId={String(sessionId)}
                     me={{ email: my.email, name: my.name, role: "Participant" }}
+                  />
+                </div>
+              )}
+              {(role === "admin" || role === "moderator") && (
+                <div className="mt-4">
+                  <PollsPanel
+                    projectId={sessionProjectId || String(sessionId)}
+                    sessionId={String(sessionId)}
                   />
                 </div>
               )}
