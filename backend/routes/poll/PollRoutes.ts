@@ -13,6 +13,8 @@ import {
 } from "../../controllers/PollController";
 import { uploadImage } from "../../utils/multer";
 import { authenticateJwt } from "../../middlewares/authenticateJwt";
+import { authorizeRoles } from "../../middlewares/authorizeRoles";
+import { authorizeProjectSessionOwner } from "../../middlewares/authorizeProjectSessionOwner";
 
 const router = express.Router();
 
@@ -42,10 +44,22 @@ router.patch(
 router.post("/:id/duplicate", authenticateJwt, catchError(duplicatePoll));
 
 // Launch a poll for a live session (host only)
-router.post("/:id/launch", authenticateJwt, catchError(launchPoll));
+router.post(
+  "/:id/launch",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(launchPoll)
+);
 
 // Stop an open poll run for a session (host only)
-router.post("/:id/stop", authenticateJwt, catchError(stopPoll));
+router.post(
+  "/:id/stop",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(stopPoll)
+);
 
 // Participant responds to poll (may be anonymous)
 router.post("/:id/respond", catchError(respondToPoll));
