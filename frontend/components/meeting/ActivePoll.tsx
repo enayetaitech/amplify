@@ -412,14 +412,21 @@ export default function ActivePoll({
                 </div>
                 <div className="mt-2">
                   <Button
-                    onClick={() =>
+                    onClick={() => {
+                      const ratingValue = localAnswers[q._id] as
+                        | number
+                        | undefined;
+                      if (ratingValue === undefined) {
+                        toast.error("Please select a rating");
+                        return;
+                      }
                       onSubmit([
                         {
                           questionId: q._id,
-                          value: localAnswers[q._id] ?? undefined,
+                          value: ratingValue,
                         },
-                      ])
-                    }
+                      ]);
+                    }}
                     disabled={!canSubmit}
                   >
                     Submit
