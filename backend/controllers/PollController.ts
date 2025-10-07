@@ -5,6 +5,9 @@ import ErrorHandler from "../utils/ErrorHandler";
 import { sendResponse } from "../utils/responseHelpers";
 import { validateQuestion } from "../processors/poll/QuestionValidationProcessor";
 import { uploadToS3 } from "../utils/uploadToS3";
+import * as pollService from "../processors/poll/pollService";
+import { emitToRoom } from "../socket/bus";
+import { zLaunchPayload, zStopPayload, zRespondPayload } from "../schemas/poll";
 
 /* ───────────────────────────────────────────────────────────── */
 /*  Controller – Create Poll                                    */
@@ -16,7 +19,6 @@ export const createPoll = async (
 ): Promise<void> => {
   const { projectId, sessionId, title, questions, createdBy, createdByRole } =
     req.body;
-
 
   /* 1. Basic payload validation ------------------------------------ */
   if (!projectId || !title || !createdBy || !createdByRole) {
@@ -33,50 +35,51 @@ export const createPoll = async (
       new ErrorHandler("Only Admin or Moderator can create polls", 403)
     );
   }
-// ── 2) Parse questions JSON ───────────────────────────────────────
-    let questionsPayload: any[] = req.body.questions;
-    if (typeof questionsPayload === "string") {
-      try {
-        questionsPayload = JSON.parse(questionsPayload);
-      } catch {
-        return next(new ErrorHandler("Invalid questions JSON", 400));
-      }
+  // ── 2) Parse questions JSON ───────────────────────────────────────
+  let questionsPayload: any[] = req.body.questions;
+  if (typeof questionsPayload === "string") {
+    try {
+      questionsPayload = JSON.parse(questionsPayload);
+    } catch {
+      return next(new ErrorHandler("Invalid questions JSON", 400));
     }
+  }
 
-    if (!Array.isArray(questionsPayload) || questionsPayload.length === 0) {
-      return next(new ErrorHandler("questions array is required", 400));
-    }
+  if (!Array.isArray(questionsPayload) || questionsPayload.length === 0) {
+    return next(new ErrorHandler("questions array is required", 400));
+  }
 
-    // ── 3) Upload images to S3 & stitch into questions ───────────────
-    //    Expect front-end to send each File under field "images" and
-    //    each question to have a tempImageName === file.originalname
-    const files = (req.files as Express.Multer.File[]) || [];
-    for (const file of files) {
-      let result;
-      try {
-        result = await uploadToS3(file.buffer, file.mimetype, file.originalname);
-      } catch (err) {
-        return next(
-          new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
-        );
-      }
-      // find the matching question by your tempImageName
-      const q = questionsPayload.find((q) => q.tempImageName === file.originalname);
-      if (q) {
-        q.image = result.url;
-        // optionally store the S3 key if you need it:
-        // q.imageKey = result.key;
-        delete q.tempImageName;
-      }
+  // ── 3) Upload images to S3 & stitch into questions ───────────────
+  //    Expect front-end to send each File under field "images" and
+  //    each question to have a tempImageName === file.originalname
+  const files = (req.files as Express.Multer.File[]) || [];
+  for (const file of files) {
+    let result;
+    try {
+      result = await uploadToS3(file.buffer, file.mimetype, file.originalname);
+    } catch (err) {
+      return next(
+        new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
+      );
     }
+    // find the matching question by your tempImageName
+    const q = questionsPayload.find(
+      (q) => q.tempImageName === file.originalname
+    );
+    if (q) {
+      q.image = result.url;
+      // optionally store the S3 key if you need it:
+      // q.imageKey = result.key;
+      delete q.tempImageName;
+    }
+  }
 
-    
-    // ── 4) Per-question validation ────────────────────────────────────
-    for (let i = 0; i < questionsPayload.length; i++) {
-      if (validateQuestion(questionsPayload[i], i, next)) {
-        return; // stops on first error
-      }
+  // ── 4) Per-question validation ────────────────────────────────────
+  for (let i = 0; i < questionsPayload.length; i++) {
+    if (validateQuestion(questionsPayload[i], i, next)) {
+      return; // stops on first error
     }
+  }
   /* 3. Create poll -------------------------------------------------- */
 
   const poll = await PollModel.create({
@@ -113,7 +116,7 @@ export const getPollsByProjectId = async (
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('createdBy', 'firstName lastName') 
+      .populate("createdBy", "firstName lastName")
       .lean(),
     PollModel.countDocuments({ projectId }),
   ]);
@@ -203,7 +206,7 @@ export const updatePoll = async (
 
       // now that your JSON has tempImageName, this will work:
       const q = questionsPayload.find(
-        qq => qq.tempImageName === file.originalname
+        (qq) => qq.tempImageName === file.originalname
       );
       if (q) {
         q.image = uploadResult.url;
@@ -264,6 +267,115 @@ export const duplicatePoll = async (
   const copy = await PollModel.create(copyData);
 
   sendResponse(res, copy, "Poll duplicated", 201);
+};
+
+/**
+ * POST /api/v1/polls/:pollId/launch
+ */
+export const launchPoll = async (req: any, res: any, next: any) => {
+  try {
+    const parsed = zLaunchPayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId, settings } = parsed.data;
+
+    const { pollId } = req.params;
+    const { poll, run } = await pollService.launchPoll(
+      pollId,
+      sessionId,
+      settings
+    );
+
+    // Emit socket: poll started to session room
+    try {
+      emitToRoom(String(sessionId), "poll:started", { poll, run });
+    } catch {}
+
+    sendResponse(res, { poll, run }, "Poll launched", 201);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * POST /api/v1/polls/:pollId/stop
+ */
+export const stopPoll = async (req: any, res: any, next: any) => {
+  try {
+    const parsed = zStopPayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId } = parsed.data;
+
+    const { pollId } = req.params;
+    const { run, aggregates } = await pollService.stopPoll(pollId, sessionId);
+
+    // Emit poll stopped
+    try {
+      emitToRoom(String(sessionId), "poll:stopped", { pollId, runId: run._id });
+      if (run.shareResults === "onStop" || run.shareResults === "immediate") {
+        emitToRoom(String(sessionId), "poll:results", {
+          pollId,
+          runId: run._id,
+          aggregates,
+        });
+      }
+    } catch {}
+
+    sendResponse(res, { run, aggregates }, "Poll stopped", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * POST /api/v1/polls/:pollId/respond
+ */
+export const respondToPoll = async (req: any, res: any, next: any) => {
+  try {
+    const parsed = zRespondPayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId, runId, answers } = parsed.data;
+
+    const { pollId } = req.params;
+
+    // derive responder info from req.user if exists, else from body (allow anonymous)
+    const user = (req as any).user as any | undefined;
+    const responder = user
+      ? {
+          userId: String(user._id),
+          name: user.firstName || user.name,
+          email: user.email,
+        }
+      : req.body.responder || {};
+
+    const { doc, aggregates } = await pollService.submitResponse(
+      pollId,
+      runId,
+      sessionId,
+      responder,
+      answers as any[]
+    );
+
+    // ack to participant
+    try {
+      emitToRoom(String(sessionId), "poll:submission:ack", {
+        pollId,
+        runId,
+        responder: responder.userId
+          ? { userId: responder.userId }
+          : { anonymous: true },
+      });
+      // emit partial results to moderators only
+      emitToRoom(String(sessionId) + ":moderators", "poll:partialResults", {
+        pollId,
+        runId,
+        aggregates,
+      });
+    } catch {}
+
+    sendResponse(res, { ok: true }, "Response saved", 201);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
 };
 
 /**
