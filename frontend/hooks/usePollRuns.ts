@@ -13,13 +13,15 @@ export type PollRunLite = {
   shareResults?: "never" | "onStop" | "immediate";
 };
 
-export default function usePollRuns(pollId: string) {
+export default function usePollRuns(pollId: string, sessionId?: string) {
   return useQuery<PollRunLite[]>({
-    queryKey: ["poll-runs", pollId],
+    queryKey: ["poll-runs", pollId, sessionId],
     queryFn: async () => {
-      const r = await api.get(`/api/v1/polls/${pollId}/runs`);
+      const r = await api.get(`/api/v1/polls/${pollId}/runs`, {
+        params: { sessionId },
+      });
       return r.data.data as PollRunLite[];
     },
-    enabled: !!pollId,
+    enabled: !!pollId && !!sessionId,
   });
 }

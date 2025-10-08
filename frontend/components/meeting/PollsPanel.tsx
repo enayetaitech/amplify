@@ -34,7 +34,12 @@ function PollResultsWrapper({
   runId: string | null;
   questions: PollQuestion[];
 }) {
-  const q = usePollResults(pollId, runId);
+  const sessionIdFromWindow =
+    typeof window !== "undefined"
+      ? (window as unknown as { currentMeetingSessionId?: string })
+          .currentMeetingSessionId
+      : undefined;
+  const q = usePollResults(pollId, runId, sessionIdFromWindow);
   if (!runId) return <div className="text-sm text-gray-500">No active run</div>;
   if (q.isLoading)
     return <div className="text-sm text-gray-500">Loading results…</div>;
@@ -65,12 +70,14 @@ function RunSelector({
   pollId,
   currentRunId,
   onChange,
+  sessionId,
 }: {
   pollId: string;
   currentRunId: string | null;
   onChange: (runId: string | null) => void;
+  sessionId: string;
 }) {
-  const { data } = usePollRuns(pollId);
+  const { data } = usePollRuns(pollId, sessionId);
   const runs = data || [];
   return (
     <div className="flex items-center gap-2">
@@ -350,6 +357,7 @@ export default function PollsPanel({
                   <RunSelector
                     pollId={p._id}
                     currentRunId={runId}
+                    sessionId={sessionId}
                     onChange={(rid) =>
                       setLatestRunByPoll((s) => ({ ...s, [p._id]: rid || "" }))
                     }
@@ -407,6 +415,7 @@ export default function PollsPanel({
                   <RespondentsWrapper
                     pollId={p._id}
                     runId={runId}
+                    sessionId={sessionId}
                     questions={p.questions as unknown as PollQuestion[]}
                   />
                 </div>
@@ -422,13 +431,15 @@ export default function PollsPanel({
 function RespondentsWrapper({
   pollId,
   runId,
+  sessionId,
   questions,
 }: {
   pollId: string;
   runId: string | null;
+  sessionId: string;
   questions: PollQuestion[];
 }) {
-  const q = usePollResponses(pollId, runId);
+  const q = usePollResponses(pollId, runId, sessionId);
   if (!runId)
     return <div className="text-sm text-gray-500">No run selected</div>;
   if (q.isLoading)

@@ -31,6 +31,7 @@ process.on("uncaughtException", (err) => {
 const allowedOrigins = [
   config.frontend_base_url as string,
   "http://localhost:3000",
+  "http://localhost:3001",
   "https://amplifyre.shop",
 ];
 app.use(

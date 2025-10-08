@@ -3,26 +3,27 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 
+type OptionCount = { value: unknown; count: number };
+type Aggregate = { total: number; counts: OptionCount[] };
+type AggregatesMap = Record<string, Aggregate>;
+
 // returns mapping questionId -> { total, counts: [{ value, count }] }
 export function usePollResults(
   pollId: string,
-  runId: string | undefined | null
+  runId: string | undefined | null,
+  sessionId?: string
 ) {
-  return useQuery({
-    queryKey: ["poll-results", pollId, runId],
+  return useQuery<AggregatesMap>({
+    queryKey: ["poll-results", pollId, runId, sessionId],
     queryFn: async () => {
-      if (!runId) return {} as Record<string, any>;
+      if (!runId) return {} as AggregatesMap;
       const r = await api.get(`/api/v1/polls/${pollId}/results`, {
-        params: { runId },
+        params: { runId, sessionId },
       });
-      return r.data.data as Record<
-        string,
-        { total: number; counts: { value: any; count: number }[] }
-      >;
+      return r.data.data as AggregatesMap;
     },
-    enabled: !!pollId && !!runId,
+    enabled: !!pollId && !!runId && !!sessionId,
   });
 }
 
 export default usePollResults;
-

@@ -10,15 +10,19 @@ export type PollResponseItem = {
   submittedAt: string;
 };
 
-export default function usePollResponses(pollId: string, runId: string | null) {
+export default function usePollResponses(
+  pollId: string,
+  runId: string | null,
+  sessionId?: string
+) {
   return useQuery<{ run: unknown; responses: PollResponseItem[] }>({
-    queryKey: ["poll-responses", pollId, runId],
+    queryKey: ["poll-responses", pollId, runId, sessionId],
     queryFn: async () => {
       const r = await api.get(`/api/v1/polls/${pollId}/responses`, {
-        params: { runId },
+        params: { runId, sessionId },
       });
       return r.data.data as { run: unknown; responses: PollResponseItem[] };
     },
-    enabled: !!pollId && !!runId,
+    enabled: !!pollId && !!runId && !!sessionId,
   });
 }

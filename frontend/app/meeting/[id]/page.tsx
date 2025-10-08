@@ -382,6 +382,9 @@ export default function Meeting() {
       },
     });
     socketRef.current = s;
+    try {
+      (window as any).currentMeetingSessionId = String(sessionId);
+    } catch {}
     window.__meetingSocket = s;
     s.on("observer:count", (p: { count?: number }) => {
       setObserverCount(Number(p?.count || 0));

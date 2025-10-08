@@ -425,7 +425,16 @@ export const getPollResults = async (req: any, res: any, next: any) => {
   try {
     const pollId = String(req.params.id);
     const runId = String(req.query.runId || "");
+    const sessionId = String(req.query.sessionId || "");
     if (!runId) return next(new ErrorHandler("runId required", 400));
+    if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
+
+    const run = await PollRunModel.findById(runId).lean();
+    if (!run || String(run.pollId) !== String(pollId))
+      return next(new ErrorHandler("Run not found", 404));
+    if (String(run.sessionId) !== String(sessionId))
+      return next(new ErrorHandler("Forbidden: wrong session", 403));
+
     const aggregates = await pollService.aggregateResults(pollId, runId);
     sendResponse(res, aggregates, "Results fetched", 200);
   } catch (e: any) {
@@ -440,7 +449,9 @@ export const getPollResults = async (req: any, res: any, next: any) => {
 export const getPollRuns = async (req: any, res: any, next: any) => {
   try {
     const pollId = String(req.params.id);
-    const runs = await PollRunModel.find({ pollId })
+    const sessionId = String(req.query.sessionId || "");
+    if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
+    const runs = await PollRunModel.find({ pollId, sessionId })
       .sort({ runNumber: -1 })
       .lean();
     sendResponse(res, runs, "Runs fetched", 200);
@@ -457,11 +468,15 @@ export const getPollResponses = async (req: any, res: any, next: any) => {
   try {
     const pollId = String(req.params.id);
     const runId = String(req.query.runId || "");
+    const sessionId = String(req.query.sessionId || "");
     if (!runId) return next(new ErrorHandler("runId required", 400));
+    if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
 
     const run = await PollRunModel.findById(runId).lean();
     if (!run || String(run.pollId) !== String(pollId))
       return next(new ErrorHandler("Run not found", 404));
+    if (String(run.sessionId) !== String(sessionId))
+      return next(new ErrorHandler("Forbidden: wrong session", 403));
 
     const docs = await PollResponse.find({ pollId, runId })
       .sort({ submittedAt: 1 })
