@@ -326,7 +326,36 @@ export default function Meeting() {
       try {
         const res = await api.get(`/api/v1/sessions/${sessionId}`);
         const sess = res.data?.data;
-        if (sess && sess.projectId) setSessionProjectId(String(sess.projectId));
+        if (sess) {
+          const raw =
+            (sess as { projectId?: unknown; project?: unknown }).projectId ||
+            (sess as { project?: unknown }).project;
+          const extractId = (v: unknown): string | null => {
+            if (!v) return null;
+            if (typeof v === "string") return v;
+            if (typeof v === "object") {
+              const obj = v as { _id?: unknown; toString?: () => string };
+              if (typeof obj._id === "string") return obj._id;
+              if (
+                obj._id &&
+                typeof (obj._id as { toString?: () => string }).toString ===
+                  "function"
+              ) {
+                const s = String(
+                  (obj._id as { toString?: () => string }).toString?.()
+                );
+                if (s && s !== "[object Object]") return s;
+              }
+              if (typeof obj.toString === "function") {
+                const s = obj.toString();
+                if (s && s !== "[object Object]") return s;
+              }
+            }
+            return null;
+          };
+          const pid = extractId(raw);
+          if (pid) setSessionProjectId(pid);
+        }
       } catch {
         // ignore
       }
@@ -737,10 +766,12 @@ export default function Meeting() {
                 sessionId={String(sessionId)}
               />
               <ModeratorWaitingPanel />
-              {/* Polls: participant or host */}
-              <div className="mt-2">
-                <ActivePoll sessionId={String(sessionId)} user={user} />
-              </div>
+              {/* Polls: participant view only */}
+              {(role as UiRole) === "participant" && (
+                <div className="mt-2">
+                  <ActivePoll sessionId={String(sessionId)} user={user} />
+                </div>
+              )}
               {(role as UiRole) === "participant" && (
                 <div className="mt-2">
                   <ParticipantChatPanel
@@ -750,14 +781,15 @@ export default function Meeting() {
                   />
                 </div>
               )}
-              {(role === "admin" || role === "moderator") && (
-                <div className="mt-4">
-                  <PollsPanel
-                    projectId={sessionProjectId || String(sessionId)}
-                    sessionId={String(sessionId)}
-                  />
-                </div>
-              )}
+              {(role === "admin" || role === "moderator") &&
+                sessionProjectId && (
+                  <div className="mt-4">
+                    <PollsPanel
+                      projectId={sessionProjectId}
+                      sessionId={String(sessionId)}
+                    />
+                  </div>
+                )}
               <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
             </div>
           </aside>

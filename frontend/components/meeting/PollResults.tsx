@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-// Option value can be a string/number or nested for matching/rank types
-type OptionValue = string | number | Array<string | number | [number, number]>;
-type OptionCount = { value: OptionValue; count: number };
+// Option value may be string/number or structured; treat as unknown from API
+type OptionCount = { value: unknown; count: number };
 
 export default function PollResults({
   aggregate,

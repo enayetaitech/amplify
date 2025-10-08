@@ -16,6 +16,7 @@ import socketLib from "lib/socket";
 import api from "lib/api";
 import { toast } from "sonner";
 import { IPoll, PollQuestion } from "@shared/interface/PollInterface";
+import PollResults from "./PollResults";
 
 type PollRun = {
   _id: string;
@@ -50,6 +51,10 @@ export default function ActivePoll({
     Record<string, boolean>
   >({});
   const [localAnswers, setLocalAnswers] = useState<Record<string, unknown>>({});
+  const [resultsMapping, setResultsMapping] = useState<Record<
+    string,
+    { total: number; counts: { value: unknown; count: number }[] }
+  > | null>(null);
 
   useEffect(() => {
     // connect socket
@@ -60,8 +65,35 @@ export default function ActivePoll({
       email: user?.email,
     });
 
-    const onStarted = () => refetch();
+    const onStarted = () => {
+      refetch();
+      setResultsMapping(null);
+    };
     const onStopped = () => refetch();
+    const onResults = (payload: unknown) => {
+      try {
+        if (typeof payload !== "object" || payload === null) return;
+        const pl = payload as {
+          pollId?: string;
+          runId?: string;
+          aggregates?: Record<
+            string,
+            { total: number; counts: { value: unknown; count: number }[] }
+          >;
+        };
+        if (!pl.pollId) return;
+        const currentPollId = (data as { poll?: IPoll }).poll?._id;
+        if (!currentPollId) return;
+        if (pl.pollId !== currentPollId) return;
+        if (!pl.aggregates) return;
+        setResultsMapping(
+          pl.aggregates as Record<
+            string,
+            { total: number; counts: { value: unknown; count: number }[] }
+          >
+        );
+      } catch {}
+    };
     const onAck = (p: unknown) => {
       if (
         typeof p === "object" &&
@@ -76,11 +108,13 @@ export default function ActivePoll({
     socketLib.on("poll:started", onStarted);
     socketLib.on("poll:stopped", onStopped);
     socketLib.on("poll:submission:ack", onAck as (...args: unknown[]) => void);
+    socketLib.on("poll:results", onResults as (...args: unknown[]) => void);
 
     return () => {
       socketLib.off("poll:started", onStarted);
       socketLib.off("poll:stopped", onStopped);
       socketLib.off("poll:submission:ack", onAck);
+      socketLib.off("poll:results", onResults as (...args: unknown[]) => void);
       socketLib.disconnectSocket();
     };
   }, [
@@ -90,10 +124,12 @@ export default function ActivePoll({
     user?.name,
     user?.email,
     refetch,
+    data,
   ]);
 
   if (!data) return null;
-  const { poll, run } = data as { poll?: IPoll; run?: PollRun };
+  const poll = (data as { poll?: IPoll })?.poll as IPoll | undefined;
+  const run = (data as { run?: PollRun })?.run as PollRun | undefined;
   if (!poll || !run) return null;
 
   const canSubmit = !submittedRunIds[String(run._id)];
@@ -117,6 +153,18 @@ export default function ActivePoll({
     <div className="p-4 bg-white rounded shadow">
       <h3 className="font-semibold text-lg">{poll.title}</h3>
       <p className="text-sm text-gray-500">Run #{run.runNumber}</p>
+
+      {/* Participant-shared results (shown when server emits poll:results) */}
+      {resultsMapping && (
+        <div className="mt-4 mb-4 border rounded p-3 bg-gray-50">
+          {poll.questions.map((q: PollQuestion) => (
+            <div key={q._id} className="mb-4">
+              <div className="font-medium mb-2">{q.prompt}</div>
+              <PollResults aggregate={resultsMapping[q._id]} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* TODO: render question components per type; for now show placeholder */}
       <div className="mt-4 space-y-3">

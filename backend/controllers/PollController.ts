@@ -285,7 +285,7 @@ export const launchPoll = async (req: any, res: any, next: any) => {
     if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
     const { sessionId, settings } = parsed.data;
 
-    const { pollId } = req.params;
+    const pollId = String(req.params.id);
     const { poll, run } = await pollService.launchPoll(
       pollId,
       sessionId,
@@ -319,7 +319,7 @@ export const stopPoll = async (req: any, res: any, next: any) => {
     if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
     const { sessionId } = parsed.data;
 
-    const { pollId } = req.params;
+    const pollId = String(req.params.id);
     const { run, aggregates } = await pollService.stopPoll(pollId, sessionId);
 
     // Emit poll stopped
@@ -349,7 +349,7 @@ export const respondToPoll = async (req: any, res: any, next: any) => {
     if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
     const { sessionId, runId, answers } = parsed.data;
 
-    const { pollId } = req.params;
+    const pollId = String(req.params.id);
 
     // derive responder info from req.user if exists, else from body (allow anonymous)
     const user = (req as any).user as any | undefined;
