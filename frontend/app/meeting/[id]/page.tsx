@@ -58,6 +58,7 @@ import {
 declare global {
   interface Window {
     __meetingSocket?: Socket;
+    currentMeetingSessionId?: string;
   }
 }
 import {
@@ -383,7 +384,7 @@ export default function Meeting() {
     });
     socketRef.current = s;
     try {
-      (window as any).currentMeetingSessionId = String(sessionId);
+      window.currentMeetingSessionId = String(sessionId);
     } catch {}
     window.__meetingSocket = s;
     s.on("observer:count", (p: { count?: number }) => {
