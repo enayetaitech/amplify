@@ -166,24 +166,29 @@ export default function ActivePoll({
         </div>
       )}
 
-      {/* TODO: render question components per type; for now show placeholder */}
+      {/* Render question components per type with a single Submit All at bottom */}
       <div className="mt-4 space-y-3">
         {poll.questions.map((q: PollQuestion, idx: number) => (
           <div key={q._id} className="border p-3 rounded">
             <div className="font-medium">
               {idx + 1}. {q.prompt}
             </div>
-            {/* SINGLE_CHOICE (immediate submit) */}
+            {/* SINGLE_CHOICE */}
             {q.type === "SINGLE_CHOICE" && (
-              <div className="mt-2 flex flex-col gap-2">
+              <div className="mt-2 space-y-2">
                 {q.answers.map((a: string, i: number) => (
-                  <Button
-                    key={i}
-                    disabled={!canSubmit}
-                    onClick={() => onSubmit([{ questionId: q._id, value: i }])}
-                  >
-                    {a}
-                  </Button>
+                  <label key={i} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name={`single-${q._id}`}
+                      disabled={!canSubmit}
+                      onChange={() =>
+                        setLocalAnswers((s) => ({ ...s, [q._id]: i }))
+                      }
+                      checked={Number(localAnswers[q._id]) === i}
+                    />
+                    <span>{a}</span>
+                  </label>
                 ))}
               </div>
             )}
@@ -216,21 +221,6 @@ export default function ActivePoll({
                     </label>
                   );
                 })}
-                <div className="mt-2">
-                  <Button
-                    onClick={() =>
-                      onSubmit([
-                        {
-                          questionId: q._id,
-                          value: (localAnswers[q._id] as number[]) || [],
-                        },
-                      ])
-                    }
-                    disabled={!canSubmit}
-                  >
-                    Submit
-                  </Button>
-                </div>
               </div>
             )}
 
@@ -261,21 +251,6 @@ export default function ActivePoll({
                     disabled={!canSubmit}
                   />
                 )}
-                <div className="mt-2">
-                  <Button
-                    onClick={() =>
-                      onSubmit([
-                        {
-                          questionId: q._id,
-                          value: (localAnswers[q._id] as string) || "",
-                        },
-                      ])
-                    }
-                    disabled={!canSubmit}
-                  >
-                    Submit
-                  </Button>
-                </div>
               </div>
             )}
 
@@ -304,21 +279,6 @@ export default function ActivePoll({
                     disabled={!canSubmit}
                   />
                 ))}
-                <div className="mt-2">
-                  <Button
-                    onClick={() =>
-                      onSubmit([
-                        {
-                          questionId: q._id,
-                          value: (localAnswers[q._id] as string[]) || [],
-                        },
-                      ])
-                    }
-                    disabled={!canSubmit}
-                  >
-                    Submit
-                  </Button>
-                </div>
               </div>
             )}
 
@@ -352,21 +312,6 @@ export default function ActivePoll({
                     </Select>
                   </div>
                 ))}
-                <div className="mt-2">
-                  <Button
-                    onClick={() => {
-                      const map =
-                        (localAnswers[q._id] as Record<number, number>) || {};
-                      const pairs: Array<[number, number]> = Object.keys(
-                        map
-                      ).map((k) => [Number(k), map[Number(k)]]);
-                      onSubmit([{ questionId: q._id, value: pairs }]);
-                    }}
-                    disabled={!canSubmit}
-                  >
-                    Submit
-                  </Button>
-                </div>
               </div>
             )}
 
@@ -411,19 +356,6 @@ export default function ActivePoll({
                     ))}
                   </tbody>
                 </table>
-                <div className="mt-2">
-                  <Button
-                    onClick={() => {
-                      const map =
-                        (localAnswers[q._id] as Record<number, number>) || {};
-                      const arr = q.rows.map((_, i) => map[i] ?? null);
-                      onSubmit([{ questionId: q._id, value: arr }]);
-                    }}
-                    disabled={!canSubmit}
-                  >
-                    Submit
-                  </Button>
-                </div>
               </div>
             )}
 
@@ -458,32 +390,70 @@ export default function ActivePoll({
                     }
                   )}
                 </div>
-                <div className="mt-2">
-                  <Button
-                    onClick={() => {
-                      const ratingValue = localAnswers[q._id] as
-                        | number
-                        | undefined;
-                      if (ratingValue === undefined) {
-                        toast.error("Please select a rating");
-                        return;
-                      }
-                      onSubmit([
-                        {
-                          questionId: q._id,
-                          value: ratingValue,
-                        },
-                      ]);
-                    }}
-                    disabled={!canSubmit}
-                  >
-                    Submit
-                  </Button>
-                </div>
               </div>
             )}
           </div>
         ))}
+        {/* Submit all answers */}
+        <div className="pt-2">
+          <Button
+            onClick={() => {
+              if (!canSubmit) return;
+              const answers: Answer[] = [];
+              for (const q of poll.questions as PollQuestion[]) {
+                const v = (localAnswers as Record<string, unknown>)[q._id];
+                if (q.type === "SINGLE_CHOICE") {
+                  if (typeof v === "number")
+                    answers.push({ questionId: q._id, value: v });
+                } else if (q.type === "MULTIPLE_CHOICE") {
+                  if (Array.isArray(v) && (v as unknown[]).length > 0)
+                    answers.push({ questionId: q._id, value: v as number[] });
+                } else if (
+                  q.type === "SHORT_ANSWER" ||
+                  q.type === "LONG_ANSWER"
+                ) {
+                  if (typeof v === "string" && v.trim().length > 0)
+                    answers.push({ questionId: q._id, value: v });
+                } else if (q.type === "FILL_IN_BLANK") {
+                  if (
+                    Array.isArray(v) &&
+                    (v as unknown[]).some(
+                      (s) =>
+                        typeof s === "string" && (s as string).trim().length > 0
+                    )
+                  )
+                    answers.push({ questionId: q._id, value: v as string[] });
+                } else if (q.type === "MATCHING") {
+                  const map = (v as Record<number, number>) || {};
+                  const pairs: Array<[number, number]> = Object.keys(map).map(
+                    (k) => [Number(k), map[Number(k)]]
+                  );
+                  if (pairs.length > 0)
+                    answers.push({ questionId: q._id, value: pairs });
+                } else if (q.type === "RANK_ORDER") {
+                  const map = (v as Record<number, number>) || {};
+                  const arr = q.rows.map((_, i) => map[i] ?? null);
+                  if (arr.some((x) => x !== null))
+                    answers.push({
+                      questionId: q._id,
+                      value: arr as unknown as number[],
+                    });
+                } else if (q.type === "RATING_SCALE") {
+                  if (typeof v === "number")
+                    answers.push({ questionId: q._id, value: v });
+                }
+              }
+              if (answers.length === 0) {
+                toast.error("Please answer at least one question");
+                return;
+              }
+              onSubmit(answers);
+            }}
+            disabled={!canSubmit}
+          >
+            Submit All
+          </Button>
+        </div>
       </div>
     </div>
   );

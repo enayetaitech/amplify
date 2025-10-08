@@ -10,6 +10,7 @@ import {
   launchPoll,
   stopPoll,
   respondToPoll,
+  getPollResults,
 } from "../../controllers/PollController";
 import { uploadImage } from "../../utils/multer";
 import { authenticateJwt } from "../../middlewares/authenticateJwt";
@@ -63,6 +64,15 @@ router.post(
 
 // Participant responds to poll (may be anonymous)
 router.post("/:id/respond", catchError(respondToPoll));
+
+// GET poll results for a specific run (host/moderator)
+router.get(
+  "/:id/results",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(getPollResults)
+);
 
 /* DELETE /api/v1/polls/:id  – Delete a  poll */
 router.delete("/:id", authenticateJwt, catchError(deletePoll));

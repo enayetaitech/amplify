@@ -7,6 +7,7 @@ import { validateQuestion } from "../processors/poll/QuestionValidationProcessor
 import { uploadToS3 } from "../utils/uploadToS3";
 import * as pollService from "../processors/poll/pollService";
 import { emitToRoom } from "../socket/bus";
+import { PollRunModel } from "../model/PollRun";
 import { zLaunchPayload, zStopPayload, zRespondPayload } from "../schemas/poll";
 
 /* ───────────────────────────────────────────────────────────── */
@@ -384,9 +385,36 @@ export const respondToPoll = async (req: any, res: any, next: any) => {
         runId,
         aggregates,
       });
+      // if shareResults is immediate, also broadcast to participants
+      try {
+        const runDoc = await PollRunModel.findById(runId).lean();
+        if (runDoc && runDoc.shareResults === "immediate") {
+          emitToRoom(String(sessionId), "poll:results", {
+            pollId,
+            runId,
+            aggregates,
+          });
+        }
+      } catch {}
     } catch {}
 
     sendResponse(res, { ok: true }, "Response saved", 201);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * GET /api/v1/polls/:id/results?runId=...
+ * Returns aggregated results for a given poll run. Host/moderator only.
+ */
+export const getPollResults = async (req: any, res: any, next: any) => {
+  try {
+    const pollId = String(req.params.id);
+    const runId = String(req.query.runId || "");
+    if (!runId) return next(new ErrorHandler("runId required", 400));
+    const aggregates = await pollService.aggregateResults(pollId, runId);
+    sendResponse(res, aggregates, "Results fetched", 200);
   } catch (e: any) {
     next(new ErrorHandler(e?.message || "internal_error", 500));
   }

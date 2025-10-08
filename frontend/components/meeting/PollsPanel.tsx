@@ -114,6 +114,10 @@ export default function PollsPanel({
     runId: string;
   } | null>(null);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
+  // track latest runId per poll, even after stop
+  const [latestRunByPoll, setLatestRunByPoll] = useState<
+    Record<string, string>
+  >({});
 
   // fetch current active poll for session
   React.useEffect(() => {
@@ -135,16 +139,37 @@ export default function PollsPanel({
     if (socket && typeof socket === "object") {
       const onStarted = (p: unknown) => {
         if (typeof p === "object" && p !== null) {
-          const pp = p as { poll?: { _id?: string }; run?: { _id?: string } };
-          if (pp.run && pp.poll) {
-            setActiveRunInfo({
-              pollId: String(pp.poll._id),
-              runId: String(pp.run._id),
-            });
+          const pp = p as {
+            poll?: { _id?: string } | undefined;
+            run?: { _id?: string } | undefined;
+          };
+          if (
+            pp &&
+            typeof pp === "object" &&
+            (pp as { poll?: unknown }).poll &&
+            (pp as { run?: unknown }).run &&
+            (pp as { poll: { _id?: unknown } }).poll._id &&
+            (pp as { run: { _id?: unknown } }).run._id
+          ) {
+            const pollId = String((pp.poll as { _id?: string })._id as string);
+            const runId = String((pp.run as { _id?: string })._id as string);
+            setActiveRunInfo({ pollId, runId });
+            setLatestRunByPoll((s) => ({ ...s, [pollId]: runId }));
           }
         }
       };
-      const onStopped = () => setActiveRunInfo(null);
+      const onStopped = (p: unknown) => {
+        setActiveRunInfo(null);
+        if (typeof p === "object" && p !== null) {
+          const pp = p as { pollId?: string; runId?: string };
+          if (pp.pollId && pp.runId) {
+            setLatestRunByPoll((s) => ({
+              ...s,
+              [pp.pollId as string]: String(pp.runId),
+            }));
+          }
+        }
+      };
       try {
         (
           socket as {
@@ -269,7 +294,9 @@ export default function PollsPanel({
       <div className="space-y-2">
         {(polls || []).map((p: IPoll) => {
           const isActive = activeRunInfo?.pollId === p._id;
-          const runId = isActive ? activeRunInfo?.runId ?? null : null;
+          const runId = isActive
+            ? activeRunInfo?.runId ?? null
+            : latestRunByPoll[p._id] ?? null;
           return (
             <div key={p._id} className="border p-2 rounded">
               <div className="flex items-center justify-between">
@@ -298,7 +325,7 @@ export default function PollsPanel({
                     onClick={() =>
                       setOpenResults((s) => ({ ...s, [p._id]: !s[p._id] }))
                     }
-                    disabled={!isActive && !openResults[p._id]}
+                    disabled={!runId && !openResults[p._id]}
                   >
                     {openResults[p._id] ? "Hide results" : "View results"}
                   </Button>
