@@ -56,7 +56,10 @@ function PollResultsWrapper({
       {questions.map((quest) => (
         <div key={quest._id} className="border p-2 rounded">
           <div className="font-medium mb-2">{quest.prompt}</div>
-          <PollResults aggregate={mapping ? mapping[quest._id] : undefined} />
+          <PollResults
+            aggregate={mapping ? mapping[quest._id] : undefined}
+            question={quest as PollQuestion}
+          />
         </div>
       ))}
       {/* Host-only: respondents list (if not anonymous) */}

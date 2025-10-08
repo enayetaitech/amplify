@@ -190,7 +190,7 @@ export default function ActivePoll({
           {poll.questions.map((q: PollQuestion) => (
             <div key={q._id} className="mb-4">
               <div className="font-medium mb-2">{q.prompt}</div>
-              <PollResults aggregate={resultsMapping[q._id]} />
+              <PollResults aggregate={resultsMapping[q._id]} question={q} />
             </div>
           ))}
         </div>
