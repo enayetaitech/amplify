@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "lib/api";
 import { Button } from "components/ui/button";
-import { IPoll } from "@shared/interface/PollInterface";
+import { IPoll, PollQuestion } from "@shared/interface/PollInterface";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,8 @@ import {
 import { toast } from "sonner";
 import PollResults from "./PollResults";
 import usePollResults from "hooks/usePollResults";
+import usePollRuns from "hooks/usePollRuns";
+import usePollResponses from "hooks/usePollResponses";
 
 function PollResultsWrapper({
   pollId,
@@ -30,7 +32,7 @@ function PollResultsWrapper({
 }: {
   pollId: string;
   runId: string | null;
-  questions: { _id: string; prompt?: string }[];
+  questions: PollQuestion[];
 }) {
   const q = usePollResults(pollId, runId);
   if (!runId) return <div className="text-sm text-gray-500">No active run</div>;
@@ -52,6 +54,40 @@ function PollResultsWrapper({
           <PollResults aggregate={mapping ? mapping[quest._id] : undefined} />
         </div>
       ))}
+      {/* Host-only: respondents list (if not anonymous) */}
+      {/* This is a lightweight preview: first 10 responses */}
+      {/* For a full list UI, we could expand to a modal later */}
+    </div>
+  );
+}
+
+function RunSelector({
+  pollId,
+  currentRunId,
+  onChange,
+}: {
+  pollId: string;
+  currentRunId: string | null;
+  onChange: (runId: string | null) => void;
+}) {
+  const { data } = usePollRuns(pollId);
+  const runs = data || [];
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-sm text-gray-600">Run:</div>
+      <select
+        className="border rounded px-2 py-1 text-sm"
+        value={currentRunId || ""}
+        onChange={(e) => onChange(e.target.value || null)}
+      >
+        <option value="">Select run</option>
+        {runs.map((r) => (
+          <option
+            key={r._id}
+            value={r._id}
+          >{`#${r.runNumber} (${r.status})`}</option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -117,6 +153,9 @@ export default function PollsPanel({
   // track latest runId per poll, even after stop
   const [latestRunByPoll, setLatestRunByPoll] = useState<
     Record<string, string>
+  >({});
+  const [openRespondents, setOpenRespondents] = useState<
+    Record<string, boolean>
   >({});
 
   // fetch current active poll for session
@@ -307,7 +346,14 @@ export default function PollsPanel({
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <RunSelector
+                    pollId={p._id}
+                    currentRunId={runId}
+                    onChange={(rid) =>
+                      setLatestRunByPoll((s) => ({ ...s, [p._id]: rid || "" }))
+                    }
+                  />
                   <Button
                     onClick={() => {
                       setSelectedPoll(p._id);
@@ -329,6 +375,20 @@ export default function PollsPanel({
                   >
                     {openResults[p._id] ? "Hide results" : "View results"}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      setOpenRespondents((s) => ({
+                        ...s,
+                        [p._id]: !s[p._id],
+                      }))
+                    }
+                    disabled={!runId && !openRespondents[p._id]}
+                  >
+                    {openRespondents[p._id]
+                      ? "Hide respondents"
+                      : "Show respondents"}
+                  </Button>
                 </div>
               </div>
 
@@ -337,16 +397,117 @@ export default function PollsPanel({
                   <PollResultsWrapper
                     pollId={p._id}
                     runId={runId}
-                    questions={p.questions.map((q) => ({
-                      _id: q._id,
-                      prompt: q.prompt,
-                    }))}
+                    questions={p.questions as unknown as PollQuestion[]}
+                  />
+                </div>
+              )}
+
+              {openRespondents[p._id] && (
+                <div className="mt-3">
+                  <RespondentsWrapper
+                    pollId={p._id}
+                    runId={runId}
+                    questions={p.questions as unknown as PollQuestion[]}
                   />
                 </div>
               )}
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function RespondentsWrapper({
+  pollId,
+  runId,
+  questions,
+}: {
+  pollId: string;
+  runId: string | null;
+  questions: PollQuestion[];
+}) {
+  const q = usePollResponses(pollId, runId);
+  if (!runId)
+    return <div className="text-sm text-gray-500">No run selected</div>;
+  if (q.isLoading)
+    return <div className="text-sm text-gray-500">Loading respondents…</div>;
+  const data = q.data as
+    | {
+        run?: { anonymous?: boolean };
+        responses?: {
+          responder?: { name?: string; email?: string };
+          answers: { questionId: string; value?: unknown }[];
+          submittedAt: string;
+        }[];
+      }
+    | undefined;
+  const anonym =
+    !!data?.run && (data!.run as { anonymous?: boolean }).anonymous === true;
+  const responses = (data?.responses || []).slice(0, 20);
+  const qById = new Map(questions.map((q) => [q._id, q]));
+  return (
+    <div className="space-y-2">
+      <div className="text-sm text-gray-600">
+        {anonym
+          ? "Anonymous run – identities hidden"
+          : "Respondents (first 20)"}
+      </div>
+      <div className="border rounded divide-y">
+        {responses.map((r, idx) => (
+          <div key={idx} className="p-2">
+            {!anonym && (
+              <div className="text-sm font-medium">
+                {r.responder?.name || "Unnamed"} – {r.responder?.email || ""}
+              </div>
+            )}
+            <div className="text-xs text-gray-600 mt-1">
+              {questions.map((qdef) => {
+                const ans = r.answers.find((a) => a.questionId === qdef._id);
+                let label: string = "";
+                const v = ans?.value as unknown;
+                const def = qById.get(qdef._id);
+                if (def && def.type === "SINGLE_CHOICE") {
+                  const chosen = typeof v === "number" ? v : null;
+                  const correct = (
+                    def as Extract<PollQuestion, { type: "SINGLE_CHOICE" }>
+                  ).correctAnswer;
+                  label =
+                    chosen === null
+                      ? "—"
+                      : chosen === correct
+                      ? "Correct"
+                      : "Wrong";
+                } else if (def && def.type === "MULTIPLE_CHOICE") {
+                  const chosen = Array.isArray(v) ? (v as number[]) : [];
+                  const correctArr =
+                    (def as Extract<PollQuestion, { type: "MULTIPLE_CHOICE" }>)
+                      .correctAnswers || [];
+                  const setA = new Set(chosen);
+                  const setB = new Set(correctArr);
+                  const eq =
+                    setA.size === setB.size &&
+                    [...setA].every((x) => setB.has(x));
+                  label = chosen.length === 0 ? "—" : eq ? "Correct" : "Wrong";
+                } else {
+                  // fallback: echo value for non-graded types
+                  if (Array.isArray(v)) label = JSON.stringify(v);
+                  else if (typeof v === "object" && v !== null)
+                    label = JSON.stringify(v as object);
+                  else if (v === undefined || v === null) label = "";
+                  else label = String(v);
+                }
+                return (
+                  <div key={qdef._id}>
+                    <span className="font-semibold">{qdef.prompt}:</span>{" "}
+                    {label || "—"}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

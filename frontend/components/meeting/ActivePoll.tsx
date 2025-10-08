@@ -136,10 +136,40 @@ export default function ActivePoll({
 
   const onSubmit = async (answers: Answer[]) => {
     try {
+      // capture participant identity from either authenticated user or local storage fallback
+      let localName: string | undefined;
+      let localEmail: string | undefined;
+      try {
+        const raw =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem("liveSessionUser")
+            : null;
+        if (raw) {
+          const obj = JSON.parse(raw || "{}");
+          if (obj && typeof obj === "object") {
+            localName = (obj as { name?: string }).name;
+            localEmail = (obj as { email?: string }).email as
+              | string
+              | undefined;
+          }
+        }
+      } catch {}
+      const maybeResponder =
+        run.anonymous === true
+          ? undefined
+          : {
+              name: (user?.firstName || user?.name || localName) as
+                | string
+                | undefined,
+              email: ((user?.email as string | undefined) || localEmail) as
+                | string
+                | undefined,
+            };
       await api.post(`/api/v1/polls/${(poll as IPoll)._id}/respond`, {
         sessionId,
         runId: run._id,
         answers,
+        ...(maybeResponder ? { responder: maybeResponder } : {}),
       });
       toast.success("Response recorded");
       setSubmittedRunIds((s) => ({ ...s, [run._id]: true }));

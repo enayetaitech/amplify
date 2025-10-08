@@ -8,6 +8,8 @@ import { uploadToS3 } from "../utils/uploadToS3";
 import * as pollService from "../processors/poll/pollService";
 import { emitToRoom } from "../socket/bus";
 import { PollRunModel } from "../model/PollRun";
+import PollResponse from "../model/PollResponse";
+import { LiveSessionModel } from "../model/LiveSessionModel";
 import { zLaunchPayload, zStopPayload, zRespondPayload } from "../schemas/poll";
 
 /* ───────────────────────────────────────────────────────────── */
@@ -385,6 +387,17 @@ export const respondToPoll = async (req: any, res: any, next: any) => {
         runId,
         aggregates,
       });
+      // lightweight debug log for identity capture
+      try {
+        const idStr =
+          responder?.userId ||
+          responder?.email ||
+          responder?.name ||
+          "anonymous";
+        console.log(
+          `[poll:respond] pollId=${pollId} runId=${runId} from=${idStr}`
+        );
+      } catch {}
       // if shareResults is immediate, also broadcast to participants
       try {
         const runDoc = await PollRunModel.findById(runId).lean();
@@ -415,6 +428,87 @@ export const getPollResults = async (req: any, res: any, next: any) => {
     if (!runId) return next(new ErrorHandler("runId required", 400));
     const aggregates = await pollService.aggregateResults(pollId, runId);
     sendResponse(res, aggregates, "Results fetched", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * GET /api/v1/polls/:id/runs
+ * List runs for a poll (newest first)
+ */
+export const getPollRuns = async (req: any, res: any, next: any) => {
+  try {
+    const pollId = String(req.params.id);
+    const runs = await PollRunModel.find({ pollId })
+      .sort({ runNumber: -1 })
+      .lean();
+    sendResponse(res, runs, "Runs fetched", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * GET /api/v1/polls/:id/responses?runId=...
+ * Host-only: returns raw responses (omits identities if anonymous)
+ */
+export const getPollResponses = async (req: any, res: any, next: any) => {
+  try {
+    const pollId = String(req.params.id);
+    const runId = String(req.query.runId || "");
+    if (!runId) return next(new ErrorHandler("runId required", 400));
+
+    const run = await PollRunModel.findById(runId).lean();
+    if (!run || String(run.pollId) !== String(pollId))
+      return next(new ErrorHandler("Run not found", 404));
+
+    const docs = await PollResponse.find({ pollId, runId })
+      .sort({ submittedAt: 1 })
+      .lean();
+    let data:
+      | {
+          responder?: { name?: string; email?: string };
+          answers: any[];
+          submittedAt: Date;
+        }[]
+      | { answers: any[]; submittedAt: Date }[] = [];
+    if (run.anonymous) {
+      data = docs.map((d) => ({
+        answers: d.answers,
+        submittedAt: d.submittedAt,
+      }));
+    } else {
+      // Enhance with name/email using LiveSession participants list if missing
+      let live: any = null;
+      try {
+        live = await LiveSessionModel.findOne({
+          sessionId: run.sessionId,
+        }).lean();
+      } catch {}
+      data = docs.map((d) => {
+        let name = d?.responder?.name;
+        let email = d?.responder?.email;
+        if ((!name || !email) && live && Array.isArray(live.participantsList)) {
+          const found = (live.participantsList as any[]).find(
+            (p) =>
+              p?.email &&
+              d?.responder?.email &&
+              String(p.email) === String(d.responder?.email)
+          );
+          if (found) {
+            name = name || found.name;
+            email = email || found.email;
+          }
+        }
+        return {
+          responder: { name, email },
+          answers: d.answers,
+          submittedAt: d.submittedAt,
+        };
+      });
+    }
+    sendResponse(res, { run, responses: data }, "Responses fetched", 200);
   } catch (e: any) {
     next(new ErrorHandler(e?.message || "internal_error", 500));
   }

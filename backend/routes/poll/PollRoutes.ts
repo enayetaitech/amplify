@@ -11,6 +11,8 @@ import {
   stopPoll,
   respondToPoll,
   getPollResults,
+  getPollRuns,
+  getPollResponses,
 } from "../../controllers/PollController";
 import { uploadImage } from "../../utils/multer";
 import { authenticateJwt } from "../../middlewares/authenticateJwt";
@@ -72,6 +74,24 @@ router.get(
   authorizeRoles("Admin", "Moderator"),
   authorizeProjectSessionOwner,
   catchError(getPollResults)
+);
+
+// List runs of a poll
+router.get(
+  "/:id/runs",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(getPollRuns)
+);
+
+// Raw responses (host-only). Omits identities if anonymous
+router.get(
+  "/:id/responses",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(getPollResponses)
 );
 
 /* DELETE /api/v1/polls/:id  – Delete a  poll */
