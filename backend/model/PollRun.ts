@@ -9,6 +9,8 @@ export interface PollRunDoc extends Document<Types.ObjectId> {
   closedAt?: Date;
   anonymous: boolean;
   shareResults: "never" | "onStop" | "immediate";
+  // timestamp when host explicitly shared results for this run
+  sharedAt?: Date;
   timeLimitSec?: number;
 }
 
@@ -26,6 +28,7 @@ const PollRunSchema = new Schema<PollRunDoc>(
       enum: ["never", "onStop", "immediate"],
       default: "onStop",
     },
+    sharedAt: { type: Date },
     timeLimitSec: { type: Number },
   },
   { timestamps: true }

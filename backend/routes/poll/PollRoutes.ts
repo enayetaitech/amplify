@@ -13,6 +13,7 @@ import {
   getPollResults,
   getPollRuns,
   getPollResponses,
+  sharePollResults,
 } from "../../controllers/PollController";
 import { uploadImage } from "../../utils/multer";
 import { authenticateJwt } from "../../middlewares/authenticateJwt";
@@ -62,6 +63,15 @@ router.post(
   authorizeRoles("Admin", "Moderator"),
   authorizeProjectSessionOwner,
   catchError(stopPoll)
+);
+
+// Explicitly share results for a closed run (host only)
+router.post(
+  "/:id/share",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(sharePollResults)
 );
 
 // Participant responds to poll (may be anonymous)

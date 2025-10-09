@@ -149,12 +149,28 @@ export default function PollsPanel({
     },
   });
 
+  const shareMutation = useMutation({
+    mutationFn: (vars: { pollId: string; runId: string }) =>
+      api
+        .post(`/api/v1/polls/${vars.pollId}/share`, {
+          sessionId,
+          runId: vars.runId,
+        })
+        .then((r) => r.data),
+    onSuccess: () => {
+      toast.success("Results shared");
+      qc.invalidateQueries({ queryKey: ["active-poll", sessionId] });
+      qc.invalidateQueries({ queryKey: ["poll-runs"] });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Share failed";
+      toast.error(msg);
+    },
+  });
+
   const [openLaunch, setOpenLaunch] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<string | null>(null);
   const [anon, setAnon] = useState(false);
-  const [share, setShare] = useState<"never" | "onStop" | "immediate">(
-    "onStop"
-  );
   const [activeRunInfo, setActiveRunInfo] = useState<{
     pollId: string;
     runId: string;
@@ -267,7 +283,7 @@ export default function PollsPanel({
       pollId: selectedPoll,
       payload: {
         sessionId,
-        settings: { anonymous: anon, shareResults: share },
+        settings: { anonymous: anon },
       },
     });
     setOpenLaunch(false);
@@ -311,23 +327,7 @@ export default function PollsPanel({
                 />
               </label>
 
-              <label className="block">
-                <div className="text-sm">Share results</div>
-                <Select
-                  onValueChange={(v: string) =>
-                    setShare(v as "never" | "onStop" | "immediate")
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="never">Never</SelectItem>
-                    <SelectItem value="onStop">On Stop</SelectItem>
-                    <SelectItem value="immediate">Immediate</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
+              {/* Share results option removed at launch by design */}
 
               <div className="flex justify-end gap-2">
                 <Button onClick={onLaunch}>Launch</Button>
@@ -356,50 +356,74 @@ export default function PollsPanel({
                   </div>
                 </div>
 
-                <div className="flex gap-2 items-center">
-                  <RunSelector
-                    pollId={p._id}
-                    currentRunId={runId}
-                    sessionId={sessionId}
-                    onChange={(rid) =>
-                      setLatestRunByPoll((s) => ({ ...s, [p._id]: rid || "" }))
-                    }
-                  />
-                  <Button
-                    onClick={() => {
-                      setSelectedPoll(p._id);
-                      setOpenLaunch(true);
-                    }}
-                    disabled={!!activeRunInfo}
-                  >
-                    Launch
-                  </Button>
-                  <Button onClick={() => stopMutation.mutate(p._id)}>
-                    Stop
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      setOpenResults((s) => ({ ...s, [p._id]: !s[p._id] }))
-                    }
-                    disabled={!runId && !openResults[p._id]}
-                  >
-                    {openResults[p._id] ? "Hide results" : "View results"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      setOpenRespondents((s) => ({
-                        ...s,
-                        [p._id]: !s[p._id],
-                      }))
-                    }
-                    disabled={!runId && !openRespondents[p._id]}
-                  >
-                    {openRespondents[p._id]
-                      ? "Hide respondents"
-                      : "Show respondents"}
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 items-center">
+                    <RunSelector
+                      pollId={p._id}
+                      currentRunId={runId}
+                      sessionId={sessionId}
+                      onChange={(rid) =>
+                        setLatestRunByPoll((s) => ({
+                          ...s,
+                          [p._id]: rid || "",
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="flex gap-2 items-center">
+                      <Button
+                        onClick={() => {
+                          setSelectedPoll(p._id);
+                          setOpenLaunch(true);
+                        }}
+                        disabled={!!activeRunInfo}
+                      >
+                        Launch
+                      </Button>
+                      <Button onClick={() => stopMutation.mutate(p._id)}>
+                        Stop
+                      </Button>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          setOpenResults((s) => ({ ...s, [p._id]: !s[p._id] }))
+                        }
+                        disabled={!runId && !openResults[p._id]}
+                      >
+                        {openResults[p._id] ? "Hide results" : "View results"}
+                      </Button>
+                      {!isActive && runId && (
+                        <Button
+                          onClick={() =>
+                            shareMutation.mutate({
+                              pollId: p._id,
+                              runId: runId!,
+                            })
+                          }
+                          disabled={shareMutation.status === "pending"}
+                        >
+                          Share results
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          setOpenRespondents((s) => ({
+                            ...s,
+                            [p._id]: !s[p._id],
+                          }))
+                        }
+                        disabled={!runId && !openRespondents[p._id]}
+                      >
+                        {openRespondents[p._id]
+                          ? "Hide respondents"
+                          : "Show respondents"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
 

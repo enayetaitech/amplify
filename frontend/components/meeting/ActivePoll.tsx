@@ -55,6 +55,7 @@ export default function ActivePoll({
     string,
     { total: number; counts: { value: unknown; count: number }[] }
   > | null>(null);
+  const [sharedPoll, setSharedPoll] = useState<IPoll | null>(null);
 
   useEffect(() => {
     // connect socket
@@ -82,16 +83,26 @@ export default function ActivePoll({
           >;
         };
         if (!pl.pollId) return;
-        const currentPollId = (data as { poll?: IPoll }).poll?._id;
-        if (!currentPollId) return;
-        if (pl.pollId !== currentPollId) return;
+        const currentPollId = (data as { poll?: IPoll })?.poll?._id;
+        if (currentPollId && pl.pollId !== currentPollId) return;
         if (!pl.aggregates) return;
-        setResultsMapping(
-          pl.aggregates as Record<
-            string,
-            { total: number; counts: { value: unknown; count: number }[] }
-          >
-        );
+        const aggregates = pl.aggregates as Record<
+          string,
+          { total: number; counts: { value: unknown; count: number }[] }
+        >;
+        setResultsMapping(aggregates);
+
+        // If the participant currently has no active poll mounted (run closed),
+        // fetch the poll definition so we can render aggregate results UI.
+        if (!currentPollId) {
+          (async () => {
+            try {
+              const r = await api.get(`/api/v1/polls/${pl.pollId}`);
+              const pollDoc = r?.data?.data as IPoll | undefined | null;
+              if (pollDoc) setSharedPoll(pollDoc);
+            } catch {}
+          })();
+        }
       } catch {}
     };
     const onAck = (p: unknown) => {
@@ -127,15 +138,22 @@ export default function ActivePoll({
     data,
   ]);
 
-  if (!data) return null;
+  // allow rendering when resultsMapping is present even if there's no active run
+  if (!data && !resultsMapping) return null;
   const poll = (data as { poll?: IPoll })?.poll as IPoll | undefined;
   const run = (data as { run?: PollRun })?.run as PollRun | undefined;
-  if (!poll || !run) return null;
+  // prefer active poll, otherwise use sharedPoll fetched after share
+  const pollToRender = poll ?? sharedPoll ?? undefined;
+  if (!pollToRender && !resultsMapping) return null;
 
-  const canSubmit = !submittedRunIds[String(run._id)];
+  const canSubmit = run ? !submittedRunIds[String(run._id)] : false;
 
   const onSubmit = async (answers: Answer[]) => {
     try {
+      if (!run || !poll) {
+        toast.error("No active run to submit to");
+        return;
+      }
       // capture participant identity from either authenticated user or local storage fallback
       let localName: string | undefined;
       let localEmail: string | undefined;
@@ -154,22 +172,20 @@ export default function ActivePoll({
           }
         }
       } catch {}
-      const maybeResponder =
-        run.anonymous === true
-          ? undefined
-          : {
-              name: (user?.firstName || user?.name || localName) as
-                | string
-                | undefined,
-              email: ((user?.email as string | undefined) || localEmail) as
-                | string
-                | undefined,
-            };
+      const maybeResponder = {
+        name: (user?.firstName || user?.name || localName) as
+          | string
+          | undefined,
+        email: ((user?.email as string | undefined) || localEmail) as
+          | string
+          | undefined,
+      };
+
       await api.post(`/api/v1/polls/${(poll as IPoll)._id}/respond`, {
         sessionId,
         runId: run._id,
         answers,
-        ...(maybeResponder ? { responder: maybeResponder } : {}),
+        responder: maybeResponder,
       });
       toast.success("Response recorded");
       setSubmittedRunIds((s) => ({ ...s, [run._id]: true }));
@@ -179,15 +195,18 @@ export default function ActivePoll({
     }
   };
 
+  const titleText = pollToRender?.title || "Poll results";
+  const runLabel = run ? `Run #${run.runNumber}` : null;
+
   return (
     <div className="p-4 bg-white rounded shadow">
-      <h3 className="font-semibold text-lg">{poll.title}</h3>
-      <p className="text-sm text-gray-500">Run #{run.runNumber}</p>
+      <h3 className="font-semibold text-lg">{titleText}</h3>
+      {runLabel && <p className="text-sm text-gray-500">{runLabel}</p>}
 
       {/* Participant-shared results (shown when server emits poll:results) */}
       {resultsMapping && (
         <div className="mt-4 mb-4 border rounded p-3 bg-gray-50">
-          {poll.questions.map((q: PollQuestion) => (
+          {(pollToRender?.questions || []).map((q: PollQuestion) => (
             <div key={q._id} className="mb-4">
               <div className="font-medium mb-2">{q.prompt}</div>
               <PollResults aggregate={resultsMapping[q._id]} question={q} />
@@ -197,294 +216,300 @@ export default function ActivePoll({
       )}
 
       {/* Render question components per type with a single Submit All at bottom */}
-      <div className="mt-4 space-y-3">
-        {poll.questions.map((q: PollQuestion, idx: number) => (
-          <div key={q._id} className="border p-3 rounded">
-            <div className="font-medium">
-              {idx + 1}. {q.prompt}
-            </div>
-            {/* SINGLE_CHOICE */}
-            {q.type === "SINGLE_CHOICE" && (
-              <div className="mt-2 space-y-2">
-                {q.answers.map((a: string, i: number) => (
-                  <label key={i} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`single-${q._id}`}
-                      disabled={!canSubmit}
-                      onChange={() =>
-                        setLocalAnswers((s) => ({ ...s, [q._id]: i }))
-                      }
-                      checked={Number(localAnswers[q._id]) === i}
-                    />
-                    <span>{a}</span>
-                  </label>
-                ))}
+      {/* Only render input controls when there is an active run to submit to */}
+      {poll && run ? (
+        <div className="mt-4 space-y-3">
+          {poll.questions.map((q: PollQuestion, idx: number) => (
+            <div key={q._id} className="border p-3 rounded">
+              <div className="font-medium">
+                {idx + 1}. {q.prompt}
               </div>
-            )}
-
-            {/* MULTIPLE_CHOICE */}
-            {q.type === "MULTIPLE_CHOICE" && (
-              <div className="mt-2 space-y-2">
-                {q.answers.map((a: string, i: number) => {
-                  const selected =
-                    Array.isArray(localAnswers[q._id]) &&
-                    (localAnswers[q._id] as number[]).includes(i);
-                  return (
+              {/* SINGLE_CHOICE */}
+              {q.type === "SINGLE_CHOICE" && (
+                <div className="mt-2 space-y-2">
+                  {q.answers.map((a: string, i: number) => (
                     <label key={i} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={!!selected}
-                        onCheckedChange={(v) => {
-                          setLocalAnswers((s) => {
-                            const prev = Array.isArray(s[q._id])
-                              ? (s[q._id] as number[])
-                              : [];
-                            const next = v
-                              ? [...prev, i]
-                              : prev.filter((x) => x !== i);
-                            return { ...s, [q._id]: next };
-                          });
-                        }}
+                      <input
+                        type="radio"
+                        name={`single-${q._id}`}
                         disabled={!canSubmit}
+                        onChange={() =>
+                          setLocalAnswers((s) => ({ ...s, [q._id]: i }))
+                        }
+                        checked={Number(localAnswers[q._id]) === i}
                       />
                       <span>{a}</span>
                     </label>
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
 
-            {/* SHORT_ANSWER / LONG_ANSWER */}
-            {(q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER") && (
-              <div className="mt-2">
-                {q.type === "SHORT_ANSWER" ? (
-                  <input
-                    className="w-full border rounded px-2 py-1"
-                    value={(localAnswers[q._id] as string) || ""}
-                    onChange={(e) =>
-                      setLocalAnswers((s) => ({
-                        ...s,
-                        [q._id]: e.target.value,
-                      }))
-                    }
-                    disabled={!canSubmit}
-                  />
-                ) : (
-                  <Textarea
-                    value={(localAnswers[q._id] as string) || ""}
-                    onChange={(e) =>
-                      setLocalAnswers((s) => ({
-                        ...s,
-                        [q._id]: e.target.value,
-                      }))
-                    }
-                    disabled={!canSubmit}
-                  />
-                )}
-              </div>
-            )}
+              {/* MULTIPLE_CHOICE */}
+              {q.type === "MULTIPLE_CHOICE" && (
+                <div className="mt-2 space-y-2">
+                  {q.answers.map((a: string, i: number) => {
+                    const selected =
+                      Array.isArray(localAnswers[q._id]) &&
+                      (localAnswers[q._id] as number[]).includes(i);
+                    return (
+                      <label key={i} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={!!selected}
+                          onCheckedChange={(v) => {
+                            setLocalAnswers((s) => {
+                              const prev = Array.isArray(s[q._id])
+                                ? (s[q._id] as number[])
+                                : [];
+                              const next = v
+                                ? [...prev, i]
+                                : prev.filter((x) => x !== i);
+                              return { ...s, [q._id]: next };
+                            });
+                          }}
+                          disabled={!canSubmit}
+                        />
+                        <span>{a}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
 
-            {/* FILL_IN_BLANK */}
-            {q.type === "FILL_IN_BLANK" && (
-              <div className="mt-2 space-y-2">
-                {q.answers.map((_: string, i: number) => (
-                  <input
-                    key={i}
-                    className="w-full border rounded px-2 py-1"
-                    placeholder={`Answer ${i + 1}`}
-                    value={
-                      Array.isArray(localAnswers[q._id])
-                        ? (localAnswers[q._id] as string[])[i] || ""
-                        : ""
-                    }
-                    onChange={(e) =>
-                      setLocalAnswers((s) => {
-                        const arr = Array.isArray(s[q._id])
-                          ? [...(s[q._id] as string[])]
-                          : [];
-                        arr[i] = e.target.value;
-                        return { ...s, [q._id]: arr };
-                      })
-                    }
-                    disabled={!canSubmit}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* MATCHING */}
-            {q.type === "MATCHING" && (
-              <div className="mt-2 space-y-2">
-                {q.options.map((opt: string, i: number) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div>{opt}</div>
-                    <Select
-                      onValueChange={(v: string) =>
+              {/* SHORT_ANSWER / LONG_ANSWER */}
+              {(q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER") && (
+                <div className="mt-2">
+                  {q.type === "SHORT_ANSWER" ? (
+                    <input
+                      className="w-full border rounded px-2 py-1"
+                      value={(localAnswers[q._id] as string) || ""}
+                      onChange={(e) =>
                         setLocalAnswers((s) => ({
                           ...s,
-                          [q._id]: {
-                            ...((s[q._id] as Record<number, number>) || {}),
-                            [i]: Number(v),
-                          },
+                          [q._id]: e.target.value,
                         }))
                       }
-                    >
-                      <SelectTrigger className="w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {q.answers.map((ans: string, j: number) => (
-                          <SelectItem key={j} value={String(j)}>
-                            {ans}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* RANK_ORDER */}
-            {q.type === "RANK_ORDER" && (
-              <div className="mt-2 overflow-x-auto">
-                <table className="w-full table-fixed text-sm">
-                  <thead>
-                    <tr>
-                      <th className="p-2 text-left"></th>
-                      {q.columns.map((col: string, ci: number) => (
-                        <th key={ci} className="p-2 text-center">
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {q.rows.map((row: string, ri: number) => (
-                      <tr key={ri} className="border-t">
-                        <td className="p-2">{row}</td>
-                        {q.columns.map((col, ci) => (
-                          <td key={ci} className="p-2 text-center">
-                            <input
-                              type="radio"
-                              name={`rank-${q._id}-${ri}`}
-                              disabled={!canSubmit}
-                              onChange={() =>
-                                setLocalAnswers((s) => ({
-                                  ...s,
-                                  [q._id]: {
-                                    ...((s[q._id] as Record<number, number>) ||
-                                      {}),
-                                    [ri]: ci,
-                                  },
-                                }))
-                              }
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* RATING_SCALE */}
-            {q.type === "RATING_SCALE" && (
-              <div className="mt-2">
-                <div className="text-xs text-gray-500 mb-1">
-                  {q.lowLabel || q.scoreFrom} … {q.highLabel || q.scoreTo}
-                </div>
-                <div className="flex space-x-2">
-                  {Array.from({ length: q.scoreTo - q.scoreFrom + 1 }).map(
-                    (_, idx) => {
-                      const val = q.scoreFrom + idx;
-                      return (
-                        <label
-                          key={val}
-                          className="relative inline-flex items-center justify-center rounded border px-3 py-1 cursor-pointer"
-                        >
-                          <input
-                            type="radio"
-                            name={`rating-${q._id}`}
-                            value={String(val)}
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={() =>
-                              setLocalAnswers((s) => ({ ...s, [q._id]: val }))
-                            }
-                            disabled={!canSubmit}
-                          />
-                          <span className="relative z-10 text-sm">{val}</span>
-                        </label>
-                      );
-                    }
+                      disabled={!canSubmit}
+                    />
+                  ) : (
+                    <Textarea
+                      value={(localAnswers[q._id] as string) || ""}
+                      onChange={(e) =>
+                        setLocalAnswers((s) => ({
+                          ...s,
+                          [q._id]: e.target.value,
+                        }))
+                      }
+                      disabled={!canSubmit}
+                    />
                   )}
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-        {/* Submit all answers */}
-        <div className="pt-2">
-          <Button
-            onClick={() => {
-              if (!canSubmit) return;
-              const answers: Answer[] = [];
-              for (const q of poll.questions as PollQuestion[]) {
-                const v = (localAnswers as Record<string, unknown>)[q._id];
-                if (q.type === "SINGLE_CHOICE") {
-                  if (typeof v === "number")
-                    answers.push({ questionId: q._id, value: v });
-                } else if (q.type === "MULTIPLE_CHOICE") {
-                  if (Array.isArray(v) && (v as unknown[]).length > 0)
-                    answers.push({ questionId: q._id, value: v as number[] });
-                } else if (
-                  q.type === "SHORT_ANSWER" ||
-                  q.type === "LONG_ANSWER"
-                ) {
-                  if (typeof v === "string" && v.trim().length > 0)
-                    answers.push({ questionId: q._id, value: v });
-                } else if (q.type === "FILL_IN_BLANK") {
-                  if (
-                    Array.isArray(v) &&
-                    (v as unknown[]).some(
-                      (s) =>
-                        typeof s === "string" && (s as string).trim().length > 0
+              )}
+
+              {/* FILL_IN_BLANK */}
+              {q.type === "FILL_IN_BLANK" && (
+                <div className="mt-2 space-y-2">
+                  {q.answers.map((_: string, i: number) => (
+                    <input
+                      key={i}
+                      className="w-full border rounded px-2 py-1"
+                      placeholder={`Answer ${i + 1}`}
+                      value={
+                        Array.isArray(localAnswers[q._id])
+                          ? (localAnswers[q._id] as string[])[i] || ""
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setLocalAnswers((s) => {
+                          const arr = Array.isArray(s[q._id])
+                            ? [...(s[q._id] as string[])]
+                            : [];
+                          arr[i] = e.target.value;
+                          return { ...s, [q._id]: arr };
+                        })
+                      }
+                      disabled={!canSubmit}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* MATCHING */}
+              {q.type === "MATCHING" && (
+                <div className="mt-2 space-y-2">
+                  {q.options.map((opt: string, i: number) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div>{opt}</div>
+                      <Select
+                        onValueChange={(v: string) =>
+                          setLocalAnswers((s) => ({
+                            ...s,
+                            [q._id]: {
+                              ...((s[q._id] as Record<number, number>) || {}),
+                              [i]: Number(v),
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {q.answers.map((ans: string, j: number) => (
+                            <SelectItem key={j} value={String(j)}>
+                              {ans}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* RANK_ORDER */}
+              {q.type === "RANK_ORDER" && (
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full table-fixed text-sm">
+                    <thead>
+                      <tr>
+                        <th className="p-2 text-left"></th>
+                        {q.columns.map((col: string, ci: number) => (
+                          <th key={ci} className="p-2 text-center">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {q.rows.map((row: string, ri: number) => (
+                        <tr key={ri} className="border-t">
+                          <td className="p-2">{row}</td>
+                          {q.columns.map((col, ci) => (
+                            <td key={ci} className="p-2 text-center">
+                              <input
+                                type="radio"
+                                name={`rank-${q._id}-${ri}`}
+                                disabled={!canSubmit}
+                                onChange={() =>
+                                  setLocalAnswers((s) => ({
+                                    ...s,
+                                    [q._id]: {
+                                      ...((s[q._id] as Record<
+                                        number,
+                                        number
+                                      >) || {}),
+                                      [ri]: ci,
+                                    },
+                                  }))
+                                }
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* RATING_SCALE */}
+              {q.type === "RATING_SCALE" && (
+                <div className="mt-2">
+                  <div className="text-xs text-gray-500 mb-1">
+                    {q.lowLabel || q.scoreFrom} … {q.highLabel || q.scoreTo}
+                  </div>
+                  <div className="flex space-x-2">
+                    {Array.from({ length: q.scoreTo - q.scoreFrom + 1 }).map(
+                      (_, idx) => {
+                        const val = q.scoreFrom + idx;
+                        return (
+                          <label
+                            key={val}
+                            className="relative inline-flex items-center justify-center rounded border px-3 py-1 cursor-pointer"
+                          >
+                            <input
+                              type="radio"
+                              name={`rating-${q._id}`}
+                              value={String(val)}
+                              className="absolute inset-0 opacity-0 cursor-pointer"
+                              onChange={() =>
+                                setLocalAnswers((s) => ({ ...s, [q._id]: val }))
+                              }
+                              disabled={!canSubmit}
+                            />
+                            <span className="relative z-10 text-sm">{val}</span>
+                          </label>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {/* Submit all answers */}
+          <div className="pt-2">
+            <Button
+              onClick={() => {
+                if (!canSubmit) return;
+                const answers: Answer[] = [];
+                for (const q of poll.questions as PollQuestion[]) {
+                  const v = (localAnswers as Record<string, unknown>)[q._id];
+                  if (q.type === "SINGLE_CHOICE") {
+                    if (typeof v === "number")
+                      answers.push({ questionId: q._id, value: v });
+                  } else if (q.type === "MULTIPLE_CHOICE") {
+                    if (Array.isArray(v) && (v as unknown[]).length > 0)
+                      answers.push({ questionId: q._id, value: v as number[] });
+                  } else if (
+                    q.type === "SHORT_ANSWER" ||
+                    q.type === "LONG_ANSWER"
+                  ) {
+                    if (typeof v === "string" && v.trim().length > 0)
+                      answers.push({ questionId: q._id, value: v });
+                  } else if (q.type === "FILL_IN_BLANK") {
+                    if (
+                      Array.isArray(v) &&
+                      (v as unknown[]).some(
+                        (s) =>
+                          typeof s === "string" &&
+                          (s as string).trim().length > 0
+                      )
                     )
-                  )
-                    answers.push({ questionId: q._id, value: v as string[] });
-                } else if (q.type === "MATCHING") {
-                  const map = (v as Record<number, number>) || {};
-                  const pairs: Array<[number, number]> = Object.keys(map).map(
-                    (k) => [Number(k), map[Number(k)]]
-                  );
-                  if (pairs.length > 0)
-                    answers.push({ questionId: q._id, value: pairs });
-                } else if (q.type === "RANK_ORDER") {
-                  const map = (v as Record<number, number>) || {};
-                  const arr = q.rows.map((_, i) => map[i] ?? null);
-                  if (arr.some((x) => x !== null))
-                    answers.push({
-                      questionId: q._id,
-                      value: arr as unknown as number[],
-                    });
-                } else if (q.type === "RATING_SCALE") {
-                  if (typeof v === "number")
-                    answers.push({ questionId: q._id, value: v });
+                      answers.push({ questionId: q._id, value: v as string[] });
+                  } else if (q.type === "MATCHING") {
+                    const map = (v as Record<number, number>) || {};
+                    const pairs: Array<[number, number]> = Object.keys(map).map(
+                      (k) => [Number(k), map[Number(k)]]
+                    );
+                    if (pairs.length > 0)
+                      answers.push({ questionId: q._id, value: pairs });
+                  } else if (q.type === "RANK_ORDER") {
+                    const map = (v as Record<number, number>) || {};
+                    const arr = q.rows.map((_, i) => map[i] ?? null);
+                    if (arr.some((x) => x !== null))
+                      answers.push({
+                        questionId: q._id,
+                        value: arr as unknown as number[],
+                      });
+                  } else if (q.type === "RATING_SCALE") {
+                    if (typeof v === "number")
+                      answers.push({ questionId: q._id, value: v });
+                  }
                 }
-              }
-              if (answers.length === 0) {
-                toast.error("Please answer at least one question");
-                return;
-              }
-              onSubmit(answers);
-            }}
-            disabled={!canSubmit}
-          >
-            Submit All
-          </Button>
+                if (answers.length === 0) {
+                  toast.error("Please answer at least one question");
+                  return;
+                }
+                onSubmit(answers);
+              }}
+              disabled={!canSubmit}
+            >
+              Submit All
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

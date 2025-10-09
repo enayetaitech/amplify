@@ -40,8 +40,8 @@ export async function launchPoll(
     status: "OPEN",
     launchedAt: new Date(),
     anonymous: settings?.anonymous ?? (p as any).anonymous ?? false,
-    shareResults:
-      (settings?.shareResults as any) ?? (p as any).shareResults ?? "onStop",
+    // New behavior: default to 'never' at launch; sharing happens only when host explicitly triggers it
+    shareResults: "never",
     timeLimitSec: settings?.timeLimitSec,
   });
 
@@ -69,7 +69,8 @@ export async function submitResponse(
   runId: string,
   sessionId: string,
   responder: { userId?: string; name?: string; email?: string },
-  answers: any[]
+  answers: any[],
+  sessionParticipantId?: string | undefined
 ) {
   // ensure run is open
   const run = await PollRunModel.findById(runId).lean();
@@ -91,6 +92,9 @@ export async function submitResponse(
     pollId: new Types.ObjectId(pollId),
     runId: new Types.ObjectId(runId),
     sessionId: new Types.ObjectId(sessionId),
+    sessionParticipantId: sessionParticipantId
+      ? new Types.ObjectId(sessionParticipantId)
+      : undefined,
     responder: {
       userId: responder?.userId
         ? new Types.ObjectId(responder.userId)

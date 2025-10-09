@@ -96,6 +96,11 @@ export const zLaunchPayload = z.object({
 
 export const zStopPayload = z.object({ sessionId: z.string() });
 
+export const zSharePayload = z.object({
+  sessionId: z.string(),
+  runId: z.string(),
+});
+
 // Respond answer variants
 const zAnswerSingle = z.object({
   questionId: z.string(),

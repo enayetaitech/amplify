@@ -2,6 +2,7 @@
 
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
+import { toast } from "sonner";
 
 let socket: Socket | null = null;
 
@@ -18,6 +19,27 @@ export function connectSocket(opts: {
     withCredentials: true,
     query: { sessionId, role, name, email },
   });
+  // Install a lightweight global listener once per page to capture poll results
+  // even if specific components mount/unmount. Store the latest payload on
+  // window so components can read it when they mount.
+  try {
+    const w = window as unknown as {
+      __pollResultsGlobalInstalled?: boolean;
+      __latestPollResults?: unknown;
+    };
+    if (!w.__pollResultsGlobalInstalled) {
+      socket.on("poll:results", (payload: unknown) => {
+        try {
+          w.__latestPollResults = payload;
+          // show a toast so participants notice results were shared
+          try {
+            toast.success("Poll results shared");
+          } catch {}
+        } catch {}
+      });
+      w.__pollResultsGlobalInstalled = true;
+    }
+  } catch {}
   return socket;
 }
 

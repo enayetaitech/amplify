@@ -13,6 +13,8 @@ export interface PollResponseDoc extends Document<Types.ObjectId> {
   pollId: Types.ObjectId;
   runId: Types.ObjectId;
   sessionId: Types.ObjectId;
+  // link to participant subdocument _id inside LiveSession.participantsList when matched
+  sessionParticipantId?: Types.ObjectId;
   responder: { userId?: Types.ObjectId; name?: string; email?: string };
   answers: PollAnswer[];
   submittedAt: Date;
@@ -31,6 +33,8 @@ const PollResponseSchema = new Schema<PollResponseDoc>(
     pollId: { type: Schema.Types.ObjectId, ref: "Poll", required: true },
     runId: { type: Schema.Types.ObjectId, ref: "PollRun", required: true },
     sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    // optional link to a participant entry in LiveSession.participantsList
+    sessionParticipantId: { type: Schema.Types.ObjectId },
     responder: {
       userId: { type: Schema.Types.ObjectId, ref: "User" },
       name: String,

@@ -11,6 +11,7 @@ import { PollRunModel } from "../model/PollRun";
 import PollResponse from "../model/PollResponse";
 import { LiveSessionModel } from "../model/LiveSessionModel";
 import { zLaunchPayload, zStopPayload, zRespondPayload } from "../schemas/poll";
+import { zSharePayload } from "../schemas/poll";
 
 /* ───────────────────────────────────────────────────────────── */
 /*  Controller – Create Poll                                    */
@@ -344,6 +345,73 @@ export const stopPoll = async (req: any, res: any, next: any) => {
 };
 
 /**
+ * POST /api/v1/polls/:pollId/share
+ * Host-only: explicitly share results for a closed run to participants
+ */
+export const sharePollResults = async (req: any, res: any, next: any) => {
+  try {
+    const actor = (req as any).user;
+    if (!actor || !["Admin", "Moderator"].includes(actor.role))
+      return next(
+        new ErrorHandler("Only Admin or Moderator can share results", 403)
+      );
+
+    const parsed = zSharePayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId, runId } = parsed.data;
+
+    const pollId = String(req.params.id);
+    // ensure run belongs to poll and is closed
+    const run = await PollRunModel.findById(runId).lean();
+    if (!run || String(run.pollId) !== pollId)
+      return next(new ErrorHandler("Run not found", 404));
+    if (String(run.sessionId) !== String(sessionId))
+      return next(new ErrorHandler("Forbidden: wrong session", 403));
+    if (run.status !== "CLOSED")
+      return next(new ErrorHandler("Run not closed", 400));
+
+    const aggregates = await pollService.aggregateResults(pollId, runId);
+
+    // broadcast to participants in session (and redundantly to meeting room)
+    try {
+      // log for diagnostics
+      try {
+        console.log(
+          `sharePollResults: emitting poll:results for session=${sessionId} poll=${pollId} run=${runId}`
+        );
+      } catch {}
+      emitToRoom(String(sessionId), "poll:results", {
+        pollId,
+        runId,
+        aggregates,
+      });
+      // persist sharedAt timestamp on run
+      try {
+        await PollRunModel.findByIdAndUpdate(runId, {
+          $set: { sharedAt: new Date() },
+        });
+      } catch {}
+      try {
+        // redundant emit to meeting room name (some clients may be listening there)
+        emitToRoom(`meeting::${String(sessionId)}`, "poll:results", {
+          pollId,
+          runId,
+          aggregates,
+        });
+      } catch {}
+    } catch (e) {
+      try {
+        console.error("sharePollResults: emit failed", e);
+      } catch {}
+    }
+
+    sendResponse(res, { ok: true, aggregates }, "Results shared", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
  * POST /api/v1/polls/:pollId/respond
  */
 export const respondToPoll = async (req: any, res: any, next: any) => {
@@ -354,22 +422,47 @@ export const respondToPoll = async (req: any, res: any, next: any) => {
 
     const pollId = String(req.params.id);
 
-    // derive responder info from req.user if exists, else from body (allow anonymous)
-    const user = (req as any).user as any | undefined;
-    const responder = user
-      ? {
-          userId: String(user._id),
-          name: user.firstName || user.name,
-          email: user.email,
+    // always derive responder from body (client supplies name/email)
+    const responderFromBody = req.body.responder || {};
+
+    // normalize strings
+    const nameRaw = (responderFromBody.name || "").toString();
+    const emailRaw = (responderFromBody.email || "").toString();
+    const name = nameRaw.trim();
+    const email = emailRaw.trim().toLowerCase();
+
+    // attempt to match participant in LiveSession.participantsList by name+email
+    let sessionParticipantId: any = undefined;
+    try {
+      const runDoc = await PollRunModel.findById(runId).lean();
+      if (runDoc) {
+        const live = await LiveSessionModel.findOne({
+          sessionId: runDoc.sessionId,
+        }).lean();
+        if (live && Array.isArray(live.participantsList)) {
+          const found = (live.participantsList as any[]).find((p) => {
+            if (!p) return false;
+            const pn = (p.name || "").toString().trim();
+            const pe = (p.email || "").toString().trim().toLowerCase();
+            return pn === name && pe === email;
+          });
+          if (found) sessionParticipantId = found._id;
         }
-      : req.body.responder || {};
+      }
+    } catch {}
+
+    const responder: { userId?: string; name?: string; email?: string } = {
+      name,
+      email,
+    };
 
     const { doc, aggregates } = await pollService.submitResponse(
       pollId,
       runId,
       sessionId,
       responder,
-      answers as any[]
+      answers as any[],
+      sessionParticipantId
     );
 
     // ack to participant
@@ -481,20 +574,22 @@ export const getPollResponses = async (req: any, res: any, next: any) => {
     const docs = await PollResponse.find({ pollId, runId })
       .sort({ submittedAt: 1 })
       .lean();
-    let data:
-      | {
-          responder?: { name?: string; email?: string };
-          answers: any[];
-          submittedAt: Date;
-        }[]
-      | { answers: any[]; submittedAt: Date }[] = [];
+
+    type RespShape = {
+      responder?: { name?: string; email?: string };
+      sessionParticipantId?: string;
+      answers: any[];
+      submittedAt: Date;
+    };
+
+    let data: RespShape[] = [];
     if (run.anonymous) {
       data = docs.map((d) => ({
         answers: d.answers,
         submittedAt: d.submittedAt,
       }));
     } else {
-      // Enhance with name/email using LiveSession participants list if missing
+      // Enhance with name/email and include sessionParticipantId when present
       let live: any = null;
       try {
         live = await LiveSessionModel.findOne({
@@ -504,20 +599,29 @@ export const getPollResponses = async (req: any, res: any, next: any) => {
       data = docs.map((d) => {
         let name = d?.responder?.name;
         let email = d?.responder?.email;
+        let sessionParticipantId: string | undefined = undefined;
+        if (d?.sessionParticipantId)
+          sessionParticipantId = String(d.sessionParticipantId);
         if ((!name || !email) && live && Array.isArray(live.participantsList)) {
           const found = (live.participantsList as any[]).find(
             (p) =>
-              p?.email &&
+              p &&
+              p.email &&
               d?.responder?.email &&
-              String(p.email) === String(d.responder?.email)
+              String(p.email).trim().toLowerCase() ===
+                String(d.responder?.email).trim().toLowerCase() &&
+              String((p.name || "").toString().trim()) ===
+                String((d.responder?.name || "").toString().trim())
           );
           if (found) {
             name = name || found.name;
             email = email || found.email;
+            sessionParticipantId = sessionParticipantId || String(found._id);
           }
         }
         return {
           responder: { name, email },
+          sessionParticipantId,
           answers: d.answers,
           submittedAt: d.submittedAt,
         };
