@@ -15,6 +15,7 @@ import DocumentHub from "../rightSideBar/DocumentHub";
 import { useGlobalContext } from "context/GlobalContext";
 import { safeLocalGet } from "utils/storage";
 import ParticipantMessageInObserverLeftSidebar from "./ParticipantMessageInObserverLeftSidebar";
+import { PollQuestion } from "@shared/interface/PollInterface";
 import ObserverBreakoutSelect from "./ObserverBreakoutSelect";
 import ObserverMessageComponent from "./ObserverMessageComponent";
 
@@ -90,6 +91,16 @@ export default function ObserverMeetingView({
   const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
     Record<string, number>
   >({});
+  // Shared poll results for observers
+  const [resultsMapping, setResultsMapping] = useState<Record<
+    string,
+    { total: number; counts: { value: unknown; count: number }[] }
+  > | null>(null);
+  const [sharedPoll, setSharedPoll] = useState<{
+    title?: string;
+    questions?: PollQuestion[];
+  } | null>(null);
+  const [sharedRunId, setSharedRunId] = useState<string | null>(null);
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
 
@@ -223,6 +234,39 @@ export default function ObserverMeetingView({
   useEffect(() => {
     const s = meetingSocket;
     if (!s) return;
+    const onResults = (payload: unknown) => {
+      try {
+        if (typeof payload !== "object" || payload === null) return;
+        const pl = payload as {
+          pollId?: string;
+          runId?: string;
+          aggregates?: Record<
+            string,
+            { total: number; counts: { value: unknown; count: number }[] }
+          >;
+        };
+        if (!pl.pollId || !pl.aggregates) return;
+        setResultsMapping(
+          pl.aggregates as Record<
+            string,
+            { total: number; counts: { value: unknown; count: number }[] }
+          >
+        );
+        setSharedRunId(pl.runId ? String(pl.runId) : null);
+        // fetch poll definition if we don't have it
+        (async () => {
+          try {
+            const r = await api.get(`/api/v1/polls/${pl.pollId}`);
+            const pollDoc = r?.data?.data || null;
+            if (pollDoc) setSharedPoll(pollDoc);
+          } catch {}
+        })();
+        try {
+          // small toast for observers
+          toast.success("Poll results shared");
+        } catch {}
+      } catch {}
+    };
     const onCount = (p: { count?: number }) => {
       setObserverCount(Number(p?.count || 0));
     };
@@ -240,6 +284,7 @@ export default function ObserverMeetingView({
     s.on("observer:count", onCount);
     s.on("observer:list", onList);
     s.on("moderator:list", onMods);
+    s.on("poll:results", onResults as (...args: unknown[]) => void);
     // initial list
     s.emit(
       "observer:list:get",
@@ -265,6 +310,7 @@ export default function ObserverMeetingView({
       s.off("observer:count", onCount);
       s.off("observer:list", onList);
       s.off("moderator:list", onMods);
+      s.off("poll:results", onResults as (...args: unknown[]) => void);
     };
   }, [meetingSocket]);
 
@@ -654,6 +700,9 @@ export default function ObserverMeetingView({
             participants={participants}
             participantGroupMessages={participantGroupMessages}
             participantGroupLoading={participantGroupLoading}
+            sharedPoll={sharedPoll}
+            resultsMapping={resultsMapping}
+            sharedRunId={sharedRunId}
           />
 
           {hasBreakouts && <Separator className="my-2" />}
