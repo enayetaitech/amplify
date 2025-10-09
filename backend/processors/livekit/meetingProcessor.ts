@@ -39,7 +39,6 @@ export async function startMeeting(
 
   await ensureRoom(roomName);
 
-
   const hls = await startHlsEgress(roomName); // { egressId, playbackUrl, playlistName }
   const rec = await startFileEgress(roomName);
 
@@ -80,6 +79,16 @@ export async function endMeeting(
   // Stop egress
   await stopHlsEgress(live.hlsEgressId || undefined);
   await stopFileEgress(live.fileEgressId || undefined);
+
+  // Ensure streaming flag and HLS fields are cleared when meeting ends
+  try {
+    live.streaming = false;
+  } catch {}
+  live.hlsStoppedAt = new Date();
+  live.hlsEgressId = null;
+  live.hlsPlaybackUrl = null;
+  live.hlsPlaylistName = null;
+  live.fileEgressId = null;
 
   live.ongoing = false;
   live.endTime = new Date();
