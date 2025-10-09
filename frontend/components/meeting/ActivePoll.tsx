@@ -69,6 +69,9 @@ export default function ActivePoll({
     const onStarted = () => {
       refetch();
       setResultsMapping(null);
+      try {
+        toast.success("Poll launched");
+      } catch {}
     };
     const onStopped = () => refetch();
     const onResults = (payload: unknown) => {
@@ -221,8 +224,13 @@ export default function ActivePoll({
         <div className="mt-4 space-y-3">
           {poll.questions.map((q: PollQuestion, idx: number) => (
             <div key={q._id} className="border p-3 rounded">
-              <div className="font-medium">
-                {idx + 1}. {q.prompt}
+              <div className="font-medium flex items-center gap-2">
+                <div>
+                  {idx + 1}. {q.prompt}
+                </div>
+                {(q as unknown as { required?: boolean }).required ? (
+                  <div className="text-xs text-red-600 font-semibold">*</div>
+                ) : null}
               </div>
               {/* SINGLE_CHOICE */}
               {q.type === "SINGLE_CHOICE" && (
@@ -422,10 +430,15 @@ export default function ActivePoll({
                     {Array.from({ length: q.scoreTo - q.scoreFrom + 1 }).map(
                       (_, idx) => {
                         const val = q.scoreFrom + idx;
+                        const selected = Number(localAnswers[q._id]) === val;
                         return (
                           <label
                             key={val}
-                            className="relative inline-flex items-center justify-center rounded border px-3 py-1 cursor-pointer"
+                            className={`relative inline-flex items-center justify-center rounded border px-3 py-1 cursor-pointer ${
+                              selected
+                                ? "bg-custom-dark-blue-1 text-white border-custom-dark-blue-1"
+                                : "bg-white text-gray-700"
+                            }`}
                           >
                             <input
                               type="radio"
@@ -436,6 +449,7 @@ export default function ActivePoll({
                                 setLocalAnswers((s) => ({ ...s, [q._id]: val }))
                               }
                               disabled={!canSubmit}
+                              checked={selected}
                             />
                             <span className="relative z-10 text-sm">{val}</span>
                           </label>
@@ -497,6 +511,25 @@ export default function ActivePoll({
                       answers.push({ questionId: q._id, value: v });
                   }
                 }
+                // enforce required questions
+                for (const qq of poll.questions as PollQuestion[]) {
+                  // interpret 'required' flag if present on question
+                  const isRequired =
+                    (qq as unknown as { required?: boolean }).required === true;
+                  if (isRequired) {
+                    const v = (localAnswers as Record<string, unknown>)[qq._id];
+                    const hasAnswer =
+                      v !== undefined &&
+                      v !== null &&
+                      (!Array.isArray(v) || (v as unknown[]).length > 0) &&
+                      !(typeof v === "string" && String(v).trim() === "");
+                    if (!hasAnswer) {
+                      toast.error(`Question ${qq.prompt} is required`);
+                      return;
+                    }
+                  }
+                }
+
                 if (answers.length === 0) {
                   toast.error("Please answer at least one question");
                   return;

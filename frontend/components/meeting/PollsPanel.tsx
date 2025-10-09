@@ -138,9 +138,13 @@ export default function PollsPanel({
       api
         .post(`/api/v1/polls/${pollId}/stop`, { sessionId })
         .then((r) => r.data),
-    onSuccess: () => {
+    onSuccess: (_data, pollId) => {
       toast.success("Poll stopped");
       qc.invalidateQueries({ queryKey: ["active-poll", sessionId] });
+      try {
+        // invalidate runs for this poll so RunSelector refreshes immediately
+        qc.invalidateQueries({ queryKey: ["poll-runs", pollId, sessionId] });
+      } catch {}
     },
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : "Stop failed";
