@@ -1,28 +1,110 @@
 import express from "express";
 import { catchError } from "../../middlewares/CatchErrorMiddleware";
-import { createPoll, deletePoll, duplicatePoll, getPollById, getPollsByProjectId, updatePoll } from "../../controllers/PollController";
+import {
+  createPoll,
+  deletePoll,
+  duplicatePoll,
+  getPollById,
+  getPollsByProjectId,
+  updatePoll,
+  launchPoll,
+  stopPoll,
+  respondToPoll,
+  getPollResults,
+  getPollRuns,
+  getPollResponses,
+  sharePollResults,
+} from "../../controllers/PollController";
 import { uploadImage } from "../../utils/multer";
-
+import { authenticateJwt } from "../../middlewares/authenticateJwt";
+import { authorizeRoles } from "../../middlewares/authorizeRoles";
+import { authorizeProjectSessionOwner } from "../../middlewares/authorizeProjectSessionOwner";
 
 const router = express.Router();
 
 /* POST /api/v1/polls  – Create a new poll */
-router.post("/", uploadImage.array("images", 20), catchError(createPoll));
+router.post(
+  "/",
+  authenticateJwt,
+  uploadImage.array("images", 20),
+  catchError(createPoll)
+);
 
 // GET /api/v1/polls/project/:projectId?page=&limit=
 router.get("/project/:projectId", catchError(getPollsByProjectId));
 
 // GET /api/v1/polls/:id
-router.get("/:id", catchError(getPollById));  
+router.get("/:id", catchError(getPollById));
 
 /* PATCH /api/v1/polls/:id  – Update a poll */
-router.patch("/:id", uploadImage.array("images", 20),  catchError(updatePoll));
+router.patch(
+  "/:id",
+  authenticateJwt,
+  uploadImage.array("images", 20),
+  catchError(updatePoll)
+);
 
 /* POST /api/v1/polls/:id/duplicate  – Duplicate a  poll */
-router.post("/:id/duplicate", catchError(duplicatePoll));
+router.post("/:id/duplicate", authenticateJwt, catchError(duplicatePoll));
+
+// Launch a poll for a live session (host only)
+router.post(
+  "/:id/launch",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(launchPoll)
+);
+
+// Stop an open poll run for a session (host only)
+router.post(
+  "/:id/stop",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(stopPoll)
+);
+
+// Explicitly share results for a closed run (host only)
+router.post(
+  "/:id/share",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(sharePollResults)
+);
+
+// Participant responds to poll (may be anonymous)
+router.post("/:id/respond", catchError(respondToPoll));
+
+// GET poll results for a specific run (host/moderator)
+router.get(
+  "/:id/results",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(getPollResults)
+);
+
+// List runs of a poll
+router.get(
+  "/:id/runs",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(getPollRuns)
+);
+
+// Raw responses (host-only). Omits identities if anonymous
+router.get(
+  "/:id/responses",
+  authenticateJwt,
+  authorizeRoles("Admin", "Moderator"),
+  authorizeProjectSessionOwner,
+  catchError(getPollResponses)
+);
 
 /* DELETE /api/v1/polls/:id  – Delete a  poll */
-router.delete("/:id",  catchError(deletePoll));
-
+router.delete("/:id", authenticateJwt, catchError(deletePoll));
 
 export default router;

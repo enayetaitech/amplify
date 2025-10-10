@@ -203,6 +203,107 @@ export function attachSocket(server: HTTPServer) {
     socket.on("meeting:join", () => socket.join(rooms.meeting));
     socket.on("meeting:leave", () => socket.leave(rooms.meeting));
 
+    // Poll socket handlers (launch/stop/respond)
+    socket.on(
+      "poll:launch",
+      async (payload: any, ack?: (resp: any) => void) => {
+        try {
+          if (!(role === "Moderator" || role === "Admin"))
+            return ack?.({ ok: false, error: "forbidden" });
+          const {
+            pollId,
+            sessionId: payloadSessionId,
+            settings,
+          } = payload || {};
+          if (!pollId || !payloadSessionId)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const svc = await import("../processors/poll/pollService");
+          const { poll, run } = await svc.launchPoll(
+            pollId,
+            payloadSessionId,
+            settings
+          );
+          io.to(String(payloadSessionId)).emit("poll:started", { poll, run });
+          return ack?.({ ok: true, poll, run });
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
+    socket.on("poll:stop", async (payload: any, ack?: (resp: any) => void) => {
+      try {
+        if (!(role === "Moderator" || role === "Admin"))
+          return ack?.({ ok: false, error: "forbidden" });
+        const { pollId, sessionId: payloadSessionId } = payload || {};
+        if (!pollId || !payloadSessionId)
+          return ack?.({ ok: false, error: "bad_payload" });
+        const svc = await import("../processors/poll/pollService");
+        const { run, aggregates } = await svc.stopPoll(
+          pollId,
+          payloadSessionId
+        );
+        io.to(String(payloadSessionId)).emit("poll:stopped", {
+          pollId,
+          runId: run._id,
+        });
+        if (run.shareResults === "onStop" || run.shareResults === "immediate") {
+          io.to(String(payloadSessionId)).emit("poll:results", {
+            pollId,
+            runId: run._id,
+            aggregates,
+          });
+        }
+        return ack?.({ ok: true, run, aggregates });
+      } catch (e: any) {
+        return ack?.({ ok: false, error: e?.message || "internal_error" });
+      }
+    });
+
+    socket.on(
+      "poll:respond",
+      async (payload: any, ack?: (resp: any) => void) => {
+        try {
+          const {
+            pollId,
+            runId,
+            sessionId: payloadSessionId,
+            answers,
+          } = payload || {};
+          if (!pollId || !runId || !payloadSessionId || !answers)
+            return ack?.({ ok: false, error: "bad_payload" });
+          const svc = await import("../processors/poll/pollService");
+          const responder = { userId: undefined as any, name, email };
+          const { doc, aggregates } = await svc.submitResponse(
+            pollId,
+            runId,
+            payloadSessionId,
+            responder,
+            answers
+          );
+          ack?.({ ok: true });
+          io.to(String(payloadSessionId)).emit("poll:submission:ack", {
+            pollId,
+            runId,
+          });
+          // notify moderators with partial results
+          try {
+            const set = moderatorSockets.get(payloadSessionId);
+            if (set && set.size) {
+              for (const sid of set)
+                io.to(sid).emit("poll:partialResults", {
+                  pollId,
+                  runId,
+                  aggregates,
+                });
+            }
+          } catch {}
+        } catch (e: any) {
+          return ack?.({ ok: false, error: e?.message || "internal_error" });
+        }
+      }
+    );
+
     // Whiteboard: join and seed recent strokes
     socket.on(
       "whiteboard:join",

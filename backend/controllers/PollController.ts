@@ -5,6 +5,13 @@ import ErrorHandler from "../utils/ErrorHandler";
 import { sendResponse } from "../utils/responseHelpers";
 import { validateQuestion } from "../processors/poll/QuestionValidationProcessor";
 import { uploadToS3 } from "../utils/uploadToS3";
+import * as pollService from "../processors/poll/pollService";
+import { emitToRoom } from "../socket/bus";
+import { PollRunModel } from "../model/PollRun";
+import PollResponse from "../model/PollResponse";
+import { LiveSessionModel } from "../model/LiveSessionModel";
+import { zLaunchPayload, zStopPayload, zRespondPayload } from "../schemas/poll";
+import { zSharePayload } from "../schemas/poll";
 
 /* ───────────────────────────────────────────────────────────── */
 /*  Controller – Create Poll                                    */
@@ -16,7 +23,6 @@ export const createPoll = async (
 ): Promise<void> => {
   const { projectId, sessionId, title, questions, createdBy, createdByRole } =
     req.body;
-
 
   /* 1. Basic payload validation ------------------------------------ */
   if (!projectId || !title || !createdBy || !createdByRole) {
@@ -33,50 +39,51 @@ export const createPoll = async (
       new ErrorHandler("Only Admin or Moderator can create polls", 403)
     );
   }
-// ── 2) Parse questions JSON ───────────────────────────────────────
-    let questionsPayload: any[] = req.body.questions;
-    if (typeof questionsPayload === "string") {
-      try {
-        questionsPayload = JSON.parse(questionsPayload);
-      } catch {
-        return next(new ErrorHandler("Invalid questions JSON", 400));
-      }
+  // ── 2) Parse questions JSON ───────────────────────────────────────
+  let questionsPayload: any[] = req.body.questions;
+  if (typeof questionsPayload === "string") {
+    try {
+      questionsPayload = JSON.parse(questionsPayload);
+    } catch {
+      return next(new ErrorHandler("Invalid questions JSON", 400));
     }
+  }
 
-    if (!Array.isArray(questionsPayload) || questionsPayload.length === 0) {
-      return next(new ErrorHandler("questions array is required", 400));
-    }
+  if (!Array.isArray(questionsPayload) || questionsPayload.length === 0) {
+    return next(new ErrorHandler("questions array is required", 400));
+  }
 
-    // ── 3) Upload images to S3 & stitch into questions ───────────────
-    //    Expect front-end to send each File under field "images" and
-    //    each question to have a tempImageName === file.originalname
-    const files = (req.files as Express.Multer.File[]) || [];
-    for (const file of files) {
-      let result;
-      try {
-        result = await uploadToS3(file.buffer, file.mimetype, file.originalname);
-      } catch (err) {
-        return next(
-          new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
-        );
-      }
-      // find the matching question by your tempImageName
-      const q = questionsPayload.find((q) => q.tempImageName === file.originalname);
-      if (q) {
-        q.image = result.url;
-        // optionally store the S3 key if you need it:
-        // q.imageKey = result.key;
-        delete q.tempImageName;
-      }
+  // ── 3) Upload images to S3 & stitch into questions ───────────────
+  //    Expect front-end to send each File under field "images" and
+  //    each question to have a tempImageName === file.originalname
+  const files = (req.files as Express.Multer.File[]) || [];
+  for (const file of files) {
+    let result;
+    try {
+      result = await uploadToS3(file.buffer, file.mimetype, file.originalname);
+    } catch (err) {
+      return next(
+        new ErrorHandler(`Failed to upload image ${file.originalname}`, 500)
+      );
     }
+    // find the matching question by your tempImageName
+    const q = questionsPayload.find(
+      (q) => q.tempImageName === file.originalname
+    );
+    if (q) {
+      q.image = result.url;
+      // optionally store the S3 key if you need it:
+      // q.imageKey = result.key;
+      delete q.tempImageName;
+    }
+  }
 
-    
-    // ── 4) Per-question validation ────────────────────────────────────
-    for (let i = 0; i < questionsPayload.length; i++) {
-      if (validateQuestion(questionsPayload[i], i, next)) {
-        return; // stops on first error
-      }
+  // ── 4) Per-question validation ────────────────────────────────────
+  for (let i = 0; i < questionsPayload.length; i++) {
+    if (validateQuestion(questionsPayload[i], i, next)) {
+      return; // stops on first error
     }
+  }
   /* 3. Create poll -------------------------------------------------- */
 
   const poll = await PollModel.create({
@@ -113,7 +120,7 @@ export const getPollsByProjectId = async (
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('createdBy', 'firstName lastName') 
+      .populate("createdBy", "firstName lastName")
       .lean(),
     PollModel.countDocuments({ projectId }),
   ]);
@@ -203,7 +210,7 @@ export const updatePoll = async (
 
       // now that your JSON has tempImageName, this will work:
       const q = questionsPayload.find(
-        qq => qq.tempImageName === file.originalname
+        (qq) => qq.tempImageName === file.originalname
       );
       if (q) {
         q.image = uploadResult.url;
@@ -264,6 +271,366 @@ export const duplicatePoll = async (
   const copy = await PollModel.create(copyData);
 
   sendResponse(res, copy, "Poll duplicated", 201);
+};
+
+/**
+ * POST /api/v1/polls/:pollId/launch
+ */
+export const launchPoll = async (req: any, res: any, next: any) => {
+  try {
+    // Host permission: only Admin or Moderator may launch
+    const actor = (req as any).user;
+    if (!actor || !["Admin", "Moderator"].includes(actor.role))
+      return next(
+        new ErrorHandler("Only Admin or Moderator can launch polls", 403)
+      );
+
+    const parsed = zLaunchPayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId, settings } = parsed.data;
+
+    const pollId = String(req.params.id);
+    const { poll, run } = await pollService.launchPoll(
+      pollId,
+      sessionId,
+      settings
+    );
+
+    // Emit socket: poll started to session room
+    try {
+      emitToRoom(String(sessionId), "poll:started", { poll, run });
+    } catch {}
+
+    sendResponse(res, { poll, run }, "Poll launched", 201);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * POST /api/v1/polls/:pollId/stop
+ */
+export const stopPoll = async (req: any, res: any, next: any) => {
+  try {
+    // Host permission: only Admin or Moderator may stop
+    const actor = (req as any).user;
+    if (!actor || !["Admin", "Moderator"].includes(actor.role))
+      return next(
+        new ErrorHandler("Only Admin or Moderator can stop polls", 403)
+      );
+
+    const parsed = zStopPayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId } = parsed.data;
+
+    const pollId = String(req.params.id);
+    const { run, aggregates } = await pollService.stopPoll(pollId, sessionId);
+
+    // Emit poll stopped
+    try {
+      emitToRoom(String(sessionId), "poll:stopped", { pollId, runId: run._id });
+      if (run.shareResults === "onStop" || run.shareResults === "immediate") {
+        emitToRoom(String(sessionId), "poll:results", {
+          pollId,
+          runId: run._id,
+          aggregates,
+        });
+      }
+    } catch {}
+
+    sendResponse(res, { run, aggregates }, "Poll stopped", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * POST /api/v1/polls/:pollId/share
+ * Host-only: explicitly share results for a closed run to participants
+ */
+export const sharePollResults = async (req: any, res: any, next: any) => {
+  try {
+    const actor = (req as any).user;
+    if (!actor || !["Admin", "Moderator"].includes(actor.role))
+      return next(
+        new ErrorHandler("Only Admin or Moderator can share results", 403)
+      );
+
+    const parsed = zSharePayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId, runId } = parsed.data;
+
+    const pollId = String(req.params.id);
+    // ensure run belongs to poll and is closed
+    const run = await PollRunModel.findById(runId).lean();
+    if (!run || String(run.pollId) !== pollId)
+      return next(new ErrorHandler("Run not found", 404));
+    if (String(run.sessionId) !== String(sessionId))
+      return next(new ErrorHandler("Forbidden: wrong session", 403));
+    if (run.status !== "CLOSED")
+      return next(new ErrorHandler("Run not closed", 400));
+
+    const aggregates = await pollService.aggregateResults(pollId, runId);
+
+    // broadcast to participants in session (and redundantly to meeting room)
+    try {
+      // log for diagnostics
+      try {
+        console.log(
+          `sharePollResults: emitting poll:results for session=${sessionId} poll=${pollId} run=${runId}`
+        );
+      } catch {}
+      emitToRoom(String(sessionId), "poll:results", {
+        pollId,
+        runId,
+        aggregates,
+      });
+      // persist sharedAt timestamp on run
+      try {
+        await PollRunModel.findByIdAndUpdate(runId, {
+          $set: { sharedAt: new Date() },
+        });
+      } catch {}
+      try {
+        // redundant emit to meeting room name (some clients may be listening there)
+        emitToRoom(`meeting::${String(sessionId)}`, "poll:results", {
+          pollId,
+          runId,
+          aggregates,
+        });
+      } catch {}
+    } catch (e) {
+      try {
+        console.error("sharePollResults: emit failed", e);
+      } catch {}
+    }
+
+    sendResponse(res, { ok: true, aggregates }, "Results shared", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * POST /api/v1/polls/:pollId/respond
+ */
+export const respondToPoll = async (req: any, res: any, next: any) => {
+  try {
+    const parsed = zRespondPayload.safeParse(req.body);
+    if (!parsed.success) return next(new ErrorHandler("Invalid payload", 400));
+    const { sessionId, runId, answers } = parsed.data;
+
+    const pollId = String(req.params.id);
+
+    // always derive responder from body (client supplies name/email)
+    const responderFromBody = req.body.responder || {};
+
+    // normalize strings
+    const nameRaw = (responderFromBody.name || "").toString();
+    const emailRaw = (responderFromBody.email || "").toString();
+    const name = nameRaw.trim();
+    const email = emailRaw.trim().toLowerCase();
+
+    // attempt to match participant in LiveSession.participantsList by name+email
+    let sessionParticipantId: any = undefined;
+    try {
+      const runDoc = await PollRunModel.findById(runId).lean();
+      if (runDoc) {
+        const live = await LiveSessionModel.findOne({
+          sessionId: runDoc.sessionId,
+        }).lean();
+        if (live && Array.isArray(live.participantsList)) {
+          const found = (live.participantsList as any[]).find((p) => {
+            if (!p) return false;
+            const pn = (p.name || "").toString().trim();
+            const pe = (p.email || "").toString().trim().toLowerCase();
+            return pn === name && pe === email;
+          });
+          if (found) sessionParticipantId = found._id;
+        }
+      }
+    } catch {}
+
+    const responder: { userId?: string; name?: string; email?: string } = {
+      name,
+      email,
+    };
+
+    const { doc, aggregates } = await pollService.submitResponse(
+      pollId,
+      runId,
+      sessionId,
+      responder,
+      answers as any[],
+      sessionParticipantId
+    );
+
+    // ack to participant
+    try {
+      emitToRoom(String(sessionId), "poll:submission:ack", {
+        pollId,
+        runId,
+        responder: responder.userId
+          ? { userId: responder.userId }
+          : { anonymous: true },
+      });
+      // emit partial results to moderators only
+      emitToRoom(String(sessionId) + ":moderators", "poll:partialResults", {
+        pollId,
+        runId,
+        aggregates,
+      });
+      // lightweight debug log for identity capture
+      try {
+        const idStr =
+          responder?.userId ||
+          responder?.email ||
+          responder?.name ||
+          "anonymous";
+        console.log(
+          `[poll:respond] pollId=${pollId} runId=${runId} from=${idStr}`
+        );
+      } catch {}
+      // if shareResults is immediate, also broadcast to participants
+      try {
+        const runDoc = await PollRunModel.findById(runId).lean();
+        if (runDoc && runDoc.shareResults === "immediate") {
+          emitToRoom(String(sessionId), "poll:results", {
+            pollId,
+            runId,
+            aggregates,
+          });
+        }
+      } catch {}
+    } catch {}
+
+    sendResponse(res, { ok: true }, "Response saved", 201);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * GET /api/v1/polls/:id/results?runId=...
+ * Returns aggregated results for a given poll run. Host/moderator only.
+ */
+export const getPollResults = async (req: any, res: any, next: any) => {
+  try {
+    const pollId = String(req.params.id);
+    const runId = String(req.query.runId || "");
+    const sessionId = String(req.query.sessionId || "");
+    if (!runId) return next(new ErrorHandler("runId required", 400));
+    if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
+
+    const run = await PollRunModel.findById(runId).lean();
+    if (!run || String(run.pollId) !== String(pollId))
+      return next(new ErrorHandler("Run not found", 404));
+    if (String(run.sessionId) !== String(sessionId))
+      return next(new ErrorHandler("Forbidden: wrong session", 403));
+
+    const aggregates = await pollService.aggregateResults(pollId, runId);
+    sendResponse(res, aggregates, "Results fetched", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * GET /api/v1/polls/:id/runs
+ * List runs for a poll (newest first)
+ */
+export const getPollRuns = async (req: any, res: any, next: any) => {
+  try {
+    const pollId = String(req.params.id);
+    const sessionId = String(req.query.sessionId || "");
+    if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
+    const runs = await PollRunModel.find({ pollId, sessionId })
+      .sort({ runNumber: -1 })
+      .lean();
+    sendResponse(res, runs, "Runs fetched", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
+};
+
+/**
+ * GET /api/v1/polls/:id/responses?runId=...
+ * Host-only: returns raw responses (omits identities if anonymous)
+ */
+export const getPollResponses = async (req: any, res: any, next: any) => {
+  try {
+    const pollId = String(req.params.id);
+    const runId = String(req.query.runId || "");
+    const sessionId = String(req.query.sessionId || "");
+    if (!runId) return next(new ErrorHandler("runId required", 400));
+    if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
+
+    const run = await PollRunModel.findById(runId).lean();
+    if (!run || String(run.pollId) !== String(pollId))
+      return next(new ErrorHandler("Run not found", 404));
+    if (String(run.sessionId) !== String(sessionId))
+      return next(new ErrorHandler("Forbidden: wrong session", 403));
+
+    const docs = await PollResponse.find({ pollId, runId })
+      .sort({ submittedAt: 1 })
+      .lean();
+
+    type RespShape = {
+      responder?: { name?: string; email?: string };
+      sessionParticipantId?: string;
+      answers: any[];
+      submittedAt: Date;
+    };
+
+    let data: RespShape[] = [];
+    if (run.anonymous) {
+      data = docs.map((d) => ({
+        answers: d.answers,
+        submittedAt: d.submittedAt,
+      }));
+    } else {
+      // Enhance with name/email and include sessionParticipantId when present
+      let live: any = null;
+      try {
+        live = await LiveSessionModel.findOne({
+          sessionId: run.sessionId,
+        }).lean();
+      } catch {}
+      data = docs.map((d) => {
+        let name = d?.responder?.name;
+        let email = d?.responder?.email;
+        let sessionParticipantId: string | undefined = undefined;
+        if (d?.sessionParticipantId)
+          sessionParticipantId = String(d.sessionParticipantId);
+        if ((!name || !email) && live && Array.isArray(live.participantsList)) {
+          const found = (live.participantsList as any[]).find(
+            (p) =>
+              p &&
+              p.email &&
+              d?.responder?.email &&
+              String(p.email).trim().toLowerCase() ===
+                String(d.responder?.email).trim().toLowerCase() &&
+              String((p.name || "").toString().trim()) ===
+                String((d.responder?.name || "").toString().trim())
+          );
+          if (found) {
+            name = name || found.name;
+            email = email || found.email;
+            sessionParticipantId = sessionParticipantId || String(found._id);
+          }
+        }
+        return {
+          responder: { name, email },
+          sessionParticipantId,
+          answers: d.answers,
+          submittedAt: d.submittedAt,
+        };
+      });
+    }
+    sendResponse(res, { run, responses: data }, "Responses fetched", 200);
+  } catch (e: any) {
+    next(new ErrorHandler(e?.message || "internal_error", 500));
+  }
 };
 
 /**

@@ -4,14 +4,17 @@ import { Schema, model, Document, Types } from "mongoose";
 type Scalar = string | number | boolean | null;
 
 export interface PollAnswer {
-  questionId: Types.ObjectId;          // which question this answer belongs to
-  optionId?: Types.ObjectId;           // selected option (for MCQ), optional
-  value?: Scalar | Scalar[];           // free text / numeric / boolean / multi
+  questionId: Types.ObjectId; // id of question subdocument in Poll
+  // optionId removed: options are stored as indices; don't reference non-existent models
+  value?: Scalar | Scalar[] | Array<number | [number, number]>; // numbers for indices, tuples for matching
 }
 
 export interface PollResponseDoc extends Document<Types.ObjectId> {
   pollId: Types.ObjectId;
+  runId: Types.ObjectId;
   sessionId: Types.ObjectId;
+  // link to participant subdocument _id inside LiveSession.participantsList when matched
+  sessionParticipantId?: Types.ObjectId;
   responder: { userId?: Types.ObjectId; name?: string; email?: string };
   answers: PollAnswer[];
   submittedAt: Date;
@@ -19,9 +22,8 @@ export interface PollResponseDoc extends Document<Types.ObjectId> {
 
 const PollAnswerSchema = new Schema<PollAnswer>(
   {
-    questionId: { type: Schema.Types.ObjectId, required: true, ref: "PollQuestion" },
-    optionId: { type: Schema.Types.ObjectId, ref: "PollOption" },
-    value: { type: Schema.Types.Mixed }, // allows string/number/bool/array
+    questionId: { type: Schema.Types.ObjectId, required: true },
+    value: { type: Schema.Types.Mixed }, // allows string/number/bool/array, or tuples for matching
   },
   { _id: false }
 );
@@ -29,7 +31,10 @@ const PollAnswerSchema = new Schema<PollAnswer>(
 const PollResponseSchema = new Schema<PollResponseDoc>(
   {
     pollId: { type: Schema.Types.ObjectId, ref: "Poll", required: true },
+    runId: { type: Schema.Types.ObjectId, ref: "PollRun", required: true },
     sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    // optional link to a participant entry in LiveSession.participantsList
+    sessionParticipantId: { type: Schema.Types.ObjectId },
     responder: {
       userId: { type: Schema.Types.ObjectId, ref: "User" },
       name: String,
@@ -41,6 +46,14 @@ const PollResponseSchema = new Schema<PollResponseDoc>(
   { timestamps: false }
 );
 
-PollResponseSchema.index({ pollId: 1, sessionId: 1 });
+// unique per-run submission by userId when present
+PollResponseSchema.index(
+  { pollId: 1, runId: 1, "responder.userId": 1 },
+  {
+    unique: true,
+    partialFilterExpression: { "responder.userId": { $exists: true } },
+  }
+);
+PollResponseSchema.index({ pollId: 1, runId: 1, submittedAt: 1 });
 
 export default model<PollResponseDoc>("PollResponse", PollResponseSchema);

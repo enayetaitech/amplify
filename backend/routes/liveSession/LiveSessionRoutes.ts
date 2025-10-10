@@ -1,7 +1,11 @@
 import express from "express";
 import { authenticateJwt } from "../../middlewares/authenticateJwt";
 import { catchError } from "../../middlewares/CatchErrorMiddleware";
-import { endLiveSession,  startLiveSession } from "../../controllers/LiveSessionController";
+import {
+  endLiveSession,
+  startLiveSession,
+  getActivePoll,
+} from "../../controllers/LiveSessionController";
 
 const router = express.Router();
 
@@ -22,5 +26,7 @@ router.post(
   catchError(endLiveSession)
 );
 
+// GET api/v1/liveSessions/:sessionId/active-poll
+router.get("/:sessionId/active-poll", catchError(getActivePoll));
 
 export default router;

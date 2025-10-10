@@ -2,6 +2,8 @@
 
 import { useRef, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+import PollResults from "../PollResults";
+import { PollQuestion } from "@shared/interface/PollInterface";
 
 type ParticipantItem = { identity: string; name: string };
 
@@ -16,22 +18,35 @@ interface ParticipantMessageInObserverLeftSidebarProps {
   participants: ParticipantItem[];
   participantGroupMessages: ParticipantGroupMessage[];
   participantGroupLoading: boolean;
+  // optional shared results for observers
+  sharedPoll?: { title?: string; questions?: PollQuestion[] } | null;
+  resultsMapping?: Record<
+    string,
+    { total: number; counts: { value: unknown; count: number }[] }
+  > | null;
+  sharedRunId?: string | null;
 }
 
 export default function ParticipantMessageInObserverLeftSidebar({
   participants,
   participantGroupMessages,
   participantGroupLoading,
+  sharedPoll,
+  resultsMapping,
+  sharedRunId,
 }: ParticipantMessageInObserverLeftSidebarProps) {
   const participantGroupRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-scroll participant group chat
+  // Auto-scroll participant group chat (also when results arrive)
   useEffect(() => {
     const el = participantGroupRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [participantGroupMessages.length, participantGroupLoading]);
-
+  }, [
+    participantGroupMessages.length,
+    participantGroupLoading,
+    resultsMapping,
+  ]);
   return (
     <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
       <h3 className="font-semibold mb-2">Participants</h3>
@@ -105,6 +120,23 @@ export default function ParticipantMessageInObserverLeftSidebar({
           </div>
         </TabsContent>
       </Tabs>
+      <div>
+        {/* Render shared results as a separate section at the bottom of the chat */}
+        {resultsMapping && sharedPoll && (
+          <div className="mt-3 pt-3 border-t border-gray-100 rounded-lg bg-white p-2">
+            <h3 className="font-semibold mb-2">Poll Results</h3>
+            <div className="mb-2 text-sm font-medium">
+              {sharedPoll.title} {sharedRunId ? `(Run #${sharedRunId})` : null}
+            </div>
+            {(sharedPoll.questions || []).map((q: PollQuestion) => (
+              <div key={q._id} className="mb-2">
+                <div className="font-medium text-sm">{q.prompt}</div>
+                <PollResults aggregate={resultsMapping[q._id]} question={q} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

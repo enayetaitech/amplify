@@ -30,6 +30,8 @@ import BreakoutWarningBridge from "components/meeting/BreakoutWarningBridge";
 import ObserverMeetingView from "components/meeting/observer/ObserverMeetingView";
 import ParticipantChatPanel from "components/meeting/ParticipantChatPanel";
 import MeetingJoinBridge from "components/meeting/MeetingJoinBridge";
+import PollsPanel from "components/meeting/PollsPanel";
+import ActivePoll from "components/meeting/ActivePoll";
 import {
   ChevronLeft,
   ChevronRight,
@@ -56,6 +58,7 @@ import {
 declare global {
   interface Window {
     __meetingSocket?: Socket;
+    currentMeetingSessionId?: string;
   }
 }
 import {
@@ -242,6 +245,7 @@ export default function Meeting() {
   const [observerList, setObserverList] = useState<
     { name: string; email: string }[]
   >([]);
+  const [sessionProjectId, setSessionProjectId] = useState<string | null>(null);
   const [isBreakoutOverlayOpen, setIsBreakoutOverlayOpen] = useState(false);
 
   // 🔌 single meeting socket for this page
@@ -316,6 +320,49 @@ export default function Meeting() {
     })();
   }, [sessionId, role, serverRole, router]);
 
+  // fetch session metadata to get projectId for polls panel
+  useEffect(() => {
+    if (!sessionId) return;
+    (async () => {
+      try {
+        const res = await api.get(`/api/v1/sessions/${sessionId}`);
+        const sess = res.data?.data;
+        if (sess) {
+          const raw =
+            (sess as { projectId?: unknown; project?: unknown }).projectId ||
+            (sess as { project?: unknown }).project;
+          const extractId = (v: unknown): string | null => {
+            if (!v) return null;
+            if (typeof v === "string") return v;
+            if (typeof v === "object") {
+              const obj = v as { _id?: unknown; toString?: () => string };
+              if (typeof obj._id === "string") return obj._id;
+              if (
+                obj._id &&
+                typeof (obj._id as { toString?: () => string }).toString ===
+                  "function"
+              ) {
+                const s = String(
+                  (obj._id as { toString?: () => string }).toString?.()
+                );
+                if (s && s !== "[object Object]") return s;
+              }
+              if (typeof obj.toString === "function") {
+                const s = obj.toString();
+                if (s && s !== "[object Object]") return s;
+              }
+            }
+            return null;
+          };
+          const pid = extractId(raw);
+          if (pid) setSessionProjectId(pid);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [sessionId]);
+
   // Connect socket (once we know session)
   useEffect(() => {
     if (!sessionId) return;
@@ -336,6 +383,9 @@ export default function Meeting() {
       },
     });
     socketRef.current = s;
+    try {
+      window.currentMeetingSessionId = String(sessionId);
+    } catch {}
     window.__meetingSocket = s;
     s.on("observer:count", (p: { count?: number }) => {
       setObserverCount(Number(p?.count || 0));
@@ -720,6 +770,12 @@ export default function Meeting() {
                 sessionId={String(sessionId)}
               />
               <ModeratorWaitingPanel />
+              {/* Polls: participant view only */}
+              {(role as UiRole) === "participant" && (
+                <div className="mt-2">
+                  <ActivePoll sessionId={String(sessionId)} user={user} />
+                </div>
+              )}
               {(role as UiRole) === "participant" && (
                 <div className="mt-2">
                   <ParticipantChatPanel
@@ -729,6 +785,15 @@ export default function Meeting() {
                   />
                 </div>
               )}
+              {(role === "admin" || role === "moderator") &&
+                sessionProjectId && (
+                  <div className="mt-4">
+                    <PollsPanel
+                      projectId={sessionProjectId}
+                      sessionId={String(sessionId)}
+                    />
+                  </div>
+                )}
               <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
             </div>
           </aside>

@@ -7,6 +7,8 @@ const options: LoggerOptions = {
   level,
   redact: {
     paths: [
+      "req.headers",
+      "res.headers",
       "req.headers.authorization",
       "req.headers.cookie",
       "req.body.password",
