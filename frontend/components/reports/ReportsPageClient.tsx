@@ -226,7 +226,7 @@ export default function ReportsPageClient({
       <section className="mb-6">
         <h2 className="text-lg font-semibold">Project Summary</h2>
         {summary ? (
-          <div className="grid grid-cols-3 gap-4 mt-2">
+          <div className="grid grid-cols-5 gap-4 mt-2">
             <div>
               <div className="text-sm text-muted-foreground">Project</div>
               <div className="font-medium">{summary.projectName}</div>
@@ -240,6 +240,28 @@ export default function ReportsPageClient({
             <div>
               <div className="text-sm text-muted-foreground">Credits Used</div>
               <div className="font-medium">{summary.totalCreditsUsed}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground">Project Start</div>
+              <div className="font-medium">
+                {project?.startDate
+                  ? new Date(
+                      project.startDate as unknown as string
+                    ).toLocaleString()
+                  : "-"}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground">
+                Project Closed
+              </div>
+              <div className="font-medium">
+                {project?.status === "Closed" && project?.closedAt
+                  ? new Date(
+                      project.closedAt as unknown as string
+                    ).toLocaleString()
+                  : "-"}
+              </div>
             </div>
           </div>
         ) : (
