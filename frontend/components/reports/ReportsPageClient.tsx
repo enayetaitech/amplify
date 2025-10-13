@@ -16,6 +16,8 @@ import {
 import SessionsReportTable from "components/reports/SessionsReportTable";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useProject } from "hooks/useProject";
+import { resolveToIana } from "utils/timezones";
+import { DateTime } from "luxon";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 
 export default function ReportsPageClient({
@@ -201,6 +203,17 @@ export default function ReportsPageClient({
     router.push(url);
   };
 
+  const formatProjectDate = (v?: string | Date | null) => {
+    if (!v) return "-";
+    const iana = resolveToIana(project?.defaultTimeZone || "UTC") || "UTC";
+    const iso =
+      typeof v === "string"
+        ? new Date(v).toISOString()
+        : new Date(v as Date).toISOString();
+    const dt = DateTime.fromISO(iso, { zone: iana });
+    return dt.isValid ? dt.toFormat("LLL dd, yyyy | hh:mma") : "-";
+  };
+
   if (accessDenied) {
     return (
       <div className="p-6">
@@ -244,11 +257,7 @@ export default function ReportsPageClient({
             <div>
               <div className="text-sm text-muted-foreground">Project Start</div>
               <div className="font-medium">
-                {project?.startDate
-                  ? new Date(
-                      project.startDate as unknown as string
-                    ).toLocaleString()
-                  : "-"}
+                {formatProjectDate(project?.startDate)}
               </div>
             </div>
             <div>
@@ -256,10 +265,8 @@ export default function ReportsPageClient({
                 Project Closed
               </div>
               <div className="font-medium">
-                {project?.status === "Closed" && project?.closedAt
-                  ? new Date(
-                      project.closedAt as unknown as string
-                    ).toLocaleString()
+                {project?.status === "Closed"
+                  ? formatProjectDate(project?.closedAt)
                   : "-"}
               </div>
             </div>

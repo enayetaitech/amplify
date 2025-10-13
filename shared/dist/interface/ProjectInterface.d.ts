@@ -13,6 +13,7 @@ export interface IProject {
     internalProjectName: string;
     description: string;
     startDate: Date;
+    closedAt?: Date;
     status: ProjectStatus;
     createdBy: string;
     tags: ITag[];
