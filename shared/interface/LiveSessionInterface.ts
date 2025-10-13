@@ -5,7 +5,7 @@ export type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 export interface IWaitingUser {
   name: string;
   email: string;
-  role: Extract<UserRole, "Participant" | "Moderator"  | "Admin">;
+  role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
   joinedAt: Date;
 }
 
@@ -13,7 +13,7 @@ export interface IObserverWaitingUser {
   userId?: string;
   name: string;
   email: string;
-  role: Extract<UserRole, "Observer" | "Moderator"  | "Admin">;
+  role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
   joinedAt: Date;
 }
 
@@ -21,7 +21,7 @@ export interface IParticipant {
   name: string;
   email: string;
   role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
-  joinedAt: Date;
+  joinedAt?: Date | null;
 }
 
 export interface IObserver {
@@ -29,24 +29,49 @@ export interface IObserver {
   name: string;
   email: string;
   role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
-  joinedAt: Date;
+  joinedAt?: Date | null;
+}
+
+export interface IParticipantHistoryItem {
+  id: string; // ref to participant entry
+  name: string;
+  email: string;
+  joinedAt?: Date | null;
+  leaveAt?: Date | null;
+  reason?: string;
+  history:
+    | "Left"
+    | "Meeting Ended"
+    | "Removed by the moderator"
+    | "Transferred to waiting room";
+}
+
+export interface IObserverHistoryItem {
+  id: string; // ref to User
+  name: string;
+  email: string;
+  role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
+  joinedAt?: Date | null;
+  leaveAt?: Date | null;
 }
 
 export interface ILiveSession {
   _id: string;
-  sessionId: string; 
-  ongoing: boolean; 
+  sessionId: string;
+  ongoing: boolean;
   startTime?: Date;
   endTime?: Date;
   participantWaitingRoom: IWaitingUser[];
   observerWaitingRoom: IObserverWaitingUser[];
   participantsList: IParticipant[];
   observerList: IObserver[];
+  participantHistory: IParticipantHistoryItem[];
+  observerHistory: IObserverHistoryItem[];
   hlsPlaybackUrl: string | null;
   hlsEgressId: string | null;
   hlsPlaylistName: string | null;
   fileEgressId: string | null;
-  streaming?: boolean;       // HLS currently live?
+  streaming?: boolean; // HLS currently live?
   hlsStartedAt?: Date | null;
   hlsStoppedAt?: Date | null;
   startedBy: string;

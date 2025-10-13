@@ -46,7 +46,6 @@ const ParticipantSchema = new Schema<
     enum: ["Participant", "Moderator", "Admin"],
     required: true,
   },
-  joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 
 const ObserverSchema = new Schema<ILiveSessionDocument["observerList"][0]>({
@@ -58,7 +57,6 @@ const ObserverSchema = new Schema<ILiveSessionDocument["observerList"][0]>({
     enum: ["Observer", "Moderator", "Admin"],
     required: true,
   },
-  joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 
 const LiveSessionSchema = new Schema<ILiveSessionDocument>(
@@ -77,6 +75,51 @@ const LiveSessionSchema = new Schema<ILiveSessionDocument>(
     observerWaitingRoom: { type: [WaitingRoomObserverSchema], default: [] },
     participantsList: { type: [ParticipantSchema], default: [] },
     observerList: { type: [ObserverSchema], default: [] },
+    participantHistory: {
+      type: [
+        new Schema(
+          {
+            id: { type: Schema.Types.ObjectId },
+            name: { type: String, required: true },
+            email: { type: String, required: true },
+            joinedAt: { type: Date, required: false, default: null },
+            leaveAt: { type: Date, required: false, default: null },
+            history: {
+              type: String,
+              enum: [
+                "Left",
+                "Meeting Ended",
+                "Removed by the moderator",
+                "Transferred to waiting room",
+              ],
+              required: true,
+            },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+    observerHistory: {
+      type: [
+        new Schema(
+          {
+            id: { type: Schema.Types.ObjectId, ref: "User" },
+            name: { type: String, required: true },
+            email: { type: String, required: true },
+            role: {
+              type: String,
+              enum: ["Observer", "Moderator", "Admin"],
+              required: true,
+            },
+            joinedAt: { type: Date, required: false, default: null },
+            leaveAt: { type: Date, required: false, default: null },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     hlsPlaybackUrl: { type: String, default: null },
     hlsEgressId: { type: String, default: null },
     hlsPlaylistName: { type: String, default: null },
