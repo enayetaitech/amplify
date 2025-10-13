@@ -1,0 +1,363 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "components/ui/table";
+import { Button } from "components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+import { Dialog, DialogContent, DialogTrigger } from "components/ui/dialog";
+import api from "lib/api";
+import { safeLocalGet } from "utils/storage";
+import CustomPagination from "components/shared/Pagination";
+
+type Participant = {
+  userId?: string;
+  name?: string;
+  email?: string;
+  deviceType?: string;
+  device?: { os?: string };
+  joinTime?: string;
+  leaveTime?: string;
+  ip?: string;
+};
+
+type Observer = {
+  _id?: string;
+  observerName?: string;
+  name?: string;
+  email?: string;
+  companyName?: string;
+  joinTime?: string;
+  ip?: string;
+};
+
+type LiveParticipant = {
+  userId?: string;
+  name?: string;
+  email?: string;
+  joinedAt?: string;
+};
+
+type LiveObserver = {
+  userId?: string;
+  name?: string;
+  email?: string;
+  joinedAt?: string;
+};
+
+type SessionReportRow = {
+  _id: string;
+  title?: string;
+  name?: string;
+  moderators?: string[] | Array<{ firstName?: string; lastName?: string }>;
+  moderatorsNames?: string[];
+  startDate?: string | null;
+  endDate?: string | null;
+  participantCount?: number;
+  observerCount?: number;
+  totalCreditsUsed?: number;
+  // optional: liveSession-derived lists (may be null)
+  liveSession?: {
+    participantsList?: {
+      name?: string;
+      email?: string;
+      role?: string;
+      joinedAt?: string;
+    }[];
+    observerList?: {
+      name?: string;
+      email?: string;
+      role?: string;
+      joinedAt?: string;
+    }[];
+    startTime?: string;
+    endTime?: string;
+    durationMs?: number;
+  } | null;
+};
+
+export default function SessionsReportTable({
+  sessions,
+  meta,
+  onPageChange,
+  timeZone,
+}: {
+  sessions: SessionReportRow[];
+  meta?: { page?: number; totalPages?: number } | null;
+  onPageChange?: (p: number) => void;
+  timeZone?: string; // reserved for future timezone-aware formatting
+}) {
+  const [openSession, setOpenSession] = useState<SessionReportRow | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [observers, setObservers] = useState<Observer[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [loadingObservers, setLoadingObservers] = useState(false);
+
+  const me = safeLocalGet<{ role?: string }>("user") || null;
+  const isSuperAdmin = me?.role === "SuperAdmin";
+  // Format date like: "Feb 27, 2025 12:59:22 PM"
+  const formatDate = (v?: string | number | null) => {
+    if (v === undefined || v === null) return "";
+    const d = new Date(v as unknown as number | string);
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    }).format(d as Date);
+  };
+  void timeZone;
+  useEffect(() => {
+    async function loadForSession(s: SessionReportRow | null) {
+      if (!s) return;
+      const sid = s._id || (s as unknown as { sessionId?: string }).sessionId;
+
+      // If backend already returned liveSession data in the session row, use it and skip extra API calls
+      if (s.liveSession) {
+        try {
+          setLoadingParticipants(true);
+          const pl = s.liveSession.participantsList || [];
+          const mappedP: Participant[] = pl.map((p: LiveParticipant) => ({
+            userId: p.userId,
+            name: p.name,
+            email: p.email,
+            joinTime: p.joinedAt as string | undefined,
+          }));
+          setParticipants(mappedP);
+        } finally {
+          setLoadingParticipants(false);
+        }
+
+        try {
+          setLoadingObservers(true);
+          const ol = s.liveSession.observerList || [];
+          const mappedO: Observer[] = ol.map((o: LiveObserver) => ({
+            observerName: o.name,
+            name: o.name,
+            email: o.email,
+            joinTime: o.joinedAt as string | undefined,
+          }));
+          setObservers(mappedO);
+        } finally {
+          setLoadingObservers(false);
+        }
+
+        return;
+      }
+
+      try {
+        setLoadingParticipants(true);
+        const p = await api.get<{ data: Participant[] }>(
+          `/api/v1/reports/session/${sid}/participants`
+        );
+        setParticipants(p.data?.data || []);
+      } catch {
+        setParticipants([]);
+      } finally {
+        setLoadingParticipants(false);
+      }
+
+      try {
+        setLoadingObservers(true);
+        const o = await api.get<{ data: Observer[] }>(
+          `/api/v1/reports/session/${sid}/observers`
+        );
+        setObservers(o.data?.data || []);
+      } catch {
+        setObservers([]);
+      } finally {
+        setLoadingObservers(false);
+      }
+    }
+
+    loadForSession(openSession);
+  }, [openSession]);
+
+  return (
+    <div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Session</TableHead>
+            <TableHead>Moderators</TableHead>
+            <TableHead>Start Time</TableHead>
+            <TableHead>
+              Duration <br /> (hh:mm:ss)
+            </TableHead>
+            <TableHead>End Time</TableHead>
+            <TableHead>Participants</TableHead>
+            <TableHead>Observers</TableHead>
+            <TableHead>Credits</TableHead>
+            <TableHead></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sessions.map((s) => (
+            <TableRow key={s._id}>
+              <TableCell>{s.title || s.name}</TableCell>
+              <TableCell>
+                {(s.moderatorsNames || (s.moderators as string[]) || []).join(
+                  ", "
+                )}
+              </TableCell>
+              <TableCell>{formatDate(s.startDate)}</TableCell>
+              <TableCell>
+                {/* durationMs may come from backend; format as hh:mm:ss */}
+                {typeof (s as unknown as { durationMs?: number }).durationMs ===
+                  "number" &&
+                (s as unknown as { durationMs?: number }).durationMs !== null
+                  ? new Date(
+                      Number(
+                        (s as unknown as { durationMs?: number }).durationMs
+                      )
+                    )
+                      .toISOString()
+                      .substr(11, 8)
+                  : ""}
+              </TableCell>
+              <TableCell>{formatDate(s.endDate)}</TableCell>
+              <TableCell>
+                {s.liveSession
+                  ? (s.liveSession.participantsList || []).length
+                  : s.participantCount ?? 0}
+              </TableCell>
+              <TableCell>
+                {s.liveSession
+                  ? (s.liveSession.observerList || []).length
+                  : s.observerCount ?? 0}
+              </TableCell>
+              <TableCell>{s.totalCreditsUsed || 0}</TableCell>
+              <TableCell>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" onClick={() => setOpenSession(s)}>
+                      View
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <div className="min-h-[300px] w-[700px]">
+                      <h3 className="text-lg font-semibold">
+                        {s.title || s.name}
+                      </h3>
+                      <Tabs defaultValue="participants" className="mt-4">
+                        <TabsList>
+                          <TabsTrigger value="participants">
+                            Participants
+                          </TabsTrigger>
+                          <TabsTrigger value="observers">Observers</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="participants">
+                          {loadingParticipants ? (
+                            <div>Loading participants...</div>
+                          ) : participants.length ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Device</TableHead>
+                                  <TableHead>Join</TableHead>
+                                  <TableHead>Leave</TableHead>
+                                  {isSuperAdmin && <TableHead>IP</TableHead>}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {participants.map((p) => (
+                                  <TableRow
+                                    key={p.userId || p.email || Math.random()}
+                                  >
+                                    <TableCell>{p.name || p.email}</TableCell>
+                                    <TableCell>
+                                      {p.deviceType || p.device?.os || ""}
+                                    </TableCell>
+                                    <TableCell>
+                                      {p.joinTime
+                                        ? new Date(p.joinTime).toLocaleString()
+                                        : ""}
+                                    </TableCell>
+                                    <TableCell>
+                                      {p.leaveTime
+                                        ? new Date(p.leaveTime).toLocaleString()
+                                        : ""}
+                                    </TableCell>
+                                    {isSuperAdmin && (
+                                      <TableCell>{p.ip || ""}</TableCell>
+                                    )}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : (
+                            <div>No participants</div>
+                          )}
+                        </TabsContent>
+                        <TabsContent value="observers">
+                          {loadingObservers ? (
+                            <div>Loading observers...</div>
+                          ) : observers.length ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Company</TableHead>
+                                  <TableHead>Join</TableHead>
+                                  {isSuperAdmin && <TableHead>IP</TableHead>}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {observers.map((o) => (
+                                  <TableRow
+                                    key={o._id || o.email || Math.random()}
+                                  >
+                                    <TableCell>
+                                      {o.observerName || o.name}
+                                    </TableCell>
+                                    <TableCell>{o.email}</TableCell>
+                                    <TableCell>{o.companyName || ""}</TableCell>
+                                    <TableCell>
+                                      {o.joinTime
+                                        ? new Date(o.joinTime).toLocaleString()
+                                        : ""}
+                                    </TableCell>
+                                    {isSuperAdmin && (
+                                      <TableCell>{o.ip || ""}</TableCell>
+                                    )}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : (
+                            <div>No observers</div>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {meta && (
+        <div className="mt-4 flex justify-center">
+          <CustomPagination
+            currentPage={meta.page || 1}
+            totalPages={meta.totalPages || 1}
+            onPageChange={(p) => onPageChange?.(p)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

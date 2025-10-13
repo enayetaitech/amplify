@@ -25,6 +25,7 @@ export interface IProjectDocument
   // Override optional fields from shared interface with required types as per schema
   defaultTimeZone: string;
   defaultBreakoutRoom: boolean;
+  closedAt?: Date;
 }
 
 const projectSchema = new Schema<IProjectDocument>(
@@ -67,10 +68,29 @@ const projectSchema = new Schema<IProjectDocument>(
     recordingAccess: { type: Boolean, default: false },
     defaultTimeZone: { type: String, required: true, immutable: true },
     defaultBreakoutRoom: { type: Boolean, default: false },
+    closedAt: { type: Date, required: false },
   },
   {
     timestamps: true,
   }
 );
+
+// Set closedAt when status transitions to Closed
+projectSchema.pre("save", function (next) {
+  try {
+    // `this` is the document
+    const doc: any = this as any;
+    if (doc.isModified && typeof doc.isModified === "function") {
+      if (
+        doc.isModified("status") &&
+        doc.status === "Closed" &&
+        !doc.closedAt
+      ) {
+        doc.closedAt = new Date();
+      }
+    }
+  } catch {}
+  next();
+});
 
 export default model<IProjectDocument>("Project", projectSchema);

@@ -21,7 +21,11 @@ const PresenceSchema = new Schema<PresenceDoc>(
   {
     sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
     projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
-    role: { type: String, enum: ["Admin", "Moderator", "Participant", "Observer"], required: true },
+    role: {
+      type: String,
+      enum: ["Admin", "Moderator", "Participant", "Observer"],
+      required: true,
+    },
     userId: { type: Schema.Types.ObjectId, ref: "User" },
     name: String,
     email: String,
@@ -37,5 +41,9 @@ const PresenceSchema = new Schema<PresenceDoc>(
 );
 PresenceSchema.index({ sessionId: 1, role: 1, roomType: 1 });
 PresenceSchema.index({ sessionId: 1, joinedAt: -1 });
+// Additional indexes for reporting aggregations
+PresenceSchema.index({ projectId: 1, role: 1 });
+PresenceSchema.index({ sessionId: 1, role: 1 });
+PresenceSchema.index({ projectId: 1, joinedAt: -1 });
 
 export default model<PresenceDoc>("Presence", PresenceSchema);
