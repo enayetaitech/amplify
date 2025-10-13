@@ -130,6 +130,27 @@ function LeaveMeetingButton({
         router.push("/projects");
       } else {
         try {
+          try {
+            const s = window.__meetingSocket as Socket | undefined;
+            if (s && typeof s.emit === "function") {
+              // wait for server ack (or timeout) to improve chance the event is processed
+              await new Promise<void>((resolve) => {
+                let done = false;
+                try {
+                  s.emit("participant:left", () => {
+                    if (done) return;
+                    done = true;
+                    resolve();
+                  });
+                } catch {}
+                setTimeout(() => {
+                  if (done) return;
+                  done = true;
+                  resolve();
+                }, 500);
+              });
+            }
+          } catch {}
           await room.disconnect(true);
         } catch {}
         try {

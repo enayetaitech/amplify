@@ -76,6 +76,9 @@ const whiteboardLocks = new Map<
 // Track whiteboard visibility per meeting session
 const whiteboardVisibility = new Map<string, boolean>();
 
+// transient map to ignore disconnects immediately after admit: sessionId -> Map<email, expiryTs>
+const recentlyAdmitted = new Map<string, Map<string, number>>();
+
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
 
@@ -1205,6 +1208,115 @@ export function attachSocket(server: HTTPServer) {
       }
     );
 
+    // Client notifies server it is leaving the meeting (explicit UX action)
+    socket.on(
+      "participant:left",
+      async (_payload: unknown, ack?: (resp: { ok: boolean }) => void) => {
+        console.debug("socket participant:left received", {
+          sessionId,
+          email,
+          role,
+          socketId: socket.id,
+          leftHandled: Boolean((socket as any).__leftHandled),
+        });
+        try {
+          if ((socket as any).__leftHandled) return ack?.({ ok: true });
+          (socket as any).__leftHandled = true;
+          if (email && role === "Participant") {
+            try {
+              const live = await LiveSessionModel.findOne({ sessionId });
+              console.debug("participant:left - found live", {
+                found: Boolean(live),
+              });
+              if (live) {
+                const targetEmail = String(email || "")
+                  .trim()
+                  .toLowerCase();
+                const idx = (live.participantsList || []).findIndex(
+                  (p: any) =>
+                    String((p.email || "").trim()).toLowerCase() === targetEmail
+                );
+                console.debug("participant:left - match idx", {
+                  idx,
+                  targetEmail,
+                });
+                if (idx >= 0) {
+                  const user = (live.participantsList as any).splice(idx, 1)[0];
+                  // ignore if recently admitted
+                  let skipHistory = false;
+                  try {
+                    const eml = String(user?.email || "").toLowerCase();
+                    const map = recentlyAdmitted.get(sessionId);
+                    if (map) {
+                      const exp = map.get(eml) || 0;
+                      if (exp > Date.now()) {
+                        console.debug(
+                          "participant:left - skipping because recently admitted",
+                          { eml }
+                        );
+                        skipHistory = true;
+                        map.delete(eml);
+                      } else {
+                        map.delete(eml);
+                      }
+                    }
+                  } catch {}
+                  if (skipHistory) {
+                    try {
+                      await live.save();
+                    } catch (saveErr) {
+                      console.error(
+                        "participant:left - live.save() failed",
+                        saveErr
+                      );
+                    }
+                    try {
+                      io.to(sessionId).emit("meeting:participants-changed", {});
+                    } catch {}
+                    return ack?.({ ok: true });
+                  }
+                  live.participantHistory = live.participantHistory || [];
+                  live.participantHistory.push({
+                    id: (user && (user._id || (user as any).id)) || undefined,
+                    name: user?.name || user?.email || "",
+                    email: user?.email || "",
+                    joinedAt: (user && (user.joinedAt || null)) || null,
+                    leaveAt: new Date(),
+                    reason: "Left",
+                  } as any);
+                  try {
+                    await live.save();
+                    console.debug("participant:left - live saved", {
+                      sessionId,
+                    });
+                  } catch (saveErr) {
+                    console.error(
+                      "participant:left - live.save() failed",
+                      saveErr
+                    );
+                  }
+                } else {
+                  console.debug(
+                    "participant:left - no matching participant found"
+                  );
+                }
+              }
+            } catch (e) {
+              console.error("participant:left processing error", e);
+            }
+          }
+        } catch (e) {
+          console.error("participant:left outer error", e);
+        }
+        try {
+          io.to(sessionId).emit("meeting:participants-changed", {});
+        } catch (emitErr) {
+          console.error("participant:left emit error", emitErr);
+        }
+        ack?.({ ok: true });
+      }
+    );
+
     // Provide current observer list snapshot on demand
     socket.on(
       "observer:list:get",
@@ -1438,6 +1550,13 @@ export function attachSocket(server: HTTPServer) {
       if (targetId) {
         // new event for participants to listen to
         io.to(targetId).emit("participant:admitted", { admitToken });
+        // mark recently admitted so their immediate disconnect doesn't create a Left history
+        try {
+          const eml = String(email || "").toLowerCase();
+          if (!recentlyAdmitted.has(sessionId))
+            recentlyAdmitted.set(sessionId, new Map());
+          recentlyAdmitted.get(sessionId)!.set(eml, Date.now() + 5000); // 5s TTL
+        } catch {}
       }
 
       // notify observers that a participant was admitted
@@ -1988,7 +2107,64 @@ export function attachSocket(server: HTTPServer) {
         }
       }
       // Notify panels to refresh participant lists (may affect move UI)
-      io.to(sessionId).emit("meeting:participants-changed", {});
+      (async () => {
+        try {
+          // If this disconnect was a participant, persist a "Left" history entry server-side
+          console.debug("socket disconnect processing", {
+            sessionId,
+            email,
+            role,
+            socketId: socket.id,
+          });
+          if (email && role === "Participant") {
+            try {
+              const live = await LiveSessionModel.findOne({ sessionId });
+              console.debug("disconnect - found live", {
+                found: Boolean(live),
+              });
+              if (live) {
+                const targetEmail = String(email || "")
+                  .trim()
+                  .toLowerCase();
+                const idx = (live.participantsList || []).findIndex(
+                  (p: any) =>
+                    String((p.email || "").trim()).toLowerCase() === targetEmail
+                );
+                console.debug("disconnect - match idx", { idx, targetEmail });
+                if (idx >= 0) {
+                  const user = (live.participantsList as any).splice(idx, 1)[0];
+                  live.participantHistory = live.participantHistory || [];
+                  live.participantHistory.push({
+                    id: (user && (user._id || (user as any).id)) || undefined,
+                    name: user?.name || user?.email || "",
+                    email: user?.email || "",
+                    joinedAt: (user && (user.joinedAt || null)) || null,
+                    leaveAt: new Date(),
+                    history: "Left",
+                  } as any);
+                  try {
+                    await live.save();
+                    console.debug("disconnect - live saved", { sessionId });
+                  } catch (saveErr) {
+                    console.error("disconnect - live.save() failed", saveErr);
+                  }
+                } else {
+                  console.debug("disconnect - no matching participant found");
+                }
+              }
+            } catch (e) {
+              console.error("disconnect processing error", e);
+            }
+          }
+        } catch (e) {
+          console.error("disconnect outer error", e);
+        }
+        try {
+          io.to(sessionId).emit("meeting:participants-changed", {});
+        } catch (emitErr) {
+          console.error("disconnect emit error", emitErr);
+        }
+      })();
 
       // Update observer count/list on disconnect if this was an observer
       if (role === "Observer") {

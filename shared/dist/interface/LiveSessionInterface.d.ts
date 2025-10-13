@@ -16,12 +16,14 @@ export interface IParticipant {
     name: string;
     email: string;
     role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
+    joinedAt?: Date | null;
 }
 export interface IObserver {
     userId?: string;
     name: string;
     email: string;
     role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
+    joinedAt?: Date | null;
 }
 export interface IParticipantHistoryItem {
     id: string;
@@ -29,8 +31,7 @@ export interface IParticipantHistoryItem {
     email: string;
     joinedAt?: Date | null;
     leaveAt?: Date | null;
-    reason?: string;
-    history: "Left" | "Meeting Ended" | "Removed by the moderator" | "Transferred to waiting room";
+    reason: "Left" | "Meeting Ended" | "Removed by the moderator" | "Transferred to waiting room";
 }
 export interface IObserverHistoryItem {
     id: string;

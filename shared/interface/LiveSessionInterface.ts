@@ -38,8 +38,8 @@ export interface IParticipantHistoryItem {
   email: string;
   joinedAt?: Date | null;
   leaveAt?: Date | null;
-  reason?: string;
-  history:
+
+  reason:
     | "Left"
     | "Meeting Ended"
     | "Removed by the moderator"

@@ -46,6 +46,7 @@ const ParticipantSchema = new Schema<
     enum: ["Participant", "Moderator", "Admin"],
     required: true,
   },
+  joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 
 const ObserverSchema = new Schema<ILiveSessionDocument["observerList"][0]>({
@@ -57,6 +58,7 @@ const ObserverSchema = new Schema<ILiveSessionDocument["observerList"][0]>({
     enum: ["Observer", "Moderator", "Admin"],
     required: true,
   },
+  joinedAt: { type: Date, required: true, default: () => new Date() },
 });
 
 const LiveSessionSchema = new Schema<ILiveSessionDocument>(
@@ -84,7 +86,7 @@ const LiveSessionSchema = new Schema<ILiveSessionDocument>(
             email: { type: String, required: true },
             joinedAt: { type: Date, required: false, default: null },
             leaveAt: { type: Date, required: false, default: null },
-            history: {
+            reason: {
               type: String,
               enum: [
                 "Left",
