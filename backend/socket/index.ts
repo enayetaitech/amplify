@@ -1624,6 +1624,20 @@ export function attachSocket(server: HTTPServer) {
                 role: user.role || "Participant",
                 joinedAt: new Date(),
               } as any);
+              // record transfer to waiting room in participantHistory
+              try {
+                live.participantHistory = live.participantHistory || [];
+                live.participantHistory.push({
+                  id:
+                    (user && ((user as any)._id || (user as any).id)) ||
+                    undefined,
+                  name: user?.name || user?.email || "",
+                  email: user?.email || "",
+                  joinedAt: (user && (user.joinedAt || null)) || null,
+                  leaveAt: new Date(),
+                  reason: "Transferred to waiting room",
+                } as any);
+              } catch {}
               await live.save();
 
               // broadcast updated waiting list and participant change
