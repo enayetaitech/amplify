@@ -192,26 +192,26 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
       return null;
 
     case "RANK_ORDER": {
-  const rows    = q.rows?.length    ? q.rows    : q.options;
-    const columns = q.columns?.length ? q.columns : q.answers;
+      const rows = q.rows?.length ? q.rows : q.options;
+      const columns = q.columns?.length ? q.columns : q.answers;
 
-  if (rows.length < 2) {
-    return "Need at least two items to rank";
-  }
-  if (rows.some((r) => !r.trim())) {
-    return "All rank items must be filled";
-  }
-  if (columns.length < 2) {
-    return "Need at least two columns";
-  }
-  if (columns.some((c) => !c.trim())) {
-    return "All rank columns must be filled";
-  }
-  if (rows.length !== columns.length) {
-    return "Rows and columns count must match";
-  }
-  return null;
-}
+      if (rows.length < 2) {
+        return "Need at least two items to rank";
+      }
+      if (rows.some((r) => !r.trim())) {
+        return "All rank items must be filled";
+      }
+      if (columns.length < 2) {
+        return "Need at least two columns";
+      }
+      if (columns.some((c) => !c.trim())) {
+        return "All rank columns must be filled";
+      }
+      if (rows.length !== columns.length) {
+        return "Rows and columns count must match";
+      }
+      return null;
+    }
     case "FILL_IN_BLANK":
       const blanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g)).length;
       if (blanks === 0) {
@@ -293,25 +293,25 @@ const AddPollDialog = ({
       const formData = new FormData();
 
       const questionsPayload = questions.map((q) => {
-      // Drop the two file fields from every question
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { imageFile, tempImageName, ...rest } = q;
+        // Drop the two file fields from every question
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { imageFile, tempImageName, ...rest } = q;
 
-      if (q.type === "RANK_ORDER") {
-        // Pull out the legacy fields and spit back in rows/columns
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { options, answers } = rest as any;
-        return {
-          ...rest,
-          type: "RANK_ORDER",
-          rows: options,
-          columns: answers,
-        };
-      }
+        if (q.type === "RANK_ORDER") {
+          // Pull out the legacy fields and spit back in rows/columns
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { options, answers } = rest as any;
+          return {
+            ...rest,
+            type: "RANK_ORDER",
+            rows: options,
+            columns: answers,
+          };
+        }
 
-      // Everything else just keeps the other properties
-      return rest;
-    });
+        // Everything else just keeps the other properties
+        return rest;
+      });
 
       formData.append("questions", JSON.stringify(questionsPayload));
       formData.append("projectId", projectId);
@@ -566,6 +566,10 @@ const AddPollDialog = ({
     updateQuestion(id, { maxChars: Math.min(cap, (q.maxChars || cap) + d) });
   };
 
+  // validation helper for UI
+  const getQuestionError = (q: DraftWithImage): string | null =>
+    validateQuestion(q);
+
   const isSaving = createPollMutation.isPending;
 
   return (
@@ -679,7 +683,18 @@ const AddPollDialog = ({
                         onClick={() => changeMin(q.id, -1)}
                         disabled={isSaving}
                       />
-                      <span className="w-8 text-center">{q.minChars}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={q.minChars}
+                        onChange={(e) =>
+                          updateQuestion(q.id, {
+                            minChars: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                        className="w-16 text-center border rounded px-1 py-0.5"
+                        disabled={isSaving}
+                      />
                       <CustomButton
                         icon={<Plus />}
                         variant="ghost"
@@ -697,7 +712,22 @@ const AddPollDialog = ({
                         onClick={() => changeMax(q.id, -1)}
                         disabled={isSaving}
                       />
-                      <span className="w-12 text-center">{q.maxChars}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={q.maxChars}
+                        onChange={(e) => {
+                          const cap = q.type === "SHORT_ANSWER" ? 200 : 2000;
+                          updateQuestion(q.id, {
+                            maxChars: Math.min(
+                              cap,
+                              Number(e.target.value) || cap
+                            ),
+                          });
+                        }}
+                        className="w-20 text-center border rounded px-1 py-0.5"
+                        disabled={isSaving}
+                      />
                       <CustomButton
                         icon={<Plus />}
                         variant="ghost"
@@ -705,6 +735,14 @@ const AddPollDialog = ({
                         onClick={() => changeMax(q.id, +1)}
                         disabled={isSaving}
                       />
+                    </div>
+                    {/* inline validation message */}
+                    <div className="col-span-2">
+                      {getQuestionError(q) && (
+                        <div className="text-sm text-rose-600 mt-1">
+                          {getQuestionError(q)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : q.type === "SINGLE_CHOICE" ? (
