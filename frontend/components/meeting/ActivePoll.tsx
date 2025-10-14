@@ -635,7 +635,14 @@ export default function ActivePoll({
                 }
 
                 if (answers.length === 0) {
-                  toast.error("Please answer at least one question");
+                  if (
+                    Array.isArray(poll.questions) &&
+                    poll.questions.length === 1
+                  ) {
+                    toast.error("Please answer the question");
+                  } else {
+                    toast.error("Please answer at least one question");
+                  }
                   return;
                 }
                 onSubmit(answers);

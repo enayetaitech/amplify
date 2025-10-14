@@ -541,146 +541,153 @@ function RespondentsWrapper({
   return (
     <div className="space-y-2">
       <div className="text-sm text-gray-600">
-        {anonym
-          ? "Anonymous run – identities hidden"
-          : "Respondents (first 20)"}
+        {responses.length > 0
+          ? anonym
+            ? "Anonymous run – identities hidden"
+            : "Respondents"
+          : null}
       </div>
-      <div className="border rounded divide-y">
-        {responses.map((r, idx) => (
-          <div key={idx} className="p-2">
-            {!anonym && (
-              <div className="text-sm font-medium">
-                {r.responder?.name || "Unnamed"}
-              </div>
-            )}
-            <div className="text-xs text-gray-600 mt-1 min-w-0">
-              {questions.map((qdef) => {
-                const ans = r.answers.find((a) => a.questionId === qdef._id);
-                const v = ans?.value as unknown;
-                const def = qById.get(qdef._id);
-                let label = "";
+      {responses.length === 0 ? (
+        <div className="mt-2 text-sm text-gray-600">No responses yet</div>
+      ) : (
+        <div className="border rounded divide-y">
+          {responses.map((r, idx) => (
+            <div key={idx} className="p-2">
+              {!anonym && (
+                <div className="text-sm font-medium">
+                  {r.responder?.name || "Unnamed"}
+                </div>
+              )}
+              <div className="text-xs text-gray-600 mt-1 min-w-0">
+                {questions.map((qdef) => {
+                  const ans = r.answers.find((a) => a.questionId === qdef._id);
+                  const v = ans?.value as unknown;
+                  const def = qById.get(qdef._id);
+                  let label = "";
 
-                if (def) {
-                  // SINGLE_CHOICE: show option text + correctness
-                  if (def.type === "SINGLE_CHOICE") {
-                    const chosen = typeof v === "number" ? (v as number) : null;
-                    const correct = (
-                      def as Extract<PollQuestion, { type: "SINGLE_CHOICE" }>
-                    ).correctAnswer;
-                    const text =
-                      chosen !== null
-                        ? def.answers?.[chosen] ?? String(chosen)
-                        : "—";
-                    if (chosen === null) label = "—";
-                    else if (correct !== undefined)
-                      label = `${text} — ${
-                        chosen === correct ? "Correct" : "Wrong"
-                      }`;
-                    else label = text;
+                  if (def) {
+                    // SINGLE_CHOICE: show option text + correctness
+                    if (def.type === "SINGLE_CHOICE") {
+                      const chosen =
+                        typeof v === "number" ? (v as number) : null;
+                      const correct = (
+                        def as Extract<PollQuestion, { type: "SINGLE_CHOICE" }>
+                      ).correctAnswer;
+                      const text =
+                        chosen !== null
+                          ? def.answers?.[chosen] ?? String(chosen)
+                          : "—";
+                      if (chosen === null) label = "—";
+                      else if (correct !== undefined)
+                        label = `${text} — ${
+                          chosen === correct ? "Correct" : "Wrong"
+                        }`;
+                      else label = text;
 
-                    // MULTIPLE_CHOICE: show chosen options and correctness
-                  } else if (def.type === "MULTIPLE_CHOICE") {
-                    const chosen = Array.isArray(v) ? (v as number[]) : [];
-                    const chosenText = chosen
-                      .map((i) => def.answers?.[i] ?? String(i))
-                      .join(", ");
-                    const correctArr =
-                      (
-                        def as Extract<
-                          PollQuestion,
-                          { type: "MULTIPLE_CHOICE" }
-                        >
-                      ).correctAnswers || [];
-                    const setA = new Set(chosen);
-                    const setB = new Set(correctArr);
-                    const eq =
-                      setA.size === setB.size &&
-                      [...setA].every((x) => setB.has(x));
-                    if (chosen.length === 0) label = "—";
-                    else if (correctArr.length)
-                      label = `${chosenText} — ${eq ? "Correct" : "Wrong"}`;
-                    else label = chosenText;
-
-                    // MATCHING: value is array of pairs
-                  } else if (def.type === "MATCHING") {
-                    if (Array.isArray(v)) {
-                      const pairs = v as Array<[number, number]>;
-                      const txt = pairs
-                        .map(
-                          (p) =>
-                            `${def.options?.[p[0]] ?? p[0]} → ${
-                              def.answers?.[p[1]] ?? p[1]
-                            }`
-                        )
+                      // MULTIPLE_CHOICE: show chosen options and correctness
+                    } else if (def.type === "MULTIPLE_CHOICE") {
+                      const chosen = Array.isArray(v) ? (v as number[]) : [];
+                      const chosenText = chosen
+                        .map((i) => def.answers?.[i] ?? String(i))
                         .join(", ");
-                      const ok = pairs.every((p) => p[1] === p[0]);
-                      label =
-                        pairs.length === 0
-                          ? "—"
-                          : `${txt} — ${ok ? "Correct" : "Wrong"}`;
-                    } else label = String(v ?? "");
+                      const correctArr =
+                        (
+                          def as Extract<
+                            PollQuestion,
+                            { type: "MULTIPLE_CHOICE" }
+                          >
+                        ).correctAnswers || [];
+                      const setA = new Set(chosen);
+                      const setB = new Set(correctArr);
+                      const eq =
+                        setA.size === setB.size &&
+                        [...setA].every((x) => setB.has(x));
+                      if (chosen.length === 0) label = "—";
+                      else if (correctArr.length)
+                        label = `${chosenText} — ${eq ? "Correct" : "Wrong"}`;
+                      else label = chosenText;
 
-                    // FILL_IN_BLANK: value is array of strings
-                  } else if (def.type === "FILL_IN_BLANK") {
-                    if (Array.isArray(v)) {
-                      const vals = v as string[];
-                      const txt = vals.join(", ");
-                      const expected = def.answers || [];
-                      const ok =
-                        expected.length === vals.length &&
-                        vals.every(
-                          (vv, idx) =>
-                            (vv ?? "").trim().toLowerCase() ===
-                            (expected[idx] ?? "").trim().toLowerCase()
-                        );
-                      label = `${txt} — ${ok ? "Correct" : "Wrong"}`;
-                    } else label = String(v ?? "");
+                      // MATCHING: value is array of pairs
+                    } else if (def.type === "MATCHING") {
+                      if (Array.isArray(v)) {
+                        const pairs = v as Array<[number, number]>;
+                        const txt = pairs
+                          .map(
+                            (p) =>
+                              `${def.options?.[p[0]] ?? p[0]} → ${
+                                def.answers?.[p[1]] ?? p[1]
+                              }`
+                          )
+                          .join(", ");
+                        const ok = pairs.every((p) => p[1] === p[0]);
+                        label =
+                          pairs.length === 0
+                            ? "—"
+                            : `${txt} — ${ok ? "Correct" : "Wrong"}`;
+                      } else label = String(v ?? "");
 
-                    // RANK_ORDER: value is array of indices
-                  } else if (def.type === "RANK_ORDER") {
-                    if (Array.isArray(v)) {
-                      const arr = v as number[];
-                      const txt = arr
-                        .map((idx) => def.columns?.[idx] ?? String(idx))
-                        .join(", ");
-                      const ok = arr.every((val, idx) => val === idx);
-                      label =
-                        arr.length === 0
-                          ? "—"
-                          : `${txt} — ${ok ? "Correct" : "Wrong"}`;
-                    } else label = String(v ?? "");
+                      // FILL_IN_BLANK: value is array of strings
+                    } else if (def.type === "FILL_IN_BLANK") {
+                      if (Array.isArray(v)) {
+                        const vals = v as string[];
+                        const txt = vals.join(", ");
+                        const expected = def.answers || [];
+                        const ok =
+                          expected.length === vals.length &&
+                          vals.every(
+                            (vv, idx) =>
+                              (vv ?? "").trim().toLowerCase() ===
+                              (expected[idx] ?? "").trim().toLowerCase()
+                          );
+                        label = `${txt} — ${ok ? "Correct" : "Wrong"}`;
+                      } else label = String(v ?? "");
 
-                    // RATING_SCALE or others: show value
-                  } else if (def.type === "RATING_SCALE") {
-                    label = String(v ?? "");
+                      // RANK_ORDER: value is array of indices
+                    } else if (def.type === "RANK_ORDER") {
+                      if (Array.isArray(v)) {
+                        const arr = v as number[];
+                        const txt = arr
+                          .map((idx) => def.columns?.[idx] ?? String(idx))
+                          .join(", ");
+                        const ok = arr.every((val, idx) => val === idx);
+                        label =
+                          arr.length === 0
+                            ? "—"
+                            : `${txt} — ${ok ? "Correct" : "Wrong"}`;
+                      } else label = String(v ?? "");
+
+                      // RATING_SCALE or others: show value
+                    } else if (def.type === "RATING_SCALE") {
+                      label = String(v ?? "");
+                    } else {
+                      // fallback: stringify
+                      if (Array.isArray(v)) label = JSON.stringify(v);
+                      else if (typeof v === "object" && v !== null)
+                        label = JSON.stringify(v as object);
+                      else if (v === undefined || v === null) label = "";
+                      else label = String(v);
+                    }
                   } else {
-                    // fallback: stringify
+                    // no question def found
                     if (Array.isArray(v)) label = JSON.stringify(v);
                     else if (typeof v === "object" && v !== null)
                       label = JSON.stringify(v as object);
                     else if (v === undefined || v === null) label = "";
                     else label = String(v);
                   }
-                } else {
-                  // no question def found
-                  if (Array.isArray(v)) label = JSON.stringify(v);
-                  else if (typeof v === "object" && v !== null)
-                    label = JSON.stringify(v as object);
-                  else if (v === undefined || v === null) label = "";
-                  else label = String(v);
-                }
 
-                return (
-                  <div key={qdef._id} className="truncate">
-                    <span className="font-semibold">{qdef.prompt}:</span>{" "}
-                    {label || "—"}
-                  </div>
-                );
-              })}
+                  return (
+                    <div key={qdef._id} className="truncate">
+                      <span className="font-semibold">{qdef.prompt}:</span>{" "}
+                      {label || "—"}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

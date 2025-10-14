@@ -624,200 +624,219 @@ export default function Meeting() {
 
   // Note: right panel initial state derives from role; avoid conditional hooks after returns
 
-  const mainColSpanClass =
+  const mdSpan =
     (isLeftOpen ? 1 : 0) + (role !== "participant" && isRightOpen ? 1 : 0) === 2
-      ? "col-span-6"
+      ? "md:col-span-6"
       : (isLeftOpen ? 1 : 0) +
           (role !== "participant" && isRightOpen ? 1 : 0) ===
         1
-      ? "col-span-9"
-      : "col-span-12";
+      ? "md:col-span-9"
+      : "md:col-span-12";
+  const mainColSpanClass = `col-span-12 ${mdSpan}`;
 
   return (
     <LiveKitRoom token={token} serverUrl={wsUrl}>
       <div className="relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0  meeting_bg">
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
         {isLeftOpen && (
-          <aside className="relative col-span-3 h-full rounded-r-2xl p-2 overflow-y-auto overflow-x-hidden bg-white shadow">
-            <button
-              type="button"
+          <>
+            {/* mobile backdrop */}
+            <div
+              className="fixed inset-0 bg-black/30 z-30 md:hidden"
               onClick={() => setIsLeftOpen(false)}
-              className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
-              aria-label="Collapse left panel"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            {(role === "admin" || role === "moderator") && (
+            />
+            <aside className="fixed inset-y-0 left-0 z-40 w-[320px] max-w-[85vw] bg-white shadow overflow-y-auto overflow-x-hidden p-3 rounded-none md:relative md:z-auto md:w-auto md:inset-auto md:left-auto md:col-span-3 md:h-full md:rounded-r-2xl md:p-2">
               <button
                 type="button"
-                onClick={() => {
-                  const s = socketRef.current;
-                  if (!s) return;
-                  const next = !isWhiteboardOpen;
-                  s.emit(
-                    "whiteboard:visibility:set",
-                    { sessionId: String(sessionId), open: next },
-                    (_ack?: { ok?: boolean; error?: string }) => {
-                      console.log(_ack);
-                    }
-                  );
-                  // If closing locally, stop publishing immediately so host UI clears
-                  if (!next) {
-                    try {
-                      const fn = (
-                        globalThis as unknown as {
-                          __wbStopPublish?: () => Promise<void>;
-                        }
-                      ).__wbStopPublish;
-                      if (typeof fn === "function") fn();
-                    } catch {}
-                  }
-                  // Optimistic update; will be confirmed by broadcast
-                  setIsWhiteboardOpen(next);
-                }}
-                className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
-                aria-label="Whiteboard"
+                onClick={() => setIsLeftOpen(false)}
+                className="absolute -right-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+                aria-label="Collapse left panel"
               >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
-                  <PenTool className="h-3.5 w-3.5 text-white" />
-                </span>
-                <span>
-                  {isWhiteboardOpen ? "Close Whiteboard" : "Open Whiteboard"}
-                </span>
+                <ChevronLeft className="h-4 w-4" />
               </button>
-            )}
-
-            {/* Whiteboard content moved to main area for side-by-side layout */}
-
-            {(role === "admin" || role === "moderator") && (
-              <button
-                type="button"
-                onClick={() => {
-                  const s = socketRef.current;
-                  if (!s || streamBusy !== null) return;
-                  if (!isStreaming) {
-                    setStreamBusy("start");
-                    s.emit(
-                      "meeting:stream:start",
-                      {},
-                      (ack?: { ok?: boolean; error?: string }) => {
-                        setStreamBusy(null);
-                        if (ack?.ok) {
-                          setIsStreaming(true);
-                          toast.success("Streaming started");
-                        } else {
-                          toast.error(
-                            ack?.error || "Failed to start streaming"
-                          );
-                        }
-                      }
-                    );
-                  } else {
-                    setStreamBusy("stop");
-                    s.emit(
-                      "meeting:stream:stop",
-                      {},
-                      (ack?: { ok?: boolean; error?: string }) => {
-                        setStreamBusy(null);
-                        if (ack?.ok) {
-                          setIsStreaming(false);
-                          toast.success("Streaming stopped");
-                        } else {
-                          toast.error(ack?.error || "Failed to stop streaming");
-                        }
-                      }
-                    );
-                  }
-                }}
-                disabled={streamBusy !== null}
-                className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition  ${
-                  streamBusy !== null
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-200"
-                } bg-gray-100 text-gray-700`}
-                aria-label={isStreaming ? "Stop Stream" : "Start Stream"}
-              >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
-                  {isStreaming ? (
-                    <Square className="h-3.5 w-3.5 text-white" />
-                  ) : (
-                    <Play className="h-3.5 w-3.5 text-white" />
-                  )}
-                </span>
-                <span>{isStreaming ? "Stop Stream" : "Start Stream"}</span>
-              </button>
-            )}
-            {featureFlags.breakoutsEnabled &&
-              (role === "admin" || role === "moderator") && (
+              {(role === "admin" || role === "moderator") && (
                 <button
                   type="button"
-                  onClick={() => setIsBreakoutOverlayOpen((v) => !v)}
-                  className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm cursor-pointer text-gray-700 hover:bg-gray-200 transition"
-                  aria-label={
-                    isBreakoutOverlayOpen
-                      ? "Close Breakout Panel"
-                      : "Open Breakout Panel"
-                  }
+                  onClick={() => {
+                    const s = socketRef.current;
+                    if (!s) return;
+                    const next = !isWhiteboardOpen;
+                    s.emit(
+                      "whiteboard:visibility:set",
+                      { sessionId: String(sessionId), open: next },
+                      (_ack?: { ok?: boolean; error?: string }) => {
+                        console.log(_ack);
+                      }
+                    );
+                    // If closing locally, stop publishing immediately so host UI clears
+                    if (!next) {
+                      try {
+                        const fn = (
+                          globalThis as unknown as {
+                            __wbStopPublish?: () => Promise<void>;
+                          }
+                        ).__wbStopPublish;
+                        if (typeof fn === "function") fn();
+                      } catch {}
+                    }
+                    // Optimistic update; will be confirmed by broadcast
+                    setIsWhiteboardOpen(next);
+                  }}
+                  className="mb-2  cursor-pointer inline-flex w-[80%] items-center gap-3 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 transition"
+                  aria-label="Whiteboard"
                 >
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-custom-dark-blue-1">
-                    <LayoutGrid className="h-3.5 w-3.5 text-white" />
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                    <PenTool className="h-3.5 w-3.5 text-white" />
                   </span>
                   <span>
-                    {isBreakoutOverlayOpen
-                      ? "Close Breakout Panel"
-                      : "Open Breakout Panel"}
+                    {isWhiteboardOpen ? "Close Whiteboard" : "Open Whiteboard"}
                   </span>
                 </button>
               )}
-            <div className="relative">
+
+              {/* Whiteboard content moved to main area for side-by-side layout */}
+
+              {(role === "admin" || role === "moderator") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = socketRef.current;
+                    if (!s || streamBusy !== null) return;
+                    if (!isStreaming) {
+                      setStreamBusy("start");
+                      s.emit(
+                        "meeting:stream:start",
+                        {},
+                        (ack?: { ok?: boolean; error?: string }) => {
+                          setStreamBusy(null);
+                          if (ack?.ok) {
+                            setIsStreaming(true);
+                            toast.success("Streaming started");
+                          } else {
+                            toast.error(
+                              ack?.error || "Failed to start streaming"
+                            );
+                          }
+                        }
+                      );
+                    } else {
+                      setStreamBusy("stop");
+                      s.emit(
+                        "meeting:stream:stop",
+                        {},
+                        (ack?: { ok?: boolean; error?: string }) => {
+                          setStreamBusy(null);
+                          if (ack?.ok) {
+                            setIsStreaming(false);
+                            toast.success("Streaming stopped");
+                          } else {
+                            toast.error(
+                              ack?.error || "Failed to stop streaming"
+                            );
+                          }
+                        }
+                      );
+                    }
+                  }}
+                  disabled={streamBusy !== null}
+                  className={`mb-3 inline-flex w-[80%] items-center gap-3 rounded-xl px-3 py-2 cursor-pointer text-sm transition  ${
+                    streamBusy !== null
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-gray-200"
+                  } bg-gray-100 text-gray-700`}
+                  aria-label={isStreaming ? "Stop Stream" : "Start Stream"}
+                >
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-yellow-400">
+                    {isStreaming ? (
+                      <Square className="h-3.5 w-3.5 text-white" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5 text-white" />
+                    )}
+                  </span>
+                  <span>{isStreaming ? "Stop Stream" : "Start Stream"}</span>
+                </button>
+              )}
               {featureFlags.breakoutsEnabled &&
                 (role === "admin" || role === "moderator") && (
-                  <div
-                    className={`absolute border inset-0 rounded-lg bg-white p-3 overflow-auto transition-opacity ${
+                  <button
+                    type="button"
+                    onClick={() => setIsBreakoutOverlayOpen((v) => !v)}
+                    className="mb-3 inline-flex w-[80%] items-center gap-3 rounded-lg bg-gray-100 px-3 py-2 text-sm cursor-pointer text-gray-700 hover:bg-gray-200 transition"
+                    aria-label={
                       isBreakoutOverlayOpen
-                        ? "z-30 opacity-100"
-                        : "z-[-1] opacity-0 pointer-events-none"
-                    }`}
-                    aria-hidden={!isBreakoutOverlayOpen}
+                        ? "Close Breakout Panel"
+                        : "Open Breakout Panel"
+                    }
                   >
-                    <h4 className="font-semibold mb-2">Breakouts</h4>
-                    <BreakoutsPanel sessionId={String(sessionId)} role={role} />
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-custom-dark-blue-1">
+                      <LayoutGrid className="h-3.5 w-3.5 text-white" />
+                    </span>
+                    <span>
+                      {isBreakoutOverlayOpen
+                        ? "Close Breakout Panel"
+                        : "Open Breakout Panel"}
+                    </span>
+                  </button>
+                )}
+              <div className="relative">
+                {featureFlags.breakoutsEnabled &&
+                  (role === "admin" || role === "moderator") && (
+                    <div
+                      className={`absolute border inset-0 rounded-lg bg-white p-3 overflow-auto transition-opacity ${
+                        isBreakoutOverlayOpen
+                          ? "z-30 opacity-100"
+                          : "z-[-1] opacity-0 pointer-events-none"
+                      }`}
+                      aria-hidden={!isBreakoutOverlayOpen}
+                    >
+                      <h4 className="font-semibold mb-2">Breakouts</h4>
+                      <BreakoutsPanel
+                        sessionId={String(sessionId)}
+                        role={role}
+                      />
+                    </div>
+                  )}
+                <ParticipantsPanel
+                  role={role}
+                  socket={socketRef.current}
+                  myEmail={my?.email || null}
+                  sessionId={String(sessionId)}
+                />
+                <ModeratorWaitingPanel />
+                {/* Polls: participant view only */}
+                {(role as UiRole) === "participant" && (
+                  <div className="mt-2">
+                    <ActivePoll sessionId={String(sessionId)} user={user} />
                   </div>
                 )}
-              <ParticipantsPanel
-                role={role}
-                socket={socketRef.current}
-                myEmail={my?.email || null}
-                sessionId={String(sessionId)}
-              />
-              <ModeratorWaitingPanel />
-              {/* Polls: participant view only */}
-              {(role as UiRole) === "participant" && (
-                <div className="mt-2">
-                  <ActivePoll sessionId={String(sessionId)} user={user} />
-                </div>
-              )}
-              {(role as UiRole) === "participant" && (
-                <div className="mt-2">
-                  <ParticipantChatPanel
-                    socket={socketRef.current}
-                    sessionId={String(sessionId)}
-                    me={{ email: my.email, name: my.name, role: "Participant" }}
-                  />
-                </div>
-              )}
-              {(role === "admin" || role === "moderator") &&
-                sessionProjectId && (
-                  <div className="mt-4">
-                    <PollsPanel
-                      projectId={sessionProjectId}
+                {(role as UiRole) === "participant" && (
+                  <div className="mt-2">
+                    <ParticipantChatPanel
+                      socket={socketRef.current}
                       sessionId={String(sessionId)}
+                      me={{
+                        email: my.email,
+                        name: my.name,
+                        role: "Participant",
+                      }}
                     />
                   </div>
                 )}
-              <div data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"} />
-            </div>
-          </aside>
+                {(role === "admin" || role === "moderator") &&
+                  sessionProjectId && (
+                    <div className="mt-4">
+                      <PollsPanel
+                        projectId={sessionProjectId}
+                        sessionId={String(sessionId)}
+                      />
+                    </div>
+                  )}
+                <div
+                  data-breakouts={featureFlags.breakoutsEnabled ? "1" : "0"}
+                />
+              </div>
+            </aside>
+          </>
         )}
 
         {!isLeftOpen && (
