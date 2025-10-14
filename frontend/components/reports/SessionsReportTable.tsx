@@ -37,18 +37,23 @@ type Observer = {
   ip?: string;
 };
 
-type LiveParticipant = {
+type LiveObserver = {
   userId?: string;
   name?: string;
   email?: string;
   joinedAt?: string;
 };
 
-type LiveObserver = {
+// normalized shape for entries coming from participantHistory or participantsList
+type ParticipantEntry = {
+  id?: string;
   userId?: string;
   name?: string;
   email?: string;
-  joinedAt?: string;
+  deviceType?: string;
+  device?: { os?: string };
+  joinedAt?: string | Date | null;
+  leaveAt?: string | Date | null;
 };
 
 type SessionReportRow = {
@@ -126,13 +131,34 @@ export default function SessionsReportTable({
       if (s.liveSession) {
         try {
           setLoadingParticipants(true);
-          const pl = s.liveSession.participantsList || [];
-          const mappedP: Participant[] = pl.map((p: LiveParticipant) => ({
-            userId: p.userId,
+          // prefer participantHistory when available; fall back to participantsList
+          const ls = s.liveSession as
+            | {
+                participantHistory?: ParticipantEntry[];
+                participantsList?: ParticipantEntry[];
+              }
+            | undefined;
+          const history: ParticipantEntry[] =
+            ls && Array.isArray(ls.participantHistory)
+              ? ls.participantHistory
+              : ls?.participantsList || [];
+
+          // show all entries (including duplicates) from participantHistory or participantsList
+          const entries: ParticipantEntry[] = Array.isArray(history)
+            ? history
+            : [];
+
+          const mappedP: Participant[] = entries.map((p: ParticipantEntry) => ({
+            userId: p.userId || p.id ? String(p.userId || p.id) : undefined,
             name: p.name,
             email: p.email,
+            deviceType: p.deviceType || undefined,
+            device: p.device || undefined,
             joinTime: p.joinedAt as string | undefined,
+            leaveTime: p.leaveAt ? (p.leaveAt as string) : undefined,
+            ip: undefined,
           }));
+
           setParticipants(mappedP);
         } finally {
           setLoadingParticipants(false);
@@ -228,7 +254,25 @@ export default function SessionsReportTable({
               <TableCell>{formatDate(s.endDate)}</TableCell>
               <TableCell>
                 {s.liveSession
-                  ? (s.liveSession.participantsList || []).length
+                  ? (() => {
+                      const ls = s.liveSession as unknown as
+                        | {
+                            participantHistory?: ParticipantEntry[];
+                            participantsList?: ParticipantEntry[];
+                          }
+                        | undefined;
+                      const history: ParticipantEntry[] =
+                        ls && Array.isArray(ls.participantHistory)
+                          ? ls.participantHistory
+                          : ls?.participantsList || [];
+                      const emails = new Set<string>();
+                      for (const e of history) {
+                        if (!e) continue;
+                        const em = (e.email || "").toString().toLowerCase();
+                        if (em) emails.add(em);
+                      }
+                      return emails.size;
+                    })()
                   : s.participantCount ?? 0}
               </TableCell>
               <TableCell>
