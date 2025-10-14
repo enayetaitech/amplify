@@ -303,7 +303,12 @@ export default function PollsPanel({
         <h4 className="font-semibold">Polls</h4>
         <Dialog open={openLaunch} onOpenChange={setOpenLaunch}>
           <DialogTrigger asChild>
-            <Button onClick={() => setOpenLaunch(true)}>Launch Poll</Button>
+            <Button
+              className="py-0.5 px-3 text-xs bg-custom-dark-blue-1 text-white hover:bg-custom-dark-blue-2 hover:text-white"
+              onClick={() => setOpenLaunch(true)}
+            >
+              Launch Poll
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -356,97 +361,85 @@ export default function PollsPanel({
             : latestRunByPoll[p._id] ?? null;
           return (
             <div key={p._id} className="border p-3 rounded">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-lg">{p.title}</div>
-                      {/* <div className="text-sm text-gray-500">
-                        {isActive ? `Active run ${runId}` : null}
-                      </div> */}
-                    </div>
-                    <div>
-                      {/* status badge */}
-                      {isActive ? (
-                        <span className="inline-block rounded px-2 py-1 text-white text-xs bg-custom-dark-blue-1">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-500">Closed</span>
-                      )}
-                    </div>
+              <div className="flex flex-col gap-2">
+                {/* Title + status */}
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0 font-medium text-sm truncate">
+                    {p.title}
                   </div>
-
-                  <div className="mt-3">
-                    <div className="text-sm text-gray-700 mb-1">Run</div>
-                    <RunSelector
-                      pollId={p._id}
-                      currentRunId={runId}
-                      sessionId={sessionId}
-                      onChange={(rid) =>
-                        setLatestRunByPoll((s) => ({
-                          ...s,
-                          [p._id]: rid || "",
-                        }))
-                      }
-                    />
-
-                    {/* moved actions under the run selector */}
-                    <div className="mt-2 flex items-center gap-2">
-                      {!isActive && runId && (
-                        <Button
-                          className="bg-white border border-custom-dark-blue-1 text-custom-dark-blue-1"
-                          onClick={() =>
-                            setShareConfirm({
-                              open: true,
-                              pollId: p._id,
-                              runId,
-                            })
-                          }
-                          disabled={shareMutation.status === "pending"}
-                        >
-                          Share results
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          setOpenRespondents((s) => ({
-                            ...s,
-                            [p._id]: !s[p._id],
-                          }))
-                        }
-                        disabled={!runId && !openRespondents[p._id]}
-                      >
-                        {openRespondents[p._id]
-                          ? "Hide respondents"
-                          : "Show respondents"}
-                      </Button>
-                    </div>
+                  <div className="mr-2">
+                    {isActive ? (
+                      <span className="inline-block rounded px-2 py-1 text-white text-xs bg-custom-dark-blue-1">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-500">Closed</span>
+                    )}
                   </div>
-                </div>
-
-                <div className="flex-shrink-0 w-48 flex flex-col items-end gap-2 self-start">
-                  <div className="flex items-center gap-2">
+                  <div>
                     <Button
-                      className="bg-custom-dark-blue-1 text-white disabled:opacity-50 disabled:cursor-not-allowed transform transition-transform"
+                      className="bg-custom-dark-blue-1 text-white disabled:opacity-50 disabled:cursor-not-allowed py-0.5 px-3 text-xs"
                       onClick={() => stopMutation.mutate(p._id)}
                       disabled={!isActive}
                     >
                       Stop
                     </Button>
-                    <Button
-                      className="border border-custom-dark-blue-1 text-custom-dark-blue-1 bg-white hover:bg-custom-dark-blue-1 hover:text-white"
-                      onClick={() =>
-                        setOpenResults((s) => ({ ...s, [p._id]: !s[p._id] }))
-                      }
-                      disabled={!runId && !openResults[p._id]}
-                    >
-                      {openResults[p._id] ? "Hide results" : "View results"}
-                    </Button>
                   </div>
                 </div>
+
+                {/* Stop button (new line) */}
+
+                {/* Run selector (next line) */}
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-700 mb-1">Run</div>
+                  <RunSelector
+                    pollId={p._id}
+                    currentRunId={runId}
+                    sessionId={sessionId}
+                    onChange={(rid) =>
+                      setLatestRunByPoll((s) => ({ ...s, [p._id]: rid || "" }))
+                    }
+                  />
+                </div>
+
+                {/* View results + show/hide respondents (next line) */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    className="border border-custom-dark-blue-1 text-custom-dark-blue-1 bg-white hover:bg-custom-dark-blue-1 hover:text-white py-0.5 px-3 text-xs"
+                    onClick={() =>
+                      setOpenResults((s) => ({ ...s, [p._id]: !s[p._id] }))
+                    }
+                    disabled={!runId && !openResults[p._id]}
+                  >
+                    {openResults[p._id] ? "Hide results" : "View results"}
+                  </Button>
+                  {/* Share results (next line) */}
+                  {!isActive && runId && (
+                    <Button
+                      className="border border-custom-dark-blue-1 text-custom-dark-blue-1 bg-white hover:bg-custom-dark-blue-1 hover:text-white py-0.5 px-3 text-xs"
+                      onClick={() =>
+                        setShareConfirm({ open: true, pollId: p._id, runId })
+                      }
+                      disabled={shareMutation.status === "pending"}
+                    >
+                      Share results
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    setOpenRespondents((s) => ({ ...s, [p._id]: !s[p._id] }))
+                  }
+                  className="py-0.5 px-3 text-xs"
+                  disabled={!runId && !openRespondents[p._id]}
+                >
+                  {openRespondents[p._id]
+                    ? "Hide respondents"
+                    : "Show respondents"}
+                </Button>
+
+                <div></div>
               </div>
 
               {/* collapsible results / respondents previews */}
@@ -560,7 +553,7 @@ function RespondentsWrapper({
                 {r.responder?.name || "Unnamed"}
               </div>
             )}
-            <div className="text-xs text-gray-600 mt-1">
+            <div className="text-xs text-gray-600 mt-1 min-w-0">
               {questions.map((qdef) => {
                 const ans = r.answers.find((a) => a.questionId === qdef._id);
                 const v = ans?.value as unknown;
@@ -678,7 +671,7 @@ function RespondentsWrapper({
                 }
 
                 return (
-                  <div key={qdef._id}>
+                  <div key={qdef._id} className="truncate">
                     <span className="font-semibold">{qdef.prompt}:</span>{" "}
                     {label || "—"}
                   </div>

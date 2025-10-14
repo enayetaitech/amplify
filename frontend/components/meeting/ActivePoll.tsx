@@ -51,6 +51,7 @@ export default function ActivePoll({
     Record<string, boolean>
   >({});
   const [localAnswers, setLocalAnswers] = useState<Record<string, unknown>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [resultsMapping, setResultsMapping] = useState<Record<
     string,
     { total: number; counts: { value: unknown; count: number }[] }
@@ -157,6 +158,8 @@ export default function ActivePoll({
         toast.error("No active run to submit to");
         return;
       }
+      if (isSubmitting) return;
+      setIsSubmitting(true);
       // capture participant identity from either authenticated user or local storage fallback
       let localName: string | undefined;
       let localEmail: string | undefined;
@@ -195,6 +198,8 @@ export default function ActivePoll({
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Submit failed";
       toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -536,7 +541,7 @@ export default function ActivePoll({
                 }
                 onSubmit(answers);
               }}
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
             >
               Submit All
             </Button>
