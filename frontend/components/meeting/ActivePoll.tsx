@@ -468,7 +468,7 @@ export default function ActivePoll({
                   <div className="text-xs text-gray-500 mb-1">
                     {q.lowLabel || q.scoreFrom} … {q.highLabel || q.scoreTo}
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {Array.from({ length: q.scoreTo - q.scoreFrom + 1 }).map(
                       (_, idx) => {
                         const val = q.scoreFrom + idx;
@@ -476,7 +476,7 @@ export default function ActivePoll({
                         return (
                           <label
                             key={val}
-                            className={`relative inline-flex items-center justify-center rounded border px-3 py-1 cursor-pointer ${
+                            className={`relative inline-flex items-center justify-center rounded border px-2 py-0.5 cursor-pointer ${
                               selected
                                 ? "bg-custom-dark-blue-1 text-white border-custom-dark-blue-1"
                                 : "bg-white text-gray-700"
@@ -641,6 +641,7 @@ export default function ActivePoll({
                 onSubmit(answers);
               }}
               disabled={!canSubmit || isSubmitting}
+              className="py-0.5 px-3 text-xs bg-custom-dark-blue-1 text-white hover:bg-custom-dark-blue-2 hover:text-white"
             >
               Submit All
             </Button>
