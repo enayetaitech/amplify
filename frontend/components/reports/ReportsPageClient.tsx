@@ -320,8 +320,17 @@ export default function ReportsPageClient({
                               : ""}
                           </TableCell>
                           <TableCell>
-                            {Array.isArray(p.sessions)
-                              ? p.sessions.length
+                            {Array.isArray(p.sessions) && p.sessions.length
+                              ? (
+                                  p.sessions as {
+                                    _id?: string;
+                                    title?: string;
+                                  }[]
+                                )
+                                  .map((s) =>
+                                    s && s.title ? s.title : s._id || String(s)
+                                  )
+                                  .join(", ")
                               : "-"}
                           </TableCell>
                         </TableRow>

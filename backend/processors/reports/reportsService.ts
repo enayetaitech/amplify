@@ -496,7 +496,9 @@ export async function getProjectParticipants(
         email: { $first: "$participantHistory.email" },
         userId: { $first: "$participantHistory.id" },
         joinedAt: { $min: "$participantHistory.joinedAt" },
-        sessions: { $addToSet: "$session._id" },
+        sessions: {
+          $addToSet: { id: "$session._id", title: "$session.title" },
+        },
       },
     },
     { $sort: { joinedAt: -1 } },
@@ -509,7 +511,11 @@ export async function getProjectParticipants(
     name: d.name,
     email: d.email,
     joinedAt: d.joinedAt,
-    sessions: d.sessions || [],
+    // sessions is an array of { id, title } from the aggregation
+    sessions: (d.sessions || []).map((s: any) => ({
+      _id: s && s.id && s.id.toString ? s.id.toString() : String(s && s.id),
+      title: s && s.title ? s.title : undefined,
+    })),
   }));
 
   const meta = {
