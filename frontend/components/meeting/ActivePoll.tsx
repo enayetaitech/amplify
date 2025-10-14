@@ -57,6 +57,7 @@ export default function ActivePoll({
     { total: number; counts: { value: unknown; count: number }[] }
   > | null>(null);
   const [sharedPoll, setSharedPoll] = useState<IPoll | null>(null);
+  const [textErrors, setTextErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // connect socket
@@ -315,6 +316,39 @@ export default function ActivePoll({
                       disabled={!canSubmit}
                     />
                   )}
+                  {(() => {
+                    const val = (
+                      (localAnswers[q._id] as string) || ""
+                    ).toString();
+                    const min =
+                      (q as unknown as { minChars?: number }).minChars ?? 0;
+                    const max =
+                      (q as unknown as { maxChars?: number }).maxChars ??
+                      (q.type === "SHORT_ANSWER" ? 200 : 2000);
+                    const len = val.trim().length;
+                    return (
+                      <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                        <span>
+                          {min > 0 ? `Min ${min}` : null}
+                          {min > 0 && Number.isFinite(max) ? " · " : null}
+                          {Number.isFinite(max) ? `Max ${max}` : null}
+                        </span>
+                        <span>
+                          {len}/
+                          {Number.isFinite(max)
+                            ? max
+                            : q.type === "SHORT_ANSWER"
+                            ? 200
+                            : 2000}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  {textErrors[q._id] ? (
+                    <div className="text-xs text-rose-600 mt-1">
+                      {textErrors[q._id]}
+                    </div>
+                  ) : null}
                 </div>
               )}
 
@@ -484,8 +518,37 @@ export default function ActivePoll({
                     q.type === "SHORT_ANSWER" ||
                     q.type === "LONG_ANSWER"
                   ) {
-                    if (typeof v === "string" && v.trim().length > 0)
-                      answers.push({ questionId: q._id, value: v });
+                    const txt = typeof v === "string" ? v : "";
+                    const min =
+                      (q as unknown as { minChars?: number }).minChars ?? 0;
+                    const max =
+                      (q as unknown as { maxChars?: number }).maxChars ??
+                      Infinity;
+                    const len = txt.trim().length;
+                    if (len === 0) {
+                      // handled by required check later; don't add empty
+                    } else if (len < min) {
+                      setTextErrors((s) => ({
+                        ...s,
+                        [q._id]: `Minimum ${min} characters required`,
+                      }));
+                      toast.error(
+                        `Minimum ${min} characters required for: ${q.prompt}`
+                      );
+                      return;
+                    } else if (len > max) {
+                      setTextErrors((s) => ({
+                        ...s,
+                        [q._id]: `Maximum ${max} characters allowed`,
+                      }));
+                      toast.error(
+                        `Maximum ${max} characters allowed for: ${q.prompt}`
+                      );
+                      return;
+                    } else {
+                      setTextErrors((s) => ({ ...s, [q._id]: "" }));
+                      answers.push({ questionId: q._id, value: txt });
+                    }
                   } else if (q.type === "FILL_IN_BLANK") {
                     if (
                       Array.isArray(v) &&
@@ -531,6 +594,39 @@ export default function ActivePoll({
                     if (!hasAnswer) {
                       toast.error(`Question ${qq.prompt} is required`);
                       return;
+                    }
+                    // additionally enforce min/max for required text answers
+                    if (
+                      (qq.type === "SHORT_ANSWER" ||
+                        qq.type === "LONG_ANSWER") &&
+                      typeof v === "string"
+                    ) {
+                      const min =
+                        (qq as unknown as { minChars?: number }).minChars ?? 0;
+                      const max =
+                        (qq as unknown as { maxChars?: number }).maxChars ??
+                        Infinity;
+                      const len = v.trim().length;
+                      if (len < min) {
+                        setTextErrors((s) => ({
+                          ...s,
+                          [qq._id]: `Minimum ${min} characters required`,
+                        }));
+                        toast.error(
+                          `Minimum ${min} characters required for: ${qq.prompt}`
+                        );
+                        return;
+                      }
+                      if (len > max) {
+                        setTextErrors((s) => ({
+                          ...s,
+                          [qq._id]: `Maximum ${max} characters allowed`,
+                        }));
+                        toast.error(
+                          `Maximum ${max} characters allowed for: ${qq.prompt}`
+                        );
+                        return;
+                      }
                     }
                   }
                 }
