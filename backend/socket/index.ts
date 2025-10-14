@@ -1714,9 +1714,29 @@ export function attachSocket(server: HTTPServer) {
           const live = await LiveSessionModel.findOne({ sessionId });
           if (live) {
             if (email) {
-              live.participantsList = (live.participantsList || []).filter(
-                (p) => (p.email || "").toLowerCase() !== email
-              ) as any;
+              // try to capture removed participant for history
+              const idx = (live.participantsList || []).findIndex(
+                (p) => (p.email || "").toLowerCase() === email
+              );
+              if (idx >= 0) {
+                const user = (live.participantsList as any).splice(idx, 1)[0];
+                // append history entry for removal
+                try {
+                  live.participantHistory = live.participantHistory || [];
+                  live.participantHistory.push({
+                    id:
+                      (user && ((user as any)._id || (user as any).id)) ||
+                      undefined,
+                    name: user?.name || user?.email || "",
+                    email: user?.email || "",
+                    joinedAt: (user && (user.joinedAt || null)) || null,
+                    leaveAt: new Date(),
+                    reason: "Removed by the moderator",
+                  } as any);
+                } catch {}
+              }
+              // also ensure waiting room entries removed
+              live.participantsList = (live.participantsList || []) as any;
               live.participantWaitingRoom = (
                 live.participantWaitingRoom || []
               ).filter((p) => (p.email || "").toLowerCase() !== email) as any;
