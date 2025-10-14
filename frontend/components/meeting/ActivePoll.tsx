@@ -196,6 +196,9 @@ export default function ActivePoll({
       });
       toast.success("Response recorded");
       setSubmittedRunIds((s) => ({ ...s, [run._id]: true }));
+      // Clear local inputs and any text errors after successful submission
+      setLocalAnswers({});
+      setTextErrors({});
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Submit failed";
       toast.error(msg);
