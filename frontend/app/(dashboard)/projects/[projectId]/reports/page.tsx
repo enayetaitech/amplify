@@ -1,9 +1,6 @@
-import React from 'react'
+import ReportsPageClient from "components/reports/ReportsPageClient";
 
-const Reports = () => {
-  return (
-    <div>Reports</div>
-  )
+// Server wrapper; let the client component read params itself via useParams
+export default function Page() {
+  return <ReportsPageClient />;
 }
-
-export default Reports

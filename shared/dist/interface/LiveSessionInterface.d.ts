@@ -16,14 +16,30 @@ export interface IParticipant {
     name: string;
     email: string;
     role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
-    joinedAt: Date;
+    joinedAt?: Date | null;
 }
 export interface IObserver {
     userId?: string;
     name: string;
     email: string;
     role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
-    joinedAt: Date;
+    joinedAt?: Date | null;
+}
+export interface IParticipantHistoryItem {
+    id: string;
+    name: string;
+    email: string;
+    joinedAt?: Date | null;
+    leaveAt?: Date | null;
+    reason: "Left" | "Meeting Ended" | "Removed by the moderator" | "Transferred to waiting room";
+}
+export interface IObserverHistoryItem {
+    id: string;
+    name: string;
+    email: string;
+    role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
+    joinedAt?: Date | null;
+    leaveAt?: Date | null;
 }
 export interface ILiveSession {
     _id: string;
@@ -35,6 +51,8 @@ export interface ILiveSession {
     observerWaitingRoom: IObserverWaitingUser[];
     participantsList: IParticipant[];
     observerList: IObserver[];
+    participantHistory: IParticipantHistoryItem[];
+    observerHistory: IObserverHistoryItem[];
     hlsPlaybackUrl: string | null;
     hlsEgressId: string | null;
     hlsPlaylistName: string | null;

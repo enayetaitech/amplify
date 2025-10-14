@@ -29,6 +29,7 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/liveSessions", route: liveSessionRoutes },
   { path: "/livekit", route: livekitRoutes },
   { path: "/waiting-room", route: waitingRoomRoutes },
+  { path: "/reports", route: require("./reports/ReportsRoutes").default },
   {
     path: "/whiteboard",
     route: require("./whiteboard/WhiteboardRoutes").default,
