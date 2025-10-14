@@ -94,6 +94,30 @@ export async function endMeeting(
   live.endTime = new Date();
   live.endedBy = endedBy as any;
 
+  // Record leave time for any participants still listed when meeting ends
+  try {
+    if (live.participantsList && live.participantsList.length) {
+      live.participantHistory = live.participantHistory || [];
+      for (const user of live.participantsList) {
+        live.participantHistory.push({
+          id: (user && ((user as any)._id || (user as any).id)) || undefined,
+          name: user?.name || user?.email || "",
+          email: user?.email || "",
+          joinedAt: (user && (user.joinedAt || null)) || null,
+          leaveAt: live.endTime,
+          reason: "Meeting Ended",
+        } as any);
+      }
+      // clear active participants list as meeting ended
+      live.participantsList = [] as any;
+    }
+  } catch (e) {
+    // non-critical: don't prevent meeting end
+    try {
+      console.error("endMeeting - recording participantHistory failed", e);
+    } catch {}
+  }
+
   await live.save();
 
   return {
