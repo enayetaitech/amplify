@@ -37,7 +37,9 @@ export async function getProjectSummary(projectId: string) {
     require("../../model/LiveSessionModel").default ||
     require("../../model/LiveSessionModel");
 
+  // Count unique participants across project derived from participantHistory (dedupe by email)
   const participantsAgg = await LiveSession.aggregate([
+    // join session to filter by project
     {
       $lookup: {
         from: "sessions",
@@ -48,19 +50,21 @@ export async function getProjectSummary(projectId: string) {
     },
     { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
     { $match: { "session.projectId": pid } },
+    // unwind participantHistory which may contain multiple entries per email
     {
-      $unwind: { path: "$participantsList", preserveNullAndEmptyArrays: false },
-    },
-    {
-      $group: {
-        _id: null,
-        users: {
-          $addToSet: {
-            $ifNull: ["$participantsList.userId", "$participantsList.email"],
-          },
-        },
+      $unwind: {
+        path: "$participantHistory",
+        preserveNullAndEmptyArrays: false,
       },
     },
+    // group by email to deduplicate (email is unique per user as requested)
+    {
+      $group: {
+        _id: { $toLower: "$participantHistory.email" },
+        email: { $first: "$participantHistory.email" },
+      },
+    },
+    { $group: { _id: null, users: { $addToSet: "$email" } } },
     { $project: { total: { $size: "$users" } } },
   ]).allowDiskUse(true);
   const totalParticipantCount =
@@ -278,19 +282,42 @@ export async function getSessionParticipants(
   const live = await LiveSession.findOne({
     sessionId: new Types.ObjectId(sessionId),
   }).lean();
+  // Prefer participantHistory for session participants and dedupe by email
+  const history =
+    live && Array.isArray(live.participantHistory)
+      ? live.participantHistory
+      : [];
 
-  const participants =
-    live && Array.isArray(live.participantsList) ? live.participantsList : [];
-  const total = participants.length;
+  // Deduplicate by lowercase email, keep earliest joinedAt per email
+  const byEmail: Record<string, any> = {};
+  for (const entry of history) {
+    if (!entry || !entry.email) continue;
+    const key = String(entry.email).toLowerCase();
+    if (!byEmail[key]) {
+      byEmail[key] = { ...entry };
+    } else {
+      const existing = byEmail[key];
+      const entryJoined = entry.joinedAt ? new Date(entry.joinedAt) : null;
+      const existingJoined = existing.joinedAt
+        ? new Date(existing.joinedAt)
+        : null;
+      if (entryJoined && (!existingJoined || entryJoined < existingJoined)) {
+        byEmail[key] = { ...existing, ...entry };
+      }
+    }
+  }
 
-  const paged = participants.slice(skip, skip + limit).map((p: any) => ({
+  const deduped = Object.values(byEmail);
+  const total = deduped.length;
+
+  const paged = deduped.slice(skip, skip + limit).map((p: any) => ({
     name: p.name,
     email: p.email,
-    userId: p.userId ? String(p.userId) : undefined,
+    userId: p.id ? String(p.id) : undefined,
     deviceType: undefined,
     device: undefined,
     joinTime: p.joinedAt,
-    leaveTime: undefined,
+    leaveTime: p.leaveAt || undefined,
     ip: undefined,
   }));
 
@@ -413,8 +440,8 @@ export async function getProjectParticipants(
     require("../../model/LiveSessionModel");
 
   // Count distinct participants across live sessions tied to sessions in this project
+  // but derive participants from participantHistory and dedupe by email
   const totalAgg = await LiveSession.aggregate([
-    // join session to filter by project
     {
       $lookup: {
         from: "sessions",
@@ -426,13 +453,15 @@ export async function getProjectParticipants(
     { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
     { $match: { "session.projectId": pid } },
     {
-      $unwind: { path: "$participantsList", preserveNullAndEmptyArrays: false },
+      $unwind: {
+        path: "$participantHistory",
+        preserveNullAndEmptyArrays: false,
+      },
     },
     {
       $group: {
-        _id: {
-          $ifNull: ["$participantsList.userId", "$participantsList.email"],
-        },
+        _id: { $toLower: "$participantHistory.email" },
+        email: { $first: "$participantHistory.email" },
       },
     },
     { $count: "total" },
@@ -440,7 +469,7 @@ export async function getProjectParticipants(
 
   const total = (totalAgg[0] && totalAgg[0].total) || 0;
 
-  // Aggregate unique participants with name/email and earliest joinedAt
+  // Aggregate unique participants with name/email and earliest joinedAt from participantHistory
   const itemsAgg = await LiveSession.aggregate([
     {
       $lookup: {
@@ -452,18 +481,21 @@ export async function getProjectParticipants(
     },
     { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
     { $match: { "session.projectId": pid } },
+    // unwind participantHistory entries
     {
-      $unwind: { path: "$participantsList", preserveNullAndEmptyArrays: false },
+      $unwind: {
+        path: "$participantHistory",
+        preserveNullAndEmptyArrays: false,
+      },
     },
+    // group by lowercase email to dedupe
     {
       $group: {
-        _id: {
-          $ifNull: ["$participantsList.userId", "$participantsList.email"],
-        },
-        name: { $first: "$participantsList.name" },
-        email: { $first: "$participantsList.email" },
-        userId: { $first: "$participantsList.userId" },
-        joinedAt: { $min: "$participantsList.joinedAt" },
+        _id: { $toLower: "$participantHistory.email" },
+        name: { $first: "$participantHistory.name" },
+        email: { $first: "$participantHistory.email" },
+        userId: { $first: "$participantHistory.id" },
+        joinedAt: { $min: "$participantHistory.joinedAt" },
         sessions: { $addToSet: "$session._id" },
       },
     },
