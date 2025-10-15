@@ -1,9 +1,10 @@
 // shared/interfaces/UserActivityInterface.ts
 export interface IUserActivity {
   _id: string;
-  sessionId: string;     // ref to LiveSession._id
+  sessionId: string; // ref to LiveSession._id
   userId?: string;
-  role: 'Participant' | 'Observer' | 'Moderator' | 'Admin';
+  email?: string;
+  role: "Participant" | "Observer" | "Moderator" | "Admin";
   joinTime: Date;
   leaveTime?: Date;
   deviceInfo?: {

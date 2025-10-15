@@ -374,16 +374,66 @@ export async function getSessionParticipants(
   const deduped = Object.values(byEmail);
   const total = deduped.length;
 
-  const paged = deduped.slice(skip, skip + limit).map((p: any) => ({
-    name: p.name,
-    email: p.email,
-    userId: p.id ? String(p.id) : undefined,
-    deviceType: undefined,
-    device: undefined,
-    joinTime: p.joinedAt,
-    leaveTime: p.leaveAt || undefined,
-    ip: undefined,
-  }));
+  // Build enrichment from UserActivity (earliest join per email)
+  const activityEmailToInfo: Record<
+    string,
+    {
+      ip?: string;
+      deviceType?: string;
+      platform?: string;
+      browser?: string;
+      location?: string;
+    }
+  > = {};
+  try {
+    const UserActivityModel =
+      require("../../model/UserActivityModel").UserActivityModel ||
+      require("../../model/UserActivityModel").default ||
+      require("../../model/UserActivityModel");
+    const acts: Array<{
+      email?: string;
+      deviceInfo?: {
+        ip?: string;
+        deviceType?: string;
+        platform?: string;
+        browser?: string;
+        location?: string;
+      };
+      joinTime?: Date;
+    }> = await UserActivityModel.find(
+      { sessionId: live?._id, role: "Participant" },
+      { email: 1, deviceInfo: 1, joinTime: 1 }
+    ).lean();
+    // Keep first seen per lowercase email (implicitly earliest since created on join)
+    for (const a of acts || []) {
+      const key = (a?.email || "").toLowerCase();
+      if (!key || activityEmailToInfo[key]) continue;
+      const di = a?.deviceInfo || {};
+      activityEmailToInfo[key] = {
+        ip: di?.ip,
+        deviceType: di?.deviceType,
+        platform: di?.platform,
+        browser: di?.browser,
+        location: di?.location,
+      };
+    }
+  } catch {}
+
+  const paged = deduped.slice(skip, skip + limit).map((p: any) => {
+    const key = String(p.email || "").toLowerCase();
+    const extra = activityEmailToInfo[key] || {};
+    return {
+      name: p.name,
+      email: p.email,
+      userId: p.id ? String(p.id) : undefined,
+      deviceType: extra.deviceType,
+      device: extra.platform ? { os: extra.platform } : undefined,
+      joinTime: p.joinedAt,
+      leaveTime: p.leaveAt || undefined,
+      ip: extra.ip,
+      location: extra.location,
+    };
+  });
 
   const meta = {
     page,
@@ -422,15 +472,67 @@ export async function getSessionObservers(
     : [];
   const total = history.length;
 
-  const paged = history.slice(skip, skip + limit).map((h: any) => ({
-    observerName: h.name,
-    name: h.name,
-    email: h.email,
-    companyName: undefined,
-    userId: h.id ? String(h.id) : undefined,
-    joinTime: h.joinedAt,
-    leaveTime: h.leaveAt || undefined,
-  }));
+  // Build enrichment from UserActivity for observers
+  const activityEmailToInfo: Record<
+    string,
+    {
+      ip?: string;
+      deviceType?: string;
+      platform?: string;
+      browser?: string;
+      location?: string;
+    }
+  > = {};
+  try {
+    const UserActivityModel =
+      require("../../model/UserActivityModel").UserActivityModel ||
+      require("../../model/UserActivityModel").default ||
+      require("../../model/UserActivityModel");
+    const acts: Array<{
+      email?: string;
+      deviceInfo?: {
+        ip?: string;
+        deviceType?: string;
+        platform?: string;
+        browser?: string;
+        location?: string;
+      };
+      joinTime?: Date;
+    }> = await UserActivityModel.find(
+      { sessionId: live?._id, role: "Observer" },
+      { email: 1, deviceInfo: 1, joinTime: 1 }
+    ).lean();
+    for (const a of acts || []) {
+      const key = (a?.email || "").toLowerCase();
+      if (!key || activityEmailToInfo[key]) continue;
+      const di = a?.deviceInfo || {};
+      activityEmailToInfo[key] = {
+        ip: di?.ip,
+        deviceType: di?.deviceType,
+        platform: di?.platform,
+        browser: di?.browser,
+        location: di?.location,
+      };
+    }
+  } catch {}
+
+  const paged = history.slice(skip, skip + limit).map((h: any) => {
+    const key = String(h.email || "").toLowerCase();
+    const extra = activityEmailToInfo[key] || {};
+    return {
+      observerName: h.name,
+      name: h.name,
+      email: h.email,
+      companyName: undefined,
+      userId: h.id ? String(h.id) : undefined,
+      joinTime: h.joinedAt,
+      leaveTime: h.leaveAt || undefined,
+      ip: extra.ip,
+      deviceType: extra.deviceType,
+      device: extra.platform ? { os: extra.platform } : undefined,
+      location: extra.location,
+    };
+  });
 
   const meta = {
     page,

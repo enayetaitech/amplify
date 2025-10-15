@@ -2,7 +2,12 @@
 import mongoose, { Document, Schema, Model, Types } from "mongoose";
 import { IUserActivity } from "../../shared/interface/UserActivityInterface";
 
-export interface IUserActivityDocument extends Omit<IUserActivity, "_id"| "sessionId" | "userId">, Document {sessionId: Types.ObjectId, userId: Types.ObjectId}
+export interface IUserActivityDocument
+  extends Omit<IUserActivity, "_id" | "sessionId" | "userId">,
+    Document {
+  sessionId: Types.ObjectId;
+  userId: Types.ObjectId;
+}
 
 const DeviceInfoSchema = new Schema<IUserActivityDocument["deviceInfo"]>(
   {
@@ -17,9 +22,18 @@ const DeviceInfoSchema = new Schema<IUserActivityDocument["deviceInfo"]>(
 
 const UserActivitySchema = new Schema<IUserActivityDocument>(
   {
-    sessionId: { type: Schema.Types.ObjectId, ref: "LiveSession", required: true },
+    sessionId: {
+      type: Schema.Types.ObjectId,
+      ref: "LiveSession",
+      required: true,
+    },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: false },
-    role: { type: String, enum: ["Participant", "Observer", "Moderator", "Admin"], required: true },
+    email: { type: String, required: false },
+    role: {
+      type: String,
+      enum: ["Participant", "Observer", "Moderator", "Admin"],
+      required: true,
+    },
     joinTime: { type: Date, default: () => new Date(), required: true },
     leaveTime: { type: Date },
     deviceInfo: { type: DeviceInfoSchema },

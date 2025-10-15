@@ -63,6 +63,8 @@ export default function ReportsPageClient({
     joinedAt?: string;
     _id?: string;
     sessions?: { _id?: string; title?: string }[];
+    ip?: string;
+    location?: string;
   };
 
   type SessionRow = {
