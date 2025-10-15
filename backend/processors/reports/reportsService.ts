@@ -23,19 +23,60 @@ export async function getProjectSummary(projectId: string) {
     .map((m: any) => `${m.firstName || ""} ${m.lastName || ""}`.trim())
     .filter(Boolean);
 
-  // total credits used
-  const creditsAgg = await LiveUsageLog.aggregate([
-    { $match: { projectId: pid } },
-    { $group: { _id: null, total: { $sum: "$creditsUsed" } } },
-  ]);
-  const totalCreditsUsed = (creditsAgg[0] && creditsAgg[0].total) || 0;
-
-  // unique participants and observers across project (exclude Amplify* roles & moderators)
-  // unique participants and observers across project derived from LiveSession lists
+  // total credits used (derived from session durations):
+  // minutes = ceil((end - start) / 60000), credits = minutes * 3
   const LiveSession =
     require("../../model/LiveSessionModel").LiveSessionModel ||
     require("../../model/LiveSessionModel").default ||
     require("../../model/LiveSessionModel");
+
+  const creditsAgg = await LiveSession.aggregate([
+    // join to sessions to filter by project
+    {
+      $lookup: {
+        from: "sessions",
+        localField: "sessionId",
+        foreignField: "_id",
+        as: "session",
+      },
+    },
+    { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
+    { $match: { "session.projectId": pid } },
+    // compute duration where both start and end exist
+    {
+      $addFields: {
+        durationMs: {
+          $cond: [
+            {
+              $and: [
+                { $ifNull: ["$endTime", false] },
+                { $ifNull: ["$startTime", false] },
+              ],
+            },
+            { $subtract: ["$endTime", "$startTime"] },
+            null,
+          ],
+        },
+      },
+    },
+    // compute minutes rounded up and credits (null-safe)
+    {
+      $addFields: {
+        minutesRounded: {
+          $cond: [
+            { $ifNull: ["$durationMs", false] },
+            { $ceil: { $divide: ["$durationMs", 60000] } },
+            0,
+          ],
+        },
+      },
+    },
+    { $addFields: { creditsUsed: { $multiply: ["$minutesRounded", 3] } } },
+    { $group: { _id: null, total: { $sum: "$creditsUsed" } } },
+  ]).allowDiskUse(true);
+  const totalCreditsUsed = (creditsAgg[0] && creditsAgg[0].total) || 0;
+
+  // unique participants and observers across project derived from LiveSession lists
 
   // Count unique participants across project derived from participantHistory (dedupe by email)
   const participantsAgg = await LiveSession.aggregate([
@@ -165,16 +206,7 @@ export async function getProjectSessions(
         },
       },
     },
-    // credits (usage logs keyed by session._id)
-    {
-      $lookup: {
-        from: "liveusagelogs",
-        localField: "_id",
-        foreignField: "sessionId",
-        as: "usageLogs",
-      },
-    },
-    { $addFields: { totalCreditsUsed: { $sum: "$usageLogs.creditsUsed" } } },
+    // credits will be derived from rounded-up minutes of duration * 3
     // join live session doc to get participants/observers and start/end times
     {
       $lookup: {
@@ -207,6 +239,30 @@ export async function getProjectSessions(
             },
             { $subtract: ["$liveSession.endTime", "$liveSession.startTime"] },
             null,
+          ],
+        },
+      },
+    },
+    // compute minutes rounded up and credits used
+    {
+      $addFields: {
+        minutesRounded: {
+          $cond: [
+            { $ifNull: ["$durationMs", false] },
+            { $ceil: { $divide: ["$durationMs", 60000] } },
+            0,
+          ],
+        },
+        totalCreditsUsed: {
+          $multiply: [
+            {
+              $cond: [
+                { $ifNull: ["$durationMs", false] },
+                { $ceil: { $divide: ["$durationMs", 60000] } },
+                0,
+              ],
+            },
+            3,
           ],
         },
       },
