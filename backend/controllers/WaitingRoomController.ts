@@ -77,8 +77,43 @@ export const enqueue = async (
     const live = await LiveSessionModel.findOne({ sessionId }).lean();
     const isStreaming = !!live?.streaming;
 
-    // Enqueue user appropriately
-    await enqueueUser(sessionId, { name, email, role });
+    // Build formatted device info from middleware (if present)
+    const di = (
+      req as unknown as {
+        deviceInfo?: {
+          ip?: string;
+          deviceType?: string;
+          platform?: string;
+          browser?: string;
+          location?: {
+            city?: string | null;
+            region?: string | null;
+            country?: string | null;
+          };
+        };
+      }
+    ).deviceInfo;
+
+    const locationString = (() => {
+      const parts: string[] = [];
+      if (di?.location?.city) parts.push(String(di.location.city));
+      if (di?.location?.region) parts.push(String(di.location.region));
+      if (di?.location?.country) parts.push(String(di.location.country));
+      return parts.join(", ");
+    })();
+
+    const deviceInfo = di
+      ? {
+          ip: di.ip || "",
+          deviceType: di.deviceType || "",
+          platform: di.platform || "",
+          browser: di.browser || "",
+          location: locationString,
+        }
+      : undefined;
+
+    // Enqueue user appropriately (also persists activity with device info)
+    await enqueueUser(sessionId, { name, email, role }, deviceInfo);
 
     // Determine action for client
     let action: "waiting_room" | "stream" = "waiting_room";

@@ -281,18 +281,17 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
       });
     } else if (type === "MATCHING")
       updateQuestion(id, { type, options: ["", ""], answers: ["", ""] });
-      else if (type === "RANK_ORDER") {
-    // ← NEW: initialise both rows & columns to two empty slots
-    updateQuestion(id, {
-      type,
-      rows:    ["", ""],
-      columns: ["", ""],
-      // clear legacy fields if you want
-      options:  [],
-      answers:  [],
-    });
-  }
-    else if (type === "SHORT_ANSWER")
+    else if (type === "RANK_ORDER") {
+      // ← NEW: initialise both rows & columns to two empty slots
+      updateQuestion(id, {
+        type,
+        rows: ["", ""],
+        columns: ["", ""],
+        // clear legacy fields if you want
+        options: [],
+        answers: [],
+      });
+    } else if (type === "SHORT_ANSWER")
       updateQuestion(id, {
         type,
         options: [],
@@ -308,7 +307,6 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
         minChars: 1,
         maxChars: 2000,
       });
-      
     else if (type === "FILL_IN_BLANK") {
       updateQuestion(id, { type, prompt: "", answers: [] });
     } else updateQuestion(id, { type, options: [], answers: ["", ""] });
@@ -388,6 +386,9 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
     const cap = q.type === "SHORT_ANSWER" ? 200 : 2000;
     updateQuestion(id, { maxChars: Math.min(cap, q.maxChars + d) });
   };
+
+  const getQuestionError = (q: DraftWithImage): string | null =>
+    validateQuestion(q);
 
   // Rating scale
   const changeScoreFrom = (id: string, v: number) =>
@@ -543,7 +544,18 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                       >
                         <Minus />
                       </Button>
-                      <span className="w-8 text-center">{q.minChars}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={q.minChars}
+                        onChange={(e) =>
+                          updateQuestion(q.id, {
+                            minChars: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                        className="w-16 text-center border rounded px-1 py-0.5"
+                        disabled={isUpdating}
+                      />
                       <Button
                         size="icon"
                         variant="ghost"
@@ -563,7 +575,22 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                       >
                         <Minus />
                       </Button>
-                      <span className="w-12 text-center">{q.maxChars}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={q.maxChars}
+                        onChange={(e) => {
+                          const cap = q.type === "SHORT_ANSWER" ? 200 : 2000;
+                          updateQuestion(q.id, {
+                            maxChars: Math.min(
+                              cap,
+                              Number(e.target.value) || cap
+                            ),
+                          });
+                        }}
+                        className="w-20 text-center border rounded px-1 py-0.5"
+                        disabled={isUpdating}
+                      />
                       <Button
                         size="icon"
                         variant="ghost"
@@ -572,6 +599,13 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                       >
                         <Plus />
                       </Button>
+                    </div>
+                    <div className="col-span-2">
+                      {getQuestionError(q) && (
+                        <div className="text-sm text-rose-600 mt-1">
+                          {getQuestionError(q)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : q.type === "SINGLE_CHOICE" ? (

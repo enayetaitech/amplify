@@ -79,6 +79,9 @@ const whiteboardVisibility = new Map<string, boolean>();
 // transient map to ignore disconnects immediately after admit: sessionId -> Map<email, expiryTs>
 const recentlyAdmitted = new Map<string, Map<string, number>>();
 
+// transient window after stream stop to classify observer disconnects as "Streaming Stopped"
+const streamStoppingWindow = new Map<string, number>(); // sessionId -> expiryTs
+
 type Role = "Participant" | "Observer" | "Moderator" | "Admin";
 type JoinAck = Awaited<ReturnType<typeof listState>>;
 
@@ -167,6 +170,38 @@ export function attachSocket(server: HTTPServer) {
       });
       emitObserverCount();
       emitObserverList();
+      // If streaming is currently active, create an observerHistory entry for this observer join
+      (async () => {
+        try {
+          if (await isStreamingActive(sessionId)) {
+            const live = await LiveSessionModel.findOne({
+              sessionId: new Types.ObjectId(sessionId),
+            });
+            if (live) {
+              const lower = String(email || "").toLowerCase();
+              const hasOpen = (live.observerHistory || []).some(
+                (h: any) =>
+                  String((h.email || "").toLowerCase()) === lower && !h.leaveAt
+              );
+              if (!hasOpen) {
+                live.observerHistory = live.observerHistory || ([] as any);
+                live.observerHistory.push({
+                  id: undefined,
+                  name: name || email || "Observer",
+                  email: email || "",
+                  role: "Observer",
+                  joinedAt: new Date(),
+                  leaveAt: null,
+                  reason: undefined,
+                } as any);
+                try {
+                  await live.save();
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+      })();
     }
 
     // Maintain moderator/admin info map
@@ -1852,6 +1887,40 @@ export function attachSocket(server: HTTPServer) {
             },
             { upsert: true, new: true }
           );
+          try {
+            // For observers currently in observation room, create joined entries
+            if (live) {
+              const startTs = live.hlsStartedAt || new Date();
+              const waiting = Array.isArray(live.observerWaitingRoom)
+                ? live.observerWaitingRoom
+                : [];
+              const existing = Array.isArray(live.observerHistory)
+                ? live.observerHistory
+                : [];
+              const openByEmail = new Set(
+                existing
+                  .filter((h: any) => h && !h.leaveAt && h.email)
+                  .map((h: any) => String(h.email).toLowerCase())
+              );
+              for (const w of waiting) {
+                const em = String(w.email || "").toLowerCase();
+                if (!em) continue;
+                if (openByEmail.has(em)) continue;
+                existing.push({
+                  id: (w as any).userId || undefined,
+                  name: w.name || w.email,
+                  email: w.email,
+                  role: w.role || "Observer",
+                  joinedAt: startTs,
+                  leaveAt: null,
+                  reason: undefined,
+                } as any);
+                openByEmail.add(em);
+              }
+              (live as any).observerHistory = existing as any;
+              await live.save();
+            }
+          } catch {}
           console.log("Playback URL", live);
           console.log("hls", hls);
           // tell all observers in this session that streaming is live
@@ -1896,6 +1965,30 @@ export function attachSocket(server: HTTPServer) {
               $unset: { hlsEgressId: 1, hlsPlaybackUrl: 1, hlsPlaylistName: 1 },
             }
           );
+
+          // Close any open observerHistory entries with reason "Streaming Stopped"
+          try {
+            const live2 = await LiveSessionModel.findOne({
+              sessionId: new Types.ObjectId(sessionId),
+            });
+            if (live2) {
+              const stopTs = new Date();
+              const updated = (live2.observerHistory || []).map((h: any) => {
+                if (h && !h.leaveAt) {
+                  h.leaveAt = stopTs;
+                  if (!h.reason) h.reason = "Streaming Stopped" as any;
+                }
+                return h;
+              });
+              (live2 as any).observerHistory = updated as any;
+              await live2.save();
+            }
+          } catch {}
+
+          // mark a brief window (5s) to attribute subsequent observer disconnects to stream stop
+          try {
+            streamStoppingWindow.set(sessionId, Date.now() + 5000);
+          } catch {}
 
           console.log("stopped stream", live);
           // notify observers to switch back to waiting UI in a later step
@@ -2214,6 +2307,67 @@ export function attachSocket(server: HTTPServer) {
         }
         emitObserverCount();
         emitObserverList();
+        // Mark observerHistory on disconnect
+        (async () => {
+          try {
+            // If we are within the stream-stopping window, classify as Streaming Stopped
+            const exp = streamStoppingWindow.get(sessionId) || 0;
+            const withinStopWindow = exp > Date.now();
+            if (withinStopWindow) {
+              const live = await LiveSessionModel.findOne({
+                sessionId: new Types.ObjectId(sessionId),
+              });
+              if (live) {
+                const lower = String(email || "").toLowerCase();
+                let changed = false;
+                for (const h of live.observerHistory || []) {
+                  if (
+                    h &&
+                    !h.leaveAt &&
+                    String((h.email || "").toLowerCase()) === lower
+                  ) {
+                    (h as any).leaveAt = new Date();
+                    (h as any).reason = "Streaming Stopped" as any;
+                    changed = true;
+                  }
+                }
+                if (changed) {
+                  try {
+                    await live.save();
+                  } catch {}
+                }
+              }
+              return; // handled under stop window
+            }
+
+            // Otherwise, if streaming remains active, classify as Left
+            if (await isStreamingActive(sessionId)) {
+              const live = await LiveSessionModel.findOne({
+                sessionId: new Types.ObjectId(sessionId),
+              });
+              if (live) {
+                const lower = String(email || "").toLowerCase();
+                let changed = false;
+                for (const h of live.observerHistory || []) {
+                  if (
+                    h &&
+                    !h.leaveAt &&
+                    String((h.email || "").toLowerCase()) === lower
+                  ) {
+                    (h as any).leaveAt = new Date();
+                    (h as any).reason = "Left" as any;
+                    changed = true;
+                  }
+                }
+                if (changed) {
+                  try {
+                    await live.save();
+                  } catch {}
+                }
+              }
+            }
+          } catch {}
+        })();
       }
       if (["Moderator", "Admin"].includes(role)) {
         const set = moderatorSockets.get(sessionId);

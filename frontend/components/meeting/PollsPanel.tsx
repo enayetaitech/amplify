@@ -303,7 +303,12 @@ export default function PollsPanel({
         <h4 className="font-semibold">Polls</h4>
         <Dialog open={openLaunch} onOpenChange={setOpenLaunch}>
           <DialogTrigger asChild>
-            <Button onClick={() => setOpenLaunch(true)}>Launch Poll</Button>
+            <Button
+              className="py-0.5 px-3 text-xs bg-custom-dark-blue-1 text-white hover:bg-custom-dark-blue-2 hover:text-white"
+              onClick={() => setOpenLaunch(true)}
+            >
+              Launch Poll
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -356,97 +361,85 @@ export default function PollsPanel({
             : latestRunByPoll[p._id] ?? null;
           return (
             <div key={p._id} className="border p-3 rounded">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-lg">{p.title}</div>
-                      {/* <div className="text-sm text-gray-500">
-                        {isActive ? `Active run ${runId}` : null}
-                      </div> */}
-                    </div>
-                    <div>
-                      {/* status badge */}
-                      {isActive ? (
-                        <span className="inline-block rounded px-2 py-1 text-white text-xs bg-custom-dark-blue-1">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-500">Closed</span>
-                      )}
-                    </div>
+              <div className="flex flex-col gap-2">
+                {/* Title + status */}
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0 font-medium text-sm truncate">
+                    {p.title}
                   </div>
-
-                  <div className="mt-3">
-                    <div className="text-sm text-gray-700 mb-1">Run</div>
-                    <RunSelector
-                      pollId={p._id}
-                      currentRunId={runId}
-                      sessionId={sessionId}
-                      onChange={(rid) =>
-                        setLatestRunByPoll((s) => ({
-                          ...s,
-                          [p._id]: rid || "",
-                        }))
-                      }
-                    />
-
-                    {/* moved actions under the run selector */}
-                    <div className="mt-2 flex items-center gap-2">
-                      {!isActive && runId && (
-                        <Button
-                          className="bg-white border border-custom-dark-blue-1 text-custom-dark-blue-1"
-                          onClick={() =>
-                            setShareConfirm({
-                              open: true,
-                              pollId: p._id,
-                              runId,
-                            })
-                          }
-                          disabled={shareMutation.status === "pending"}
-                        >
-                          Share results
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          setOpenRespondents((s) => ({
-                            ...s,
-                            [p._id]: !s[p._id],
-                          }))
-                        }
-                        disabled={!runId && !openRespondents[p._id]}
-                      >
-                        {openRespondents[p._id]
-                          ? "Hide respondents"
-                          : "Show respondents"}
-                      </Button>
-                    </div>
+                  <div className="mr-2">
+                    {isActive ? (
+                      <span className="inline-block rounded px-2 py-1 text-white text-xs bg-custom-dark-blue-1">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-500">Closed</span>
+                    )}
                   </div>
-                </div>
-
-                <div className="flex-shrink-0 w-48 flex flex-col items-end gap-2 self-start">
-                  <div className="flex items-center gap-2">
+                  <div>
                     <Button
-                      className="bg-custom-dark-blue-1 text-white disabled:opacity-50 disabled:cursor-not-allowed transform transition-transform"
+                      className="bg-custom-dark-blue-1 text-white disabled:opacity-50 disabled:cursor-not-allowed py-0.5 px-3 text-xs"
                       onClick={() => stopMutation.mutate(p._id)}
                       disabled={!isActive}
                     >
                       Stop
                     </Button>
-                    <Button
-                      className="border border-custom-dark-blue-1 text-custom-dark-blue-1 bg-white hover:bg-custom-dark-blue-1 hover:text-white"
-                      onClick={() =>
-                        setOpenResults((s) => ({ ...s, [p._id]: !s[p._id] }))
-                      }
-                      disabled={!runId && !openResults[p._id]}
-                    >
-                      {openResults[p._id] ? "Hide results" : "View results"}
-                    </Button>
                   </div>
                 </div>
+
+                {/* Stop button (new line) */}
+
+                {/* Run selector (next line) */}
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-700 mb-1">Run</div>
+                  <RunSelector
+                    pollId={p._id}
+                    currentRunId={runId}
+                    sessionId={sessionId}
+                    onChange={(rid) =>
+                      setLatestRunByPoll((s) => ({ ...s, [p._id]: rid || "" }))
+                    }
+                  />
+                </div>
+
+                {/* View results + show/hide respondents (next line) */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    className="border border-custom-dark-blue-1 text-custom-dark-blue-1 bg-white hover:bg-custom-dark-blue-1 hover:text-white py-0.5 px-3 text-xs"
+                    onClick={() =>
+                      setOpenResults((s) => ({ ...s, [p._id]: !s[p._id] }))
+                    }
+                    disabled={!runId && !openResults[p._id]}
+                  >
+                    {openResults[p._id] ? "Hide results" : "View results"}
+                  </Button>
+                  {/* Share results (next line) */}
+                  {!isActive && runId && (
+                    <Button
+                      className="border border-custom-dark-blue-1 text-custom-dark-blue-1 bg-white hover:bg-custom-dark-blue-1 hover:text-white py-0.5 px-3 text-xs"
+                      onClick={() =>
+                        setShareConfirm({ open: true, pollId: p._id, runId })
+                      }
+                      disabled={shareMutation.status === "pending"}
+                    >
+                      Share results
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    setOpenRespondents((s) => ({ ...s, [p._id]: !s[p._id] }))
+                  }
+                  className="py-0.5 px-3 text-xs"
+                  disabled={!runId && !openRespondents[p._id]}
+                >
+                  {openRespondents[p._id]
+                    ? "Hide respondents"
+                    : "Show respondents"}
+                </Button>
+
+                <div></div>
               </div>
 
               {/* collapsible results / respondents previews */}
@@ -548,146 +541,153 @@ function RespondentsWrapper({
   return (
     <div className="space-y-2">
       <div className="text-sm text-gray-600">
-        {anonym
-          ? "Anonymous run – identities hidden"
-          : "Respondents (first 20)"}
+        {responses.length > 0
+          ? anonym
+            ? "Anonymous run – identities hidden"
+            : "Respondents"
+          : null}
       </div>
-      <div className="border rounded divide-y">
-        {responses.map((r, idx) => (
-          <div key={idx} className="p-2">
-            {!anonym && (
-              <div className="text-sm font-medium">
-                {r.responder?.name || "Unnamed"}
-              </div>
-            )}
-            <div className="text-xs text-gray-600 mt-1">
-              {questions.map((qdef) => {
-                const ans = r.answers.find((a) => a.questionId === qdef._id);
-                const v = ans?.value as unknown;
-                const def = qById.get(qdef._id);
-                let label = "";
+      {responses.length === 0 ? (
+        <div className="mt-2 text-sm text-gray-600">No responses yet</div>
+      ) : (
+        <div className="border rounded divide-y">
+          {responses.map((r, idx) => (
+            <div key={idx} className="p-2">
+              {!anonym && (
+                <div className="text-sm font-medium">
+                  {r.responder?.name || "Unnamed"}
+                </div>
+              )}
+              <div className="text-xs text-gray-600 mt-1 min-w-0">
+                {questions.map((qdef) => {
+                  const ans = r.answers.find((a) => a.questionId === qdef._id);
+                  const v = ans?.value as unknown;
+                  const def = qById.get(qdef._id);
+                  let label = "";
 
-                if (def) {
-                  // SINGLE_CHOICE: show option text + correctness
-                  if (def.type === "SINGLE_CHOICE") {
-                    const chosen = typeof v === "number" ? (v as number) : null;
-                    const correct = (
-                      def as Extract<PollQuestion, { type: "SINGLE_CHOICE" }>
-                    ).correctAnswer;
-                    const text =
-                      chosen !== null
-                        ? def.answers?.[chosen] ?? String(chosen)
-                        : "—";
-                    if (chosen === null) label = "—";
-                    else if (correct !== undefined)
-                      label = `${text} — ${
-                        chosen === correct ? "Correct" : "Wrong"
-                      }`;
-                    else label = text;
+                  if (def) {
+                    // SINGLE_CHOICE: show option text + correctness
+                    if (def.type === "SINGLE_CHOICE") {
+                      const chosen =
+                        typeof v === "number" ? (v as number) : null;
+                      const correct = (
+                        def as Extract<PollQuestion, { type: "SINGLE_CHOICE" }>
+                      ).correctAnswer;
+                      const text =
+                        chosen !== null
+                          ? def.answers?.[chosen] ?? String(chosen)
+                          : "—";
+                      if (chosen === null) label = "—";
+                      else if (correct !== undefined)
+                        label = `${text} — ${
+                          chosen === correct ? "Correct" : "Wrong"
+                        }`;
+                      else label = text;
 
-                    // MULTIPLE_CHOICE: show chosen options and correctness
-                  } else if (def.type === "MULTIPLE_CHOICE") {
-                    const chosen = Array.isArray(v) ? (v as number[]) : [];
-                    const chosenText = chosen
-                      .map((i) => def.answers?.[i] ?? String(i))
-                      .join(", ");
-                    const correctArr =
-                      (
-                        def as Extract<
-                          PollQuestion,
-                          { type: "MULTIPLE_CHOICE" }
-                        >
-                      ).correctAnswers || [];
-                    const setA = new Set(chosen);
-                    const setB = new Set(correctArr);
-                    const eq =
-                      setA.size === setB.size &&
-                      [...setA].every((x) => setB.has(x));
-                    if (chosen.length === 0) label = "—";
-                    else if (correctArr.length)
-                      label = `${chosenText} — ${eq ? "Correct" : "Wrong"}`;
-                    else label = chosenText;
-
-                    // MATCHING: value is array of pairs
-                  } else if (def.type === "MATCHING") {
-                    if (Array.isArray(v)) {
-                      const pairs = v as Array<[number, number]>;
-                      const txt = pairs
-                        .map(
-                          (p) =>
-                            `${def.options?.[p[0]] ?? p[0]} → ${
-                              def.answers?.[p[1]] ?? p[1]
-                            }`
-                        )
+                      // MULTIPLE_CHOICE: show chosen options and correctness
+                    } else if (def.type === "MULTIPLE_CHOICE") {
+                      const chosen = Array.isArray(v) ? (v as number[]) : [];
+                      const chosenText = chosen
+                        .map((i) => def.answers?.[i] ?? String(i))
                         .join(", ");
-                      const ok = pairs.every((p) => p[1] === p[0]);
-                      label =
-                        pairs.length === 0
-                          ? "—"
-                          : `${txt} — ${ok ? "Correct" : "Wrong"}`;
-                    } else label = String(v ?? "");
+                      const correctArr =
+                        (
+                          def as Extract<
+                            PollQuestion,
+                            { type: "MULTIPLE_CHOICE" }
+                          >
+                        ).correctAnswers || [];
+                      const setA = new Set(chosen);
+                      const setB = new Set(correctArr);
+                      const eq =
+                        setA.size === setB.size &&
+                        [...setA].every((x) => setB.has(x));
+                      if (chosen.length === 0) label = "—";
+                      else if (correctArr.length)
+                        label = `${chosenText} — ${eq ? "Correct" : "Wrong"}`;
+                      else label = chosenText;
 
-                    // FILL_IN_BLANK: value is array of strings
-                  } else if (def.type === "FILL_IN_BLANK") {
-                    if (Array.isArray(v)) {
-                      const vals = v as string[];
-                      const txt = vals.join(", ");
-                      const expected = def.answers || [];
-                      const ok =
-                        expected.length === vals.length &&
-                        vals.every(
-                          (vv, idx) =>
-                            (vv ?? "").trim().toLowerCase() ===
-                            (expected[idx] ?? "").trim().toLowerCase()
-                        );
-                      label = `${txt} — ${ok ? "Correct" : "Wrong"}`;
-                    } else label = String(v ?? "");
+                      // MATCHING: value is array of pairs
+                    } else if (def.type === "MATCHING") {
+                      if (Array.isArray(v)) {
+                        const pairs = v as Array<[number, number]>;
+                        const txt = pairs
+                          .map(
+                            (p) =>
+                              `${def.options?.[p[0]] ?? p[0]} → ${
+                                def.answers?.[p[1]] ?? p[1]
+                              }`
+                          )
+                          .join(", ");
+                        const ok = pairs.every((p) => p[1] === p[0]);
+                        label =
+                          pairs.length === 0
+                            ? "—"
+                            : `${txt} — ${ok ? "Correct" : "Wrong"}`;
+                      } else label = String(v ?? "");
 
-                    // RANK_ORDER: value is array of indices
-                  } else if (def.type === "RANK_ORDER") {
-                    if (Array.isArray(v)) {
-                      const arr = v as number[];
-                      const txt = arr
-                        .map((idx) => def.columns?.[idx] ?? String(idx))
-                        .join(", ");
-                      const ok = arr.every((val, idx) => val === idx);
-                      label =
-                        arr.length === 0
-                          ? "—"
-                          : `${txt} — ${ok ? "Correct" : "Wrong"}`;
-                    } else label = String(v ?? "");
+                      // FILL_IN_BLANK: value is array of strings
+                    } else if (def.type === "FILL_IN_BLANK") {
+                      if (Array.isArray(v)) {
+                        const vals = v as string[];
+                        const txt = vals.join(", ");
+                        const expected = def.answers || [];
+                        const ok =
+                          expected.length === vals.length &&
+                          vals.every(
+                            (vv, idx) =>
+                              (vv ?? "").trim().toLowerCase() ===
+                              (expected[idx] ?? "").trim().toLowerCase()
+                          );
+                        label = `${txt} — ${ok ? "Correct" : "Wrong"}`;
+                      } else label = String(v ?? "");
 
-                    // RATING_SCALE or others: show value
-                  } else if (def.type === "RATING_SCALE") {
-                    label = String(v ?? "");
+                      // RANK_ORDER: value is array of indices
+                    } else if (def.type === "RANK_ORDER") {
+                      if (Array.isArray(v)) {
+                        const arr = v as number[];
+                        const txt = arr
+                          .map((idx) => def.columns?.[idx] ?? String(idx))
+                          .join(", ");
+                        const ok = arr.every((val, idx) => val === idx);
+                        label =
+                          arr.length === 0
+                            ? "—"
+                            : `${txt} — ${ok ? "Correct" : "Wrong"}`;
+                      } else label = String(v ?? "");
+
+                      // RATING_SCALE or others: show value
+                    } else if (def.type === "RATING_SCALE") {
+                      label = String(v ?? "");
+                    } else {
+                      // fallback: stringify
+                      if (Array.isArray(v)) label = JSON.stringify(v);
+                      else if (typeof v === "object" && v !== null)
+                        label = JSON.stringify(v as object);
+                      else if (v === undefined || v === null) label = "";
+                      else label = String(v);
+                    }
                   } else {
-                    // fallback: stringify
+                    // no question def found
                     if (Array.isArray(v)) label = JSON.stringify(v);
                     else if (typeof v === "object" && v !== null)
                       label = JSON.stringify(v as object);
                     else if (v === undefined || v === null) label = "";
                     else label = String(v);
                   }
-                } else {
-                  // no question def found
-                  if (Array.isArray(v)) label = JSON.stringify(v);
-                  else if (typeof v === "object" && v !== null)
-                    label = JSON.stringify(v as object);
-                  else if (v === undefined || v === null) label = "";
-                  else label = String(v);
-                }
 
-                return (
-                  <div key={qdef._id}>
-                    <span className="font-semibold">{qdef.prompt}:</span>{" "}
-                    {label || "—"}
-                  </div>
-                );
-              })}
+                  return (
+                    <div key={qdef._id} className="truncate">
+                      <span className="font-semibold">{qdef.prompt}:</span>{" "}
+                      {label || "—"}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

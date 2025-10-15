@@ -23,19 +23,60 @@ export async function getProjectSummary(projectId: string) {
     .map((m: any) => `${m.firstName || ""} ${m.lastName || ""}`.trim())
     .filter(Boolean);
 
-  // total credits used
-  const creditsAgg = await LiveUsageLog.aggregate([
-    { $match: { projectId: pid } },
-    { $group: { _id: null, total: { $sum: "$creditsUsed" } } },
-  ]);
-  const totalCreditsUsed = (creditsAgg[0] && creditsAgg[0].total) || 0;
-
-  // unique participants and observers across project (exclude Amplify* roles & moderators)
-  // unique participants and observers across project derived from LiveSession lists
+  // total credits used (derived from session durations):
+  // minutes = ceil((end - start) / 60000), credits = minutes * 3
   const LiveSession =
     require("../../model/LiveSessionModel").LiveSessionModel ||
     require("../../model/LiveSessionModel").default ||
     require("../../model/LiveSessionModel");
+
+  const creditsAgg = await LiveSession.aggregate([
+    // join to sessions to filter by project
+    {
+      $lookup: {
+        from: "sessions",
+        localField: "sessionId",
+        foreignField: "_id",
+        as: "session",
+      },
+    },
+    { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
+    { $match: { "session.projectId": pid } },
+    // compute duration where both start and end exist
+    {
+      $addFields: {
+        durationMs: {
+          $cond: [
+            {
+              $and: [
+                { $ifNull: ["$endTime", false] },
+                { $ifNull: ["$startTime", false] },
+              ],
+            },
+            { $subtract: ["$endTime", "$startTime"] },
+            null,
+          ],
+        },
+      },
+    },
+    // compute minutes rounded up and credits (null-safe)
+    {
+      $addFields: {
+        minutesRounded: {
+          $cond: [
+            { $ifNull: ["$durationMs", false] },
+            { $ceil: { $divide: ["$durationMs", 60000] } },
+            0,
+          ],
+        },
+      },
+    },
+    { $addFields: { creditsUsed: { $multiply: ["$minutesRounded", 3] } } },
+    { $group: { _id: null, total: { $sum: "$creditsUsed" } } },
+  ]).allowDiskUse(true);
+  const totalCreditsUsed = (creditsAgg[0] && creditsAgg[0].total) || 0;
+
+  // unique participants and observers across project derived from LiveSession lists
 
   // Count unique participants across project derived from participantHistory (dedupe by email)
   const participantsAgg = await LiveSession.aggregate([
@@ -70,6 +111,8 @@ export async function getProjectSummary(projectId: string) {
   const totalParticipantCount =
     (participantsAgg[0] && participantsAgg[0].total) || 0;
 
+  // Count unique observers across sessions in this project using LiveSession.observerHistory
+  // Build a stable observerKey (lowercase email or stringified id) and filter out empty keys
   const observersAgg = await LiveSession.aggregate([
     {
       $lookup: {
@@ -81,18 +124,24 @@ export async function getProjectSummary(projectId: string) {
     },
     { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
     { $match: { "session.projectId": pid } },
-    { $unwind: { path: "$observerList", preserveNullAndEmptyArrays: false } },
     {
-      $group: {
-        _id: null,
-        users: {
-          $addToSet: {
-            $ifNull: ["$observerList.userId", "$observerList.email"],
+      $unwind: { path: "$observerHistory", preserveNullAndEmptyArrays: false },
+    },
+    {
+      $addFields: {
+        observerKey: {
+          $toLower: {
+            $ifNull: [
+              "$observerHistory.email",
+              { $toString: "$observerHistory.id" },
+            ],
           },
         },
       },
     },
-    { $project: { total: { $size: "$users" } } },
+    { $match: { observerKey: { $exists: true, $ne: "" } } },
+    { $group: { _id: "$observerKey" } },
+    { $count: "total" },
   ]).allowDiskUse(true);
   const totalObserverCount = (observersAgg[0] && observersAgg[0].total) || 0;
 
@@ -157,16 +206,7 @@ export async function getProjectSessions(
         },
       },
     },
-    // credits (usage logs keyed by session._id)
-    {
-      $lookup: {
-        from: "liveusagelogs",
-        localField: "_id",
-        foreignField: "sessionId",
-        as: "usageLogs",
-      },
-    },
-    { $addFields: { totalCreditsUsed: { $sum: "$usageLogs.creditsUsed" } } },
+    // credits will be derived from rounded-up minutes of duration * 3
     // join live session doc to get participants/observers and start/end times
     {
       $lookup: {
@@ -199,6 +239,30 @@ export async function getProjectSessions(
             },
             { $subtract: ["$liveSession.endTime", "$liveSession.startTime"] },
             null,
+          ],
+        },
+      },
+    },
+    // compute minutes rounded up and credits used
+    {
+      $addFields: {
+        minutesRounded: {
+          $cond: [
+            { $ifNull: ["$durationMs", false] },
+            { $ceil: { $divide: ["$durationMs", 60000] } },
+            0,
+          ],
+        },
+        totalCreditsUsed: {
+          $multiply: [
+            {
+              $cond: [
+                { $ifNull: ["$durationMs", false] },
+                { $ceil: { $divide: ["$durationMs", 60000] } },
+                0,
+              ],
+            },
+            3,
           ],
         },
       },
@@ -310,16 +374,66 @@ export async function getSessionParticipants(
   const deduped = Object.values(byEmail);
   const total = deduped.length;
 
-  const paged = deduped.slice(skip, skip + limit).map((p: any) => ({
-    name: p.name,
-    email: p.email,
-    userId: p.id ? String(p.id) : undefined,
-    deviceType: undefined,
-    device: undefined,
-    joinTime: p.joinedAt,
-    leaveTime: p.leaveAt || undefined,
-    ip: undefined,
-  }));
+  // Build enrichment from UserActivity (earliest join per email)
+  const activityEmailToInfo: Record<
+    string,
+    {
+      ip?: string;
+      deviceType?: string;
+      platform?: string;
+      browser?: string;
+      location?: string;
+    }
+  > = {};
+  try {
+    const UserActivityModel =
+      require("../../model/UserActivityModel").UserActivityModel ||
+      require("../../model/UserActivityModel").default ||
+      require("../../model/UserActivityModel");
+    const acts: Array<{
+      email?: string;
+      deviceInfo?: {
+        ip?: string;
+        deviceType?: string;
+        platform?: string;
+        browser?: string;
+        location?: string;
+      };
+      joinTime?: Date;
+    }> = await UserActivityModel.find(
+      { sessionId: live?._id, role: "Participant" },
+      { email: 1, deviceInfo: 1, joinTime: 1 }
+    ).lean();
+    // Keep first seen per lowercase email (implicitly earliest since created on join)
+    for (const a of acts || []) {
+      const key = (a?.email || "").toLowerCase();
+      if (!key || activityEmailToInfo[key]) continue;
+      const di = a?.deviceInfo || {};
+      activityEmailToInfo[key] = {
+        ip: di?.ip,
+        deviceType: di?.deviceType,
+        platform: di?.platform,
+        browser: di?.browser,
+        location: di?.location,
+      };
+    }
+  } catch {}
+
+  const paged = deduped.slice(skip, skip + limit).map((p: any) => {
+    const key = String(p.email || "").toLowerCase();
+    const extra = activityEmailToInfo[key] || {};
+    return {
+      name: p.name,
+      email: p.email,
+      userId: p.id ? String(p.id) : undefined,
+      deviceType: extra.deviceType,
+      device: extra.platform ? { os: extra.platform } : undefined,
+      joinTime: p.joinedAt,
+      leaveTime: p.leaveAt || undefined,
+      ip: extra.ip,
+      location: extra.location,
+    };
+  });
 
   const meta = {
     page,
@@ -345,23 +459,80 @@ export async function getSessionObservers(
     require("../../model/LiveSessionModel").default ||
     require("../../model/LiveSessionModel");
 
-  const live = await LiveSession.findOne({
-    sessionId: new Types.ObjectId(sessionId),
-  }).lean();
+  const live = await LiveSession.findOne(
+    {
+      sessionId: new Types.ObjectId(sessionId),
+    },
+    { observerHistory: 1 }
+  ).lean();
 
-  const observers =
-    live && Array.isArray(live.observerList) ? live.observerList : [];
-  const total = observers.length;
+  // Use observerHistory entries (multiple records per observer possible)
+  const history = Array.isArray((live as any)?.observerHistory)
+    ? ((live as any).observerHistory as any[])
+    : [];
+  const total = history.length;
 
-  const paged = observers.slice(skip, skip + limit).map((o: any) => ({
-    observerName: o.name,
-    name: o.name,
-    email: o.email,
-    companyName: undefined,
-    userId: o.userId ? String(o.userId) : undefined,
-    joinTime: o.joinedAt,
-    leaveTime: undefined,
-  }));
+  // Build enrichment from UserActivity for observers
+  const activityEmailToInfo: Record<
+    string,
+    {
+      ip?: string;
+      deviceType?: string;
+      platform?: string;
+      browser?: string;
+      location?: string;
+    }
+  > = {};
+  try {
+    const UserActivityModel =
+      require("../../model/UserActivityModel").UserActivityModel ||
+      require("../../model/UserActivityModel").default ||
+      require("../../model/UserActivityModel");
+    const acts: Array<{
+      email?: string;
+      deviceInfo?: {
+        ip?: string;
+        deviceType?: string;
+        platform?: string;
+        browser?: string;
+        location?: string;
+      };
+      joinTime?: Date;
+    }> = await UserActivityModel.find(
+      { sessionId: live?._id, role: "Observer" },
+      { email: 1, deviceInfo: 1, joinTime: 1 }
+    ).lean();
+    for (const a of acts || []) {
+      const key = (a?.email || "").toLowerCase();
+      if (!key || activityEmailToInfo[key]) continue;
+      const di = a?.deviceInfo || {};
+      activityEmailToInfo[key] = {
+        ip: di?.ip,
+        deviceType: di?.deviceType,
+        platform: di?.platform,
+        browser: di?.browser,
+        location: di?.location,
+      };
+    }
+  } catch {}
+
+  const paged = history.slice(skip, skip + limit).map((h: any) => {
+    const key = String(h.email || "").toLowerCase();
+    const extra = activityEmailToInfo[key] || {};
+    return {
+      observerName: h.name,
+      name: h.name,
+      email: h.email,
+      companyName: undefined,
+      userId: h.id ? String(h.id) : undefined,
+      joinTime: h.joinedAt,
+      leaveTime: h.leaveAt || undefined,
+      ip: extra.ip,
+      deviceType: extra.deviceType,
+      device: extra.platform ? { os: extra.platform } : undefined,
+      location: extra.location,
+    };
+  });
 
   const meta = {
     page,
@@ -537,37 +708,94 @@ export async function getProjectObservers(
 ) {
   const skip = (page - 1) * limit;
   const pid = new Types.ObjectId(projectId);
-  const Presence = require("../../model/Presence").default;
+  // Derive observers from LiveSession.observerHistory so we have join/leave timestamps
+  const LiveSession =
+    require("../../model/LiveSessionModel").LiveSessionModel ||
+    require("../../model/LiveSessionModel").default ||
+    require("../../model/LiveSessionModel");
 
-  const totalAgg = await Presence.aggregate([
-    { $match: { projectId: pid, role: "Observer" } },
+  // total unique observers for project (dedupe by email or userId)
+  const totalAgg = await LiveSession.aggregate([
     {
-      $group: {
-        _id: null,
-        users: { $addToSet: { $ifNull: ["$userId", "$email"] } },
+      $lookup: {
+        from: "sessions",
+        localField: "sessionId",
+        foreignField: "_id",
+        as: "session",
       },
     },
-    { $project: { total: { $size: "$users" } } },
+    { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
+    { $match: { "session.projectId": pid } },
+    {
+      $unwind: { path: "$observerHistory", preserveNullAndEmptyArrays: false },
+    },
+    {
+      $group: {
+        _id: {
+          $toLower: {
+            $ifNull: [
+              "$observerHistory.email",
+              { $toString: "$observerHistory.id" },
+            ],
+          },
+        },
+      },
+    },
+    { $count: "total" },
   ]).allowDiskUse(true);
   const total = (totalAgg[0] && totalAgg[0].total) || 0;
 
-  const agg = [
-    { $match: { projectId: pid, role: "Observer" } },
+  // Aggregate unique observers with earliest joinedAt and sessions they attended
+  const itemsAgg = await LiveSession.aggregate([
+    {
+      $lookup: {
+        from: "sessions",
+        localField: "sessionId",
+        foreignField: "_id",
+        as: "session",
+      },
+    },
+    { $addFields: { session: { $arrayElemAt: ["$session", 0] } } },
+    { $match: { "session.projectId": pid } },
+    {
+      $unwind: { path: "$observerHistory", preserveNullAndEmptyArrays: false },
+    },
     {
       $group: {
-        _id: { observerKey: { $ifNull: ["$userId", "$email"] } },
-        observerName: { $first: "$name" },
-        email: { $first: "$email" },
-        companyName: { $first: "$companyName" },
-        joinedAt: { $min: "$joinedAt" },
+        _id: {
+          $toLower: {
+            $ifNull: [
+              "$observerHistory.email",
+              { $toString: "$observerHistory.id" },
+            ],
+          },
+        },
+        name: { $first: "$observerHistory.name" },
+        email: { $first: "$observerHistory.email" },
+        userId: { $first: "$observerHistory.id" },
+        joinedAt: { $min: "$observerHistory.joinedAt" },
+        sessions: {
+          $addToSet: { id: "$session._id", title: "$session.title" },
+        },
       },
     },
     { $sort: { joinedAt: -1 } },
     { $skip: skip },
     { $limit: limit },
-  ];
+  ]).allowDiskUse(true);
 
-  const items = await Presence.aggregate(agg).allowDiskUse(true);
+  const finalItems = (itemsAgg || []).map((d: any) => ({
+    _id: d._id && d._id.toString ? d._id.toString() : String(d._id),
+    observerName: d.name,
+    name: d.name,
+    email: d.email,
+    companyName: undefined,
+    joinedAt: d.joinedAt,
+    sessions: (d.sessions || []).map((s: any) => ({
+      _id: s && s.id && s.id.toString ? s.id.toString() : String(s && s.id),
+      title: s && s.title ? s.title : undefined,
+    })),
+  }));
 
   const meta = {
     page,
@@ -578,5 +806,5 @@ export async function getProjectObservers(
     hasNext: page * limit < total,
   };
 
-  return { items, meta };
+  return { items: finalItems, meta };
 }

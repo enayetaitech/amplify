@@ -51,11 +51,13 @@ export default function ActivePoll({
     Record<string, boolean>
   >({});
   const [localAnswers, setLocalAnswers] = useState<Record<string, unknown>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [resultsMapping, setResultsMapping] = useState<Record<
     string,
     { total: number; counts: { value: unknown; count: number }[] }
   > | null>(null);
   const [sharedPoll, setSharedPoll] = useState<IPoll | null>(null);
+  const [textErrors, setTextErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // connect socket
@@ -157,6 +159,8 @@ export default function ActivePoll({
         toast.error("No active run to submit to");
         return;
       }
+      if (isSubmitting) return;
+      setIsSubmitting(true);
       // capture participant identity from either authenticated user or local storage fallback
       let localName: string | undefined;
       let localEmail: string | undefined;
@@ -192,9 +196,14 @@ export default function ActivePoll({
       });
       toast.success("Response recorded");
       setSubmittedRunIds((s) => ({ ...s, [run._id]: true }));
+      // Clear local inputs and any text errors after successful submission
+      setLocalAnswers({});
+      setTextErrors({});
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Submit failed";
       toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -310,6 +319,39 @@ export default function ActivePoll({
                       disabled={!canSubmit}
                     />
                   )}
+                  {(() => {
+                    const val = (
+                      (localAnswers[q._id] as string) || ""
+                    ).toString();
+                    const min =
+                      (q as unknown as { minChars?: number }).minChars ?? 0;
+                    const max =
+                      (q as unknown as { maxChars?: number }).maxChars ??
+                      (q.type === "SHORT_ANSWER" ? 200 : 2000);
+                    const len = val.trim().length;
+                    return (
+                      <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                        <span>
+                          {min > 0 ? `Min ${min}` : null}
+                          {min > 0 && Number.isFinite(max) ? " · " : null}
+                          {Number.isFinite(max) ? `Max ${max}` : null}
+                        </span>
+                        <span>
+                          {len}/
+                          {Number.isFinite(max)
+                            ? max
+                            : q.type === "SHORT_ANSWER"
+                            ? 200
+                            : 2000}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  {textErrors[q._id] ? (
+                    <div className="text-xs text-rose-600 mt-1">
+                      {textErrors[q._id]}
+                    </div>
+                  ) : null}
                 </div>
               )}
 
@@ -426,7 +468,7 @@ export default function ActivePoll({
                   <div className="text-xs text-gray-500 mb-1">
                     {q.lowLabel || q.scoreFrom} … {q.highLabel || q.scoreTo}
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {Array.from({ length: q.scoreTo - q.scoreFrom + 1 }).map(
                       (_, idx) => {
                         const val = q.scoreFrom + idx;
@@ -434,7 +476,7 @@ export default function ActivePoll({
                         return (
                           <label
                             key={val}
-                            className={`relative inline-flex items-center justify-center rounded border px-3 py-1 cursor-pointer ${
+                            className={`relative inline-flex items-center justify-center rounded border px-2 py-0.5 cursor-pointer ${
                               selected
                                 ? "bg-custom-dark-blue-1 text-white border-custom-dark-blue-1"
                                 : "bg-white text-gray-700"
@@ -479,8 +521,37 @@ export default function ActivePoll({
                     q.type === "SHORT_ANSWER" ||
                     q.type === "LONG_ANSWER"
                   ) {
-                    if (typeof v === "string" && v.trim().length > 0)
-                      answers.push({ questionId: q._id, value: v });
+                    const txt = typeof v === "string" ? v : "";
+                    const min =
+                      (q as unknown as { minChars?: number }).minChars ?? 0;
+                    const max =
+                      (q as unknown as { maxChars?: number }).maxChars ??
+                      Infinity;
+                    const len = txt.trim().length;
+                    if (len === 0) {
+                      // handled by required check later; don't add empty
+                    } else if (len < min) {
+                      setTextErrors((s) => ({
+                        ...s,
+                        [q._id]: `Minimum ${min} characters required`,
+                      }));
+                      toast.error(
+                        `Minimum ${min} characters required for: ${q.prompt}`
+                      );
+                      return;
+                    } else if (len > max) {
+                      setTextErrors((s) => ({
+                        ...s,
+                        [q._id]: `Maximum ${max} characters allowed`,
+                      }));
+                      toast.error(
+                        `Maximum ${max} characters allowed for: ${q.prompt}`
+                      );
+                      return;
+                    } else {
+                      setTextErrors((s) => ({ ...s, [q._id]: "" }));
+                      answers.push({ questionId: q._id, value: txt });
+                    }
                   } else if (q.type === "FILL_IN_BLANK") {
                     if (
                       Array.isArray(v) &&
@@ -527,16 +598,57 @@ export default function ActivePoll({
                       toast.error(`Question ${qq.prompt} is required`);
                       return;
                     }
+                    // additionally enforce min/max for required text answers
+                    if (
+                      (qq.type === "SHORT_ANSWER" ||
+                        qq.type === "LONG_ANSWER") &&
+                      typeof v === "string"
+                    ) {
+                      const min =
+                        (qq as unknown as { minChars?: number }).minChars ?? 0;
+                      const max =
+                        (qq as unknown as { maxChars?: number }).maxChars ??
+                        Infinity;
+                      const len = v.trim().length;
+                      if (len < min) {
+                        setTextErrors((s) => ({
+                          ...s,
+                          [qq._id]: `Minimum ${min} characters required`,
+                        }));
+                        toast.error(
+                          `Minimum ${min} characters required for: ${qq.prompt}`
+                        );
+                        return;
+                      }
+                      if (len > max) {
+                        setTextErrors((s) => ({
+                          ...s,
+                          [qq._id]: `Maximum ${max} characters allowed`,
+                        }));
+                        toast.error(
+                          `Maximum ${max} characters allowed for: ${qq.prompt}`
+                        );
+                        return;
+                      }
+                    }
                   }
                 }
 
                 if (answers.length === 0) {
-                  toast.error("Please answer at least one question");
+                  if (
+                    Array.isArray(poll.questions) &&
+                    poll.questions.length === 1
+                  ) {
+                    toast.error("Please answer the question");
+                  } else {
+                    toast.error("Please answer at least one question");
+                  }
                   return;
                 }
                 onSubmit(answers);
               }}
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
+              className="py-0.5 px-3 text-xs bg-custom-dark-blue-1 text-white hover:bg-custom-dark-blue-2 hover:text-white"
             >
               Submit All
             </Button>

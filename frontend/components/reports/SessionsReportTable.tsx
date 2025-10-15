@@ -25,6 +25,7 @@ type Participant = {
   joinTime?: string;
   leaveTime?: string;
   ip?: string;
+  location?: string;
 };
 
 type Observer = {
@@ -35,14 +36,10 @@ type Observer = {
   companyName?: string;
   joinTime?: string;
   ip?: string;
+  location?: string;
 };
 
-type LiveObserver = {
-  userId?: string;
-  name?: string;
-  email?: string;
-  joinedAt?: string;
-};
+// Removed unused LiveObserver type after switching to enriched fetch
 
 // normalized shape for entries coming from participantHistory or participantsList
 type ParticipantEntry = {
@@ -81,6 +78,14 @@ type SessionReportRow = {
       role?: string;
       joinedAt?: string;
     }[];
+    observerHistory?: {
+      id?: string;
+      name?: string;
+      email?: string;
+      joinedAt?: string;
+      leaveAt?: string;
+      reason?: "Left" | "Streaming Stopped";
+    }[];
     startTime?: string;
     endTime?: string;
     durationMs?: number;
@@ -104,8 +109,7 @@ export default function SessionsReportTable({
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [loadingObservers, setLoadingObservers] = useState(false);
 
-  const me = safeLocalGet<{ role?: string }>("user") || null;
-  const isSuperAdmin = me?.role === "SuperAdmin";
+  void safeLocalGet;
   // Format date like: "Feb 27, 2025 12:59:22 PM"
   const formatDate = (v?: string | number | null) => {
     if (v === undefined || v === null) return "";
@@ -127,59 +131,7 @@ export default function SessionsReportTable({
       if (!s) return;
       const sid = s._id || (s as unknown as { sessionId?: string }).sessionId;
 
-      // If backend already returned liveSession data in the session row, use it and skip extra API calls
-      if (s.liveSession) {
-        try {
-          setLoadingParticipants(true);
-          // prefer participantHistory when available; fall back to participantsList
-          const ls = s.liveSession as
-            | {
-                participantHistory?: ParticipantEntry[];
-                participantsList?: ParticipantEntry[];
-              }
-            | undefined;
-          const history: ParticipantEntry[] =
-            ls && Array.isArray(ls.participantHistory)
-              ? ls.participantHistory
-              : ls?.participantsList || [];
-
-          // show all entries (including duplicates) from participantHistory or participantsList
-          const entries: ParticipantEntry[] = Array.isArray(history)
-            ? history
-            : [];
-
-          const mappedP: Participant[] = entries.map((p: ParticipantEntry) => ({
-            userId: p.userId || p.id ? String(p.userId || p.id) : undefined,
-            name: p.name,
-            email: p.email,
-            deviceType: p.deviceType || undefined,
-            device: p.device || undefined,
-            joinTime: p.joinedAt as string | undefined,
-            leaveTime: p.leaveAt ? (p.leaveAt as string) : undefined,
-            ip: undefined,
-          }));
-
-          setParticipants(mappedP);
-        } finally {
-          setLoadingParticipants(false);
-        }
-
-        try {
-          setLoadingObservers(true);
-          const ol = s.liveSession.observerList || [];
-          const mappedO: Observer[] = ol.map((o: LiveObserver) => ({
-            observerName: o.name,
-            name: o.name,
-            email: o.email,
-            joinTime: o.joinedAt as string | undefined,
-          }));
-          setObservers(mappedO);
-        } finally {
-          setLoadingObservers(false);
-        }
-
-        return;
-      }
+      // Always use enriched backend endpoints for participants/observers
 
       try {
         setLoadingParticipants(true);
@@ -255,7 +207,7 @@ export default function SessionsReportTable({
               <TableCell>
                 {s.liveSession
                   ? (() => {
-                      const ls = s.liveSession as unknown as
+                      const ls = s.liveSession as
                         | {
                             participantHistory?: ParticipantEntry[];
                             participantsList?: ParticipantEntry[];
@@ -277,7 +229,30 @@ export default function SessionsReportTable({
               </TableCell>
               <TableCell>
                 {s.liveSession
-                  ? (s.liveSession.observerList || []).length
+                  ? (() => {
+                      const oh = (
+                        s.liveSession as {
+                          observerHistory?:
+                            | {
+                                name?: string;
+                                email?: string;
+                                joinedAt?: string;
+                                leaveAt?: string;
+                              }[]
+                            | undefined;
+                        }
+                      ).observerHistory as
+                        | Array<{
+                            email?: string;
+                            joinedAt?: string;
+                            leaveAt?: string;
+                          }>
+                        | undefined;
+                      if (Array.isArray(oh) && oh.length) {
+                        return oh.length;
+                      }
+                      return (s.liveSession.observerList || []).length;
+                    })()
                   : s.observerCount ?? 0}
               </TableCell>
               <TableCell>{s.totalCreditsUsed || 0}</TableCell>
@@ -288,8 +263,8 @@ export default function SessionsReportTable({
                       View
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
-                    <div className="min-h-[300px] w-[700px]">
+                  <DialogContent className="max-w-3xl h-[80vh] p-0">
+                    <div className="w-full h-full overflow-auto p-6">
                       <h3 className="text-lg font-semibold">
                         {s.title || s.name}
                       </h3>
@@ -311,7 +286,8 @@ export default function SessionsReportTable({
                                   <TableHead>Device</TableHead>
                                   <TableHead>Join</TableHead>
                                   <TableHead>Leave</TableHead>
-                                  {isSuperAdmin && <TableHead>IP</TableHead>}
+                                  <TableHead>IP</TableHead>
+                                  <TableHead>Location</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -333,9 +309,8 @@ export default function SessionsReportTable({
                                         ? new Date(p.leaveTime).toLocaleString()
                                         : ""}
                                     </TableCell>
-                                    {isSuperAdmin && (
-                                      <TableCell>{p.ip || ""}</TableCell>
-                                    )}
+                                    <TableCell>{p.ip || ""}</TableCell>
+                                    <TableCell>{p.location || ""}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -355,7 +330,8 @@ export default function SessionsReportTable({
                                   <TableHead>Email</TableHead>
                                   <TableHead>Company</TableHead>
                                   <TableHead>Join</TableHead>
-                                  {isSuperAdmin && <TableHead>IP</TableHead>}
+                                  <TableHead>IP</TableHead>
+                                  <TableHead>Location</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -373,9 +349,8 @@ export default function SessionsReportTable({
                                         ? new Date(o.joinTime).toLocaleString()
                                         : ""}
                                     </TableCell>
-                                    {isSuperAdmin && (
-                                      <TableCell>{o.ip || ""}</TableCell>
-                                    )}
+                                    <TableCell>{o.ip || ""}</TableCell>
+                                    <TableCell>{o.location || ""}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>

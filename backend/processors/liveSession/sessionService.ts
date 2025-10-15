@@ -15,6 +15,14 @@ export interface EnqueueUserData {
   role: "Participant" | "Observer" | "Moderator" | "Admin";
 }
 
+export interface RequestDeviceInfo {
+  ip: string;
+  deviceType: string;
+  platform: string;
+  browser: string;
+  location: string;
+}
+
 /**
  * Ensure there is a LiveSession for the given scheduled session.
  * If none exists, create it with ongoing=false.
@@ -49,7 +57,8 @@ export async function createLiveSession(
  */
 export async function enqueueUser(
   sessionId: string,
-  userData: EnqueueUserData
+  userData: EnqueueUserData,
+  deviceInfo?: RequestDeviceInfo
 ) {
   const live = await LiveSessionModel.findOne({ sessionId });
   if (!live) throw new Error("LiveSession not found");
@@ -102,7 +111,6 @@ export async function enqueueUser(
       name: userData.name,
       email: userData.email,
       role: userData.role,
-      joinedAt: new Date(),
     });
     live.participantsList.push({
       name: userData.name,
@@ -118,8 +126,18 @@ export async function enqueueUser(
   await UserActivityModel.create({
     sessionId: live._id,
     userId: userData.userId ? new Types.ObjectId(userData.userId) : undefined,
+    email: userData.email,
     role: userData.role,
     joinTime: new Date(),
+    deviceInfo: deviceInfo
+      ? {
+          ip: deviceInfo.ip,
+          deviceType: deviceInfo.deviceType,
+          platform: deviceInfo.platform,
+          browser: deviceInfo.browser,
+          location: deviceInfo.location,
+        }
+      : undefined,
   });
 
   return {

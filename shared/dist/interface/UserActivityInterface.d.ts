@@ -2,7 +2,8 @@ export interface IUserActivity {
     _id: string;
     sessionId: string;
     userId?: string;
-    role: 'Participant' | 'Observer' | 'Moderator' | 'Admin';
+    email?: string;
+    role: "Participant" | "Observer" | "Moderator" | "Admin";
     joinTime: Date;
     leaveTime?: Date;
     deviceInfo?: {

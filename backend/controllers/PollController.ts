@@ -456,6 +456,46 @@ export const respondToPoll = async (req: any, res: any, next: any) => {
       email,
     };
 
+    // Enforce min/max for text answers (SHORT_ANSWER, LONG_ANSWER) using poll definition
+    try {
+      const pollDoc = await PollModel.findById(pollId).lean();
+      if (pollDoc && Array.isArray(pollDoc.questions)) {
+        const qById = new Map(
+          (pollDoc.questions as any[]).map((q: any) => [String(q._id), q])
+        );
+        for (const a of answers as any[]) {
+          const q = qById.get(String(a.questionId));
+          if (q && (q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER")) {
+            const min = typeof q.minChars === "number" ? q.minChars : 0;
+            const max = typeof q.maxChars === "number" ? q.maxChars : Infinity;
+            const txt = (a?.value ?? "") as string;
+            const len = typeof txt === "string" ? txt.trim().length : 0;
+            if (len === 0) {
+              // allow empty here; required is handled separately by frontend; backend accepts empty text unless required enforcement is added server-side later
+            } else if (len < min) {
+              return next(
+                new ErrorHandler(
+                  `Minimum ${min} characters required for: ${
+                    q.prompt || "question"
+                  }`,
+                  400
+                )
+              );
+            } else if (len > max) {
+              return next(
+                new ErrorHandler(
+                  `Maximum ${max} characters allowed for: ${
+                    q.prompt || "question"
+                  }`,
+                  400
+                )
+              );
+            }
+          }
+        }
+      }
+    } catch {}
+
     const { doc, aggregates } = await pollService.submitResponse(
       pollId,
       runId,

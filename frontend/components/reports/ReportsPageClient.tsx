@@ -62,6 +62,9 @@ export default function ReportsPageClient({
     companyName?: string;
     joinedAt?: string;
     _id?: string;
+    sessions?: { _id?: string; title?: string }[];
+    ip?: string;
+    location?: string;
   };
 
   type SessionRow = {
@@ -363,6 +366,7 @@ export default function ReportsPageClient({
                         <TableHead>Email</TableHead>
                         <TableHead>Company</TableHead>
                         <TableHead>Joined</TableHead>
+                        <TableHead>Sessions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -375,6 +379,15 @@ export default function ReportsPageClient({
                             {p.joinedAt
                               ? new Date(p.joinedAt).toLocaleString()
                               : ""}
+                          </TableCell>
+                          <TableCell>
+                            {Array.isArray(p.sessions) && p.sessions.length
+                              ? p.sessions
+                                  .map((s) =>
+                                    s && s.title ? s.title : s._id || String(s)
+                                  )
+                                  .join(", ")
+                              : "-"}
                           </TableCell>
                         </TableRow>
                       ))}
