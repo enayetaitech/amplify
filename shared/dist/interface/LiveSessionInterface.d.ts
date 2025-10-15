@@ -40,6 +40,7 @@ export interface IObserverHistoryItem {
     role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
     joinedAt?: Date | null;
     leaveAt?: Date | null;
+    reason?: "Left" | "Streaming Stopped";
 }
 export interface ILiveSession {
     _id: string;
