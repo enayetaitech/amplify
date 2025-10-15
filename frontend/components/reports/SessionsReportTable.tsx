@@ -81,6 +81,14 @@ type SessionReportRow = {
       role?: string;
       joinedAt?: string;
     }[];
+    observerHistory?: {
+      id?: string;
+      name?: string;
+      email?: string;
+      joinedAt?: string;
+      leaveAt?: string;
+      reason?: "Left" | "Streaming Stopped";
+    }[];
     startTime?: string;
     endTime?: string;
     durationMs?: number;
@@ -166,14 +174,44 @@ export default function SessionsReportTable({
 
         try {
           setLoadingObservers(true);
-          const ol = s.liveSession.observerList || [];
-          const mappedO: Observer[] = ol.map((o: LiveObserver) => ({
-            observerName: o.name,
-            name: o.name,
-            email: o.email,
-            joinTime: o.joinedAt as string | undefined,
-          }));
-          setObservers(mappedO);
+          // Prefer observerHistory if available, otherwise fall back to observerList
+          const oh = (
+            s.liveSession as {
+              observerHistory?:
+                | {
+                    name?: string;
+                    email?: string;
+                    joinedAt?: string;
+                    leaveAt?: string;
+                  }[]
+                | undefined;
+            }
+          ).observerHistory as
+            | Array<{
+                name?: string;
+                email?: string;
+                joinedAt?: string;
+                leaveAt?: string;
+              }>
+            | undefined;
+          if (Array.isArray(oh) && oh.length) {
+            const mappedO: Observer[] = oh.map((h) => ({
+              observerName: h.name,
+              name: h.name,
+              email: h.email,
+              joinTime: h.joinedAt,
+            }));
+            setObservers(mappedO);
+          } else {
+            const ol = s.liveSession.observerList || [];
+            const mappedO: Observer[] = ol.map((o: LiveObserver) => ({
+              observerName: o.name,
+              name: o.name,
+              email: o.email,
+              joinTime: o.joinedAt as string | undefined,
+            }));
+            setObservers(mappedO);
+          }
         } finally {
           setLoadingObservers(false);
         }
@@ -255,7 +293,7 @@ export default function SessionsReportTable({
               <TableCell>
                 {s.liveSession
                   ? (() => {
-                      const ls = s.liveSession as unknown as
+                      const ls = s.liveSession as
                         | {
                             participantHistory?: ParticipantEntry[];
                             participantsList?: ParticipantEntry[];
@@ -277,7 +315,30 @@ export default function SessionsReportTable({
               </TableCell>
               <TableCell>
                 {s.liveSession
-                  ? (s.liveSession.observerList || []).length
+                  ? (() => {
+                      const oh = (
+                        s.liveSession as {
+                          observerHistory?:
+                            | {
+                                name?: string;
+                                email?: string;
+                                joinedAt?: string;
+                                leaveAt?: string;
+                              }[]
+                            | undefined;
+                        }
+                      ).observerHistory as
+                        | Array<{
+                            email?: string;
+                            joinedAt?: string;
+                            leaveAt?: string;
+                          }>
+                        | undefined;
+                      if (Array.isArray(oh) && oh.length) {
+                        return oh.length;
+                      }
+                      return (s.liveSession.observerList || []).length;
+                    })()
                   : s.observerCount ?? 0}
               </TableCell>
               <TableCell>{s.totalCreditsUsed || 0}</TableCell>
@@ -288,8 +349,8 @@ export default function SessionsReportTable({
                       View
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
-                    <div className="min-h-[300px] w-[700px]">
+                  <DialogContent className="max-w-3xl h-[80vh] p-0">
+                    <div className="w-full h-full overflow-auto p-6">
                       <h3 className="text-lg font-semibold">
                         {s.title || s.name}
                       </h3>

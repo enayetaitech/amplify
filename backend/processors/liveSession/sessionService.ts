@@ -102,7 +102,6 @@ export async function enqueueUser(
       name: userData.name,
       email: userData.email,
       role: userData.role,
-      joinedAt: new Date(),
     });
     live.participantsList.push({
       name: userData.name,
