@@ -14,6 +14,10 @@ import { IUser } from "@shared/interface/UserInterface";
 import { useBuyCredits } from "hooks/billing/useBuyCredits";
 import { useUsage, UsageItem } from "hooks/billing/useUsage";
 import { usePurchases, PurchaseItem } from "hooks/billing/usePurchases";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import { toast } from "sonner";
+import axios from "axios";
 
 function OverviewTab() {
   const { user } = useGlobalContext();
@@ -103,6 +107,9 @@ function PaymentMethodsTab() {
       ).data.data.items,
   });
   const items: PaymentMethodItem[] = data || [];
+  const stripePromise = loadStripe(
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
+  );
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -135,10 +142,21 @@ function PaymentMethodsTab() {
                 size="sm"
                 variant="destructive"
                 onClick={async () => {
-                  await api.post("/api/v1/payment/detach", {
-                    paymentMethodId: pm.id,
-                  });
-                  refetch();
+                  try {
+                    await api.post("/api/v1/payment/detach", {
+                      paymentMethodId: pm.id,
+                    });
+                    refetch();
+                    toast.success("Card removed");
+                  } catch (err: unknown) {
+                    const message = axios.isAxiosError(err)
+                      ? (err.response?.data as { message?: string })?.message ??
+                        err.message
+                      : err instanceof Error
+                      ? err.message
+                      : "Unknown error";
+                    toast.error(message);
+                  }
                 }}
               >
                 Remove
@@ -147,15 +165,17 @@ function PaymentMethodsTab() {
           </Card>
         ))}
       </div>
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Add a new card</CardTitle>
-          <Plus className="h-5 w-5" />
-        </CardHeader>
-        <CardContent>
-          <CardSetupForm onCardSaved={() => refetch()} />
-        </CardContent>
-      </Card>
+      <Elements stripe={stripePromise}>
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Add a new card</CardTitle>
+            <Plus className="h-5 w-5" />
+          </CardHeader>
+          <CardContent>
+            <CardSetupForm onCardSaved={() => refetch()} />
+          </CardContent>
+        </Card>
+      </Elements>
     </div>
   );
 }
