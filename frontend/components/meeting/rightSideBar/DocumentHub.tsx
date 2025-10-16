@@ -207,9 +207,11 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
                           type="button"
                           className="truncate text-sm text-left hover:underline"
                           onClick={() => downloadOne(d._id)}
-                          title="Download"
+                          title={d.displayName}
                         >
-                          {d.displayName}
+                          {d.displayName && d.displayName.length > 30
+                            ? `${d.displayName.slice(0, 30)}…`
+                            : d.displayName}
                         </button>
                       </div>
                       <div className="flex items-center gap-3">

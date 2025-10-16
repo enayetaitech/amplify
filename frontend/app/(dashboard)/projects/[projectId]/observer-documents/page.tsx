@@ -55,6 +55,11 @@ const ObserverDocuments = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const limit = 10;
   const queryClient = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<{
+    id?: string;
+    name?: string;
+  } | null>(null);
 
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -109,6 +114,8 @@ const ObserverDocuments = () => {
       queryClient.invalidateQueries({
         queryKey: ["observerDocs", projectId, page],
       });
+      setDeleteOpen(false);
+      setToDelete(null);
     },
     onError: (err) => {
       console.error("Delete failed", err);
@@ -135,6 +142,9 @@ const ObserverDocuments = () => {
       : bytes >= 1024
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${bytes} B`;
+
+  const truncate = (s: string, n = 30) =>
+    s && s.length > n ? `${s.slice(0, n)}…` : s;
 
   // checkbox handlers
   const allSelected = data ? selectedIds.length === data.data.length : false;
@@ -233,7 +243,9 @@ const ObserverDocuments = () => {
                         className="cursor-pointer"
                       />
                     </TableCell>
-                    <TableCell>{del.displayName}</TableCell>
+                    <TableCell>
+                      {truncate(String(del.displayName || ""), 30)}
+                    </TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell>
                       {(del.addedBy as unknown as PopulatedUser).firstName}
@@ -249,14 +261,60 @@ const ObserverDocuments = () => {
                           : "Download"}
                       </CustomButton>
                       {/* Delete */}
-                      <CustomButton
-                        size="sm"
-                        className="bg-custom-orange-1 hover:bg-custom-orange-2"
-                        onClick={() => deleteMutation.mutate(del._id)}
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 size={16} />
-                      </CustomButton>
+                      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                        <DialogTrigger asChild>
+                          <CustomButton
+                            size="sm"
+                            className="bg-custom-orange-1 hover:bg-custom-orange-2"
+                            onClick={() => {
+                              setToDelete({
+                                id: del._id,
+                                name: del.displayName,
+                              });
+                              setDeleteOpen(true);
+                            }}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 size={16} />
+                          </CustomButton>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Confirm delete</DialogTitle>
+                          </DialogHeader>
+                          <p>
+                            Are you sure you want to delete{" "}
+                            {toDelete?.name
+                              ? `"${toDelete.name}"`
+                              : "this document"}
+                            ?
+                          </p>
+                          <DialogFooter>
+                            <CustomButton
+                              variant="outline"
+                              onClick={() => {
+                                setDeleteOpen(false);
+                                setToDelete(null);
+                              }}
+                              disabled={deleteMutation.isPending}
+                            >
+                              Cancel
+                            </CustomButton>
+                            <CustomButton
+                              className="ml-2 bg-red-600 text-white"
+                              onClick={() =>
+                                toDelete?.id &&
+                                deleteMutation.mutate(toDelete.id)
+                              }
+                              disabled={deleteMutation.isPending}
+                            >
+                              {deleteMutation.isPending
+                                ? "Deleting..."
+                                : "Delete"}
+                            </CustomButton>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                   </TableRow>
                 ))
