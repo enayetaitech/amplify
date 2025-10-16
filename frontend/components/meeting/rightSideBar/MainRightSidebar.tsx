@@ -11,6 +11,7 @@ const MainRightSidebar = ({
   observerCount,
   observerList,
   sessionId,
+  projectId,
   socket,
   me,
 }: {
@@ -19,6 +20,7 @@ const MainRightSidebar = ({
   observerCount: number;
   observerList: { name: string; email: string }[];
   sessionId: string;
+  projectId: string;
   socket: Socket | null;
   me: {
     email: string;
@@ -56,7 +58,7 @@ const MainRightSidebar = ({
         <ObservationRoom />
       )}
 
-      <DocumentHub />
+      <DocumentHub projectId={projectId} />
     </aside>
   );
 };

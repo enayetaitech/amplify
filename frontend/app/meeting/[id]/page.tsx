@@ -610,6 +610,7 @@ export default function Meeting() {
         initialMainUrl={hlsUrl}
         lkToken={token}
         wsUrl={wsUrl}
+        projectId={sessionProjectId || ""}
       />
     );
   }
@@ -922,6 +923,7 @@ export default function Meeting() {
             observerCount={observerCount}
             observerList={observerList}
             sessionId={String(sessionId)}
+            projectId={sessionProjectId || ""}
             socket={socketRef.current}
             me={{ email: my.email, name: my.name, role: my.role }}
           />
