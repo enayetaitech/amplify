@@ -192,7 +192,7 @@ function BillingDetailsTab() {
 
 function BuyCreditsTab() {
   const [credits, setCredits] = React.useState<number>(100);
-  const pricePerCreditCents = 100; // $1/credit placeholder
+  const pricePerCreditCents = 150; // $1.5 per credit
   const amountCents = credits * pricePerCreditCents;
   const { mutate: buy, isPending } = useBuyCredits(() => {});
   return (

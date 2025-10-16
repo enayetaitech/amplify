@@ -21,6 +21,7 @@ import {
 } from "../schemas/payment";
 import CreditPurchase from "../model/CreditPurchase";
 import LiveUsageLog from "../model/LiveUsageLog";
+import { LiveSessionModel } from "../model/LiveSessionModel";
 import Project from "../model/ProjectModel";
 import { SessionModel as Session } from "../model/SessionModel";
 
@@ -590,22 +591,43 @@ export const getUsageSummary = async (
     if (period === "month") start.setMonth(start.getMonth() - 1);
     else start.setMonth(start.getMonth() - 3);
 
-    const recent = await LiveUsageLog.find({ startedAt: { $lte: now } })
-      .sort({ startedAt: -1 })
+    // Derive recent usage from LiveSessionModel using startTime/endTime
+    const recentSessions = await LiveSessionModel.find({
+      startTime: { $exists: true, $lte: now },
+      endTime: { $exists: true },
+    })
+      .sort({ startTime: -1 })
       .limit(limit)
       .lean();
 
-    // Optionally enrich with session and project names
+    // Map sessions to usage items: compute minutes rounded up and credits = minutes * 3
+    const recent = recentSessions.map((s: any) => {
+      const start = s.startTime ? new Date(s.startTime) : null;
+      const end = s.endTime ? new Date(s.endTime) : null;
+      const durationMs = start && end ? end.getTime() - start.getTime() : 0;
+      const minutesRounded = durationMs ? Math.ceil(durationMs / 60000) : 0;
+      const creditsUsed = minutesRounded * 3;
+      return {
+        sessionId: s.sessionId,
+        projectId: s.session ? s.session.projectId : undefined,
+        startedAt: start,
+        minutesRounded,
+        creditsUsed,
+      };
+    });
+
+    // Enrich with session titles and project names.
     const sessionIds = recent.map((r: any) => r.sessionId).filter(Boolean);
     const sessions = await Session.find(
       { _id: { $in: sessionIds } },
-      { title: 1 }
+      { title: 1, projectId: 1 }
     ).lean();
     const sessionMap = new Map<string, any>(
       sessions.map((s: any) => [String(s._id), s])
     );
 
-    const projectIds = recent.map((r: any) => r.projectId).filter(Boolean);
+    // derive projectIds from the fetched sessions (more reliable)
+    const projectIds = sessions.map((s: any) => s.projectId).filter(Boolean);
     const projects = await Project.find(
       { _id: { $in: projectIds } },
       { name: 1 }
@@ -614,14 +636,18 @@ export const getUsageSummary = async (
       projects.map((p: any) => [String(p._id), p])
     );
 
-    const items = recent.map((r: any) => ({
-      sessionId: r.sessionId,
-      sessionTitle: sessionMap.get(String(r.sessionId))?.title,
-      projectId: r.projectId,
-      projectName: projectMap.get(String(r.projectId))?.name,
-      date: r.startedAt,
-      creditsUsed: r.creditsUsed,
-    }));
+    const items = recent.map((r: any) => {
+      const sess = sessionMap.get(String(r.sessionId));
+      const projId = sess ? sess.projectId : r.projectId;
+      return {
+        sessionId: r.sessionId,
+        sessionTitle: sess?.title,
+        projectId: projId,
+        projectName: projId ? projectMap.get(String(projId))?.name : undefined,
+        date: r.startedAt,
+        creditsUsed: r.creditsUsed,
+      };
+    });
 
     // Simple summary (sum credits in period)
     const inPeriod = await LiveUsageLog.aggregate([
