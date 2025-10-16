@@ -315,35 +315,116 @@ function InvoicesTab() {
 }
 
 export default function BillingPage() {
+  const [tabValue, setTabValue] = useState<string>("overview");
+
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="methods">Payment Methods</TabsTrigger>
-          <TabsTrigger value="details">Billing Details</TabsTrigger>
-          <TabsTrigger value="buy">Buy Credits</TabsTrigger>
-          <TabsTrigger value="usage">Usage</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+      <Tabs value={tabValue} onValueChange={(v) => setTabValue(v)}>
+        {/* Large screens: full-width horizontal tabs */}
+        <TabsList className="hidden lg:flex w-full space-x-2 mb-4">
+          <TabsTrigger
+            className="flex-1 py-2 text-sm data-[state=active]:bg-custom-teal data-[state=active]:text-white"
+            value="overview"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-1 py-2 text-sm data-[state=active]:bg-custom-teal data-[state=active]:text-white"
+            value="methods"
+          >
+            Payment Methods
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-1 py-2 text-sm data-[state=active]:bg-custom-teal data-[state=active]:text-white"
+            value="details"
+          >
+            Billing Details
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-1 py-2 text-sm data-[state=active]:bg-custom-teal data-[state=active]:text-white"
+            value="buy"
+          >
+            Buy Credits
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-1 py-2 text-sm data-[state=active]:bg-custom-teal data-[state=active]:text-white"
+            value="usage"
+          >
+            Usage
+          </TabsTrigger>
+          <TabsTrigger
+            className="flex-1 py-2 text-sm data-[state=active]:bg-custom-teal data-[state=active]:text-white"
+            value="invoices"
+          >
+            Invoices
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="overview">
-          <OverviewTab />
-        </TabsContent>
-        <TabsContent value="methods">
-          <PaymentMethodsTab />
-        </TabsContent>
-        <TabsContent value="details">
-          <BillingDetailsTab />
-        </TabsContent>
-        <TabsContent value="buy">
-          <BuyCreditsTab />
-        </TabsContent>
-        <TabsContent value="usage">
-          <UsageTab />
-        </TabsContent>
-        <TabsContent value="invoices">
-          <InvoicesTab />
-        </TabsContent>
+
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Navigation: dropdown on mobile, vertical nav on md+ */}
+          <div className="md:w-48 lg:w-0 md:sticky md:top-4 md:self-start md:z-20">
+            <div className="block md:hidden mb-2 sticky top-0 z-30 bg-white">
+              <label htmlFor="billing-tab-select" className="sr-only">
+                Select tab
+              </label>
+              <select
+                id="billing-tab-select"
+                className="w-full rounded border px-3 py-2"
+                value={tabValue}
+                onChange={(e) => setTabValue(e.target.value)}
+              >
+                <option value="overview">Overview</option>
+                <option value="methods">Payment Methods</option>
+                <option value="details">Billing Details</option>
+                <option value="buy">Buy Credits</option>
+                <option value="usage">Usage</option>
+                <option value="invoices">Invoices</option>
+              </select>
+            </div>
+
+            <TabsList className="hidden md:flex lg:hidden flex-col space-y-2">
+              <TabsTrigger className="text-left" value="overview">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger className="text-left" value="methods">
+                Payment Methods
+              </TabsTrigger>
+              <TabsTrigger className="text-left" value="details">
+                Billing Details
+              </TabsTrigger>
+              <TabsTrigger className="text-left" value="buy">
+                Buy Credits
+              </TabsTrigger>
+              <TabsTrigger className="text-left" value="usage">
+                Usage
+              </TabsTrigger>
+              <TabsTrigger className="text-left" value="invoices">
+                Invoices
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <div className="flex-1  min-h-screen">
+            <TabsContent value="overview">
+              <OverviewTab />
+            </TabsContent>
+            <TabsContent value="methods">
+              <PaymentMethodsTab />
+            </TabsContent>
+            <TabsContent value="details">
+              <BillingDetailsTab />
+            </TabsContent>
+            <TabsContent value="buy">
+              <BuyCreditsTab />
+            </TabsContent>
+            <TabsContent value="usage">
+              <UsageTab />
+            </TabsContent>
+            <TabsContent value="invoices">
+              <InvoicesTab />
+            </TabsContent>
+          </div>
+        </div>
       </Tabs>
     </div>
   );
