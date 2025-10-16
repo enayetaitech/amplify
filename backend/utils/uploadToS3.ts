@@ -2,10 +2,14 @@
 import AWS from "aws-sdk";
 import config from "../config";
 
-/** One reusable S3 client (creds & region picked up from env vars) */
+/** One reusable S3 client (creds & region picked up from env vars)
+ *  Ensure we use Signature Version 4 (AWS4-HMAC-SHA256) and the configured region.
+ */
 const s3 = new AWS.S3({
-  accessKeyId:     config.s3_access_key,
-  secretAccessKey: config.s3_secret_access_key
+  accessKeyId: config.s3_access_key,
+  secretAccessKey: config.s3_secret_access_key,
+  region: config.s3_bucket_region,
+  signatureVersion: "v4",
 });
 
 /**
@@ -24,12 +28,12 @@ export async function uploadToS3(
   mimeType: string,
   displayName: string
 ): Promise<{ url: string; key: string }> {
-  const key   = `mediabox/${displayName}`;
+  const key = `mediabox/${displayName}`;
   const Bucket = config.s3_bucket_name as string;
 
   const params: AWS.S3.PutObjectRequest = {
     Bucket,
-    Key:  key,
+    Key: key,
     Body: buffer,
     ContentType: mimeType,
   };
@@ -39,15 +43,11 @@ export async function uploadToS3(
   return { url: Location as string, key };
 }
 
-
 /* ───────────────────────────────────────────────────────────── */
 /*  SINGLE DOWNLOAD HELPER                                      */
 /*  — Returns a short-lived signed URL (default 2 min)          */
 /* ───────────────────────────────────────────────────────────── */
-export function getSignedUrl(
-  key: string,
-  expiresSeconds = 120
-): string {
+export function getSignedUrl(key: string, expiresSeconds = 120): string {
   const Bucket = config.s3_bucket_name;
 
   return s3.getSignedUrl("getObject", {
@@ -74,7 +74,6 @@ export function getSignedUrls(
   }));
 }
 
-
 /*───────────────────────────────────────────────────────────────────────────*/
 /*  Delete helper                                                            */
 /*───────────────────────────────────────────────────────────────────────────*/
@@ -82,7 +81,7 @@ export async function deleteFromS3(key: string): Promise<void> {
   if (!config.s3_bucket_name) {
     throw new Error("S3_BUCKET_NAME is not configured");
   }
-  const Bucket = config.s3_bucket_name; 
+  const Bucket = config.s3_bucket_name;
 
   await s3
     .deleteObject({

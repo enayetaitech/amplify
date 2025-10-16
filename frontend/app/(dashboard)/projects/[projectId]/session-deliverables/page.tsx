@@ -61,8 +61,9 @@ const SessionDeliverables = () => {
     // Using onMutate so we can fire off the download immediately
     mutationFn: (id) => Promise.resolve(id),
     onMutate: (id) => {
+      const base = api.defaults.baseURL || "";
       window.open(
-        `https://bamplify.hgsingalong.com/api/v1/sessionDeliverables/${id}/download`,
+        `${base}/api/v1/sessionDeliverables/${id}/download`,
         "_blank"
       );
     },

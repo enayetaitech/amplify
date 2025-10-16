@@ -79,10 +79,8 @@ const ObserverDocuments = () => {
     // Using onMutate so we can fire off the download immediately
     mutationFn: (id) => Promise.resolve(id),
     onMutate: (id) => {
-      window.open(
-        `https://bamplify.hgsingalong.com/api/v1/observerDocuments/${id}/download`,
-        "_blank"
-      );
+      const base = api.defaults.baseURL || "";
+      window.open(`${base}/api/v1/observerDocuments/${id}/download`, "_blank");
     },
   });
 
