@@ -27,17 +27,17 @@ import {
   DialogTrigger,
 } from "components/ui/dialog";
 import { Input } from "components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "components/ui/select";
+// session selection UI removed – uploads are project-scoped
 import { Checkbox } from "components/ui/checkbox";
-import { FileText, Folder, Trash2, Download } from "lucide-react";
+import {
+  FileText,
+  Folder,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Separator } from "@radix-ui/react-select";
-import { ISession } from "@shared/interface/SessionInterface";
+import { useGlobalContext } from "context/GlobalContext";
 
 const bytes = (n: number) =>
   n >= 1024 * 1024
@@ -47,11 +47,12 @@ const bytes = (n: number) =>
     : `${n} B`;
 
 export default function DocumentHub({ projectId }: { projectId: string }) {
-  const [page] = useState(1);
+  const [page, setPage] = useState(1);
   const limit = 10;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { user } = useGlobalContext();
 
   const { data, isLoading, error } = useQuery<
     { data: IObserverDocument[]; meta: IPaginationMeta },
@@ -75,18 +76,7 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
     window.open(`${base}/api/v1/observerDocuments/${id}/download`, "_blank");
   };
 
-  const downloadAllMutation = useMutation<string[], unknown, string[]>({
-    mutationFn: (ids) =>
-      api
-        .post<{
-          success: boolean;
-          message: string;
-          data: Array<{ key: string; url: string }>;
-        }>("/api/v1/observerDocuments/download-bulk", { ids })
-        .then((res) => res.data.data.map((d) => d.url)),
-    onSuccess: (urls) => urls.forEach((u) => window.open(u, "_blank")),
-    onError: () => toast.error("Bulk download failed"),
-  });
+  // bulk download removed
 
   const deleteMutation = useMutation<void, unknown, string>({
     mutationFn: (id) => api.delete(`/api/v1/observerDocuments/${id}`),
@@ -99,39 +89,15 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
 
   // Upload dialog local state
   const [file, setFile] = useState<File | null>(null);
-  const [sessionId, setSessionId] = useState<string>("");
-  const { data: sessionsData } = useQuery<
-    { data: ISession[]; meta: IPaginationMeta },
-    Error
-  >({
-    queryKey: ["sessions", projectId],
-    queryFn: () =>
-      api
-        .get<{ data: ISession[]; meta: IPaginationMeta }>(
-          `/api/v1/sessions/project/${projectId}`,
-          { params: { page: 1, limit: 100 } }
-        )
-        .then((res) => res.data),
-    enabled: !!projectId,
-    placeholderData: keepPreviousData,
-  });
 
-  const uploadMutation = useMutation<
-    void,
-    Error,
-    { file: File; sessionId: string }
-  >({
-    mutationFn: async ({ file, sessionId }) => {
-      const me = (
-        globalThis as unknown as { __user?: { _id?: string; role?: string } }
-      ).__user;
-      if (!me?._id || !me?.role) throw new Error("Not authenticated");
+  const uploadMutation = useMutation<void, Error, { file: File }>({
+    mutationFn: async ({ file }) => {
+      if (!user) throw new Error("You must be logged in");
       const form = new FormData();
       form.append("file", file);
       form.append("projectId", projectId);
-      form.append("sessionId", sessionId);
-      form.append("addedBy", me._id as string);
-      form.append("addedByRole", me.role as string);
+      form.append("addedBy", user._id as string);
+      form.append("addedByRole", user.role as string);
       await api.post("/api/v1/observerDocuments", form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -140,7 +106,6 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
       toast.success("Document uploaded");
       setUploadOpen(false);
       setFile(null);
-      setSessionId("");
       queryClient.invalidateQueries({ queryKey: ["observerDocs", projectId] });
     },
     onError: (e) => toast.error(e?.message || "Upload failed"),
@@ -183,18 +148,6 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
                   <DialogTitle>Upload Observer Document</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3">
-                  <Select value={sessionId} onValueChange={setSessionId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a session…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sessionsData?.data.map((s) => (
-                        <SelectItem key={s._id} value={s._id}>
-                          {s.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <Input
                     type="file"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -202,12 +155,8 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
                   <div className="flex justify-end">
                     <Button
                       variant="default"
-                      onClick={() =>
-                        file &&
-                        sessionId &&
-                        uploadMutation.mutate({ file, sessionId })
-                      }
-                      disabled={!file || !sessionId || uploadMutation.isPending}
+                      onClick={() => file && uploadMutation.mutate({ file })}
+                      disabled={!file || uploadMutation.isPending}
                     >
                       {uploadMutation.isPending ? "Uploading…" : "Upload"}
                     </Button>
@@ -236,71 +185,74 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
                   <span>Name</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="cursor-pointer"
-                    onClick={() =>
-                      selectedIds.length &&
-                      downloadAllMutation.mutate(selectedIds)
-                    }
-                    disabled={
-                      !selectedIds.length || downloadAllMutation.isPending
-                    }
-                  >
-                    <Download className="h-4 w-4 mr-1" />
-                    {downloadAllMutation.isPending
-                      ? "Downloading…"
-                      : "Download All"}
-                  </Button>
                   <span>Size</span>
                 </div>
               </div>
               <div className="mt-2 rounded-lg bg-custom-gray-2 p-2">
-                {(data?.data || []).map((d) => (
-                  <div
-                    key={d._id}
-                    className="flex items-center justify-between px-2 py-1"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Checkbox
-                        checked={selectedIds.includes(d._id)}
-                        onCheckedChange={toggleOne(d._id)}
-                        className="cursor-pointer"
-                        aria-label={`Select ${d.displayName}`}
-                      />
-                      <Folder className="h-4 w-4 shrink-0" />
-                      <button
-                        type="button"
-                        className="truncate text-sm text-left hover:underline"
-                        onClick={() => downloadOne(d._id)}
-                        title="Download"
-                      >
-                        {d.displayName}
-                      </button>
+                <div className="max-h-60 overflow-y-auto">
+                  {(data?.data || []).map((d) => (
+                    <div
+                      key={d._id}
+                      className="flex items-center justify-between px-2 py-1"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Checkbox
+                          checked={selectedIds.includes(d._id)}
+                          onCheckedChange={toggleOne(d._id)}
+                          className="cursor-pointer"
+                          aria-label={`Select ${d.displayName}`}
+                        />
+                        <Folder className="h-4 w-4 shrink-0" />
+                        <button
+                          type="button"
+                          className="truncate text-sm text-left hover:underline"
+                          onClick={() => downloadOne(d._id)}
+                          title="Download"
+                        >
+                          {d.displayName}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-600">
+                          {bytes(d.size)}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-red-500 cursor-pointer"
+                          aria-label="Delete file"
+                          onClick={() => deleteMutation.mutate(d._id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-600">
-                        {bytes(d.size)}
-                      </span>
-                      <button
-                        type="button"
-                        className="text-red-500 cursor-pointer"
-                        aria-label="Delete file"
-                        onClick={() => deleteMutation.mutate(d._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <div className="text-xs text-gray-600">
+                    Page {page} {totalPages ? `of ${totalPages}` : ""}
                   </div>
-                ))}
-                {totalPages > 1 && (
-                  <div className="flex justify-end mt-2">
-                    <div className="text-xs text-gray-600">
-                      Page {page} of {totalPages}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="cursor-pointer"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="cursor-pointer"
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={!!totalPages && page >= totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           )}

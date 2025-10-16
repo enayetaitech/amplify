@@ -17,19 +17,16 @@ export const createObserverDocument = async (
   next: NextFunction
 ): Promise<void> => {
   /* 1️⃣ pull form-data fields */
-  const { projectId, sessionId, addedBy, addedByRole } = req.body;
+  const { projectId, addedBy, addedByRole } = req.body;
   const file = req.file as Express.Multer.File | undefined;
 
   /* 2️⃣ basic validations */
   if (!file) {
     return next(new ErrorHandler("File is required", 400));
   }
-  if (!projectId || !addedBy || !addedByRole || !sessionId) {
+  if (!projectId || !addedBy || !addedByRole) {
     return next(
-      new ErrorHandler(
-        "projectId,sessionId, addedBy, and addedByRole are required",
-        400
-      )
+      new ErrorHandler("projectId, addedBy, and addedByRole are required", 400)
     );
   }
 
@@ -49,7 +46,6 @@ export const createObserverDocument = async (
   /* 4️⃣ create DB row */
   const doc = await ObserverDocumentModel.create({
     projectId,
-    sessionId,
     displayName: file.originalname,
     size: file.size,
     storageKey,
