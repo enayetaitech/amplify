@@ -81,6 +81,15 @@ export async function endMeeting(
   await stopHlsEgress(live.hlsEgressId || undefined);
   await stopFileEgress(live.fileEgressId || undefined);
 
+  // finalize deliverables BEFORE clearing HLS/file fields so URLs are available
+  try {
+    await finalizeSessionDeliverables(String(session._id), String(endedBy));
+  } catch (e) {
+    try {
+      console.error("finalizeSessionDeliverables failed", e);
+    } catch {}
+  }
+
   // Ensure streaming flag and HLS fields are cleared when meeting ends
   try {
     live.streaming = false;
@@ -120,15 +129,6 @@ export async function endMeeting(
   }
 
   await live.save();
-
-  // fire-and-forget finalize deliverables (do not block meeting end)
-  try {
-    await finalizeSessionDeliverables(String(session._id), String(endedBy));
-  } catch (e) {
-    try {
-      console.error("finalizeSessionDeliverables failed", e);
-    } catch {}
-  }
 
   return {
     sessionId: String(session._id),

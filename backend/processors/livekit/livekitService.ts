@@ -296,6 +296,8 @@ export async function startFileEgress(
 
   const file = new EncodedFileOutput({
     fileType: EncodedFileType.MP4,
+    // Ensure a deterministic S3 key so we can register the final MP4 easily
+    filepath: `recordings/${encodeURIComponent(roomName)}/{time}.mp4`,
     output: {
       case: "s3",
       value: new S3Upload({

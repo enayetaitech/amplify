@@ -12,6 +12,8 @@ import {
   formatDeliverableFilename,
   uploadBufferToS3WithKey,
 } from "../../utils/deliverables";
+import { findLatestObjectByPrefix } from "../../utils/uploadToS3";
+import { packageHlsToMp4AndUpload } from "../video/packFromHls";
 
 // Utility: simple CSV escaper
 function csvEscape(v: unknown): string {
@@ -39,47 +41,82 @@ export async function finalizeSessionDeliverables(
   const projectId = session.projectId;
   const sessionTitle = session.title || "Session";
 
-  // 1) Register Video deliverable if present (HLS or MP4)
+  // 1) Register Video deliverable (prefer MP4 file egress result; fallback HLS VOD playlist)
   const videoTasks: Promise<any>[] = [];
-  if (live && (live.hlsPlaybackUrl || live.fileEgressId)) {
-    // Note: Without a deterministic final MP4 S3 key, store a small stub .txt with playback URL for now
-    if (live.hlsPlaybackUrl) {
+  if (live) {
+    const roomName = String(session._id);
+    // Primary: MP4 produced by file egress under known prefix we set in startFileEgress()
+    const mp4 = await findLatestObjectByPrefix(
+      `recordings/${encodeURIComponent(roomName)}/`,
+      { suffix: ".mp4" }
+    );
+    if (mp4) {
       const filename = formatDeliverableFilename({
         baseTs,
         type: "VIDEO",
         sessionTitle,
-        extension: ".txt",
+        extension: ".mp4",
       });
-      const key = buildS3Key({ projectId, sessionId: session._id, filename });
-      const buf = toText([
-        `HLS Playback: ${live.hlsPlaybackUrl}`,
-        ...(live.hlsPlaylistName ? [`Playlist: ${live.hlsPlaylistName}`] : []),
-      ]);
-      videoTasks.push(
-        (async () => {
-          const existing = await SessionDeliverableModel.exists({
-            projectId,
-            sessionId: session._id,
-            type: "VIDEO",
-            storageKey: key,
+      const exists = await SessionDeliverableModel.exists({
+        projectId,
+        sessionId: session._id,
+        type: "VIDEO",
+        storageKey: mp4.key,
+      });
+      if (!exists) {
+        await SessionDeliverableModel.create({
+          sessionId: session._id,
+          projectId,
+          type: "VIDEO",
+          displayName: filename,
+          size: mp4.size,
+          storageKey: mp4.key,
+          uploadedBy: (endedBy as any) || session.moderators?.[0],
+        });
+      }
+    } else if (live.hlsPlaybackUrl) {
+      // Fallback: package HLS to MP4 via ffmpeg and upload to S3
+      try {
+        const filename = formatDeliverableFilename({
+          baseTs,
+          type: "VIDEO",
+          sessionTitle,
+          extension: ".mp4",
+        });
+        const mp4Key = buildS3Key({
+          projectId,
+          sessionId: session._id,
+          filename,
+        });
+        const exists = await SessionDeliverableModel.exists({
+          projectId,
+          sessionId: session._id,
+          type: "VIDEO",
+          storageKey: mp4Key,
+        });
+        if (!exists) {
+          const out = await packageHlsToMp4AndUpload({
+            hlsUrl: live.hlsPlaybackUrl.replace("/live.m3u8", "/index.m3u8"),
+            s3Key: mp4Key,
           });
-          if (existing) return;
-          const { key: s3Key, size } = await uploadBufferToS3WithKey(
-            buf,
-            "text/plain",
-            key
-          );
+          const objSize = await (
+            await import("../../utils/uploadToS3")
+          ).headObjectSize(out.key);
           await SessionDeliverableModel.create({
             sessionId: session._id,
             projectId,
             type: "VIDEO",
             displayName: filename,
-            size,
-            storageKey: s3Key,
+            size: objSize || 0,
+            storageKey: out.key,
             uploadedBy: (endedBy as any) || session.moderators?.[0],
           });
-        })()
-      );
+        }
+      } catch (e) {
+        try {
+          console.error("HLS to MP4 packaging failed", e);
+        } catch {}
+      }
     }
   }
 
