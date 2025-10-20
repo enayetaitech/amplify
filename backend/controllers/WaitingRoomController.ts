@@ -9,6 +9,10 @@ import {
 import { SessionModel } from "../model/SessionModel";
 import ProjectModel from "../model/ProjectModel";
 import { LiveSessionModel } from "../model/LiveSessionModel";
+import ModeratorModel from "../model/ModeratorModel";
+import User from "../model/UserModel";
+import { invitationToRegisterEmailTemplate } from "../constants/emailTemplates";
+import config from "../config";
 
 type JoinRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
@@ -115,6 +119,73 @@ export const enqueue = async (
     // Enqueue user appropriately (also persists activity with device info)
     await enqueueUser(sessionId, { name, email, role }, deviceInfo);
 
+    // Auto-add Observer to project team if not already present
+    if (role === "Observer") {
+      const existingMember = await ModeratorModel.findOne({
+        email: emailNormalized(email),
+        projectId: project._id,
+      });
+
+      if (!existingMember) {
+        const [firstName, ...rest] = name.trim().split(/\s+/);
+        const lastName = rest.join(" ");
+
+        const existingUser = await User.findOne({
+          email: emailNormalized(email),
+        });
+        // Fallback company name: project owner's company when the joining user has none
+        let fallbackCompany = "";
+        try {
+          const owner = await User.findById(project.createdBy);
+          fallbackCompany = owner?.companyName || "";
+        } catch {}
+
+        const created = await ModeratorModel.create({
+          firstName: firstName || name,
+          lastName: lastName || "",
+          email: emailNormalized(email),
+          companyName: existingUser?.companyName || fallbackCompany,
+          roles: ["Observer"],
+          adminAccess: false,
+          projectId: project._id,
+          isVerified: !!existingUser,
+          isActive: true,
+        });
+
+        await ProjectModel.updateOne(
+          { _id: project._id },
+          { $addToSet: { moderators: created._id } }
+        );
+
+        if (!existingUser) {
+          const registerUrl = `${
+            config.frontend_base_url
+          }/create-user?email=${encodeURIComponent(emailNormalized(email))}`;
+          const inviteHtml = invitationToRegisterEmailTemplate({
+            inviteeFirstName: firstName || name,
+            projectName: project.name,
+            registerUrl,
+            roles: ["Observer"],
+          });
+          try {
+            // reuse existing sendEmail processor
+            const { sendEmail } = await import(
+              "../processors/sendEmail/sendVerifyAccountEmailProcessor"
+            );
+            await sendEmail({
+              to: emailNormalized(email),
+              subject: `Invitation to join "${project.name}" on Amplify`,
+              html: inviteHtml,
+            });
+          } catch (e) {
+            try {
+              console.error("Failed to send observer invite email", e);
+            } catch {}
+          }
+        }
+      }
+    }
+
     // Determine action for client
     let action: "waiting_room" | "stream" = "waiting_room";
     if (
@@ -130,3 +201,7 @@ export const enqueue = async (
     next(err);
   }
 };
+
+function emailNormalized(e: string) {
+  return e.trim().toLowerCase();
+}

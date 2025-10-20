@@ -6,7 +6,7 @@ import NoSearchResult from "components/projects/NoSearchResult";
 import { useRouter } from "next/navigation";
 import { Card } from "components/ui/card";
 import { toast } from "sonner";
-import { useProjects } from "hooks/useProjects";
+import { useMembershipProjects, useProjects } from "hooks/useProjects";
 import ProjectsHeader from "components/projects/ProjectsHeader";
 import ProjectsFilter from "components/projects/ProjectsFilter";
 import ProjectsPagination from "components/projects/ProjectsPagination";
@@ -54,6 +54,9 @@ const Projects: React.FC = () => {
     sortBy,
     sortDir,
   });
+
+  const { projects: sharedProjects, isLoading: sharedLoading } =
+    useMembershipProjects(userId);
 
   if (!userId) {
     return <p>User not found or not authenticated.</p>;
@@ -130,6 +133,37 @@ const Projects: React.FC = () => {
           )}
         </div>
       </Card>
+
+      {/* Shared with me */}
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold mb-3">Shared with me</h3>
+        <Card className="shadow-all-sides border-0 rounded-md">
+          <div className="shadow-all-sides border-0 rounded-md">
+            {(!sharedProjects || sharedProjects.length === 0) &&
+            !sharedLoading ? (
+              <div className="p-6 text-sm text-gray-500">
+                No shared projects.
+              </div>
+            ) : (
+              <ProjectsTable
+                filteredProjects={sharedProjects}
+                isLoading={sharedLoading}
+                sortBy={undefined}
+                sortDir={undefined}
+                onSortChange={undefined}
+                onRowClick={(projectId: string) => {
+                  router.push(`/view-project/${projectId}`);
+                }}
+                onShareClick={(project) => {
+                  // only allow Observe; reuse existing modal but default to observer type
+                  setShareProject(project);
+                  setActiveShareType("observer");
+                }}
+              />
+            )}
+          </div>
+        </Card>
+      </div>
       {/* Share Modal */}
       <ShareProjectModal
         open={Boolean(activeShareType && shareProject)}

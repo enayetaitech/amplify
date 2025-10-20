@@ -11,11 +11,12 @@ import { emitToRoom } from "../socket/bus";
 import { Types } from "mongoose";
 import { PollRunModel } from "../model/PollRun";
 import { PollModel } from "../model/PollModel";
+import { SessionModel } from "../model/SessionModel";
+import ProjectModel from "../model/ProjectModel";
+import User from "../model/UserModel";
 
-const canStartOrEnd = (role?: string) => {
-  // Admin/Moderator can start/end meetings
-  return role === "Admin" || role === "Moderator";
-};
+// Deprecated: role-based start/end; moved to per-session moderator or project owner check
+const canStartOrEnd = (_role?: string) => false;
 
 export const startLiveSession = async (
   req: AuthRequest,
@@ -25,11 +26,45 @@ export const startLiveSession = async (
   const user = req.user;
   if (!user) return next(new ErrorHandler("Not authenticated", 401));
 
-  if (!canStartOrEnd(user.role))
-    return next(new ErrorHandler("Forbidden", 403));
-
   const { sessionId } = req.params;
   if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
+
+  // New authorization: user must be in session.moderators list (by name+email) OR be the project owner
+  const dbUser = await User.findById(user.userId).lean();
+  if (!dbUser) return next(new ErrorHandler("User not found", 404));
+
+  const session = await SessionModel.findById(sessionId)
+    .populate("moderators", "firstName lastName email projectId")
+    .lean();
+  if (!session) return next(new ErrorHandler("Session not found", 404));
+
+  const project = await ProjectModel.findById(session.projectId).lean();
+  if (!project) return next(new ErrorHandler("Project not found", 404));
+
+  const normalized = (s: string) => s.trim().toLowerCase();
+  const userFullName = normalized(`${dbUser.firstName} ${dbUser.lastName}`);
+  const userEmail = normalized(dbUser.email);
+
+  const isSessionModerator =
+    Array.isArray(session.moderators) &&
+    (
+      session.moderators as unknown as Array<{
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      }>
+    ).some((m) => {
+      if (!m) return false;
+      const mName = normalized(`${m.firstName || ""} ${m.lastName || ""}`);
+      const mEmail = normalized(m.email || "");
+      return mEmail === userEmail && mName === userFullName;
+    });
+
+  const isProjectOwner = String(project.createdBy) === String(dbUser._id);
+
+  if (!isSessionModerator && !isProjectOwner) {
+    return next(new ErrorHandler("Forbidden", 403));
+  }
 
   const result = await startMeeting(sessionId, user.userId);
   sendResponse(res, result, "Meeting started");
@@ -43,11 +78,45 @@ export const endLiveSession = async (
   const user = req.user;
   if (!user) return next(new ErrorHandler("Not authenticated", 401));
 
-  if (!canStartOrEnd(user.role))
-    return next(new ErrorHandler("Forbidden", 403));
-
   const { sessionId } = req.params;
   if (!sessionId) return next(new ErrorHandler("sessionId required", 400));
+
+  // New authorization: user must be in session.moderators list (by name+email) OR be the project owner
+  const dbUser = await User.findById(user.userId).lean();
+  if (!dbUser) return next(new ErrorHandler("User not found", 404));
+
+  const session = await SessionModel.findById(sessionId)
+    .populate("moderators", "firstName lastName email projectId")
+    .lean();
+  if (!session) return next(new ErrorHandler("Session not found", 404));
+
+  const project = await ProjectModel.findById(session.projectId).lean();
+  if (!project) return next(new ErrorHandler("Project not found", 404));
+
+  const normalized = (s: string) => s.trim().toLowerCase();
+  const userFullName = normalized(`${dbUser.firstName} ${dbUser.lastName}`);
+  const userEmail = normalized(dbUser.email);
+
+  const isSessionModerator =
+    Array.isArray(session.moderators) &&
+    (
+      session.moderators as unknown as Array<{
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      }>
+    ).some((m) => {
+      if (!m) return false;
+      const mName = normalized(`${m.firstName || ""} ${m.lastName || ""}`);
+      const mEmail = normalized(m.email || "");
+      return mEmail === userEmail && mName === userFullName;
+    });
+
+  const isProjectOwner = String(project.createdBy) === String(dbUser._id);
+
+  if (!isSessionModerator && !isProjectOwner) {
+    return next(new ErrorHandler("Forbidden", 403));
+  }
 
   const result = await endMeeting(sessionId, user.userId);
   try {
