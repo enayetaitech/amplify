@@ -46,10 +46,15 @@ export async function finalizeSessionDeliverables(
   if (live) {
     const roomName = String(session._id);
     // Primary: MP4 produced by file egress under known prefix we set in startFileEgress()
-    const mp4 = await findLatestObjectByPrefix(
+    let mp4: { key: string; size: number } | null = await findLatestObjectByPrefix(
       `recordings/${encodeURIComponent(roomName)}/`,
       { suffix: ".mp4" }
     );
+    if (!mp4) {
+      mp4 = await findLatestObjectByPrefix(`${encodeURIComponent(roomName)}-`, {
+        suffix: ".mp4",
+      });
+    }
     if (mp4) {
       const filename = formatDeliverableFilename({
         baseTs,
