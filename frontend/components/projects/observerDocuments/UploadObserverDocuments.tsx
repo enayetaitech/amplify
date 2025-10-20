@@ -1,34 +1,27 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  keepPreviousData,
-  useQuery,
-} from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import api from "../../../lib/api";
 import CustomButton from "../../shared/CustomButton";
 import { Upload } from "lucide-react";
 import { ISession } from "@shared/interface/SessionInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
 import useUploadObserverDocument from "../../../hooks/useUploadObserverDocument";
 
 interface UploadProps {
   projectId: string;
-  onClose: ()=> void;
+  onClose: () => void;
 }
 
-const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) => {
+const UploadObserverDocument: React.FC<UploadProps> = ({
+  projectId,
+  onClose,
+}) => {
   const [file, setFile] = useState<File | null>(null);
-  const [sessionId, setSessionId] = useState<string>("");
+  // sessionId removed – project-wide documents
 
-  // 1️⃣ Fetch all sessions for this project
+  // 1️⃣ Fetch all sessions for this project (no longer required for upload)
   const {
     data: sessionsData,
     isLoading: isSessionsLoading,
@@ -46,14 +39,16 @@ const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) =
     placeholderData: keepPreviousData,
   });
 
+  void sessionsData;
+  void isSessionsLoading;
 
-  // 2️⃣ Mutation to upload the file + projectId + sessionId + user info
+  // 2️⃣ Mutation to upload the file + projectId + user info (sessionId removed)
   const {
-   mutate: upload,
-   isPending: isUploading,
-   isError: uploadError,
-   error: uploadErrorObj,
- } = useUploadObserverDocument(projectId, onClose);
+    mutate: upload,
+    isPending: isUploading,
+    isError: uploadError,
+    error: uploadErrorObj,
+  } = useUploadObserverDocument(projectId, onClose);
 
   if (sessionsError) {
     return (
@@ -66,22 +61,7 @@ const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) =
   return (
     <div>
       <div className="flex items-center gap-2 pt-5">
-        <Select
-          value={sessionId}
-          onValueChange={setSessionId}
-          disabled={isSessionsLoading}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a session…" />
-          </SelectTrigger>
-          <SelectContent>
-            {sessionsData?.data.map((s) => (
-              <SelectItem key={s._id} value={s._id}>
-                {s.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Session selection removed: uploads are project-scoped */}
         <input
           type="file"
           accept="*/*"
@@ -93,13 +73,13 @@ const UploadObserverDocument: React.FC<UploadProps> = ({ projectId, onClose }) =
         <CustomButton
           icon={<Upload />}
           text={isUploading ? "Uploading..." : "Upload"}
-          onClick={() => file && sessionId && upload({ file, sessionId })}
-          disabled={!file || !sessionId || isUploading}
+          onClick={() => file && upload({ file })}
+          disabled={!file || isUploading}
           variant="default"
           className="bg-custom-orange-2 text-white hover:bg-custom-orange-1"
         />
       </div>
-      {uploadError  && (
+      {uploadError && (
         <p className="text-red-500">
           Error: {(uploadErrorObj as Error).message}
         </p>

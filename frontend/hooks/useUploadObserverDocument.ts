@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 interface UploadInput {
   file: File;
-  sessionId: string;
 }
 
 export default function useUploadObserverDocument(
@@ -18,21 +17,19 @@ export default function useUploadObserverDocument(
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, UploadInput>({
-    mutationFn: ({ file, sessionId }) => {
+    mutationFn: ({ file }) => {
       if (!user) {
         return Promise.reject(new Error("You must be logged in"));
       }
       if (!file) {
         return Promise.reject(new Error("Please select a file"));
       }
-      if (!sessionId) {
-        return Promise.reject(new Error("Please select a session"));
-      }
+      // sessionId no longer required for project-scoped docs
 
       const formData = new FormData();
       formData.append("file", file);
       formData.append("projectId", projectId);
-      formData.append("sessionId", sessionId);
+      // sessionId removed
       formData.append("addedBy", user._id);
       formData.append("addedByRole", user.role);
 

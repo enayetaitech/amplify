@@ -20,8 +20,7 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
 }) => {
   const stripe = useStripe();
   const elements = useElements();
-  
- 
+
   const { user } = useGlobalContext();
 
   // 1️⃣ Fetch Setup Intent
@@ -41,9 +40,7 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
     enabled: Boolean(user?._id),
   });
 
-
-
-    const { mutate: saveCard, isPending: isSavingCard } = useSaveCard();
+  const { mutate: saveCard, isPending: isSavingCard } = useSaveCard();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +69,9 @@ export const CardSetupForm: React.FC<CardSetupFormProps> = ({
     // Kick off the backend mutation
     saveCard(pmId, {
       onSuccess: () => {
-        onCardSaved(); 
+        // Clear the card input after successful save
+        elements.getElement(CardElement)?.clear();
+        onCardSaved();
       },
     });
   };

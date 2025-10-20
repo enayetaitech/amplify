@@ -23,9 +23,7 @@ import CustomButton from "components/shared/CustomButton";
 import { Download } from "lucide-react";
 
 const deliverableTabs = [
-  { label: "Audio", type: "AUDIO" },
   { label: "Video", type: "VIDEO" },
-  { label: "Transcripts", type: "TRANSCRIPT" },
   { label: "Backroom Chat", type: "BACKROOM_CHAT" },
   { label: "Session Chat", type: "SESSION_CHAT" },
   { label: "Whiteboards", type: "WHITEBOARD" },
@@ -61,8 +59,9 @@ const SessionDeliverables = () => {
     // Using onMutate so we can fire off the download immediately
     mutationFn: (id) => Promise.resolve(id),
     onMutate: (id) => {
+      const base = api.defaults.baseURL || "";
       window.open(
-        `https://bamplify.hgsingalong.com/api/v1/sessionDeliverables/${id}/download`,
+        `${base}/api/v1/sessionDeliverables/${id}/download`,
         "_blank"
       );
     },

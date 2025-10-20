@@ -1,11 +1,17 @@
 // utils/uploadToS3.ts  (TypeScript — works in JS if you drop the types)
 import AWS from "aws-sdk";
 import config from "../config";
+import { PassThrough } from "stream";
+import fs from "fs";
 
-/** One reusable S3 client (creds & region picked up from env vars) */
+/** One reusable S3 client (creds & region picked up from env vars)
+ *  Ensure we use Signature Version 4 (AWS4-HMAC-SHA256) and the configured region.
+ */
 const s3 = new AWS.S3({
-  accessKeyId:     config.s3_access_key,
-  secretAccessKey: config.s3_secret_access_key
+  accessKeyId: config.s3_access_key,
+  secretAccessKey: config.s3_secret_access_key,
+  region: config.s3_bucket_region,
+  signatureVersion: "v4",
 });
 
 /**
@@ -24,12 +30,12 @@ export async function uploadToS3(
   mimeType: string,
   displayName: string
 ): Promise<{ url: string; key: string }> {
-  const key   = `mediabox/${displayName}`;
+  const key = `mediabox/${displayName}`;
   const Bucket = config.s3_bucket_name as string;
 
   const params: AWS.S3.PutObjectRequest = {
     Bucket,
-    Key:  key,
+    Key: key,
     Body: buffer,
     ContentType: mimeType,
   };
@@ -39,15 +45,11 @@ export async function uploadToS3(
   return { url: Location as string, key };
 }
 
-
 /* ───────────────────────────────────────────────────────────── */
 /*  SINGLE DOWNLOAD HELPER                                      */
 /*  — Returns a short-lived signed URL (default 2 min)          */
 /* ───────────────────────────────────────────────────────────── */
-export function getSignedUrl(
-  key: string,
-  expiresSeconds = 120
-): string {
+export function getSignedUrl(key: string, expiresSeconds = 120): string {
   const Bucket = config.s3_bucket_name;
 
   return s3.getSignedUrl("getObject", {
@@ -74,7 +76,6 @@ export function getSignedUrls(
   }));
 }
 
-
 /*───────────────────────────────────────────────────────────────────────────*/
 /*  Delete helper                                                            */
 /*───────────────────────────────────────────────────────────────────────────*/
@@ -82,7 +83,7 @@ export async function deleteFromS3(key: string): Promise<void> {
   if (!config.s3_bucket_name) {
     throw new Error("S3_BUCKET_NAME is not configured");
   }
-  const Bucket = config.s3_bucket_name; 
+  const Bucket = config.s3_bucket_name;
 
   await s3
     .deleteObject({
@@ -90,4 +91,72 @@ export async function deleteFromS3(key: string): Promise<void> {
       Key: key,
     })
     .promise();
+}
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Find latest object by prefix (optionally suffix filter)                   */
+/*───────────────────────────────────────────────────────────────────────────*/
+export async function findLatestObjectByPrefix(
+  prefix: string,
+  opts?: { suffix?: string }
+): Promise<{ key: string; size: number } | null> {
+  const Bucket = config.s3_bucket_name as string;
+  let ContinuationToken: string | undefined = undefined;
+  let latest: { key: string; size: number; last: Date } | null = null;
+  const suffix = opts?.suffix ? String(opts.suffix) : undefined;
+
+  do {
+    const out = await s3
+      .listObjectsV2({ Bucket, Prefix: prefix, ContinuationToken })
+      .promise();
+    for (const obj of out.Contents || []) {
+      if (!obj.Key) continue;
+      if (suffix && !obj.Key.endsWith(suffix)) continue;
+      const last = obj.LastModified || new Date(0);
+      const size = obj.Size || 0;
+      if (!latest || last > latest.last) {
+        latest = { key: obj.Key, size, last };
+      }
+    }
+    ContinuationToken = out.IsTruncated ? out.NextContinuationToken : undefined;
+  } while (ContinuationToken);
+
+  return latest ? { key: latest.key, size: latest.size } : null;
+}
+
+/** Upload a streaming source (e.g., ffmpeg output) to S3. */
+export async function uploadStreamToS3(
+  key: string,
+  contentType: string
+): Promise<{ writeStream: PassThrough; done: Promise<{ key: string }> }> {
+  const Bucket = config.s3_bucket_name as string;
+  const pass = new PassThrough();
+  const done = s3
+    .upload({ Bucket, Key: key, Body: pass, ContentType: contentType })
+    .promise()
+    .then(() => ({ key }));
+  return { writeStream: pass, done };
+}
+
+export async function headObjectSize(key: string): Promise<number | null> {
+  try {
+    const Bucket = config.s3_bucket_name as string;
+    const out = await s3.headObject({ Bucket, Key: key }).promise();
+    return typeof out.ContentLength === "number" ? out.ContentLength : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadFileToS3(
+  filePath: string,
+  key: string,
+  contentType: string
+): Promise<{ key: string }> {
+  const Bucket = config.s3_bucket_name as string;
+  const Body = fs.createReadStream(filePath);
+  await s3
+    .upload({ Bucket, Key: key, Body, ContentType: contentType })
+    .promise();
+  return { key };
 }

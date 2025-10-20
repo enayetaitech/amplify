@@ -59,7 +59,7 @@ export default function SidebarContent({
   const [projectsOpen, setProjectsOpen] = useState(
     pathname.startsWith("/projects")
   );
-  const accountActive = [`/my-profile/${userId}`, "/payment"].some((p) =>
+  const accountActive = [`/my-profile/${userId}`, "/billing"].some((p) =>
     pathname.startsWith(p)
   );
   const [acctOpen, setAcctOpen] = useState(accountActive);
@@ -199,9 +199,9 @@ export default function SidebarContent({
                 <UserPen className="h-3.5 w-3.5" /> Profile
               </Link>
               <Link
-                href="/payment"
+                href="/billing"
                 className={`flex items-center gap-2 ${
-                  pathname === `/payment`
+                  pathname === `/billing`
                     ? "text-custom-dark-blue-1 font-medium"
                     : "text-custom-blue-gray-1 hover:text-custom-gray-5"
                 }`}

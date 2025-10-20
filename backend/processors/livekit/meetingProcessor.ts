@@ -11,6 +11,7 @@ import {
   ensureRoom,
 } from "./livekitService";
 import mongoose from "mongoose";
+import { finalizeSessionDeliverables } from "../session/finalizeDeliverables";
 
 type ObjectIdLike = string | mongoose.Types.ObjectId;
 
@@ -79,6 +80,15 @@ export async function endMeeting(
   // Stop egress
   await stopHlsEgress(live.hlsEgressId || undefined);
   await stopFileEgress(live.fileEgressId || undefined);
+
+  // finalize deliverables BEFORE clearing HLS/file fields so URLs are available
+  try {
+    await finalizeSessionDeliverables(String(session._id), String(endedBy));
+  } catch (e) {
+    try {
+      console.error("finalizeSessionDeliverables failed", e);
+    } catch {}
+  }
 
   // Ensure streaming flag and HLS fields are cleared when meeting ends
   try {

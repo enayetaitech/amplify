@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, RequestHandler } from "express";
 
 /**
  * Higher-order function to catch errors in asynchronous route handlers.
@@ -8,7 +8,13 @@ import { Request, Response, NextFunction } from "express";
  * @returns A function that wraps the handler and catches any errors.
  */
 export const catchError = (
-  handler: (req: Request, res: Response, next: NextFunction) => Promise<void>
-) => (req: Request, res: Response, next: NextFunction): void => {
-  handler(req, res, next).catch(next);
+  handler: (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => void | Response | Promise<void | Response>
+): RequestHandler => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
 };

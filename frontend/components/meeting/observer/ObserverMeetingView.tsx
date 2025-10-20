@@ -24,11 +24,13 @@ export default function ObserverMeetingView({
   initialMainUrl,
   lkToken,
   wsUrl,
+  projectId,
 }: {
   sessionId: string;
   initialMainUrl: string | null;
   lkToken: string | null;
   wsUrl: string | null;
+  projectId: string;
 }) {
   type ParticipantItem = { identity: string; name: string };
   const [options, setOptions] = useState<
@@ -773,7 +775,7 @@ export default function ObserverMeetingView({
             sendDm={sendDm}
           />
 
-          <DocumentHub />
+          <DocumentHub projectId={projectId} />
         </aside>
       )}
       {!isRightOpen && (

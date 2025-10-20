@@ -36,11 +36,18 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
     postalCode: "",
   });
 
- const billingMutation = useSaveBilling(() => {
+  const billingMutation = useSaveBilling(() => {
+    // Reset local form state after successful save
+    setBillingInfo({
+      address: "",
+      city: "",
+      state: "",
+      country: "",
+      postalCode: "",
+    });
     onSuccess();
   });
   const { mutate: saveBilling, isPending } = billingMutation;
-
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +57,6 @@ export const BillingForm: React.FC<BillingFormProps> = ({ onSuccess }) => {
 
     saveBilling({ userId, billingInfo });
   };
-
- 
 
   return (
     <Card className="border-0 shadow-sm py-0">
