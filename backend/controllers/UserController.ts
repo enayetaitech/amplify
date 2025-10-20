@@ -25,7 +25,7 @@ import { AuthRequest } from "../middlewares/authenticateJwt";
 import { Types } from "mongoose";
 
 import { isValidEmail } from "../processors/isValidEmail";
-
+import ModeratorModel from "../model/ModeratorModel";
 
 export const createAccount = async (
   req: Request,
@@ -109,6 +109,18 @@ export const createAccount = async (
   const userResponse = sanitizeUser(savedUser);
 
   sendResponse(res, userResponse, "User registered successfully", 201);
+
+  // Link new registrations to any pending team memberships
+  try {
+    await ModeratorModel.updateMany(
+      { email: savedUser.email },
+      { $set: { isVerified: true } }
+    );
+  } catch (e) {
+    try {
+      console.error("Failed to link moderator memberships on signup", e);
+    } catch {}
+  }
 };
 
 export const loginUser = async (
@@ -276,10 +288,13 @@ export const changePassword = async (
     );
   }
 
-   const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+  const isSameAsOld = await bcrypt.compare(newPassword, user.password);
   if (isSameAsOld) {
     return next(
-      new ErrorHandler("New password must be different from the old password", 400)
+      new ErrorHandler(
+        "New password must be different from the old password",
+        400
+      )
     );
   }
 
@@ -349,10 +364,13 @@ export const resetPassword = async (
     );
   }
 
-   const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+  const isSameAsOld = await bcrypt.compare(newPassword, user.password);
   if (isSameAsOld) {
     return next(
-      new ErrorHandler("New password must be different from the old password", 400)
+      new ErrorHandler(
+        "New password must be different from the old password",
+        400
+      )
     );
   }
 

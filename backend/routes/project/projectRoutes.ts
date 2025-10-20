@@ -6,6 +6,7 @@ import {
   emailProjectInfo,
   getProjectById,
   getProjectByUserId,
+  getProjectsForUserMembership,
   saveProgress,
   toggleRecordingAccess,
   updateProjectTags,
@@ -41,6 +42,13 @@ router.get(
   authenticateJwt,
   authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   catchError(getProjectById)
+);
+
+// GET /api/v1/projects/for-user/:userId (projects shared with the user via team membership)
+router.get(
+  "/for-user/:userId",
+  authenticateJwt,
+  catchError(getProjectsForUserMembership)
 );
 
 // PATCH /api/v1/projects/edit-project

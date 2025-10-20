@@ -16,6 +16,7 @@ import {
 import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcessor";
 import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
 import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
+import { AuthRequest } from "../middlewares/authenticateJwt";
 
 // ! the fields you really need to keep the payload light
 const PROJECT_POPULATE = [
@@ -529,6 +530,57 @@ export const getProjectById = async (
   }
 
   sendResponse(res, project, "Project retrieved successfully", 200);
+};
+
+/**
+ * GET /api/v1/projects/for-user/:userId
+ * Returns projects where the user is a team member (Moderator collection) based on email.
+ */
+export const getProjectsForUserMembership = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId } = req.params as { userId?: string };
+
+  if (!userId) return next(new ErrorHandler("User ID is required", 400));
+
+  const user = await User.findById(userId).lean();
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  // Find all moderator rows where email matches (active only)
+  const mods = await ModeratorModel.find({ email: user.email, isActive: true })
+    .select("projectId")
+    .lean();
+  const projectIds = Array.from(new Set(mods.map((m) => String(m.projectId))));
+
+  if (projectIds.length === 0) {
+    sendResponse(res, [], "No membership projects", 200, {
+      totalItems: 0,
+      totalPages: 0,
+      page: 1,
+      limit: 0,
+      hasPrev: false,
+      hasNext: false,
+    });
+  }
+
+  const projects = await ProjectModel.find({
+    _id: { $in: projectIds },
+    // exclude projects created by the same user to avoid duplicates on dashboard
+    createdBy: { $ne: user._id },
+  })
+    .populate(PROJECT_POPULATE)
+    .lean();
+
+  sendResponse(res, projects, "Membership projects retrieved", 200, {
+    totalItems: projects.length,
+    totalPages: 1,
+    page: 1,
+    limit: projects.length,
+    hasPrev: false,
+    hasNext: false,
+  });
 };
 
 export const editProject = async (

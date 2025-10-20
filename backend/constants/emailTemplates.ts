@@ -1,13 +1,19 @@
 import config from "../config/index";
-import { ProjectCreateAndPaymentConfirmationEmailTemplateParams, TemplateParams } from "../../shared/interface/ProjectInfoEmailInterface"
-import { ModeratorAddedEmailParams} from "../../shared/interface/ModeratorAddedEmailInterface"
+import {
+  ProjectCreateAndPaymentConfirmationEmailTemplateParams,
+  TemplateParams,
+} from "../../shared/interface/ProjectInfoEmailInterface";
+import { ModeratorAddedEmailParams } from "../../shared/interface/ModeratorAddedEmailInterface";
 
-export const verificationEmailTemplate = (name: string, verificationLink : string): string => `
+export const verificationEmailTemplate = (
+  name: string,
+  verificationLink: string
+): string => `
   <p>Dear ${name},</p>
   <p>Thank you for signing up to host your project on the Amplify Research Virtual Backroom platform. Please click the link below to verify your account information:</p>
    <p style="text-align: center; margin: 24px 0;">
       <a
-        href="${verificationLink }"
+        href="${verificationLink}"
         style="
           background-color:  #FC6E15;
           color: #ffffff;
@@ -26,8 +32,10 @@ export const verificationEmailTemplate = (name: string, verificationLink : strin
   <p>The Amplify Team</p>
 `;
 
-
-export const resetPasswordEmailTemplate = (name: string, token: string): string => `
+export const resetPasswordEmailTemplate = (
+  name: string,
+  token: string
+): string => `
   <p>Hi ${name},</p>
   <p>Please copy the link below to reset your password:</p>
   <p>
@@ -56,8 +64,12 @@ export const projectInfoEmailTemplate = ({
   <p><strong>Language:</strong> ${formData.respondentLanguage}</p>
   <h4>Sessions:</h4>
   ${formattedSessions}
-  <p><strong>First Date of Streaming:</strong> ${formData.firstDateOfStreaming}</p>
-  <p><strong>Respondents per Session:</strong> ${formData.respondentsPerSession}</p>
+  <p><strong>First Date of Streaming:</strong> ${
+    formData.firstDateOfStreaming
+  }</p>
+  <p><strong>Respondents per Session:</strong> ${
+    formData.respondentsPerSession
+  }</p>
   <p><strong>Number of Sessions:</strong> ${formData.numberOfSessions}</p>
   <p><strong>Session Length:</strong> ${formData.sessionLength}</p>
   <p><strong>Pre-Work Details:</strong> ${formData.preWorkDetails}</p>
@@ -98,11 +110,12 @@ export const moderatorAddedEmailTemplate = ({
   addedByName,
   projectName,
   loginUrl,
-  roles
+  roles,
 }: ModeratorAddedEmailParams): string => {
-  const list = roles.length > 1
-    ? roles.slice(0, -1).join(", ") + " and " + roles.slice(-1)
-    : roles[0];
+  const list =
+    roles.length > 1
+      ? roles.slice(0, -1).join(", ") + " and " + roles.slice(-1)
+      : roles[0];
   const roleWord = roles.length > 1 ? "roles" : "role";
   return `
   <p>Hi ${moderatorName},</p>
@@ -110,7 +123,7 @@ export const moderatorAddedEmailTemplate = ({
   <p>${addedByName} has just assigned you the following ${roleWord} on the project <strong>"${projectName}"</strong> in the Amplify platform.</p>
 
    <ul>
-      ${roles.map(r => `<li>${r}</li>`).join("\n")}
+      ${roles.map((r) => `<li>${r}</li>`).join("\n")}
     </ul>
 
   <p>You can log in to your account here to view and manage your permissions:</p>
@@ -120,5 +133,46 @@ export const moderatorAddedEmailTemplate = ({
 
   <p>Cheers,<br/>The Amplify Team</p>
 `;
-}
+};
 
+// Invitation email for users who were added to a project team but don't yet have an account
+export const invitationToRegisterEmailTemplate = (params: {
+  inviteeFirstName: string;
+  projectName: string;
+  registerUrl: string;
+  roles: string[];
+}): string => {
+  const rolesList =
+    params.roles.length > 1
+      ? params.roles.slice(0, -1).join(", ") + " and " + params.roles.slice(-1)
+      : params.roles[0];
+  return `
+  <p>Hi ${params.inviteeFirstName || "there"},</p>
+
+  <p>You’ve been invited to join the project <strong>"${
+    params.projectName
+  }"</strong> on the Amplify platform with the role(s): <strong>${rolesList}</strong>.</p>
+
+  <p>Please create your account to access the project:</p>
+  <p style="text-align: center; margin: 24px 0;">
+    <a
+      href="${params.registerUrl}"
+      style="
+        background-color:  #FC6E15;
+        color: #ffffff;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: bold;
+      "
+    >
+      Create Your Account
+    </a>
+  </p>
+
+  <p>If you were not expecting this invitation, you can ignore this email.</p>
+
+  <p>Cheers,<br/>The Amplify Team</p>
+`;
+};

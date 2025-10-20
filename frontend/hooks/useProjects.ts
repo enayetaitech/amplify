@@ -27,6 +27,29 @@ export interface UseProjectsResult {
   error?: Error;
 }
 
+export function useMembershipProjects(userId: string | undefined) {
+  const { data, isLoading, isError, error } = useQuery<
+    { data: IProject[]; meta?: IPaginationMeta },
+    Error
+  >({
+    queryKey: ["membership-projects", userId],
+    queryFn: () =>
+      api
+        .get<{ data: IProject[]; meta?: IPaginationMeta }>(
+          `/api/v1/projects/for-user/${userId}`
+        )
+        .then((res) => res.data),
+    enabled: !!userId,
+  });
+
+  return {
+    projects: data?.data ?? [],
+    isLoading,
+    isError,
+    error: isError ? error : undefined,
+  };
+}
+
 /**
  * Fetch projects for a given userId / page / search.
  * Returns: { projects, meta, isLoading, isError, error }.
