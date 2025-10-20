@@ -11,6 +11,7 @@ import {
   ensureRoom,
 } from "./livekitService";
 import mongoose from "mongoose";
+import { finalizeSessionDeliverables } from "../session/finalizeDeliverables";
 
 type ObjectIdLike = string | mongoose.Types.ObjectId;
 
@@ -119,6 +120,15 @@ export async function endMeeting(
   }
 
   await live.save();
+
+  // fire-and-forget finalize deliverables (do not block meeting end)
+  try {
+    await finalizeSessionDeliverables(String(session._id), String(endedBy));
+  } catch (e) {
+    try {
+      console.error("finalizeSessionDeliverables failed", e);
+    } catch {}
+  }
 
   return {
     sessionId: String(session._id),

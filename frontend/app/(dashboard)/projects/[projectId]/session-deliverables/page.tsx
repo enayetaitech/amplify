@@ -23,9 +23,7 @@ import CustomButton from "components/shared/CustomButton";
 import { Download } from "lucide-react";
 
 const deliverableTabs = [
-  { label: "Audio", type: "AUDIO" },
   { label: "Video", type: "VIDEO" },
-  { label: "Transcripts", type: "TRANSCRIPT" },
   { label: "Backroom Chat", type: "BACKROOM_CHAT" },
   { label: "Session Chat", type: "SESSION_CHAT" },
   { label: "Whiteboards", type: "WHITEBOARD" },
