@@ -271,7 +271,7 @@ export default function SidebarContent({
                         : "text-custom-blue-gray-1 hover:text-custom-gray-5"
                     }`}
                   >
-                    <FaUserClock className="h-3.5 w-3.5" /> Internal Admins
+                    <FaUserClock className="h-3.5 w-3.5" /> Users
                   </Link>
                   <Link
                     href="/admin/admin-list"
