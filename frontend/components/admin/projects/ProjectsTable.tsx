@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import Link from "next/link";
 
 type Project = {
   _id: string;
@@ -72,7 +73,14 @@ export default function ProjectsTable() {
             ) : (
               data!.items.map((p) => (
                 <tr key={p._id} className="border-t">
-                  <td className="p-2">{p.name}</td>
+                  <td className="p-2">
+                    <Link
+                      className="text-blue-600 hover:underline"
+                      href={`/admin/projects/${p._id}/reports`}
+                    >
+                      {p.name}
+                    </Link>
+                  </td>
                   <td className="p-2">{p.internalProjectName || "-"}</td>
                   <td className="p-2">{p.description || ""}</td>
                 </tr>
