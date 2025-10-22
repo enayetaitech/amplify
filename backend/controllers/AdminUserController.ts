@@ -22,6 +22,8 @@ import {
 import { forceLogoutUserSockets } from "../socket";
 import { transferProjectsAtomic } from "../services/projectTransferService";
 import { Types } from "mongoose";
+import ProjectModel from "../model/ProjectModel";
+import { SessionModel } from "../model/SessionModel";
 
 export const adminCreateUser = async (
   req: Request,
@@ -224,6 +226,86 @@ export const deleteExternalAdmin = async (
       return next(new ErrorHandler("Transfer projects before delete", 400));
     await User.deleteOne({ _id: id });
     sendResponse(res, null, "External admin deleted", 200);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const adminListProjects = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const q = (req.query.q as string) || "";
+    const companyName = (req.query.companyName as string) || "";
+    const status = (req.query.status as string) || "";
+    const page = Math.max(1, Number(req.query.page || 1));
+    const pageSize = Math.max(
+      1,
+      Math.min(100, Number(req.query.pageSize || 20))
+    );
+    const and: any[] = [];
+    if (q) {
+      const rx = new RegExp(q, "i");
+      and.push({
+        $or: [{ name: rx }, { internalProjectName: rx }, { description: rx }],
+      });
+    }
+    if (companyName) {
+      const rxCompany = new RegExp(companyName, "i");
+      // join through createdBy? For now, filter by description/name (no company field on Project)
+      and.push({ description: rxCompany });
+    }
+    if (status) {
+      and.push({ status });
+    }
+    const filter = and.length ? { $and: and } : {};
+    const cursor = ProjectModel.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .populate("createdBy")
+      .lean();
+    const [items, total] = await Promise.all([
+      cursor,
+      ProjectModel.countDocuments(filter),
+    ]);
+    sendResponse(res, { items, total, page, pageSize }, "Projects listed", 200);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const adminListSessions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const q = (req.query.q as string) || "";
+    const page = Math.max(1, Number(req.query.page || 1));
+    const pageSize = Math.max(
+      1,
+      Math.min(100, Number(req.query.pageSize || 20))
+    );
+    const and: any[] = [];
+    if (q) {
+      const rx = new RegExp(q, "i");
+      and.push({ $or: [{ title: rx }] });
+    }
+    const filter = and.length ? { $and: and } : {};
+    const cursor = SessionModel.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .populate("projectId")
+      .lean();
+    const [items, total] = await Promise.all([
+      cursor,
+      SessionModel.countDocuments(filter),
+    ]);
+    sendResponse(res, { items, total, page, pageSize }, "Sessions listed", 200);
   } catch (e) {
     next(e);
   }

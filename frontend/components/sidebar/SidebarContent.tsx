@@ -235,6 +235,20 @@ export default function SidebarContent({
                 <MdOutlineInsertChart />
                 <span>Admin List</span>
               </Link>
+              <Link
+                href="/admin/projects"
+                className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
+              >
+                <MdOutlineInsertChart />
+                <span>All Projects</span>
+              </Link>
+              <Link
+                href="/admin/sessions"
+                className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
+              >
+                <MdOutlineInsertChart />
+                <span>All Sessions</span>
+              </Link>
             </>
           )}
         </div>

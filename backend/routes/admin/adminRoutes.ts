@@ -12,6 +12,8 @@ import {
   listExternalAdmins,
   transferExternalAdminProjects,
   deleteExternalAdmin,
+  adminListProjects,
+  adminListSessions,
 } from "../../controllers/AdminUserController";
 
 const router = express.Router();
@@ -27,6 +29,10 @@ router.get("/users", catchError(adminListUsers));
 router.patch("/users/:id", catchError(adminEditUser));
 router.patch("/users/:id/status", catchError(adminUpdateStatus));
 router.post("/users/:id/resend-invite", catchError(adminResendInvite));
+
+// Projects & Sessions (SuperAdmin/AmplifyAdmin)
+router.get("/projects", catchError(adminListProjects));
+router.get("/sessions", catchError(adminListSessions));
 
 // External Admin management — SuperAdmin only routes
 router.get(

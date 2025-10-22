@@ -1,0 +1,86 @@
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
+
+type Project = {
+  _id: string;
+  name: string;
+  internalProjectName?: string;
+  description?: string;
+  createdAt?: string;
+};
+
+export default function ProjectsTable() {
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-projects", q, status],
+    queryFn: async () => {
+      const res = await api.get("/api/v1/admin/projects", {
+        params: { q, status },
+      });
+      return res.data?.data as { items: Project[] };
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input
+          placeholder="Search by name/description"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="max-w-xs"
+        />
+        <select
+          className="border rounded-md h-9 px-2"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Closed">Closed</option>
+          <option value="Archived">Archived</option>
+        </select>
+      </div>
+      <div className="border rounded-md overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="text-left p-2">Name</th>
+              <th className="text-left p-2">Internal</th>
+              <th className="text-left p-2">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td className="p-4" colSpan={3}>
+                  Loading...
+                </td>
+              </tr>
+            ) : (data?.items || []).length === 0 ? (
+              <tr>
+                <td className="p-4" colSpan={3}>
+                  No projects found
+                </td>
+              </tr>
+            ) : (
+              data!.items.map((p) => (
+                <tr key={p._id} className="border-t">
+                  <td className="p-2">{p.name}</td>
+                  <td className="p-2">{p.internalProjectName || "-"}</td>
+                  <td className="p-2">{p.description || ""}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
