@@ -10,9 +10,13 @@ import {
   saveProgress,
   toggleRecordingAccess,
   updateProjectTags,
+  pauseProject,
+  unpauseProject,
+  activateProject,
 } from "../../controllers/ProjectController";
 import { authenticateJwt } from "../../middlewares/authenticateJwt";
 import { authorizeRoles } from "../../middlewares/authorizeRoles";
+import { Roles } from "../../constants/roles";
 
 const router = express.Router();
 
@@ -63,6 +67,29 @@ router.patch(
   authenticateJwt,
   authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   catchError(updateProjectTags)
+);
+
+// Pause/Unpause — Amplify Admin or SuperAdmin only
+router.post(
+  "/:id/pause",
+  authenticateJwt,
+  authorizeRoles(Roles.SuperAdmin, Roles.AmplifyAdmin),
+  catchError(pauseProject)
+);
+
+router.post(
+  "/:id/unpause",
+  authenticateJwt,
+  authorizeRoles(Roles.SuperAdmin, Roles.AmplifyAdmin),
+  catchError(unpauseProject)
+);
+
+// Reactivate Closed project → Active
+router.post(
+  "/:id/activate",
+  authenticateJwt,
+  authorizeRoles(Roles.SuperAdmin, Roles.AmplifyAdmin),
+  catchError(activateProject)
 );
 
 export default router;

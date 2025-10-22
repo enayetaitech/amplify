@@ -14,6 +14,11 @@ import { attachSocket } from "./socket/index";
 import { rescheduleAllBreakoutTimers } from "./services/breakoutScheduler";
 import { baseLogger } from "./utils/logger";
 import cron from "node-cron";
+import {
+  sendClosingWarnings,
+  closeIdleProjects,
+  archiveClosedProjects,
+} from "./services/projectStatusScheduler";
 import { AuditLogModel } from "./model/AuditLog";
 import { ensureSuperAdmin } from "./scripts/ensureSuperAdmin";
 
@@ -112,6 +117,18 @@ server.listen(PORT, async () => {
       baseLogger.info({ deleted: res.deletedCount }, "AuditLog purge complete");
     } catch (err) {
       baseLogger.error({ err }, "AuditLog purge failed");
+    }
+  });
+
+  // daily at 03:30 run project status lifecycle tasks
+  cron.schedule("30 3 * * *", async () => {
+    try {
+      await sendClosingWarnings();
+      await closeIdleProjects();
+      await archiveClosedProjects();
+      baseLogger.info("Project status lifecycle cron completed");
+    } catch (err) {
+      baseLogger.error({ err }, "Project status lifecycle cron failed");
     }
   });
 });

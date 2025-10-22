@@ -26,6 +26,8 @@ export interface IProjectDocument
   defaultTimeZone: string;
   defaultBreakoutRoom: boolean;
   closedAt?: Date;
+  closingWarn10At?: Date;
+  closingWarn2At?: Date;
 }
 
 const projectSchema = new Schema<IProjectDocument>(
@@ -69,6 +71,8 @@ const projectSchema = new Schema<IProjectDocument>(
     defaultTimeZone: { type: String, required: true, immutable: true },
     defaultBreakoutRoom: { type: Boolean, default: false },
     closedAt: { type: Date, required: false },
+    closingWarn10At: { type: Date, required: false },
+    closingWarn2At: { type: Date, required: false },
   },
   {
     timestamps: true,

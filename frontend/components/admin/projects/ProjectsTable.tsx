@@ -1,9 +1,10 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 type Project = {
   _id: string;
@@ -11,11 +12,13 @@ type Project = {
   internalProjectName?: string;
   description?: string;
   createdAt?: string;
+  status?: string;
 };
 
 export default function ProjectsTable() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-projects", q, status],
     queryFn: async () => {
@@ -55,18 +58,20 @@ export default function ProjectsTable() {
               <th className="text-left p-2">Name</th>
               <th className="text-left p-2">Internal</th>
               <th className="text-left p-2">Description</th>
+              <th className="text-left p-2">Status</th>
+              <th className="text-left p-2" />
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td className="p-4" colSpan={3}>
+                <td className="p-4" colSpan={5}>
                   Loading...
                 </td>
               </tr>
             ) : (data?.items || []).length === 0 ? (
               <tr>
-                <td className="p-4" colSpan={3}>
+                <td className="p-4" colSpan={5}>
                   No projects found
                 </td>
               </tr>
@@ -83,6 +88,43 @@ export default function ProjectsTable() {
                   </td>
                   <td className="p-2">{p.internalProjectName || "-"}</td>
                   <td className="p-2">{p.description || ""}</td>
+                  <td className="p-2">{p.status || "-"}</td>
+                  <td className="p-2">
+                    {p.status === "Closed" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          await api.post(`/api/v1/projects/${p._id}/activate`);
+                          queryClient.invalidateQueries({
+                            queryKey: ["admin-projects"],
+                          });
+                          window.location.reload();
+                        }}
+                      >
+                        Activate
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const isPaused = p.status === "Inactive";
+                          await api.post(
+                            `/api/v1/projects/${p._id}/${
+                              isPaused ? "unpause" : "pause"
+                            }`
+                          );
+                          queryClient.invalidateQueries({
+                            queryKey: ["admin-projects"],
+                          });
+                          window.location.reload();
+                        }}
+                      >
+                        {p.status === "Inactive" ? "Unpause" : "Pause"}
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

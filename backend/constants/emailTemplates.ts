@@ -192,3 +192,22 @@ export const invitationToRegisterEmailTemplate = (params: {
   <p>Cheers,<br/>The Amplify Team</p>
 `;
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Project status emails
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const projectClosingWarning10 = (projectName: string) => `
+  <p>Hi there,</p>
+  <p>Your project <strong>${projectName}</strong> has had no meetings scheduled or completed in the last 20 days.</p>
+  <p>It will be automatically set to <strong>Closed</strong> in 10 days if no new meetings are scheduled.</p>
+  <p>You can schedule a new meeting or contact Amplify support if this is unexpected.</p>
+  <p>– Amplify Team</p>
+`;
+
+export const projectClosingWarning2 = (projectName: string) => `
+  <p>Hi there,</p>
+  <p>Your project <strong>${projectName}</strong> is scheduled to be automatically <strong>Closed</strong> in 2 days due to inactivity.</p>
+  <p>Schedule a meeting to keep it Active, or reach out to Amplify support with questions.</p>
+  <p>– Amplify Team</p>
+`;

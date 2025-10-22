@@ -40,6 +40,9 @@ export const startLiveSession = async (
 
   const project = await ProjectModel.findById(session.projectId).lean();
   if (!project) return next(new ErrorHandler("Project not found", 404));
+  if (project.status !== "Active") {
+    return next(new ErrorHandler("Project is not Active", 403));
+  }
 
   const normalized = (s: string) => s.trim().toLowerCase();
   const userFullName = normalized(`${dbUser.firstName} ${dbUser.lastName}`);
@@ -92,6 +95,9 @@ export const endLiveSession = async (
 
   const project = await ProjectModel.findById(session.projectId).lean();
   if (!project) return next(new ErrorHandler("Project not found", 404));
+  if (project.status !== "Active") {
+    return next(new ErrorHandler("Project is not Active", 403));
+  }
 
   const normalized = (s: string) => s.trim().toLowerCase();
   const userFullName = normalized(`${dbUser.firstName} ${dbUser.lastName}`);
