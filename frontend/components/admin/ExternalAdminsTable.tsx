@@ -221,11 +221,19 @@ export default function ExternalAdminsTable() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>From Admin ID</Label>
-              <Input
+              <Label>From External Admin</Label>
+              <select
+                className="border rounded-md h-9 px-2 w-full"
                 value={fromId}
                 onChange={(e) => setFromId(e.target.value)}
-              />
+              >
+                <option value="">Select external admin…</option>
+                {(data?.items || []).map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.firstName} {u.lastName} — {u.email}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <Label>To External Admin</Label>
