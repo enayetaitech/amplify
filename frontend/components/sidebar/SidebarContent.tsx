@@ -99,142 +99,203 @@ export default function SidebarContent({
   return (
     <>
       <ScrollArea className="flex-1 px-6 overflow-y-auto">
-        {/* Projects group */}
-        <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
-          <CollapsibleTrigger
-            className={`flex items-center justify-between w-full py-1 px-2 rounded-xl font-semibold cursor-pointer bg-custom-white ${
-              pathname.startsWith("/projects")
-                ? "text-custom-dark-blue-1"
-                : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-            }`}
-            onClick={() => {
-              // Always toggle the panel...
-              setProjectsOpen(!projectsOpen);
-              // ...then navigate to /projects
-              router.push("/projects");
-            }}
-          >
-            <div className="flex items-center gap-3 ">
-              <FaListAlt className="h-4 w-4" />
-              <span className="">Projects</span>
-            </div>
-            {projectsOpen ? (
-              <ChevronUp className="" />
-            ) : (
-              <ChevronDown className="" />
-            )}
-          </CollapsibleTrigger>
-          <CollapsibleContent className="ml-6 mt-1 py-1 px-2 bg-[#F3F4F6] rounded-xl">
-            <Accordion type="single" collapsible className="space-y-1">
-              {projects?.map((p) => {
-                const base = `/projects/${p._id}`;
-                return (
-                  <AccordionItem key={p._id} value={p?._id}>
-                    <AccordionTrigger
-                      className={`flex items-center justify-between py-1 ${
-                        pathname.startsWith(base)
-                          ? "text-custom-dark-blue-1 font-medium bg-white rounded px-2"
-                          : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                      }`}
-                    >
-                      <Link href={`/view-project/${p._id}`} className="flex-1">
-                        {p.name}
-                      </Link>
-                    </AccordionTrigger>
-
-                    <AccordionContent className="pl-4 space-y-1">
-                      {projectSections.map(({ slug, label }) => (
-                        <Link
-                          key={slug}
-                          href={`${base}/${slug}`}
-                          className={`block py-1 rounded px-2 ${
-                            pathname === `${base}/${slug}`
-                              ? "bg-white text-custom-dark-blue-1 font-medium"
+        {/* Projects group - only show for non-admin roles */}
+        {!(user?.role === "AmplifyAdmin" || user?.role === "SuperAdmin") && (
+          <>
+            <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
+              <CollapsibleTrigger
+                className={`flex items-center justify-between w-full py-1 px-2 rounded-xl font-semibold cursor-pointer bg-custom-white ${
+                  pathname.startsWith("/projects")
+                    ? "text-custom-dark-blue-1"
+                    : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                }`}
+                onClick={() => {
+                  // Always toggle the panel...
+                  setProjectsOpen(!projectsOpen);
+                  // ...then navigate to /projects
+                  router.push("/projects");
+                }}
+              >
+                <div className="flex items-center gap-3 ">
+                  <FaListAlt className="h-4 w-4" />
+                  <span className="">Projects</span>
+                </div>
+                {projectsOpen ? (
+                  <ChevronUp className="" />
+                ) : (
+                  <ChevronDown className="" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="ml-6 mt-1 py-1 px-2 bg-[#F3F4F6] rounded-xl">
+                <Accordion type="single" collapsible className="space-y-1">
+                  {projects?.map((p) => {
+                    const base = `/projects/${p._id}`;
+                    return (
+                      <AccordionItem key={p._id} value={p?._id}>
+                        <AccordionTrigger
+                          className={`flex items-center justify-between py-1 ${
+                            pathname.startsWith(base)
+                              ? "text-custom-dark-blue-1 font-medium bg-white rounded px-2"
                               : "text-custom-blue-gray-1 hover:text-custom-gray-5"
                           }`}
                         >
-                          {label}
-                        </Link>
-                      ))}
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
-          </CollapsibleContent>
-        </Collapsible>
+                          <Link
+                            href={`/view-project/${p._id}`}
+                            className="flex-1"
+                          >
+                            {p.name}
+                          </Link>
+                        </AccordionTrigger>
 
-        <Separator className="my-2" />
+                        <AccordionContent className="pl-4 space-y-1">
+                          {projectSections.map(({ slug, label }) => (
+                            <Link
+                              key={slug}
+                              href={`${base}/${slug}`}
+                              className={`block py-1 rounded px-2 ${
+                                pathname === `${base}/${slug}`
+                                  ? "bg-white text-custom-dark-blue-1 font-medium"
+                                  : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                              }`}
+                            >
+                              {label}
+                            </Link>
+                          ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Separator className="my-2" />
+          </>
+        )}
 
         {/* Static links */}
         <div className="space-y-4 pb-5">
-          {/* Account group */}
-          <Collapsible open={acctOpen} onOpenChange={setAcctOpen}>
-            <CollapsibleTrigger
-              className={`flex items-center justify-between w-full py-1 px-2 rounded-xl font-semibold cursor-pointer bg-custom-white ${
-                accountActive
-                  ? "text-custom-dark-blue-1"
-                  : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <CircleUser className="h-5 w-5" />
-                <span className="">Account</span>
-              </div>
-              {acctOpen ? (
-                <ChevronUp className="" />
-              ) : (
-                <ChevronDown className="" />
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="ml-6 mt-2 py-1 px-2 bg-[#F3F4F6] rounded-xl space-y-2 text-sm">
-              <Link
-                href={`/my-profile/${user?._id}`}
-                className={`flex items-center gap-2 ${
-                  pathname === `/my-profile/${user?._id}`
-                    ? "text-custom-dark-blue-1 font-medium"
+          {/* Account group - only show for non-admin roles */}
+          {!(user?.role === "AmplifyAdmin" || user?.role === "SuperAdmin") && (
+            <Collapsible open={acctOpen} onOpenChange={setAcctOpen}>
+              <CollapsibleTrigger
+                className={`flex items-center justify-between w-full py-1 px-2 rounded-xl font-semibold cursor-pointer bg-custom-white ${
+                  accountActive
+                    ? "text-custom-dark-blue-1"
                     : "text-custom-blue-gray-1 hover:text-custom-gray-5"
                 }`}
               >
-                <UserPen className="h-3.5 w-3.5" /> Profile
-              </Link>
-              <Link
-                href="/billing"
-                className={`flex items-center gap-2 ${
-                  pathname === `/billing`
-                    ? "text-custom-dark-blue-1 font-medium"
-                    : "text-custom-blue-gray-1 hover:text-custom-gray-5"
-                }`}
-              >
-                <FileText className="h-3.5 w-3.5" /> Billing
-              </Link>
-            </CollapsibleContent>
-          </Collapsible>
+                <div className="flex items-center gap-3">
+                  <CircleUser className="h-5 w-5" />
+                  <span className="">Account</span>
+                </div>
+                {acctOpen ? (
+                  <ChevronUp className="" />
+                ) : (
+                  <ChevronDown className="" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="ml-6 mt-2 py-1 px-2 bg-[#F3F4F6] rounded-xl space-y-2 text-sm">
+                <Link
+                  href={`/my-profile/${user?._id}`}
+                  className={`flex items-center gap-2 ${
+                    pathname === `/my-profile/${user?._id}`
+                      ? "text-custom-dark-blue-1 font-medium"
+                      : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                  }`}
+                >
+                  <UserPen className="h-3.5 w-3.5" /> Profile
+                </Link>
+                <Link
+                  href="/billing"
+                  className={`flex items-center gap-2 ${
+                    pathname === `/billing`
+                      ? "text-custom-dark-blue-1 font-medium"
+                      : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5" /> Billing
+                </Link>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
-          {/* Admin-only */}
-          {user?.role === "AmplifyAdmin" && (
+          {/* Admin-only sections */}
+          {(user?.role === "AmplifyAdmin" || user?.role === "SuperAdmin") && (
             <>
-              <Link
-                href="/external-admins"
-                className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
-              >
-                <FaUserClock />
-                <span>External Admins</span>
-              </Link>
-              <Link
-                href="/internal-admins"
-                className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
-              >
-                <FaUserClock />
-                <span>Internal Admins</span>
-              </Link>
-              <Link
-                href="/companies"
-                className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
-              >
-                <MdOutlineInsertChart />
-                <span>Companies</span>
-              </Link>
+              {/* Admin Management group */}
+              <Collapsible open={acctOpen} onOpenChange={setAcctOpen}>
+                <CollapsibleTrigger
+                  className={`flex items-center justify-between w-full py-1 px-2 rounded-xl font-semibold cursor-pointer bg-custom-white ${
+                    accountActive
+                      ? "text-custom-dark-blue-1"
+                      : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <CircleUser className="h-5 w-5" />
+                    <span className="">Admin Management</span>
+                  </div>
+                  {acctOpen ? (
+                    <ChevronUp className="" />
+                  ) : (
+                    <ChevronDown className="" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="ml-6 mt-2 py-1 px-2 bg-[#F3F4F6] rounded-xl space-y-2 text-sm">
+                  <Link
+                    href={`/my-profile/${user?._id}`}
+                    className={`flex items-center gap-2 ${
+                      pathname === `/my-profile/${user?._id}`
+                        ? "text-custom-dark-blue-1 font-medium"
+                        : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                    }`}
+                  >
+                    <UserPen className="h-3.5 w-3.5" /> Profile
+                  </Link>
+                  <Link
+                    href="/admin/external-admins"
+                    className={`flex items-center gap-2 ${
+                      pathname.startsWith("/admin/external-admins")
+                        ? "text-custom-dark-blue-1 font-medium"
+                        : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                    }`}
+                  >
+                    <FaUserClock className="h-3.5 w-3.5" /> External Admins
+                  </Link>
+                  <Link
+                    href="/admin/users"
+                    className={`flex items-center gap-2 ${
+                      pathname.startsWith("/admin/users")
+                        ? "text-custom-dark-blue-1 font-medium"
+                        : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                    }`}
+                  >
+                    <FaUserClock className="h-3.5 w-3.5" /> Users
+                  </Link>
+                  <Link
+                    href="/admin/admin-list"
+                    className={`flex items-center gap-2 ${
+                      pathname.startsWith("/admin/admin-list")
+                        ? "text-custom-dark-blue-1 font-medium"
+                        : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                    }`}
+                  >
+                    <MdOutlineInsertChart className="h-3.5 w-3.5" /> Admin List
+                  </Link>
+                  <Link
+                    href="/admin/projects"
+                    className={`flex items-center gap-2 ${
+                      pathname.startsWith("/admin/projects")
+                        ? "text-custom-dark-blue-1 font-medium"
+                        : "text-custom-blue-gray-1 hover:text-custom-gray-5"
+                    }`}
+                  >
+                    <MdOutlineInsertChart className="h-3.5 w-3.5" /> All
+                    Projects
+                  </Link>
+                </CollapsibleContent>
+              </Collapsible>
             </>
           )}
         </div>

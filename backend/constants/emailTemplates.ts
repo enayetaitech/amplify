@@ -39,13 +39,29 @@ export const resetPasswordEmailTemplate = (
   <p>Hi ${name},</p>
   <p>Please copy the link below to reset your password:</p>
   <p>
-    <a href="${process.env.FRONTEND_BASE_URL}/reset-password?token=${token}">
+    <a href="${process.env.FRONTEND_BASE_URL}/set-new-password?token=${token}">
       Reset Your Password
     </a>
   </p>
   <p>If you did not request a password reset, please ignore this email.</p>
   <p>Thank you!</p>
   <p>The Amplify Team</p>
+`;
+
+export const adminInviteEmailTemplate = (params: {
+  firstName: string;
+  role: string;
+  companyName: string;
+  loginUrl: string;
+  setPasswordUrl: string;
+}) => `
+  <p>Hi ${params.firstName},</p>
+  <p>Your ${params.role} account for ${params.companyName} has been created.</p>
+  <p>
+    <a href="${params.setPasswordUrl}" style="background:#FC6E15;color:#fff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block">Set Your Password</a>
+  </p>
+  <p>After setting your password, log in here: <a href="${params.loginUrl}">${params.loginUrl}</a></p>
+  <p>Thanks,<br/>The Amplify Team</p>
 `;
 
 export const projectInfoEmailTemplate = ({
@@ -176,3 +192,69 @@ export const invitationToRegisterEmailTemplate = (params: {
   <p>Cheers,<br/>The Amplify Team</p>
 `;
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Project status emails
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const projectClosingWarning10 = (params: {
+  projectName: string;
+  closingDate: string;
+  projectUrl: string;
+}) => `
+  <p>Subject: Amplify Virtual Backroom: Project ${params.projectName} Will Be Closing in 10 Days</p>
+  
+  <p>Thank you for using Amplify's Virtual Backroom for your streaming platform on Project ${params.projectName}. Projects automatically close when no sessions are scheduled in the future and no sessions have occurred in the past 30 days. This email is to alert you that your project is scheduled to close at 11:59pm Pacific time on ${params.closingDate}.</p>
+  
+  <p>Once a project is closed, no additional sessions can be scheduled. All project materials and recordings will remain available in your account for 60 days. After that period, audio and video recordings will no longer be accessible. Please be sure to download any necessary files or subscribe to an extended storage plan before they are archived.</p>
+  
+  <p style="text-align: center; margin: 24px 0;">
+    <a
+      href="${params.projectUrl}"
+      style="
+        background-color: #FC6E15;
+        color: #ffffff;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: bold;
+      "
+    >
+      LINK TO PROJECT PAGE
+    </a>
+  </p>
+  
+  <p>Please do not respond to this email. If you have any questions or need additional support, please reach out to vbsupport@amplifyresearch.com.</p>
+`;
+
+export const projectClosingWarning2 = (params: {
+  projectName: string;
+  closingDate: string;
+  projectUrl: string;
+}) => `
+  <p>Subject: Amplify Virtual Backroom: Project ${params.projectName} Will Be Closing in 2 Days</p>
+  
+  <p>Thank you for using Amplify's Virtual Backroom for your streaming platform on Project ${params.projectName}. Projects automatically close when no sessions are scheduled in the future and no sessions have occurred in the past 30 days. This email is to alert you that your project is scheduled to close at 11:59pm Pacific time on ${params.closingDate}.</p>
+  
+  <p>Once a project is closed, no additional sessions can be scheduled. All project materials and recordings will remain available in your account for 60 days. After that period, audio and video recordings will no longer be accessible. Please be sure to download any necessary files or subscribe to an extended storage plan before they are archived.</p>
+  
+  <p style="text-align: center; margin: 24px 0;">
+    <a
+      href="${params.projectUrl}"
+      style="
+        background-color: #FC6E15;
+        color: #ffffff;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: bold;
+      "
+    >
+      LINK TO PROJECT PAGE
+    </a>
+  </p>
+  
+  <p>Please do not respond to this email. If you have any questions or need additional support, please reach out to vbsupport@amplifyresearch.com.</p>
+`;

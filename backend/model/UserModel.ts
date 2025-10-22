@@ -22,6 +22,7 @@ const UserSchema: Schema<IUserDocument> = new Schema(
         "AmplifyObserver",
         "AmplifyParticipant",
         "AmplifyTechHost",
+        "SuperAdmin",
       ],
       required: true,
     },

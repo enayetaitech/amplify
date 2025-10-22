@@ -17,6 +17,7 @@ import { sendEmail } from "../processors/sendEmail/sendVerifyAccountEmailProcess
 import { ProjectCreateAndPaymentConfirmationEmailTemplateParams } from "../../shared/interface/ProjectInfoEmailInterface";
 import ModeratorModel, { IModeratorDocument } from "../model/ModeratorModel";
 import { AuthRequest } from "../middlewares/authenticateJwt";
+import { z } from "zod";
 
 // ! the fields you really need to keep the payload light
 const PROJECT_POPULATE = [
@@ -563,6 +564,7 @@ export const getProjectsForUserMembership = async (
       hasPrev: false,
       hasNext: false,
     });
+    return;
   }
 
   const projects = await ProjectModel.find({
@@ -709,5 +711,85 @@ export const updateProjectTags = async (
     sendResponse(res, updated, "Project tags updated", 200);
   } catch (error) {
     next(error);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Pause / Unpause Project (Amplify Admin / SuperAdmin only)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const IdParamSchema = z.object({ id: z.string().min(1) });
+
+export const pauseProject = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const parsed = IdParamSchema.safeParse(req.params);
+    if (!parsed.success)
+      return next(new ErrorHandler("Invalid project id", 400));
+    const { id } = parsed.data;
+
+    const project = await ProjectModel.findById(id);
+    if (!project) return next(new ErrorHandler("Project not found", 404));
+
+    project.status = "Inactive" as any;
+    const updated = await project.save();
+    sendResponse(res, updated, "Project paused", 200);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const unpauseProject = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const parsed = IdParamSchema.safeParse(req.params);
+    if (!parsed.success)
+      return next(new ErrorHandler("Invalid project id", 400));
+    const { id } = parsed.data;
+
+    const project = await ProjectModel.findById(id);
+    if (!project) return next(new ErrorHandler("Project not found", 404));
+
+    // If project has any sessions, restore to Active; else Draft
+    const hasSessions =
+      Array.isArray(project.meetings) && project.meetings.length > 0;
+    project.status = (hasSessions ? "Active" : "Draft") as any;
+    const updated = await project.save();
+    sendResponse(res, updated, "Project unpaused", 200);
+  } catch (e) {
+    next(e);
+  }
+};
+
+// Reactivate Closed project → Active (Amplify Admin / SuperAdmin only)
+export const activateProject = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const parsed = IdParamSchema.safeParse(req.params);
+    if (!parsed.success)
+      return next(new ErrorHandler("Invalid project id", 400));
+    const { id } = parsed.data;
+
+    const project = await ProjectModel.findById(id);
+    if (!project) return next(new ErrorHandler("Project not found", 404));
+
+    if (project.status !== ("Closed" as any)) {
+      return next(new ErrorHandler("Project is not Closed", 400));
+    }
+
+    project.status = "Active" as any;
+    const updated = await project.save();
+    sendResponse(res, updated, "Project activated", 200);
+  } catch (e) {
+    next(e);
   }
 };

@@ -516,6 +516,62 @@ export async function getSessionObservers(
     }
   } catch {}
 
+  // Fetch user company information for observers
+  const userEmailToCompany: Record<string, string> = {};
+  try {
+    const User = require("../../model/UserModel").default;
+    const emails = [
+      ...new Set(history.map((h: any) => h.email).filter(Boolean)),
+    ];
+    if (emails.length > 0) {
+      const users = await User.find(
+        { email: { $in: emails } },
+        { email: 1, companyName: 1 }
+      ).lean();
+      for (const user of users || []) {
+        if (user?.email && user?.companyName) {
+          userEmailToCompany[user.email.toLowerCase()] = user.companyName;
+        }
+      }
+      // Fallback to Moderator collection when User.companyName is missing
+      try {
+        // scope to the same project if available
+        let projectPid: any = null;
+        try {
+          const Session =
+            require("../../model/SessionModel").SessionModel ||
+            require("../../model/SessionModel").default ||
+            require("../../model/SessionModel");
+          const sess = await Session.findById(new Types.ObjectId(sessionId))
+            .select("projectId")
+            .lean();
+          projectPid = sess?.projectId
+            ? new Types.ObjectId(String(sess.projectId))
+            : null;
+        } catch {}
+
+        const modFilter: any = { email: { $in: emails } };
+        if (projectPid) modFilter.projectId = projectPid;
+
+        const moderators = await Moderator.find(modFilter, {
+          email: 1,
+          companyName: 1,
+        }).lean();
+        for (const m of moderators || []) {
+          const em = (m as any)?.email
+            ? String((m as any).email).toLowerCase()
+            : "";
+          const cn = (m as any)?.companyName
+            ? String((m as any).companyName)
+            : "";
+          if (em && cn && !userEmailToCompany[em]) {
+            userEmailToCompany[em] = cn;
+          }
+        }
+      } catch {}
+    }
+  } catch {}
+
   const paged = history.slice(skip, skip + limit).map((h: any) => {
     const key = String(h.email || "").toLowerCase();
     const extra = activityEmailToInfo[key] || {};
@@ -523,7 +579,7 @@ export async function getSessionObservers(
       observerName: h.name,
       name: h.name,
       email: h.email,
-      companyName: undefined,
+      companyName: userEmailToCompany[key] || undefined,
       userId: h.id ? String(h.id) : undefined,
       joinTime: h.joinedAt,
       leaveTime: h.leaveAt || undefined,
@@ -784,12 +840,51 @@ export async function getProjectObservers(
     { $limit: limit },
   ]).allowDiskUse(true);
 
+  // Fetch user company information for observers
+  const userEmailToCompany: Record<string, string> = {};
+  try {
+    const User = require("../../model/UserModel").default;
+    const emails = [
+      ...new Set((itemsAgg || []).map((d: any) => d.email).filter(Boolean)),
+    ];
+    if (emails.length > 0) {
+      const users = await User.find(
+        { email: { $in: emails } },
+        { email: 1, companyName: 1 }
+      ).lean();
+      for (const user of users || []) {
+        if (user?.email && user?.companyName) {
+          userEmailToCompany[user.email.toLowerCase()] = user.companyName;
+        }
+      }
+      // Fallback to Moderator collection scoped to this project when User.companyName is missing
+      try {
+        const modFilter: any = { email: { $in: emails }, projectId: pid };
+        const moderators = await Moderator.find(modFilter, {
+          email: 1,
+          companyName: 1,
+        }).lean();
+        for (const m of moderators || []) {
+          const em = (m as any)?.email
+            ? String((m as any).email).toLowerCase()
+            : "";
+          const cn = (m as any)?.companyName
+            ? String((m as any).companyName)
+            : "";
+          if (em && cn && !userEmailToCompany[em]) {
+            userEmailToCompany[em] = cn;
+          }
+        }
+      } catch {}
+    }
+  } catch {}
+
   const finalItems = (itemsAgg || []).map((d: any) => ({
     _id: d._id && d._id.toString ? d._id.toString() : String(d._id),
     observerName: d.name,
     name: d.name,
     email: d.email,
-    companyName: undefined,
+    companyName: userEmailToCompany[d.email?.toLowerCase()] || undefined,
     joinedAt: d.joinedAt,
     sessions: (d.sessions || []).map((s: any) => ({
       _id: s && s.id && s.id.toString ? s.id.toString() : String(s && s.id),

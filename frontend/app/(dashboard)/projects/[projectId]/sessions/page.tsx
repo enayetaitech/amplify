@@ -87,6 +87,10 @@ const Sessions = () => {
   // Open a blank window synchronously on user gesture to avoid Safari popup blocking.
   // We then navigate that window when the mutation completes.
   const handleModerateClick = (sessionId: string) => {
+    if (project && project.status !== "Active") {
+      toast.error("Project is not Active");
+      return;
+    }
     // Use a named window so we can target the same tab later instead of opening a second one.
     const windowName = `session_${sessionId}`;
     let newWin: Window | null = null;
@@ -196,6 +200,10 @@ const Sessions = () => {
   // Handle observe session
 
   const handleObserveClick = async (sessionId: string) => {
+    if (project && project.status !== "Active") {
+      toast.error("Project is not Active");
+      return;
+    }
     const name = me?.firstName + " " + me?.lastName;
     const email = me?.email;
 

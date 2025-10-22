@@ -1,7 +1,7 @@
 // backend/socket/index.ts
 import type { Server as HTTPServer } from "http";
 import { Server, Socket } from "socket.io";
-import { setIo } from "./bus";
+import { setIo, emitToSocket } from "./bus";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 
@@ -51,6 +51,8 @@ import {
 // In-memory map to find a participant socket by email within a session
 // sessionId -> (email -> socketId)
 const emailIndex = new Map<string, Map<string, string>>();
+// Track sockets by userId for force-logout
+const userIdIndex = new Map<string, Set<string>>();
 const identityIndex = new Map<string, Map<string, string>>();
 // Track moderator sockets per session (Moderators/Admins only)
 const moderatorSockets = new Map<string, Set<string>>();
@@ -108,6 +110,7 @@ export function attachSocket(server: HTTPServer) {
     const role = String(q.role || "Participant") as Role;
     const name = (q.name as string) || "";
     const email = (q.email as string) || "";
+    const userId = (q.userId as string) || "";
 
     if (!sessionId || !role) {
       socket.emit("error:auth", "Missing sessionId or role");
@@ -220,6 +223,11 @@ export function attachSocket(server: HTTPServer) {
     if (email) {
       if (!emailIndex.has(sessionId)) emailIndex.set(sessionId, new Map());
       emailIndex.get(sessionId)!.set(email.toLowerCase(), socket.id);
+    }
+    // Track userId -> sockets for global force-logout
+    if (userId) {
+      if (!userIdIndex.has(userId)) userIdIndex.set(userId, new Set());
+      userIdIndex.get(userId)!.add(socket.id);
     }
 
     // Make sure each socket is in a session room for targeted broadcasts.
@@ -2393,10 +2401,31 @@ export function attachSocket(server: HTTPServer) {
           io.to(sessionId).emit("moderator:list", { moderators });
         } catch {}
       }
+      // cleanup userId index
+      if (userId) {
+        const set = userIdIndex.get(userId);
+        if (set) {
+          set.delete(socket.id);
+          if (set.size === 0) userIdIndex.delete(userId);
+        }
+      }
     });
   });
 
   return io;
+}
+// Force logout sockets for a specific userId (used when an admin deactivates a user)
+export function forceLogoutUserSockets(userId: string) {
+  try {
+    const set = userIdIndex.get(userId);
+    if (!set || set.size === 0) return;
+    for (const sid of set) {
+      try {
+        emitToSocket(sid, "force-logout", {});
+      } catch {}
+    }
+    userIdIndex.delete(userId);
+  } catch {}
 }
 
 // Utility to emit a 1-minute breakout warning to moderators and to participants in a specific breakout room

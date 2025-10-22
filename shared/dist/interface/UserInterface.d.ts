@@ -19,7 +19,7 @@ export interface IUser {
     phoneNumber: string;
     companyName: string;
     password: string;
-    role: 'Admin' | 'Moderator' | 'Observer' | 'Participant' | 'AmplifyAdmin' | 'AmplifyModerator' | 'AmplifyObserver' | 'AmplifyParticipant' | 'AmplifyTechHost';
+    role: "Admin" | "Moderator" | "Observer" | "Participant" | "SuperAdmin" | "AmplifyAdmin" | "AmplifyModerator" | "AmplifyObserver" | "AmplifyParticipant" | "AmplifyTechHost";
     status: string;
     isEmailVerified: boolean;
     termsAccepted: boolean;

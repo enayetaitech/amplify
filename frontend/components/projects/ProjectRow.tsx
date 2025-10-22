@@ -25,8 +25,8 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
   const statusColors: Record<string, string> = {
     Draft: "#ff7014",
     Active: "#75d481",
-    Archive: "#696969",
-    Paused: "#fcd860",
+    Archived: "#696969",
+    Inactive: "#fcd860",
     Closed: "#b44d79",
   };
 

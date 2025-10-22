@@ -12,7 +12,7 @@ const router = express.Router();
 router.get(
   "/project/:projectId/summary",
   authenticateJwt,
-  authorizeRoles("SuperAdmin", "Admin"),
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   getProjectSummaryHandler
 );
 
@@ -20,14 +20,14 @@ router.get(
 router.get(
   "/project/:projectId/sessions",
   authenticateJwt,
-  authorizeRoles("SuperAdmin", "Admin"),
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   getProjectSessionsHandler
 );
 
 router.get(
   "/project/:projectId/participants",
   authenticateJwt,
-  authorizeRoles("SuperAdmin", "Admin"),
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   require("../../controllers/reports/ReportsController")
     .getProjectParticipantsHandler
 );
@@ -35,7 +35,7 @@ router.get(
 router.get(
   "/project/:projectId/observers",
   authenticateJwt,
-  authorizeRoles("SuperAdmin", "Admin"),
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   require("../../controllers/reports/ReportsController")
     .getProjectObserversHandler
 );
@@ -43,7 +43,7 @@ router.get(
 router.get(
   "/session/:sessionId/participants",
   authenticateJwt,
-  authorizeRoles("SuperAdmin", "Admin"),
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   require("../../controllers/reports/ReportsController")
     .getSessionParticipantsHandler
 );
@@ -51,7 +51,7 @@ router.get(
 router.get(
   "/session/:sessionId/observers",
   authenticateJwt,
-  authorizeRoles("SuperAdmin", "Admin"),
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   require("../../controllers/reports/ReportsController")
     .getSessionObserversHandler
 );
@@ -59,7 +59,7 @@ router.get(
 router.get(
   "/observer/:observerId/summary",
   authenticateJwt,
-  authorizeRoles("SuperAdmin", "Admin"),
+  authorizeRoles("SuperAdmin", "AmplifyAdmin", "Admin"),
   require("../../controllers/reports/ReportsController")
     .getObserverSummaryHandler
 );

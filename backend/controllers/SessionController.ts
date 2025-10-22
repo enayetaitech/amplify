@@ -149,6 +149,10 @@ export const createSessions = async (
     }
 
     project.meetings.push(...created.map((s) => s._id));
+    // Auto-activate project when the first sessions are scheduled
+    if (project.status === "Draft") {
+      project.status = "Active" as any;
+    }
     await project.save({ session: mongoSession });
 
     await mongoSession.commitTransaction();
