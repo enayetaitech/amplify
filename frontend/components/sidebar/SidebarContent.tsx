@@ -212,28 +212,28 @@ export default function SidebarContent({
           </Collapsible>
 
           {/* Admin-only */}
-          {user?.role === "AmplifyAdmin" && (
+          {(user?.role === "AmplifyAdmin" || user?.role === "SuperAdmin") && (
             <>
               <Link
-                href="/external-admins"
+                href="/admin/external-admins"
                 className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
               >
                 <FaUserClock />
                 <span>External Admins</span>
               </Link>
               <Link
-                href="/internal-admins"
+                href="/admin/users"
                 className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
               >
                 <FaUserClock />
                 <span>Internal Admins</span>
               </Link>
               <Link
-                href="/companies"
+                href="/admin/admin-list"
                 className="flex items-center gap-3 text-custom-blue-gray-1 hover:text-custom-gray-5"
               >
                 <MdOutlineInsertChart />
-                <span>Companies</span>
+                <span>Admin List</span>
               </Link>
             </>
           )}

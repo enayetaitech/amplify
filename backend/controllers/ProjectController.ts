@@ -563,6 +563,7 @@ export const getProjectsForUserMembership = async (
       hasPrev: false,
       hasNext: false,
     });
+    return;
   }
 
   const projects = await ProjectModel.find({

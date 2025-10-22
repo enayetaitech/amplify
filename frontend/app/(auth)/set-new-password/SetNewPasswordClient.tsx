@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -27,7 +27,7 @@ const Schema = z
     path: ["confirm"],
   });
 
-function SetNewPasswordBody() {
+export default function SetNewPasswordClient() {
   const sp = useSearchParams();
   const router = useRouter();
   const token = sp.get("token") || "";
@@ -94,13 +94,5 @@ function SetNewPasswordBody() {
         </form>
       </Card>
     </div>
-  );
-}
-
-export default function SetNewPassword() {
-  return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <SetNewPasswordBody />
-    </Suspense>
   );
 }

@@ -476,6 +476,9 @@ export const refreshToken = async (
   if (!user) {
     return next(new ErrorHandler("User not found", 404));
   }
+  if (user.status !== "Active" || user.isDeleted) {
+    return next(new ErrorHandler("Account is not active", 403));
+  }
 
   // sign a fresh access token
   const newAccessToken = signAccessToken({

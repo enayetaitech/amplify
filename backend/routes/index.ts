@@ -12,6 +12,7 @@ import pollRoutes from "./poll/PollRoutes";
 import liveSessionRoutes from "./liveSession/LiveSessionRoutes";
 import livekitRoutes from "./livekit/livekit.routes";
 import waitingRoomRoutes from "./waitingRoom/WaitingRoomRoutes";
+import adminRoutes from "./admin/adminRoutes";
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ const routes: { path: string; route: express.Router }[] = [
   { path: "/liveSessions", route: liveSessionRoutes },
   { path: "/livekit", route: livekitRoutes },
   { path: "/waiting-room", route: waitingRoomRoutes },
+  { path: "/admin", route: adminRoutes },
   { path: "/reports", route: require("./reports/ReportsRoutes").default },
   {
     path: "/whiteboard",

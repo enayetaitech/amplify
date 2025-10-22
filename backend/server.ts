@@ -13,6 +13,9 @@ import http from "http";
 import { attachSocket } from "./socket/index";
 import { rescheduleAllBreakoutTimers } from "./services/breakoutScheduler";
 import { baseLogger } from "./utils/logger";
+import cron from "node-cron";
+import { AuditLogModel } from "./model/AuditLog";
+import { ensureSuperAdmin } from "./scripts/ensureSuperAdmin";
 
 const app = express();
 baseLogger.info(
@@ -81,6 +84,15 @@ server.listen(PORT, async () => {
   await connectDB();
   baseLogger.info({ port: PORT }, "Server is running");
   try {
+    await ensureSuperAdmin();
+    baseLogger.info("SuperAdmin ensured/seeded");
+  } catch (e) {
+    baseLogger.error(
+      { err: e instanceof Error ? e : { message: String(e) } },
+      "Failed to ensure SuperAdmin"
+    );
+  }
+  try {
     await rescheduleAllBreakoutTimers();
     baseLogger.info("Breakout timers rescheduled");
   } catch (e) {
@@ -89,4 +101,17 @@ server.listen(PORT, async () => {
       "Failed to reschedule breakout timers"
     );
   }
+  // daily at 03:15 purge old audit logs based on retention
+  const retentionDays = Number(process.env.AUDIT_RETENTION_DAYS || 365);
+  cron.schedule("15 3 * * *", async () => {
+    try {
+      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+      const res = await AuditLogModel.deleteMany({
+        createdAt: { $lt: cutoff },
+      });
+      baseLogger.info({ deleted: res.deletedCount }, "AuditLog purge complete");
+    } catch (err) {
+      baseLogger.error({ err }, "AuditLog purge failed");
+    }
+  });
 });

@@ -39,13 +39,29 @@ export const resetPasswordEmailTemplate = (
   <p>Hi ${name},</p>
   <p>Please copy the link below to reset your password:</p>
   <p>
-    <a href="${process.env.FRONTEND_BASE_URL}/reset-password?token=${token}">
+    <a href="${process.env.FRONTEND_BASE_URL}/set-new-password?token=${token}">
       Reset Your Password
     </a>
   </p>
   <p>If you did not request a password reset, please ignore this email.</p>
   <p>Thank you!</p>
   <p>The Amplify Team</p>
+`;
+
+export const adminInviteEmailTemplate = (params: {
+  firstName: string;
+  role: string;
+  companyName: string;
+  loginUrl: string;
+  setPasswordUrl: string;
+}) => `
+  <p>Hi ${params.firstName},</p>
+  <p>Your ${params.role} account for ${params.companyName} has been created.</p>
+  <p>
+    <a href="${params.setPasswordUrl}" style="background:#FC6E15;color:#fff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block">Set Your Password</a>
+  </p>
+  <p>After setting your password, log in here: <a href="${params.loginUrl}">${params.loginUrl}</a></p>
+  <p>Thanks,<br/>The Amplify Team</p>
 `;
 
 export const projectInfoEmailTemplate = ({
