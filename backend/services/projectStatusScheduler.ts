@@ -49,10 +49,24 @@ export async function sendClosingWarnings() {
     if (days >= 20 && days < 21 && !p.closingWarn10At) {
       const owner = await User.findById(p.createdBy).lean();
       if (owner?.email) {
+        const closingDate = new Date(
+          now + 10 * 24 * 60 * 60 * 1000
+        ).toLocaleDateString("en-US", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const projectUrl = `${process.env.FRONTEND_BASE_URL}/projects/${p._id}`;
+
         await sendEmail({
           to: owner.email,
-          subject: "Project nearing auto-close in 10 days",
-          html: projectClosingWarning10(p.name),
+          subject: `Amplify Virtual Backroom: Project ${p.name} Will Be Closing in 10 Days`,
+          html: projectClosingWarning10({
+            projectName: p.name,
+            closingDate,
+            projectUrl,
+          }),
         });
         p.closingWarn10At = new Date();
         await p.save();
@@ -63,10 +77,24 @@ export async function sendClosingWarnings() {
     if (days >= 28 && days < 29 && !p.closingWarn2At) {
       const owner = await User.findById(p.createdBy).lean();
       if (owner?.email) {
+        const closingDate = new Date(
+          now + 2 * 24 * 60 * 60 * 1000
+        ).toLocaleDateString("en-US", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const projectUrl = `${process.env.FRONTEND_BASE_URL}/projects/${p._id}`;
+
         await sendEmail({
           to: owner.email,
-          subject: "Project will auto-close in 2 days",
-          html: projectClosingWarning2(p.name),
+          subject: `Amplify Virtual Backroom: Project ${p.name} Will Be Closing in 2 Days`,
+          html: projectClosingWarning2({
+            projectName: p.name,
+            closingDate,
+            projectUrl,
+          }),
         });
         p.closingWarn2At = new Date();
         await p.save();

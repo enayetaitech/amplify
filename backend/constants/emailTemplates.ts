@@ -197,17 +197,64 @@ export const invitationToRegisterEmailTemplate = (params: {
 // Project status emails
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const projectClosingWarning10 = (projectName: string) => `
-  <p>Hi there,</p>
-  <p>Your project <strong>${projectName}</strong> has had no meetings scheduled or completed in the last 20 days.</p>
-  <p>It will be automatically set to <strong>Closed</strong> in 10 days if no new meetings are scheduled.</p>
-  <p>You can schedule a new meeting or contact Amplify support if this is unexpected.</p>
-  <p>– Amplify Team</p>
+export const projectClosingWarning10 = (params: {
+  projectName: string;
+  closingDate: string;
+  projectUrl: string;
+}) => `
+  <p>Subject: Amplify Virtual Backroom: Project ${params.projectName} Will Be Closing in 10 Days</p>
+  
+  <p>Thank you for using Amplify's Virtual Backroom for your streaming platform on Project ${params.projectName}. Projects automatically close when no sessions are scheduled in the future and no sessions have occurred in the past 30 days. This email is to alert you that your project is scheduled to close at 11:59pm Pacific time on ${params.closingDate}.</p>
+  
+  <p>Once a project is closed, no additional sessions can be scheduled. All project materials and recordings will remain available in your account for 60 days. After that period, audio and video recordings will no longer be accessible. Please be sure to download any necessary files or subscribe to an extended storage plan before they are archived.</p>
+  
+  <p style="text-align: center; margin: 24px 0;">
+    <a
+      href="${params.projectUrl}"
+      style="
+        background-color: #FC6E15;
+        color: #ffffff;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: bold;
+      "
+    >
+      LINK TO PROJECT PAGE
+    </a>
+  </p>
+  
+  <p>Please do not respond to this email. If you have any questions or need additional support, please reach out to vbsupport@amplifyresearch.com.</p>
 `;
 
-export const projectClosingWarning2 = (projectName: string) => `
-  <p>Hi there,</p>
-  <p>Your project <strong>${projectName}</strong> is scheduled to be automatically <strong>Closed</strong> in 2 days due to inactivity.</p>
-  <p>Schedule a meeting to keep it Active, or reach out to Amplify support with questions.</p>
-  <p>– Amplify Team</p>
+export const projectClosingWarning2 = (params: {
+  projectName: string;
+  closingDate: string;
+  projectUrl: string;
+}) => `
+  <p>Subject: Amplify Virtual Backroom: Project ${params.projectName} Will Be Closing in 2 Days</p>
+  
+  <p>Thank you for using Amplify's Virtual Backroom for your streaming platform on Project ${params.projectName}. Projects automatically close when no sessions are scheduled in the future and no sessions have occurred in the past 30 days. This email is to alert you that your project is scheduled to close at 11:59pm Pacific time on ${params.closingDate}.</p>
+  
+  <p>Once a project is closed, no additional sessions can be scheduled. All project materials and recordings will remain available in your account for 60 days. After that period, audio and video recordings will no longer be accessible. Please be sure to download any necessary files or subscribe to an extended storage plan before they are archived.</p>
+  
+  <p style="text-align: center; margin: 24px 0;">
+    <a
+      href="${params.projectUrl}"
+      style="
+        background-color: #FC6E15;
+        color: #ffffff;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 4px;
+        display: inline-block;
+        font-weight: bold;
+      "
+    >
+      LINK TO PROJECT PAGE
+    </a>
+  </p>
+  
+  <p>Please do not respond to this email. If you have any questions or need additional support, please reach out to vbsupport@amplifyresearch.com.</p>
 `;
