@@ -258,6 +258,9 @@ const Sessions = () => {
     onSuccess: () => {
       toast.success("Session deleted");
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+      // Invalidate project queries in case project status changes (e.g., active -> draft if last session deleted)
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["projectsByUser"] });
     },
     onError: (err) => {
       const msg = axios.isAxiosError(err)
@@ -276,6 +279,9 @@ const Sessions = () => {
     onSuccess: () => {
       toast.success("Session duplicated");
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+      // Invalidate project queries in case project status changes
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["projectsByUser"] });
     },
     onError: (err) => {
       toast.error(err.message || "Could not duplicate session");
@@ -294,6 +300,9 @@ const Sessions = () => {
     onSuccess() {
       toast.success("Session updated");
       queryClient.invalidateQueries({ queryKey: ["sessions", projectId] });
+      // Invalidate project queries in case project status changes
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["projectsByUser"] });
       setOpenEditModal(false);
     },
 
