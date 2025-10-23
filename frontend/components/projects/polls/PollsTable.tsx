@@ -11,7 +11,7 @@ import {
   TableFooter,
 } from "components/ui/table";
 import { Button } from "components/ui/button";
-import { Eye, Edit2, Trash2, Copy } from "lucide-react";
+import { Eye, Edit2, Trash2, Copy, ChevronsUpDown } from "lucide-react";
 import { IPoll } from "@shared/interface/PollInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import CustomPagination from "components/shared/Pagination";
@@ -24,6 +24,12 @@ interface PollsTableProps {
   onEdit: (poll: IPoll) => void;
   onPreview: (poll: IPoll) => void;
   onDuplicate: (pollId: string) => void;
+  sortBy: "title" | "lastModified";
+  sortOrder: "asc" | "desc";
+  onSortChange: (
+    field: "title" | "lastModified",
+    order: "asc" | "desc"
+  ) => void;
 }
 
 const PollsTable: React.FC<PollsTableProps> = ({
@@ -34,30 +40,75 @@ const PollsTable: React.FC<PollsTableProps> = ({
   onEdit,
   onPreview,
   onDuplicate,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }) => {
+  const handleHeaderClick = (field: "title" | "lastModified"): void => {
+    const nextOrder: "asc" | "desc" =
+      sortBy === field && sortOrder === "asc" ? "desc" : "asc";
+    onSortChange(field, nextOrder);
+  };
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto ">
       <div className="bg-white rounded-lg shadow-lg">
         <Table className="min-w-full divide-y divide-gray-200">
           <TableHeader>
             <TableRow>
-              {[
-                "Title",
-                "Question Count",
-                "Created By",
-                "Last Modified",
-                "Responses",
-                "Actions",
-              ].map((col) => (
-                <TableHead
-                  key={col}
-                  className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words"
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <button
+                  type="button"
+                  className="inline-flex items-center space-x-1 cursor-pointer"
+                  onClick={() => handleHeaderClick("title")}
                 >
-                  <div className="inline-flex items-center space-x-1">
-                    {col}
-                  </div>
-                </TableHead>
-              ))}
+                  <span>Title</span>
+                  <ChevronsUpDown
+                    className={
+                      "h-4 w-4 " +
+                      (sortBy === "title"
+                        ? "text-custom-dark-blue-1"
+                        : "text-gray-400")
+                    }
+                  />
+                </button>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Question Count</span>
+                </div>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Created By</span>
+                </div>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <button
+                  type="button"
+                  className="inline-flex items-center space-x-1 cursor-pointer"
+                  onClick={() => handleHeaderClick("lastModified")}
+                >
+                  <span>Last Modified</span>
+                  <ChevronsUpDown
+                    className={
+                      "h-4 w-4 " +
+                      (sortBy === "lastModified"
+                        ? "text-custom-dark-blue-1"
+                        : "text-gray-400")
+                    }
+                  />
+                </button>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Responses</span>
+                </div>
+              </TableHead>
+              <TableHead className=" py-5 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider whitespace-normal break-words">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Actions</span>
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="bg-white divide-y divide-gray-100">

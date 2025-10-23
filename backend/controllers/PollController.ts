@@ -100,7 +100,7 @@ export const createPoll = async (
 
 /**
  * GET /api/v1/polls/project/:projectId
- * Query params: ?page=1&limit=10
+ * Query params: ?page=1&limit=10&sortBy=title&sortOrder=asc
  */
 export const getPollsByProjectId = async (
   req: Request,
@@ -114,10 +114,24 @@ export const getPollsByProjectId = async (
   const limit = Math.max(Number(req.query.limit) || 10, 1);
   const skip = (page - 1) * limit;
 
-  // 3️⃣ Fetch slice + count
+  // 3️⃣ Sorting params
+  const sortBy = (req.query.sortBy as string) || "createdAt";
+  const sortOrder = (req.query.sortOrder as string) || "desc";
+
+  // Map frontend field names to database field names
+  const sortFieldMap: Record<string, string> = {
+    title: "title",
+    lastModified: "lastModified",
+    createdAt: "createdAt",
+  };
+
+  const sortField = sortFieldMap[sortBy] || "createdAt";
+  const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+  // 4️⃣ Fetch slice + count
   const [polls, total] = await Promise.all([
     PollModel.find({ projectId })
-      .sort({ createdAt: -1 })
+      .sort({ [sortField]: sortDirection })
       .skip(skip)
       .limit(limit)
       .populate("createdBy", "firstName lastName")
@@ -125,7 +139,7 @@ export const getPollsByProjectId = async (
     PollModel.countDocuments({ projectId }),
   ]);
 
-  // 4️⃣ Build meta
+  // 5️⃣ Build meta
   const totalPages = Math.ceil(total / limit);
   const meta = {
     page,

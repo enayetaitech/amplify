@@ -27,6 +27,10 @@ const Polls = () => {
   const queryClient = useQueryClient();
   const limit = 10;
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"title" | "lastModified">(
+    "lastModified"
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [editingPoll, setEditingPoll] = useState<IPoll | null>(null);
   const [previewing, setPreviewing] = useState<IPoll | null>(null);
   const [pendingDeletePoll, setPendingDeletePoll] = useState<string | null>(
@@ -37,12 +41,12 @@ const Polls = () => {
     { data: IPoll[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["polls", projectId, page],
+    queryKey: ["polls", projectId, page, sortBy, sortOrder],
     queryFn: () =>
       api
         .get<{ data: IPoll[]; meta: IPaginationMeta }>(
           `/api/v1/polls/project/${projectId}`,
-          { params: { page, limit } }
+          { params: { page, limit, sortBy, sortOrder } }
         )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
@@ -103,6 +107,13 @@ const Polls = () => {
             onEdit={(poll) => setEditingPoll(poll)}
             onPreview={(p) => setPreviewing(p)}
             onDuplicate={(pollId) => duplicateMutation.mutate(pollId)}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={(field, order) => {
+              setSortBy(field);
+              setSortOrder(order);
+              setPage(1);
+            }}
           />
         </div>
       )}
