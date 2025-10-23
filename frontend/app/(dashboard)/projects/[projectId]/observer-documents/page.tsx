@@ -13,7 +13,7 @@ import { IObserverDocument } from "@shared/interface/ObserverDocumentInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
-import { Download, Trash2, Upload } from "lucide-react";
+import { Download, Trash2, Upload, ChevronsUpDown } from "lucide-react";
 import CustomPagination from "components/shared/Pagination";
 import {
   Table,
@@ -52,6 +52,8 @@ const ObserverDocuments = () => {
 
   // 2️⃣ all hooks go here, top-level, unconditionally
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"displayName">("displayName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const limit = 10;
   const queryClient = useQueryClient();
@@ -67,12 +69,12 @@ const ObserverDocuments = () => {
     { data: IObserverDocument[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["observerDocs", projectId, page],
+    queryKey: ["observerDocs", projectId, page, sortBy, sortOrder],
     queryFn: () =>
       api
         .get<{ data: IObserverDocument[]; meta: IPaginationMeta }>(
           `/api/v1/observerDocuments/project/${projectId}`,
-          { params: { page, limit } }
+          { params: { page, limit, sortBy, sortOrder } }
         )
         .then((res) => res.data),
     enabled: !!projectId,
@@ -164,6 +166,14 @@ const ObserverDocuments = () => {
     );
   };
 
+  const handleHeaderClick = (field: "displayName"): void => {
+    const nextOrder: "asc" | "desc" =
+      sortBy === field && sortOrder === "asc" ? "desc" : "asc";
+    setSortBy(field);
+    setSortOrder(nextOrder);
+    setPage(1);
+  };
+
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
@@ -225,7 +235,23 @@ const ObserverDocuments = () => {
                     </CustomButton>
                   </div>
                 </TableHead>
-                <TableHead>File Name</TableHead>
+                <TableHead>
+                  <button
+                    type="button"
+                    className="inline-flex items-center space-x-1 cursor-pointer"
+                    onClick={() => handleHeaderClick("displayName")}
+                  >
+                    <span>File Name</span>
+                    <ChevronsUpDown
+                      className={
+                        "h-4 w-4 " +
+                        (sortBy === "displayName"
+                          ? "text-custom-dark-blue-1"
+                          : "text-gray-400")
+                      }
+                    />
+                  </button>
+                </TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Added By</TableHead>
                 <TableHead className="text-center">Action</TableHead>

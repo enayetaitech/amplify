@@ -58,8 +58,8 @@ export const createObserverDocument = async (
 };
 
 /**
- * GET /api/v1/observer-documents/project/:projectId?page=&limit=
- * Returns observer documents for a project with pagination.
+ * GET /api/v1/observer-documents/project/:projectId?page=&limit=&sortBy=&sortOrder=
+ * Returns observer documents for a project with pagination and sorting.
  */
 export const getObserverDocumentsByProjectId = async (
   req: Request,
@@ -79,10 +79,23 @@ export const getObserverDocumentsByProjectId = async (
     const limit = Math.max(Number(req.query.limit) || 10, 1);
     const skip = (page - 1) * limit;
 
-    /* 3️⃣ query slice + total in parallel */
+    /* 3️⃣ sorting params */
+    const sortBy = (req.query.sortBy as string) || "createdAt";
+    const sortOrder = (req.query.sortOrder as string) || "desc";
+
+    // Map frontend field names to database field names
+    const sortFieldMap: Record<string, string> = {
+      displayName: "displayName",
+      createdAt: "createdAt",
+    };
+
+    const sortField = sortFieldMap[sortBy] || "createdAt";
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+    /* 4️⃣ query slice + total in parallel */
     const [docs, total] = await Promise.all([
       ObserverDocumentModel.find({ projectId })
-        .sort({ createdAt: -1 }) // newest first
+        .sort({ [sortField]: sortDirection })
         .skip(skip)
         .limit(limit)
         .populate("addedBy", "firstName lastName role") // optional: show uploader
@@ -90,7 +103,7 @@ export const getObserverDocumentsByProjectId = async (
       ObserverDocumentModel.countDocuments({ projectId }),
     ]);
 
-    /* 4️⃣ meta payload */
+    /* 5️⃣ meta payload */
     const totalPages = Math.ceil(total / limit);
     const meta = {
       page,
