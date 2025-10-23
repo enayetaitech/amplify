@@ -18,18 +18,20 @@ const ProjectTeam = () => {
 
   const [openAddModeratorModal, setOpenAddModeratorModal] = useState(false);
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"lastName">("lastName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const limit = 10;
 
   const { data, isLoading, error } = useQuery<
     { data: IModerator[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["projectTeam", projectId, page],
+    queryKey: ["projectTeam", projectId, page, sortBy, sortOrder],
     queryFn: () =>
       api
         .get<{ data: IModerator[]; meta: IPaginationMeta }>(
           `/api/v1/moderators/project/${projectId}`,
-          { params: { page, limit } }
+          { params: { page, limit, sortBy, sortOrder } }
         )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
@@ -69,6 +71,13 @@ const ProjectTeam = () => {
             moderators={data!.data}
             meta={data!.meta}
             onPageChange={setPage}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={(field, order) => {
+              setSortBy(field);
+              setSortOrder(order);
+              setPage(1);
+            }}
           />
         </div>
       )}
