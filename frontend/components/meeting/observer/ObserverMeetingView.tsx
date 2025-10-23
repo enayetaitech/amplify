@@ -43,8 +43,19 @@ export default function ObserverMeetingView({
   const [meetingSocket, setMeetingSocket] = useState<Socket | undefined>(
     undefined
   );
-  const [isLeftOpen, setIsLeftOpen] = useState(true);
-  const [isRightOpen, setIsRightOpen] = useState(true);
+  // Initialize sidebar state based on screen size: closed on mobile, open on desktop
+  const [isLeftOpen, setIsLeftOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 768; // md breakpoint
+    }
+    return false;
+  });
+  const [isRightOpen, setIsRightOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 768; // md breakpoint
+    }
+    return false;
+  });
   const [observerCount, setObserverCount] = useState(0);
   const [observerList, setObserverList] = useState<
     { name: string; email: string }[]
@@ -542,12 +553,13 @@ export default function ObserverMeetingView({
     );
   };
 
-  const mainColSpanClass =
+  const mdSpan =
     (isLeftOpen ? 1 : 0) + (isRightOpen ? 1 : 0) === 2
-      ? "col-span-6"
+      ? "md:col-span-6"
       : (isLeftOpen ? 1 : 0) + (isRightOpen ? 1 : 0) === 1
-      ? "col-span-9"
-      : "col-span-12";
+      ? "md:col-span-9"
+      : "md:col-span-12";
+  const mainColSpanClass = `${mdSpan}`;
 
   const hasBreakouts = useMemo(
     () => options.some((o) => o.key !== "__main__"),
@@ -686,39 +698,46 @@ export default function ObserverMeetingView({
   }, [sessionId, initialMainUrl, selected]);
 
   return (
-    <div className="relative grid grid-cols-12 gap-4 h-[100dvh]">
+    <div className="relative grid grid-cols-12 gap-4 h-[100dvh] overflow-hidden min-h-0">
       {isLeftOpen && (
-        <div className="relative col-span-3 h-[100dvh] rounded-r-2xl p-2 overflow-y-auto overflow-x-hidden bg-white shadow min-h-0 flex flex-col gap-4">
-          <button
-            type="button"
+        <>
+          {/* mobile backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 z-30 md:hidden"
             onClick={() => setIsLeftOpen(false)}
-            className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
-            aria-label="Collapse left panel"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          {/* Upper: Participants tabs */}
-          <ParticipantMessageInObserverLeftSidebar
-            participants={participants}
-            participantGroupMessages={participantGroupMessages}
-            participantGroupLoading={participantGroupLoading}
-            sharedPoll={sharedPoll}
-            resultsMapping={resultsMapping}
-            sharedRunId={sharedRunId}
           />
-
-          {hasBreakouts && <Separator className="my-2" />}
-
-          {/* Lower: Breakouts selection */}
-          {hasBreakouts && (
-            <ObserverBreakoutSelect
-              options={options}
-              selected={selected}
-              setSelected={setSelected}
-              url={url}
+          <aside className="fixed inset-y-0 left-0 z-40 w-[320px] max-w-[85vw] bg-white shadow overflow-y-auto overflow-x-hidden p-3 rounded-none md:relative md:z-auto md:w-auto md:inset-auto md:left-auto md:col-span-3 md:h-full md:rounded-r-2xl md:p-2 flex flex-col gap-4">
+            <button
+              type="button"
+              onClick={() => setIsLeftOpen(false)}
+              className="absolute -right-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              aria-label="Collapse left panel"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            {/* Upper: Participants tabs */}
+            <ParticipantMessageInObserverLeftSidebar
+              participants={participants}
+              participantGroupMessages={participantGroupMessages}
+              participantGroupLoading={participantGroupLoading}
+              sharedPoll={sharedPoll}
+              resultsMapping={resultsMapping}
+              sharedRunId={sharedRunId}
             />
-          )}
-        </div>
+
+            {hasBreakouts && <Separator className="my-2" />}
+
+            {/* Lower: Breakouts selection */}
+            {hasBreakouts && (
+              <ObserverBreakoutSelect
+                options={options}
+                selected={selected}
+                setSelected={setSelected}
+                url={url}
+              />
+            )}
+          </aside>
+        </>
       )}
       {!isLeftOpen && (
         <button
@@ -731,7 +750,9 @@ export default function ObserverMeetingView({
         </button>
       )}
 
-      <div className={`${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}>
+      <div
+        className={`col-span-12 ${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}
+      >
         {url ? (
           <ObserverHlsLayout hlsUrl={url} />
         ) : (
@@ -740,43 +761,50 @@ export default function ObserverMeetingView({
       </div>
 
       {isRightOpen && (
-        <aside className="relative col-span-3 h-[100dvh] rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
-          <button
-            type="button"
+        <>
+          {/* mobile backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 z-30 md:hidden"
             onClick={() => setIsRightOpen(false)}
-            className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
-            aria-label="Collapse right panel"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          <ObserverMessageComponent
-            observerCount={observerCount}
-            observerList={observerList}
-            moderatorList={moderatorList}
-            myEmailLower={myEmailLower}
-            dmUnreadByEmail={dmUnreadByEmail}
-            setDmUnreadByEmail={setDmUnreadByEmail}
-            selectedObserver={selectedObserver}
-            setSelectedObserver={setSelectedObserver}
-            showGroupChatObs={showGroupChatObs}
-            setShowGroupChatObs={setShowGroupChatObs}
-            groupUnread={groupUnread}
-            groupRef={groupRef}
-            groupLoading={groupLoading}
-            groupMessages={groupMessages}
-            groupText={groupText}
-            setGroupText={setGroupText}
-            sendGroup={sendGroup}
-            dmRef={dmRef}
-            loadingHistory={loadingHistory}
-            dmMessages={dmMessages}
-            dmText={dmText}
-            setDmText={setDmText}
-            sendDm={sendDm}
           />
+          <aside className="fixed inset-y-0 right-0 z-40 w-[320px] max-w-[85vw] bg-white shadow overflow-y-auto overflow-x-hidden p-3 rounded-none md:relative md:z-auto md:w-auto md:inset-auto md:right-auto md:col-span-3 md:h-full md:rounded-l-2xl md:p-2">
+            <button
+              type="button"
+              onClick={() => setIsRightOpen(false)}
+              className="absolute -left-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              aria-label="Collapse right panel"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <ObserverMessageComponent
+              observerCount={observerCount}
+              observerList={observerList}
+              moderatorList={moderatorList}
+              myEmailLower={myEmailLower}
+              dmUnreadByEmail={dmUnreadByEmail}
+              setDmUnreadByEmail={setDmUnreadByEmail}
+              selectedObserver={selectedObserver}
+              setSelectedObserver={setSelectedObserver}
+              showGroupChatObs={showGroupChatObs}
+              setShowGroupChatObs={setShowGroupChatObs}
+              groupUnread={groupUnread}
+              groupRef={groupRef}
+              groupLoading={groupLoading}
+              groupMessages={groupMessages}
+              groupText={groupText}
+              setGroupText={setGroupText}
+              sendGroup={sendGroup}
+              dmRef={dmRef}
+              loadingHistory={loadingHistory}
+              dmMessages={dmMessages}
+              dmText={dmText}
+              setDmText={setDmText}
+              sendDm={sendDm}
+            />
 
-          <DocumentHub projectId={projectId} />
-        </aside>
+            <DocumentHub projectId={projectId} />
+          </aside>
+        </>
       )}
       {!isRightOpen && (
         <button

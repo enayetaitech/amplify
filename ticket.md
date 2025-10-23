@@ -1,5 +1,8 @@
-1. Observer sidebar mobile view need to fix.
-2. Observer observation small screen sidebar open should be made false.
+1. ✅ FIXED - Observer sidebar mobile view need to fix.
+   - Root cause: Observer sidebar used fixed col-span-3 without responsive mobile behavior
+   - Solution: Added fixed overlay positioning for mobile (like moderator view) with backdrop, responsive breakpoints
+2. ✅ FIXED - Observer observation small screen sidebar open should be made false.
+   - Solution: Sidebars now initialize closed on mobile (<768px), open on desktop (≥768px)
 3. ✅ FIXED - When session is added to a new project (status changes from draft to active), sidebar doesn't update
    - Root cause: Cache invalidation was missing for project queries when sessions are created/deleted/edited
    - Solution: Added invalidation for ["project", projectId] and ["projectsByUser"] queries in all session mutations
