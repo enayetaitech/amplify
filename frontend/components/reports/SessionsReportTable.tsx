@@ -35,6 +35,7 @@ type Observer = {
   email?: string;
   companyName?: string;
   joinTime?: string;
+  leaveTime?: string;
   ip?: string;
   location?: string;
 };
@@ -330,6 +331,7 @@ export default function SessionsReportTable({
                                   <TableHead>Email</TableHead>
                                   <TableHead>Company</TableHead>
                                   <TableHead>Join</TableHead>
+                                  <TableHead>Leave</TableHead>
                                   <TableHead>IP</TableHead>
                                   <TableHead>Location</TableHead>
                                 </TableRow>
@@ -347,6 +349,11 @@ export default function SessionsReportTable({
                                     <TableCell>
                                       {o.joinTime
                                         ? new Date(o.joinTime).toLocaleString()
+                                        : ""}
+                                    </TableCell>
+                                    <TableCell>
+                                      {o.leaveTime
+                                        ? new Date(o.leaveTime).toLocaleString()
                                         : ""}
                                     </TableCell>
                                     <TableCell>{o.ip || ""}</TableCell>
