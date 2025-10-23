@@ -52,6 +52,20 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
     onSortChange(field, nextOrder);
   };
 
+  // Helper to sort roles in consistent order: Admin, Moderator, Observer
+  const formatRoles = (roles: string[] | undefined): string => {
+    if (!roles || roles.length === 0) return "";
+
+    const roleOrder = ["Admin", "Moderator", "Observer"];
+    const sorted = [...roles].sort((a, b) => {
+      const indexA = roleOrder.indexOf(a);
+      const indexB = roleOrder.indexOf(b);
+      return indexA - indexB;
+    });
+
+    return sorted.join(", ");
+  };
+
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto">
       <div className="bg-white rounded-lg shadow-lg">
@@ -106,7 +120,7 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 ">
                     {m.roles?.length ? (
-                      m.roles.join(", ")
+                      formatRoles(m.roles)
                     ) : (
                       <span className="text-gray-400">No role assigned</span>
                     )}
