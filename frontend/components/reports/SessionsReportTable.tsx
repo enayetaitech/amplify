@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogTrigger } from "components/ui/dialog";
 import api from "lib/api";
 import { safeLocalGet } from "utils/storage";
 import CustomPagination from "components/shared/Pagination";
+import { useGlobalContext } from "context/GlobalContext";
 
 type Participant = {
   userId?: string;
@@ -104,6 +105,9 @@ export default function SessionsReportTable({
   onPageChange?: (p: number) => void;
   timeZone?: string; // reserved for future timezone-aware formatting
 }) {
+  const { user } = useGlobalContext();
+  const canViewSensitiveData = ["SuperAdmin"].includes(user?.role || "");
+
   const [openSession, setOpenSession] = useState<SessionReportRow | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [observers, setObservers] = useState<Observer[]>([]);
@@ -287,8 +291,12 @@ export default function SessionsReportTable({
                                   <TableHead>Device</TableHead>
                                   <TableHead>Join</TableHead>
                                   <TableHead>Leave</TableHead>
-                                  <TableHead>IP</TableHead>
-                                  <TableHead>Location</TableHead>
+                                  {canViewSensitiveData && (
+                                    <TableHead>IP</TableHead>
+                                  )}
+                                  {canViewSensitiveData && (
+                                    <TableHead>Location</TableHead>
+                                  )}
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -310,8 +318,12 @@ export default function SessionsReportTable({
                                         ? new Date(p.leaveTime).toLocaleString()
                                         : ""}
                                     </TableCell>
-                                    <TableCell>{p.ip || ""}</TableCell>
-                                    <TableCell>{p.location || ""}</TableCell>
+                                    {canViewSensitiveData && (
+                                      <TableCell>{p.ip || ""}</TableCell>
+                                    )}
+                                    {canViewSensitiveData && (
+                                      <TableCell>{p.location || ""}</TableCell>
+                                    )}
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -328,12 +340,16 @@ export default function SessionsReportTable({
                               <TableHeader>
                                 <TableRow>
                                   <TableHead>Name</TableHead>
-                                  <TableHead>Email</TableHead>
+
                                   <TableHead>Company</TableHead>
                                   <TableHead>Join</TableHead>
                                   <TableHead>Leave</TableHead>
-                                  <TableHead>IP</TableHead>
-                                  <TableHead>Location</TableHead>
+                                  {canViewSensitiveData && (
+                                    <TableHead>IP</TableHead>
+                                  )}
+                                  {canViewSensitiveData && (
+                                    <TableHead>Location</TableHead>
+                                  )}
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -344,7 +360,7 @@ export default function SessionsReportTable({
                                     <TableCell>
                                       {o.observerName || o.name}
                                     </TableCell>
-                                    <TableCell>{o.email}</TableCell>
+
                                     <TableCell>{o.companyName || ""}</TableCell>
                                     <TableCell>
                                       {o.joinTime
@@ -356,8 +372,12 @@ export default function SessionsReportTable({
                                         ? new Date(o.leaveTime).toLocaleString()
                                         : ""}
                                     </TableCell>
-                                    <TableCell>{o.ip || ""}</TableCell>
-                                    <TableCell>{o.location || ""}</TableCell>
+                                    {canViewSensitiveData && (
+                                      <TableCell>{o.ip || ""}</TableCell>
+                                    )}
+                                    {canViewSensitiveData && (
+                                      <TableCell>{o.location || ""}</TableCell>
+                                    )}
                                   </TableRow>
                                 ))}
                               </TableBody>
