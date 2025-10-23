@@ -63,6 +63,22 @@ const Polls = () => {
     },
   });
 
+  // Duplicate mutation
+  const duplicateMutation = useMutation<void, Error, string>({
+    mutationFn: (pollId: string) =>
+      api.post(`/api/v1/polls/${pollId}/duplicate`),
+    onSuccess: () => {
+      toast.success("Poll duplicated successfully");
+      queryClient.invalidateQueries({ queryKey: ["polls", projectId] });
+    },
+    onError: (err) => {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data.message ?? err.message
+        : "Could not duplicate poll";
+      toast.error(msg);
+    },
+  });
+
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
   return (
@@ -86,6 +102,7 @@ const Polls = () => {
             onDelete={(pollId) => setPendingDeletePoll(pollId)}
             onEdit={(poll) => setEditingPoll(poll)}
             onPreview={(p) => setPreviewing(p)}
+            onDuplicate={(pollId) => duplicateMutation.mutate(pollId)}
           />
         </div>
       )}

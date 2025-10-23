@@ -11,7 +11,7 @@ import {
   TableFooter,
 } from "components/ui/table";
 import { Button } from "components/ui/button";
-import { Eye, Edit2, Trash2 } from "lucide-react";
+import { Eye, Edit2, Trash2, Copy } from "lucide-react";
 import { IPoll } from "@shared/interface/PollInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import CustomPagination from "components/shared/Pagination";
@@ -23,6 +23,7 @@ interface PollsTableProps {
   onDelete: (pollId: string) => void;
   onEdit: (poll: IPoll) => void;
   onPreview: (poll: IPoll) => void;
+  onDuplicate: (pollId: string) => void;
 }
 
 const PollsTable: React.FC<PollsTableProps> = ({
@@ -32,6 +33,7 @@ const PollsTable: React.FC<PollsTableProps> = ({
   onDelete,
   onEdit,
   onPreview,
+  onDuplicate,
 }) => {
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto ">
@@ -88,6 +90,14 @@ const PollsTable: React.FC<PollsTableProps> = ({
                     onClick={() => onEdit(poll)}
                   >
                     <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDuplicate(poll._id)}
+                    title="Duplicate poll"
+                  >
+                    <Copy className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
