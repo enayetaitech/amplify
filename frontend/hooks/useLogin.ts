@@ -7,7 +7,10 @@ import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import api from "lib/api";
 import { IUser } from "@shared/interface/UserInterface";
-import { ApiResponse, ErrorResponse } from "@shared/interface/ApiResponseInterface";
+import {
+  ApiResponse,
+  ErrorResponse,
+} from "@shared/interface/ApiResponseInterface";
 import { LoginFormValues } from "schemas/loginSchema";
 import { useGlobalContext } from "context/GlobalContext";
 
@@ -20,7 +23,11 @@ export function useLogin() {
   const router = useRouter();
   const { setUser } = useGlobalContext();
 
-  return useMutation<ApiResponse<{ user: IUser; token: string }>, AxiosError<ErrorResponse>, LoginFormValues>({
+  return useMutation<
+    ApiResponse<{ user: IUser; token: string }>,
+    AxiosError<ErrorResponse>,
+    LoginFormValues
+  >({
     mutationFn: (vals) =>
       api
         .post<ApiResponse<{ user: IUser; token: string }>>(
@@ -38,11 +45,17 @@ export function useLogin() {
       setUser(user);
       localStorage.setItem("user", JSON.stringify(user));
       toast.success(resp.message);
-      router.replace("/projects");
+
+      // SuperAdmin and AmplifyAdmin should go to their profile page instead of projects
+      if (user.role === "SuperAdmin" || user.role === "AmplifyAdmin") {
+        router.replace(`/my-profile/${user._id}`);
+      } else {
+        router.replace("/projects");
+      }
     },
 
     onError: (err) => {
-      console.error('err', err)
+      console.error("err", err);
       const msg = axios.isAxiosError(err)
         ? err.response?.data.message ?? err.message
         : "Login failed";
