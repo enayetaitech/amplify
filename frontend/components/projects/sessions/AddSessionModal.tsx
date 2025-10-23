@@ -119,6 +119,13 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ open, onClose }) => {
       queryClient.invalidateQueries({
         queryKey: ["sessions", projectId],
       });
+      // Invalidate project queries so sidebar updates when project status changes from draft to active
+      queryClient.invalidateQueries({
+        queryKey: ["project", projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["projectsByUser"],
+      });
       setFormData(initialFormData);
       onClose();
       setStep(1);

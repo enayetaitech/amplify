@@ -37,29 +37,36 @@ const MainRightSidebar = ({
   void backroomDefaultTarget;
   void setBackroomDefaultTarget;
   return (
-    <aside className="relative col-span-3 h-full rounded-l-2xl p-3 overflow-y-auto bg-white shadow">
-      <button
-        type="button"
+    <>
+      {/* mobile backdrop */}
+      <div
+        className="fixed inset-0 bg-black/30 z-30 md:hidden"
         onClick={() => setIsRightOpen(false)}
-        className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
-        aria-label="Collapse right panel"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
-      {isStreaming ? (
-        <Backroom
-          isStreaming={isStreaming}
-          observerCount={observerCount}
-          observerList={observerList}
-          socket={socket}
-          me={me}
-        />
-      ) : (
-        <ObservationRoom />
-      )}
+      />
+      <aside className="fixed inset-y-0 right-0 z-40 w-[320px] max-w-[85vw] bg-white shadow overflow-y-auto overflow-x-hidden p-3 rounded-none md:relative md:z-auto md:w-auto md:inset-auto md:right-auto md:col-span-3 md:h-full md:rounded-l-2xl md:p-2">
+        <button
+          type="button"
+          onClick={() => setIsRightOpen(false)}
+          className="absolute -left-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+          aria-label="Collapse right panel"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        {isStreaming ? (
+          <Backroom
+            isStreaming={isStreaming}
+            observerCount={observerCount}
+            observerList={observerList}
+            socket={socket}
+            me={me}
+          />
+        ) : (
+          <ObservationRoom />
+        )}
 
-      <DocumentHub projectId={projectId} />
-    </aside>
+        <DocumentHub projectId={projectId} />
+      </aside>
+    </>
   );
 };
 

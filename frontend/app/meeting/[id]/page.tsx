@@ -115,11 +115,19 @@ function LeaveMeetingButton({
       if (role === "admin" || role === "moderator") {
         try {
           await api.post<ApiResponse<unknown>>(
-            `/api/v1/liveSessions/${sessionId}/end`
+            `/api/v1/liveSessions/${sessionId}/end`,
+            {},
+            { timeout: 15000 } // 15 second timeout for end meeting request
           );
           toast.success("Meeting ended");
-        } catch {
+        } catch (err) {
+          // Even if request times out, the meeting may have ended successfully
+          // The socket event will handle navigation if it did
+          console.log(err);
           toast.error("Failed to end meeting");
+          setBusy(false);
+          setOpen(false);
+          return;
         }
         try {
           await room.disconnect(true);
@@ -258,7 +266,14 @@ export default function Meeting() {
   const [token, setToken] = useState<string | null>(null);
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
   const [isLeftOpen, setIsLeftOpen] = useState(true);
-  const [isRightOpen, setIsRightOpen] = useState(role !== "participant");
+  // Initialize right sidebar: closed on mobile, open on desktop (for non-participants)
+  const [isRightOpen, setIsRightOpen] = useState(() => {
+    if (role === "participant") return false;
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 768; // md breakpoint
+    }
+    return false;
+  });
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [streamBusy, setStreamBusy] = useState<null | "start" | "stop">(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -927,6 +942,18 @@ export default function Meeting() {
             socket={socketRef.current}
             me={{ email: my.email, name: my.name, role: my.role }}
           />
+        )}
+
+        {/* Toggle button to open right sidebar when closed (for moderators/admins only) */}
+        {role !== "participant" && !isRightOpen && (
+          <button
+            type="button"
+            onClick={() => setIsRightOpen(true)}
+            className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            aria-label="Expand right panel"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
         )}
       </div>
     </LiveKitRoom>

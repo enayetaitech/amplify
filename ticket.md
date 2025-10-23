@@ -1,15 +1,16 @@
-1. Observer sidebar mobile view need to fix.
-2. Observer observation small screen sidebar open should be made false.
-3. After creating new user by super admin a success toast should show also for failure the error toast should also show.
-4. In the set new password component after password updating toast message should show for success or failure.
-5. Amplify admin can see sidebar for admin, external admin and company but not the super admin.
-6. Create amplify admin form the phone number should have country code dropdown.
-7. Amplify admin cannot create another amplify admin but in the create user dropdown Amplify Admin role is showing. This should be present for super admin and removed for amplify admin. and appropriate error and success toast message should show.
-8. Filter by company is not working
-9. Delete the external admin by the super admin is not working. No error message is showing.
-10. Activating and deactivating the external admin should show toast.
-11. Transfer project should show the name in the dropdown list without showing the id.
-12. Amplify admin cannot see the external admin (insufficient permission is showing), he should be able to see it as well the left sidebar is taking to /external-admin but it should /admin/external-admin
-   
-
-
+1. ✅ FIXED - Observer sidebar mobile view need to fix.
+   - Root cause: Observer sidebar used fixed col-span-3 without responsive mobile behavior
+   - Solution: Added fixed overlay positioning for mobile with backdrop, responsive breakpoints
+2. ✅ FIXED - Observer observation small screen sidebar open should be made false.
+   - Solution: Sidebars now initialize closed on mobile (<768px), open on desktop (≥768px)
+3. ✅ FIXED - Moderator right sidebar mobile view needs fixing
+   - Root cause: Right sidebar (MainRightSidebar) used fixed col-span-3 without responsive behavior, missing toggle button
+   - Solution: Added mobile overlay with backdrop, responsive positioning, and toggle button to reopen when closed
+4. ✅ FIXED - When session is added to a new project (status changes from draft to active), sidebar doesn't update
+   - Root cause: Cache invalidation was missing for project queries when sessions are created/deleted/edited
+   - Solution: Added invalidation for ["project", projectId] and ["projectsByUser"] queries in all session mutations
+5. ✅ FIXED - After clicking meeting end button it takes 2 min to end the meeting
+   - Root cause: Video processing (HLS to MP4 conversion) was blocking HTTP response
+   - Solution: Moved deliverables processing to background, ongoing flag now set immediately
+6. ✅ FIXED - After login super admin/amplify admin should not navigate to the project page
+   - Solution: SuperAdmin and AmplifyAdmin now redirect to their profile page (/my-profile/{userId}) instead of /projects
