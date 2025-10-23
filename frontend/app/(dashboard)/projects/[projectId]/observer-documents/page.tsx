@@ -319,7 +319,9 @@ const ObserverDocuments = () => {
                     </TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell>
-                      {(del.addedBy as unknown as PopulatedUser).firstName}
+                      {`${
+                        (del.addedBy as unknown as PopulatedUser).firstName
+                      } ${(del.addedBy as unknown as PopulatedUser).lastName}`}
                     </TableCell>
                     <TableCell className="text-center flex justify-center gap-2">
                       <Button
