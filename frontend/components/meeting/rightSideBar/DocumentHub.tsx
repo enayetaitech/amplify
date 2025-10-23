@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { toast } from "sonner";
 import {
   keepPreviousData,
@@ -69,6 +69,46 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
     enabled: !!projectId,
     placeholderData: keepPreviousData,
   });
+
+  // Fetch project team to check user's role in this specific project
+  const { data: projectTeam } = useQuery<
+    {
+      data: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        roles: string[];
+        adminAccess: boolean;
+      }[];
+    },
+    Error
+  >({
+    queryKey: ["projectTeam", projectId],
+    queryFn: () =>
+      api
+        .get(`/api/v1/moderators/project/${projectId}`)
+        .then((res) => res.data),
+    enabled: !!projectId && !!user?.email,
+  });
+
+  // Check if user is Admin or Moderator in THIS specific project
+  const canDelete = useMemo(() => {
+    if (!user?.email || !projectTeam?.data) return false;
+
+    const teamMember = projectTeam.data.find(
+      (member) => member.email.toLowerCase() === user.email.toLowerCase()
+    );
+
+    if (!teamMember) return false;
+
+    // Check if user has Admin or Moderator role in this project
+    return (
+      teamMember.adminAccess ||
+      teamMember.roles?.includes("Admin") ||
+      teamMember.roles?.includes("Moderator")
+    );
+  }, [user?.email, projectTeam?.data]);
 
   // single download via redirect endpoint
   const downloadOne = (id: string) => {
@@ -218,14 +258,17 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
                         <span className="text-xs text-gray-600">
                           {bytes(d.size)}
                         </span>
-                        <button
-                          type="button"
-                          className="text-red-500 cursor-pointer"
-                          aria-label="Delete file"
-                          onClick={() => deleteMutation.mutate(d._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="text-red-500 cursor-pointer hover:text-red-700"
+                            aria-label="Delete file"
+                            onClick={() => deleteMutation.mutate(d._id)}
+                            title="Delete document"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -34,6 +34,9 @@ import {
   DialogTrigger,
 } from "components/ui/dialog";
 import UploadObserverDocument from "components/projects/observerDocuments/UploadObserverDocuments";
+import { useGlobalContext } from "context/GlobalContext";
+import { Button } from "components/ui/button";
+import { useMemo } from "react";
 
 type CheckedState = boolean | "indeterminate";
 
@@ -49,6 +52,8 @@ const ObserverDocuments = () => {
     !params.projectId || Array.isArray(params.projectId)
       ? null
       : params.projectId;
+
+  const { user } = useGlobalContext();
 
   // 2️⃣ all hooks go here, top-level, unconditionally
   const [page, setPage] = useState(1);
@@ -80,6 +85,46 @@ const ObserverDocuments = () => {
     enabled: !!projectId,
     placeholderData: keepPreviousData,
   });
+
+  // Fetch project team to check user's role in this specific project
+  const { data: projectTeam } = useQuery<
+    {
+      data: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        roles: string[];
+        adminAccess: boolean;
+      }[];
+    },
+    Error
+  >({
+    queryKey: ["projectTeam", projectId],
+    queryFn: () =>
+      api
+        .get(`/api/v1/moderators/project/${projectId}`)
+        .then((res) => res.data),
+    enabled: !!projectId && !!user?.email,
+  });
+
+  // Check if user is Admin or Moderator in THIS specific project
+  const canDelete = useMemo(() => {
+    if (!user?.email || !projectTeam?.data) return false;
+
+    const teamMember = projectTeam.data.find(
+      (member) => member.email.toLowerCase() === user.email.toLowerCase()
+    );
+
+    if (!teamMember) return false;
+
+    // Check if user has Admin or Moderator role in this project
+    return (
+      teamMember.adminAccess ||
+      teamMember.roles?.includes("Admin") ||
+      teamMember.roles?.includes("Moderator")
+    );
+  }, [user?.email, projectTeam?.data]);
 
   // 2️⃣ Mutation for single-download
   const downloadOneMutation = useMutation<string, unknown, string>({
@@ -277,70 +322,75 @@ const ObserverDocuments = () => {
                       {(del.addedBy as unknown as PopulatedUser).firstName}
                     </TableCell>
                     <TableCell className="text-center flex justify-center gap-2">
-                      <CustomButton
-                        className="bg-custom-teal hover:bg-custom-dark-blue-3 rounded-lg"
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="cursor-pointer"
                         onClick={() => downloadOneMutation.mutate(del._id)}
                         disabled={downloadOneMutation.isPending}
+                        title="Download document"
                       >
-                        {downloadOneMutation.isPending
-                          ? "Downloading..."
-                          : "Download"}
-                      </CustomButton>
-                      {/* Delete */}
-                      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-                        <DialogTrigger asChild>
-                          <CustomButton
-                            size="sm"
-                            className="bg-custom-orange-1 hover:bg-custom-orange-2"
-                            onClick={() => {
-                              setToDelete({
-                                id: del._id,
-                                name: del.displayName,
-                              });
-                              setDeleteOpen(true);
-                            }}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 size={16} />
-                          </CustomButton>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Confirm delete</DialogTitle>
-                          </DialogHeader>
-                          <p>
-                            Are you sure you want to delete{" "}
-                            {toDelete?.name
-                              ? `"${toDelete.name}"`
-                              : "this document"}
-                            ?
-                          </p>
-                          <DialogFooter>
-                            <CustomButton
-                              variant="outline"
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      {/* Delete - Only for Admin/Moderator */}
+                      {canDelete && (
+                        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700 cursor-pointer"
                               onClick={() => {
-                                setDeleteOpen(false);
-                                setToDelete(null);
+                                setToDelete({
+                                  id: del._id,
+                                  name: del.displayName,
+                                });
+                                setDeleteOpen(true);
                               }}
                               disabled={deleteMutation.isPending}
+                              title="Delete document"
                             >
-                              Cancel
-                            </CustomButton>
-                            <CustomButton
-                              className="ml-2 bg-red-600 text-white"
-                              onClick={() =>
-                                toDelete?.id &&
-                                deleteMutation.mutate(toDelete.id)
-                              }
-                              disabled={deleteMutation.isPending}
-                            >
-                              {deleteMutation.isPending
-                                ? "Deleting..."
-                                : "Delete"}
-                            </CustomButton>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Confirm delete</DialogTitle>
+                            </DialogHeader>
+                            <p>
+                              Are you sure you want to delete{" "}
+                              {toDelete?.name
+                                ? `"${toDelete.name}"`
+                                : "this document"}
+                              ?
+                            </p>
+                            <DialogFooter>
+                              <CustomButton
+                                variant="outline"
+                                onClick={() => {
+                                  setDeleteOpen(false);
+                                  setToDelete(null);
+                                }}
+                                disabled={deleteMutation.isPending}
+                              >
+                                Cancel
+                              </CustomButton>
+                              <CustomButton
+                                className="ml-2 bg-red-600 text-white"
+                                onClick={() =>
+                                  toDelete?.id &&
+                                  deleteMutation.mutate(toDelete.id)
+                                }
+                                disabled={deleteMutation.isPending}
+                              >
+                                {deleteMutation.isPending
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </CustomButton>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
