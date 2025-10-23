@@ -81,24 +81,15 @@ export async function endMeeting(
   await stopHlsEgress(live.hlsEgressId || undefined);
   await stopFileEgress(live.fileEgressId || undefined);
 
-  // finalize deliverables BEFORE clearing HLS/file fields so URLs are available
-  try {
-    await finalizeSessionDeliverables(String(session._id), String(endedBy));
-  } catch (e) {
-    try {
-      console.error("finalizeSessionDeliverables failed", e);
-    } catch {}
-  }
-
-  // Ensure streaming flag and HLS fields are cleared when meeting ends
+  // Ensure streaming flag is cleared and mark when stopped
   try {
     live.streaming = false;
   } catch {}
   live.hlsStoppedAt = new Date();
-  live.hlsEgressId = null;
-  live.hlsPlaybackUrl = null;
-  live.hlsPlaylistName = null;
-  live.fileEgressId = null;
+
+  // NOTE: Keep hlsPlaybackUrl, hlsEgressId, fileEgressId as historical record
+  // The background deliverable processor needs these URLs to convert HLS to MP4
+  // They serve as a record of what was streamed during this session
 
   live.ongoing = false;
   live.endTime = new Date();
@@ -129,6 +120,16 @@ export async function endMeeting(
   }
 
   await live.save();
+
+  // Process deliverables in background (non-blocking) - video conversion can take 1-2 minutes
+  // We don't await this to ensure the HTTP response returns immediately
+  finalizeSessionDeliverables(String(session._id), String(endedBy)).catch(
+    (e) => {
+      try {
+        console.error("finalizeSessionDeliverables failed (background)", e);
+      } catch {}
+    }
+  );
 
   return {
     sessionId: String(session._id),

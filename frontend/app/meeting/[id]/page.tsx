@@ -115,11 +115,19 @@ function LeaveMeetingButton({
       if (role === "admin" || role === "moderator") {
         try {
           await api.post<ApiResponse<unknown>>(
-            `/api/v1/liveSessions/${sessionId}/end`
+            `/api/v1/liveSessions/${sessionId}/end`,
+            {},
+            { timeout: 15000 } // 15 second timeout for end meeting request
           );
           toast.success("Meeting ended");
-        } catch {
+        } catch (err) {
+          // Even if request times out, the meeting may have ended successfully
+          // The socket event will handle navigation if it did
+          console.log(err)
           toast.error("Failed to end meeting");
+          setBusy(false);
+          setOpen(false);
+          return;
         }
         try {
           await room.disconnect(true);

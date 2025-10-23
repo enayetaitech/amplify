@@ -281,7 +281,7 @@ export default function SidebarContent({
                         : "text-custom-blue-gray-1 hover:text-custom-gray-5"
                     }`}
                   >
-                    <MdOutlineInsertChart className="h-3.5 w-3.5" /> Admin List
+                    <MdOutlineInsertChart className="h-3.5 w-3.5" /> InternalAdmin List
                   </Link>
                   <Link
                     href="/admin/projects"
