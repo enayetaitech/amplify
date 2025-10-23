@@ -830,6 +830,7 @@ export async function getProjectObservers(
         email: { $first: "$observerHistory.email" },
         userId: { $first: "$observerHistory.id" },
         joinedAt: { $min: "$observerHistory.joinedAt" },
+        leaveTime: { $max: "$observerHistory.leaveAt" },
         sessions: {
           $addToSet: { id: "$session._id", title: "$session.title" },
         },
@@ -886,6 +887,7 @@ export async function getProjectObservers(
     email: d.email,
     companyName: userEmailToCompany[d.email?.toLowerCase()] || undefined,
     joinedAt: d.joinedAt,
+    leaveTime: d.leaveTime,
     sessions: (d.sessions || []).map((s: any) => ({
       _id: s && s.id && s.id.toString ? s.id.toString() : String(s && s.id),
       title: s && s.title ? s.title : undefined,

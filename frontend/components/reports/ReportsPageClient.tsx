@@ -39,6 +39,7 @@ export default function ReportsPageClient({
 
   const { data: project } = useProject(projectId);
 
+
   const [summary, setSummary] = useState<null | {
     projectName?: string;
     allModeratorNames?: string[];
@@ -61,6 +62,7 @@ export default function ReportsPageClient({
     email?: string;
     companyName?: string;
     joinedAt?: string;
+    leaveTime?: string;
     _id?: string;
     sessions?: { _id?: string; title?: string }[];
     ip?: string;
@@ -363,9 +365,10 @@ export default function ReportsPageClient({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
+                      
                         <TableHead>Company</TableHead>
                         <TableHead>Joined</TableHead>
+                        <TableHead>Leave</TableHead>
                         <TableHead>Sessions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -373,11 +376,16 @@ export default function ReportsPageClient({
                       {projectObservers.map((p) => (
                         <TableRow key={p._id || p.email || Math.random()}>
                           <TableCell>{p.observerName || p.name}</TableCell>
-                          <TableCell>{p.email}</TableCell>
+                        
                           <TableCell>{p.companyName || ""}</TableCell>
                           <TableCell>
                             {p.joinedAt
                               ? new Date(p.joinedAt).toLocaleString()
+                              : ""}
+                          </TableCell>
+                          <TableCell>
+                            {p.leaveTime
+                              ? new Date(p.leaveTime).toLocaleString()
                               : ""}
                           </TableCell>
                           <TableCell>
