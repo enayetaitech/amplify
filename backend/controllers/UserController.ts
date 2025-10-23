@@ -388,7 +388,18 @@ export const editUser = async (
 ): Promise<void> => {
   const { id } = req.params;
 
-  const { firstName, lastName, phoneNumber, companyName } = req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    phoneNumber,
+    companyName,
+    address,
+    city,
+    state,
+    postalCode,
+    country,
+  } = req.body;
 
   // Find the user by id
   const user = await User.findById(id);
@@ -396,11 +407,48 @@ export const editUser = async (
     return next(new ErrorHandler("User not found", 404));
   }
 
+  // If email is being changed, require verification (2FA will be added in next step)
+  if (email !== undefined && email.toLowerCase() !== user.email.toLowerCase()) {
+    // Check if new email already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser && String(existingUser._id) !== String(id)) {
+      return next(new ErrorHandler("Email already in use", 409));
+    }
+    // TODO: Implement 2FA verification before allowing email change
+    // For now, we'll allow the change but mark email as unverified
+    user.email = email.toLowerCase();
+    user.isEmailVerified = false;
+  }
+
   // Update only the allowed fields if provided
   if (firstName !== undefined) user.firstName = firstName;
   if (lastName !== undefined) user.lastName = lastName;
   if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
   if (companyName !== undefined) user.companyName = companyName;
+
+  // Update billing info
+  if (
+    address !== undefined ||
+    city !== undefined ||
+    state !== undefined ||
+    postalCode !== undefined ||
+    country !== undefined
+  ) {
+    if (!user.billingInfo) {
+      user.billingInfo = {
+        address: "",
+        city: "",
+        state: "",
+        postalCode: "",
+        country: "",
+      };
+    }
+    if (address !== undefined) user.billingInfo.address = address;
+    if (city !== undefined) user.billingInfo.city = city;
+    if (state !== undefined) user.billingInfo.state = state;
+    if (postalCode !== undefined) user.billingInfo.postalCode = postalCode;
+    if (country !== undefined) user.billingInfo.country = country;
+  }
 
   // Save the updated user document
   const updatedUser = await user.save();
@@ -411,10 +459,17 @@ export const editUser = async (
     if (firstName !== undefined) updateFields.firstName = firstName;
     if (lastName !== undefined) updateFields.lastName = lastName;
     if (companyName !== undefined) updateFields.companyName = companyName;
+    // If email changed, update it in project teams too
+    if (
+      email !== undefined &&
+      email.toLowerCase() !== user.email.toLowerCase()
+    ) {
+      updateFields.email = email.toLowerCase();
+    }
 
     if (Object.keys(updateFields).length > 0) {
       await ModeratorModel.updateMany(
-        { email: updatedUser.email },
+        { email: user.email },
         { $set: updateFields }
       );
     }
@@ -426,6 +481,152 @@ export const editUser = async (
   // Sanitize and send the updated user response
   const userResponse = sanitizeUser(updatedUser);
   sendResponse(res, userResponse, "User updated successfully");
+};
+
+/**
+ * POST /api/v1/users/:id/request-email-change
+ * Request to change email - sends verification code to new email
+ */
+export const requestEmailChange = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const { newEmail } = req.body;
+
+  if (!newEmail) {
+    return next(new ErrorHandler("New email is required", 400));
+  }
+
+  // Find the user
+  const user = await User.findById(id);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if new email is same as current
+  if (newEmail.toLowerCase() === user.email.toLowerCase()) {
+    return next(
+      new ErrorHandler("New email is the same as current email", 400)
+    );
+  }
+
+  // Check if email already exists
+  const existingUser = await User.findOne({ email: newEmail.toLowerCase() });
+  if (existingUser) {
+    return next(new ErrorHandler("Email already in use", 409));
+  }
+
+  // Generate 6-digit verification code
+  const verificationCode = Math.floor(
+    100000 + Math.random() * 900000
+  ).toString();
+
+  // Store code temporarily (expires in 15 minutes)
+  user.emailVerificationCode = verificationCode;
+  user.emailVerificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+  user.pendingEmail = newEmail.toLowerCase();
+  await user.save();
+
+  // Send verification email
+  try {
+    await sendEmail({
+      to: newEmail,
+      subject: "Verify Your New Email Address",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1E656D;">Email Verification Required</h2>
+          <p>Hello ${user.firstName},</p>
+          <p>You requested to change your email address. Please use the verification code below to confirm this change:</p>
+          <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0;">
+            <h1 style="color: #1E656D; font-size: 32px; letter-spacing: 5px; margin: 0;">${verificationCode}</h1>
+          </div>
+          <p>This code will expire in 15 minutes.</p>
+          <p>If you didn't request this change, please ignore this email.</p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    return next(new ErrorHandler("Failed to send verification email", 500));
+  }
+
+  sendResponse(res, null, "Verification code sent to new email", 200);
+};
+
+/**
+ * POST /api/v1/users/:id/verify-email-change
+ * Verify the code and complete email change
+ */
+export const verifyEmailChange = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const { verificationCode } = req.body;
+
+  if (!verificationCode) {
+    return next(new ErrorHandler("Verification code is required", 400));
+  }
+
+  // Find the user
+  const user = await User.findById(id);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if there's a pending email change
+  if (
+    !user.pendingEmail ||
+    !user.emailVerificationCode ||
+    !user.emailVerificationExpires
+  ) {
+    return next(new ErrorHandler("No pending email change found", 400));
+  }
+
+  // Check if code expired
+  if (new Date() > user.emailVerificationExpires) {
+    user.emailVerificationCode = undefined;
+    user.emailVerificationExpires = undefined;
+    user.pendingEmail = undefined;
+    await user.save();
+    return next(
+      new ErrorHandler(
+        "Verification code expired. Please request a new one.",
+        400
+      )
+    );
+  }
+
+  // Verify code
+  if (user.emailVerificationCode !== verificationCode) {
+    return next(new ErrorHandler("Invalid verification code", 400));
+  }
+
+  // Update email and sync to project teams
+  const oldEmail = user.email;
+  user.email = user.pendingEmail;
+  user.isEmailVerified = true;
+  user.emailVerificationCode = undefined;
+  user.emailVerificationExpires = undefined;
+  user.pendingEmail = undefined;
+
+  await user.save();
+
+  // Sync email change to project teams
+  try {
+    await ModeratorModel.updateMany(
+      { email: oldEmail },
+      { $set: { email: user.email } }
+    );
+  } catch (e) {
+    console.error("Failed to sync email to project teams:", e);
+  }
+
+  // Sanitize and send response
+  const userResponse = sanitizeUser(user);
+  sendResponse(res, userResponse, "Email updated successfully");
 };
 
 export const deleteUser = async (

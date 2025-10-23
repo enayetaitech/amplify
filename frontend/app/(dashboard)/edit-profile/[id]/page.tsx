@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { FaSave } from "react-icons/fa";
@@ -10,10 +10,27 @@ import { useUpdateUser } from "hooks/useUpdateUser";
 import { Controller, useForm } from "react-hook-form";
 import { EditUserFormValues, editUserSchema } from "schemas/editUserSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { personalFields } from "constant";
+import { personalFields, addressFields } from "constant";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "components/ui/dialog";
+import { Input } from "components/ui/input";
+import api from "lib/api";
+import { toast } from "sonner";
 
 const Page: React.FC = () => {
   const { id } = useParams() as { id: string };
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [pendingEmailData, setPendingEmailData] =
+    useState<EditUserFormValues | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const {
     handleSubmit,
     control,
@@ -24,8 +41,14 @@ const Page: React.FC = () => {
     defaultValues: {
       firstName: "",
       lastName: "",
-      companyName: "",
+      email: "",
       phoneNumber: "",
+      companyName: "",
+      address: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "",
     },
   });
 
@@ -37,13 +60,70 @@ const Page: React.FC = () => {
       reset({
         firstName: fullUser.firstName,
         lastName: fullUser.lastName,
-        companyName: fullUser.companyName || "",
+        email: fullUser.email,
         phoneNumber: fullUser.phoneNumber || "",
+        companyName: fullUser.companyName || "",
+        address: fullUser.billingInfo?.address || "",
+        city: fullUser.billingInfo?.city || "",
+        state: fullUser.billingInfo?.state || "",
+        postalCode: fullUser.billingInfo?.postalCode || "",
+        country: fullUser.billingInfo?.country || "",
       });
     }
   }, [fullUser, reset]);
 
-  const onSubmit = (data: EditUserFormValues) => updateMutation.mutate(data);
+  const onSubmit = async (data: EditUserFormValues) => {
+    // Check if email was changed
+    if (fullUser && data.email.toLowerCase() !== fullUser.email.toLowerCase()) {
+      // Email changed - trigger 2FA flow
+      setPendingEmailData(data);
+      try {
+        await api.post(`/api/v1/users/${id}/request-email-change`, {
+          newEmail: data.email,
+        });
+        toast.success("Verification code sent to new email");
+        setShowEmailVerification(true);
+      } catch (err: unknown) {
+        toast.error(
+          (err as { message?: string })?.message ||
+            "Failed to send verification code"
+        );
+      }
+    } else {
+      // Email not changed - proceed with normal update
+      updateMutation.mutate(data);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!verificationCode || !pendingEmailData) return;
+
+    setIsVerifying(true);
+    try {
+      // Verify the email change
+      await api.post(`/api/v1/users/${id}/verify-email-change`, {
+        verificationCode,
+      });
+
+      toast.success("Email verified successfully");
+      setShowEmailVerification(false);
+      setVerificationCode("");
+
+      // Now update all other fields
+      updateMutation.mutate(pendingEmailData);
+
+      // Refresh user data
+      setTimeout(() => {
+        window.location.href = `/my-profile/${id}`;
+      }, 1000);
+    } catch (err: unknown) {
+      toast.error(
+        (err as { message?: string })?.message || "Invalid verification code"
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   if (isLoading) return <p className="px-6 py-4">Loading profile…</p>;
 
@@ -123,6 +203,29 @@ const Page: React.FC = () => {
                   <InputFieldComponent
                     label={label}
                     {...field}
+                    value={field.value || ""}
+                    error={errors[name]?.message}
+                    disabled={isSaving}
+                  />
+                )}
+              />
+            ))}
+          </div>
+
+          <h2 className="text-2xl font-semibold text-[#00293C] pt-7">
+            Address Details
+          </h2>
+          <div className="space-y-7 mt-5">
+            {addressFields.map(({ name, label }) => (
+              <Controller
+                key={name}
+                name={name}
+                control={control}
+                render={({ field }) => (
+                  <InputFieldComponent
+                    label={label}
+                    {...field}
+                    value={field.value || ""}
                     error={errors[name]?.message}
                     disabled={isSaving}
                   />
@@ -132,6 +235,64 @@ const Page: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Email Verification Dialog */}
+      <Dialog
+        open={showEmailVerification}
+        onOpenChange={setShowEmailVerification}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Verify New Email Address</DialogTitle>
+            <DialogDescription>
+              We sent a 6-digit verification code to your new email address (
+              {pendingEmailData?.email}). Please enter it below to confirm the
+              change.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Verification Code</label>
+              <Input
+                type="text"
+                placeholder="Enter 6-digit code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                maxLength={6}
+                className="text-center text-2xl tracking-widest"
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              The code will expire in 15 minutes. Didn&apos;t receive it? Check
+              your spam folder.
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEmailVerification(false);
+                setVerificationCode("");
+                setPendingEmailData(null);
+              }}
+              disabled={isVerifying}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="teal"
+              onClick={handleVerifyEmail}
+              disabled={
+                !verificationCode ||
+                verificationCode.length !== 6 ||
+                isVerifying
+              }
+            >
+              {isVerifying ? "Verifying..." : "Verify"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 };

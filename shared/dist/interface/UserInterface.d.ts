@@ -31,6 +31,9 @@ export interface IUser {
     stripeCustomerId?: string;
     billingInfo?: IBillingInfo;
     creditCardInfo?: ICreditCardInfo;
+    pendingEmail?: string;
+    emailVerificationCode?: string;
+    emailVerificationExpires?: Date;
     createdAt?: Date;
     updatedAt?: Date;
 }
