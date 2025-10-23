@@ -24,6 +24,7 @@ import { transferProjectsAtomic } from "../services/projectTransferService";
 import { Types } from "mongoose";
 import ProjectModel from "../model/ProjectModel";
 import { SessionModel } from "../model/SessionModel";
+import ModeratorModel from "../model/ModeratorModel";
 
 export const adminCreateUser = async (
   req: Request,
@@ -104,6 +105,28 @@ export const adminEditUser = async (
       );
     }
     await User.updateOne({ _id: id }, { $set: parsed.data });
+
+    // Sync changes to all project team records for this user
+    try {
+      const updateFields: Record<string, string> = {};
+      if (parsed.data.firstName !== undefined)
+        updateFields.firstName = parsed.data.firstName;
+      if (parsed.data.lastName !== undefined)
+        updateFields.lastName = parsed.data.lastName;
+      if (parsed.data.companyName !== undefined)
+        updateFields.companyName = parsed.data.companyName;
+
+      if (Object.keys(updateFields).length > 0) {
+        await ModeratorModel.updateMany(
+          { email: user.email },
+          { $set: updateFields }
+        );
+      }
+    } catch (e) {
+      // Log error but don't fail the request
+      console.error("Failed to sync admin user changes to project teams:", e);
+    }
+
     sendResponse(res, null, "User updated", 200);
   } catch (e) {
     next(e);

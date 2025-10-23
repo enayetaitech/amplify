@@ -405,6 +405,24 @@ export const editUser = async (
   // Save the updated user document
   const updatedUser = await user.save();
 
+  // Sync changes to all project team records for this user
+  try {
+    const updateFields: Record<string, string> = {};
+    if (firstName !== undefined) updateFields.firstName = firstName;
+    if (lastName !== undefined) updateFields.lastName = lastName;
+    if (companyName !== undefined) updateFields.companyName = companyName;
+
+    if (Object.keys(updateFields).length > 0) {
+      await ModeratorModel.updateMany(
+        { email: updatedUser.email },
+        { $set: updateFields }
+      );
+    }
+  } catch (e) {
+    // Log error but don't fail the request
+    console.error("Failed to sync user changes to project teams:", e);
+  }
+
   // Sanitize and send the updated user response
   const userResponse = sanitizeUser(updatedUser);
   sendResponse(res, userResponse, "User updated successfully");
