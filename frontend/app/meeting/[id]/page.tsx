@@ -33,8 +33,8 @@ import MeetingJoinBridge from "components/meeting/MeetingJoinBridge";
 import PollsPanel from "components/meeting/PollsPanel";
 import ActivePoll from "components/meeting/ActivePoll";
 import {
-  ChevronLeft,
-  ChevronRight,
+  MoveLeftIcon,
+  MoveRightIcon,
   PenTool,
   Play,
   Square,
@@ -665,10 +665,10 @@ export default function Meeting() {
               <button
                 type="button"
                 onClick={() => setIsLeftOpen(false)}
-                className="absolute -right-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+                className="absolute -right-0 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
                 aria-label="Collapse left panel"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <MoveLeftIcon className="h-4 w-4" />
               </button>
               {(role === "admin" || role === "moderator") && (
                 <button
@@ -859,10 +859,10 @@ export default function Meeting() {
           <button
             type="button"
             onClick={() => setIsLeftOpen(true)}
-            className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            className="absolute -left-0 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
             aria-label="Expand left panel"
           >
-            <ChevronRight className="h-4 w-4" />
+            <MoveRightIcon className="h-4 w-4" />
           </button>
         )}
 
@@ -949,10 +949,10 @@ export default function Meeting() {
           <button
             type="button"
             onClick={() => setIsRightOpen(true)}
-            className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+            className="absolute -right-0 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
             aria-label="Expand right panel"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <MoveLeftIcon className="h-4 w-4" />
           </button>
         )}
       </div>

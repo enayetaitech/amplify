@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { MoveRightIcon } from "lucide-react";
 import React, { useState } from "react";
 import type { Socket } from "socket.io-client";
 import DocumentHub from "./DocumentHub";
@@ -47,10 +47,10 @@ const MainRightSidebar = ({
         <button
           type="button"
           onClick={() => setIsRightOpen(false)}
-          className="absolute -left-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+          className="absolute -left-0 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
           aria-label="Collapse right panel"
         >
-          <ChevronRight className="h-4 w-4" />
+          <MoveRightIcon className="h-4 w-4" />
         </button>
         {isStreaming ? (
           <Backroom

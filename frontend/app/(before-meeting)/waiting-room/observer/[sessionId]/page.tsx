@@ -16,8 +16,9 @@ import {
 } from "components/ui/sheet";
 import {
   MessageSquare,
-  PanelRightOpen,
-  PanelRightClose,
+  MoveLeftIcon,
+  
+  MoveRightIcon,
   Video,
   X,
   Send,
@@ -466,7 +467,7 @@ export default function ObserverWaitingRoom() {
                 size="sm"
                 onClick={() => setIsChatOpen(true)}
               >
-                <PanelRightOpen className="h-4 w-4 mr-2" /> Open Chat
+                <MoveLeftIcon className="h-4 w-4 mr-2" /> Open Chat
               </Button>
             </div>
           )}
@@ -493,7 +494,7 @@ export default function ObserverWaitingRoom() {
                   onClick={() => setIsChatOpen(false)}
                   aria-label="Close chat"
                 >
-                  <PanelRightClose className="h-4 w-4" />
+                  <MoveRightIcon className="h-4 w-4" />
                 </Button>
               </div>
               <div className="p-2">
