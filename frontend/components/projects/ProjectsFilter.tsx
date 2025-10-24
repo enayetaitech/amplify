@@ -105,7 +105,7 @@ const ProjectsFilter: React.FC<ProjectsFilterProps> = ({
             <SelectItem value="__all__">All</SelectItem>
             <SelectItem value="Draft">Draft</SelectItem>
             <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Inactive">Inactive</SelectItem>
+            <SelectItem value="Paused">Paused</SelectItem>
             <SelectItem value="Closed">Closed</SelectItem>
             <SelectItem value="Archived">Archived</SelectItem>
           </SelectContent>
