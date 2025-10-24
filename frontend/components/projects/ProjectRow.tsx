@@ -26,6 +26,7 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
     Draft: "#ff7014",
     Active: "#75d481",
     Archived: "#696969",
+    Paused: "#fcd860",
     Inactive: "#fcd860",
     Closed: "#b44d79",
   };
@@ -65,7 +66,8 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
           variant="outline"
           style={{
             borderColor: statusColor,
-            color: statusColor,
+            borderWidth: "3px",
+            color: "#696969",
           }}
         >
           {project.status}
