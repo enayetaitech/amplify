@@ -23,6 +23,9 @@ import {
   Send,
 } from "lucide-react";
 import { toast } from "sonner";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 
 import { Socket } from "socket.io-client";
 
@@ -726,197 +729,72 @@ export default function ObserverWaitingRoom() {
 
                           {showGroupChat && (
                             <div className="h-full flex flex-col min-h-0 overflow-y-auto">
-                              <div className="flex items-center justify-between p-2 border-b">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium">
-                                    Observer Group Chat
-                                  </span>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setShowGroupChat(false)}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <div
-                                ref={groupRef}
-                                className="flex-1 overflow-y-auto p-2"
-                              >
-                                {groupLoading ? (
-                                  <div className="text-sm text-gray-500">
-                                    Loading...
-                                  </div>
-                                ) : (
-                                  <div className="space-y-2 text-sm">
-                                    {groupMessages.length === 0 ? (
-                                      <div className="text-gray-500">
-                                        No messages yet.
-                                      </div>
-                                    ) : (
-                                      groupMessages.map((message, idx) => {
-                                        const isFromMe =
-                                          message.senderEmail?.toLowerCase() ===
-                                            meEmail.toLowerCase() ||
-                                          message.email?.toLowerCase() ===
-                                            meEmail.toLowerCase();
-                                        const senderName =
-                                          message.name ||
-                                          message.senderEmail ||
-                                          message.senderName ||
-                                          "Unknown";
-
-                                        return (
-                                          <div
-                                            key={idx}
-                                            className={`flex ${
-                                              isFromMe
-                                                ? "justify-end"
-                                                : "justify-start"
-                                            }`}
-                                          >
-                                            <div
-                                              className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                                                isFromMe
-                                                  ? "bg-custom-dark-blue-1 text-white"
-                                                  : "bg-gray-100 text-gray-900"
-                                              }`}
-                                            >
-                                              <div className="text-xs opacity-70 mb-1">
-                                                {senderName}
-                                              </div>
-                                              <div>{message.content}</div>
-                                              <div className="text-xs opacity-70 mt-1">
-                                                {message.timestamp
-                                                  ? new Date(
-                                                      message.timestamp
-                                                    ).toLocaleTimeString()
-                                                  : "Just now"}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="p-2 flex items-center gap-2 border-t">
-                                <Input
-                                  placeholder="Type a message..."
-                                  value={groupText}
-                                  onChange={(e) => setGroupText(e.target.value)}
-                                  onKeyPress={(e) => {
-                                    if (e.key === "Enter") {
-                                      sendGroupMessage();
-                                    }
-                                  }}
-                                />
-                                <Button
-                                  size="sm"
-                                  className="h-8 w-8 p-0"
-                                  onClick={sendGroupMessage}
-                                  disabled={!groupText.trim()}
-                                >
-                                  <Send className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {(() => {
+                                const mapped: ChatWindowMessage[] =
+                                  groupMessages.map((message, i) => ({
+                                    id: i,
+                                    senderEmail:
+                                      message.senderEmail || message.email,
+                                    senderName:
+                                      message.name || message.senderName,
+                                    content: message.content,
+                                    timestamp: message.timestamp || new Date(),
+                                  }));
+                                const send = () => {
+                                  if (!groupText.trim()) return;
+                                  sendGroupMessage();
+                                };
+                                return (
+                                  <ChatWindow
+                                    title="Observer Group Chat"
+                                    meEmail={meEmail}
+                                    messages={mapped}
+                                    value={groupText}
+                                    onChange={setGroupText}
+                                    onSend={send}
+                                    onClose={() => setShowGroupChat(false)}
+                                    height="70vh"
+                                  />
+                                );
+                              })()}
                             </div>
                           )}
 
                           {selectedObserver && (
                             <div className="h-full flex flex-col min-h-0 overflow-y-auto">
-                              <div className="flex items-center justify-between p-2 border-b">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium">
-                                    Chat with{" "}
-                                    {selectedObserver.name ||
-                                      selectedObserver.email}
-                                  </span>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedObserver(null);
-                                    setShowGroupChat(false);
-                                  }}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <div
-                                ref={dmRef}
-                                className="flex-1 overflow-y-auto p-2"
-                              >
-                                <div className="space-y-2 text-sm">
-                                  {messages.length === 0 ? (
-                                    <div className="text-gray-500">
-                                      No messages yet.
-                                    </div>
-                                  ) : (
-                                    messages.map((message, idx) => {
-                                      const isFromMe =
-                                        message.email?.toLowerCase() ===
-                                        meEmail.toLowerCase();
-                                      return (
-                                        <div
-                                          key={idx}
-                                          className={`flex ${
-                                            isFromMe
-                                              ? "justify-end"
-                                              : "justify-start"
-                                          }`}
-                                        >
-                                          <div
-                                            className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                                              isFromMe
-                                                ? "bg-custom-dark-blue-1 text-white"
-                                                : "bg-gray-100 text-gray-900"
-                                            }`}
-                                          >
-                                            <div className="text-xs opacity-70 mb-1">
-                                              {message.senderName ||
-                                                message.email}
-                                            </div>
-                                            <div>{message.content}</div>
-                                            <div className="text-xs opacity-70 mt-1">
-                                              {new Date(
-                                                message.timestamp
-                                              ).toLocaleTimeString()}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                              </div>
-                              <div className="p-2 flex items-center gap-2 border-t">
-                                <Input
-                                  placeholder="Type a message..."
-                                  value={messageInput}
-                                  onChange={(e) =>
-                                    setMessageInput(e.target.value)
-                                  }
-                                  onKeyPress={(e) => {
-                                    if (e.key === "Enter") {
-                                      sendMessage();
-                                    }
-                                  }}
-                                />
-                                <Button
-                                  size="sm"
-                                  className="h-8 w-8 p-0"
-                                  onClick={sendMessage}
-                                  disabled={!messageInput.trim()}
-                                >
-                                  <Send className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {(() => {
+                                const mapped: ChatWindowMessage[] =
+                                  messages.map((message, i) => ({
+                                    id: i,
+                                    senderEmail: message.email,
+                                    senderName: message.senderName,
+                                    content: message.content,
+                                    timestamp: message.timestamp,
+                                  }));
+                                const send = () => {
+                                  if (!messageInput.trim()) return;
+                                  sendMessage();
+                                };
+                                const title = `Chat with ${
+                                  selectedObserver.name ||
+                                  selectedObserver.email
+                                }`;
+                                return (
+                                  <ChatWindow
+                                    title={title}
+                                    meEmail={meEmail}
+                                    messages={mapped}
+                                    value={messageInput}
+                                    onChange={setMessageInput}
+                                    onSend={send}
+                                    onClose={() => {
+                                      setSelectedObserver(null);
+                                      setShowGroupChat(false);
+                                    }}
+                                    height="70vh"
+                                  />
+                                );
+                              })()}
                             </div>
                           )}
                         </div>

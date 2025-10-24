@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
-import { Input } from "components/ui/input";
-import { Button } from "components/ui/button";
+// import { Input } from "components/ui/input";
+// import { Button } from "components/ui/button";
 import { Badge } from "components/ui/badge";
-import { MessageSquare, Send, X } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { formatDisplayName } from "lib/utils";
 import type { Socket } from "socket.io-client";
 import RightSidebarHeading from "../RightSidebarHeading";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 
 interface BackroomProps {
   isStreaming: boolean;
@@ -179,10 +182,10 @@ const Backroom = ({
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
-     <RightSidebarHeading
-     title="Backroom"
-     observerCount={isStreaming ? observerCount : 0}
-     />
+      <RightSidebarHeading
+        title="Backroom"
+        observerCount={isStreaming ? observerCount : 0}
+      />
       <Tabs value={tab} onValueChange={(v) => setTab(v)}>
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger
@@ -346,187 +349,93 @@ const Backroom = ({
             )}
             {showGroupChatObs && (
               <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
-                <div className="flex items-center justify-between p-2 border-b">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      Observer Group Chat
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowGroupChatObs(false)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div ref={groupRef} className="flex-1 overflow-y-auto p-2">
-                  {groupLoading ? (
-                    <div className="text-sm text-gray-500">Loading…</div>
-                  ) : (
-                    <div className="space-y-1 text-sm">
-                      {groupMessages.length === 0 ? (
-                        <div className="text-gray-500">No messages yet.</div>
-                      ) : (
-                        groupMessages.map((m, idx) => (
-                          <div
-                            key={idx}
-                            className="mr-auto bg-gray-50 max-w-[90%] rounded px-2 py-1"
-                          >
-                            <div className="text-[11px] text-gray-500">
-                              {m.name || m.senderEmail}
-                            </div>
-                            <div className="whitespace-pre-wrap">
-                              {m.content}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 flex items-center gap-2 border-t">
-                  <Input
-                    placeholder="Type a message..."
-                    value={groupText}
-                    onChange={(e) => setGroupText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const txt = groupText.trim();
-                        if (!txt) return;
-                        socket?.emit(
-                          "chat:send",
-                          { scope: "stream_group", content: txt },
-                          (ack?: { ok?: boolean; error?: string }) => {
-                            if (ack?.ok) setGroupText("");
-                          }
-                        );
+                {/* Old chat UI commented per migration to ChatWindow */}
+                {/**
+                 * Old group chat UI removed in favor of reusable ChatWindow above.
+                 */}
+                {(() => {
+                  const mapped: ChatWindowMessage[] = groupMessages.map(
+                    (m, i) => ({
+                      id: i,
+                      senderEmail: m.senderEmail,
+                      senderName: m.name,
+                      content: m.content,
+                      timestamp: new Date(),
+                    })
+                  );
+                  const sendGroup = () => {
+                    const txt = groupText.trim();
+                    if (!txt) return;
+                    socket?.emit(
+                      "chat:send",
+                      { scope: "stream_group", content: txt },
+                      (ack?: { ok?: boolean; error?: string }) => {
+                        if (ack?.ok) setGroupText("");
                       }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => {
-                      const txt = groupText.trim();
-                      if (!txt) return;
-                      socket?.emit(
-                        "chat:send",
-                        { scope: "stream_group", content: txt },
-                        (ack?: { ok?: boolean; error?: string }) => {
-                          if (ack?.ok) setGroupText("");
-                        }
-                      );
-                    }}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                    );
+                  };
+                  return (
+                    <ChatWindow
+                      title="Observer Group Chat"
+                      meEmail={me.email}
+                      messages={mapped}
+                      value={groupText}
+                      onChange={setGroupText}
+                      onSend={sendGroup}
+                      onClose={() => setShowGroupChatObs(false)}
+                      height="26vh"
+                    />
+                  );
+                })()}
               </div>
             )}
             {selectedObserver && !showGroupChatObs && (
               <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
-                <div className="flex items-center justify-between p-0.5 border-b">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm ">
-                      Chat with{" "}
-                      {selectedObserver.name
-                        ? formatDisplayName(selectedObserver.name)
-                        : selectedObserver.email}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedObserver(null)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div ref={dmRef} className="flex-1 overflow-y-auto p-0.5">
-                  {loadingHistory ? (
-                    <div className="text-sm text-gray-500">Loading…</div>
-                  ) : (
-                    <div className="space-y-1 text-sm">
-                      {dmMessages.length === 0 ? (
-                        <div className="text-gray-500">No messages yet.</div>
-                      ) : (
-                        dmMessages.map((m, idx) => {
-                          const fromMe =
-                            (m.email || "").toLowerCase() === meLower;
-                          return (
-                            <div
-                              key={idx}
-                              className={`max-w-[85%] rounded px-2 py-1 ${
-                                fromMe
-                                  ? "ml-auto bg-blue-50"
-                                  : "mr-auto bg-gray-50"
-                              }`}
-                            >
-                              {!fromMe && (
-                                <div className="text-[11px] text-gray-500">
-                                  {m.senderName || m.email}
-                                </div>
-                              )}
-                              <div className="whitespace-pre-wrap">
-                                {m.content}
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 flex items-center gap-2 border-t">
-                  <Input
-                    placeholder="Type a message..."
-                    value={dmText}
-                    onChange={(e) => setDmText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        if (!selectedObserver) return;
-                        const scope = "stream_dm_obs_mod"; // moderator/admin → observer
-                        socket?.emit(
-                          "chat:send",
-                          {
-                            scope,
-                            content: dmText.trim(),
-                            toEmail: selectedObserver.email,
-                          },
-                          (ack?: { ok?: boolean; error?: string }) => {
-                            if (ack?.ok) setDmText("");
-                          }
-                        );
+                {/* Old DM chat UI commented per migration to ChatWindow */}
+                {(() => {
+                  const mapped: ChatWindowMessage[] = dmMessages.map(
+                    (m, i) => ({
+                      id: i,
+                      senderEmail: m.email,
+                      senderName: m.senderName,
+                      content: m.content,
+                      timestamp: m.timestamp || new Date(),
+                    })
+                  );
+                  const sendDm = () => {
+                    if (!selectedObserver) return;
+                    const txt = dmText.trim();
+                    if (!txt) return;
+                    socket?.emit(
+                      "chat:send",
+                      {
+                        scope: "stream_dm_obs_mod",
+                        content: txt,
+                        toEmail: selectedObserver.email,
+                      },
+                      (ack?: { ok?: boolean; error?: string }) => {
+                        if (ack?.ok) setDmText("");
                       }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => {
-                      if (!selectedObserver) return;
-                      const scope = "stream_dm_obs_mod";
-                      socket?.emit(
-                        "chat:send",
-                        {
-                          scope,
-                          content: dmText.trim(),
-                          toEmail: selectedObserver.email,
-                        },
-                        (ack?: { ok?: boolean; error?: string }) => {
-                          if (ack?.ok) setDmText("");
-                        }
-                      );
-                    }}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                    );
+                  };
+                  const title = `Chat with ${
+                    selectedObserver.name
+                      ? formatDisplayName(selectedObserver.name)
+                      : selectedObserver.email
+                  }`;
+                  return (
+                    <ChatWindow
+                      title={title}
+                      meEmail={me.email}
+                      messages={mapped}
+                      value={dmText}
+                      onChange={setDmText}
+                      onSend={sendDm}
+                      onClose={() => setSelectedObserver(null)}
+                      height="26vh"
+                    />
+                  );
+                })()}
               </div>
             )}
           </div>

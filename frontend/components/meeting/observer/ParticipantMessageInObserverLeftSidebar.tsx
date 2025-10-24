@@ -2,6 +2,9 @@
 
 import { useRef, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 import PollResults from "../PollResults";
 import { PollQuestion } from "@shared/interface/PollInterface";
 
@@ -78,46 +81,30 @@ export default function ParticipantMessageInObserverLeftSidebar({
           </div>
         </TabsContent>
         <TabsContent value="pchat">
-          <div className="flex flex-col h-[30vh] min-h-0">
-            <div className="flex items-center justify-between p-2 border-b bg-gray-50 rounded-t">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">
-                  Participant Group Chat
-                </span>
-              </div>
-              <div className="text-xs text-gray-500">Read-only</div>
-            </div>
-            <div
-              ref={participantGroupRef}
-              className="flex-1 overflow-y-auto p-2 bg-white"
-            >
-              {participantGroupLoading ? (
-                <div className="text-sm text-gray-500">
-                  Loading chat history...
-                </div>
-              ) : (
-                <div className="space-y-1 text-sm">
-                  {participantGroupMessages.length === 0 ? (
-                    <div className="text-gray-500">
-                      No participant messages yet.
-                    </div>
-                  ) : (
-                    participantGroupMessages.map((m, idx) => (
-                      <div
-                        key={idx}
-                        className="mr-auto bg-gray-50 max-w-[90%] rounded px-2 py-1"
-                      >
-                        <div className="text-[11px] text-gray-500">
-                          {m.name || m.senderEmail || "Participant"}
-                        </div>
-                        <div className="whitespace-pre-wrap">{m.content}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          {(() => {
+            const mapped: ChatWindowMessage[] = participantGroupMessages.map(
+              (m, i) => ({
+                id: i,
+                senderEmail: m.senderEmail,
+                senderName: m.name,
+                content: m.content,
+                timestamp: m.timestamp || new Date(),
+              })
+            );
+            return (
+              <ChatWindow
+                title="Participant Group Chat"
+                meEmail={""}
+                messages={mapped}
+                value={""}
+                onChange={() => {}}
+                onSend={() => {}}
+                onClose={() => {}}
+                height="30vh"
+                readOnly
+              />
+            );
+          })()}
         </TabsContent>
       </Tabs>
       <div>

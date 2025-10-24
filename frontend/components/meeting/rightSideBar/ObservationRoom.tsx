@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Badge } from "components/ui/badge";
-import { Button } from "components/ui/button";
-import { Input } from "components/ui/input";
-import { MessageSquare, Send, X } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import RightSidebarHeading from "../RightSidebarHeading";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 
 type WaitingObserver = { name?: string; email?: string };
 
@@ -195,21 +196,19 @@ const ObservationRoom = () => {
       const saved = window.localStorage.getItem("liveSessionUser")
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
-    
+
       setMeEmail(saved?.email || "");
       setMeRole(saved?.role || "");
 
       // Also check if email is in a different localStorage key
       const emailFromStorage = window.localStorage.getItem("userEmail");
       if (emailFromStorage) {
-       
         setMeEmail(emailFromStorage);
       }
 
       // Also check if role is in a different localStorage key
       const roleFromStorage = window.localStorage.getItem("userRole");
       if (roleFromStorage) {
-       
         setMeRole(roleFromStorage);
       }
 
@@ -239,7 +238,6 @@ const ObservationRoom = () => {
 
       // Fallback: if no email found, try to get it from the socket connection
       if (!saved?.email && !emailFromStorage && !socketQuery?.email) {
-       
         const w = window as Window & { __meetingSocket?: unknown };
         const maybe = w.__meetingSocket as unknown;
         if (
@@ -379,8 +377,6 @@ const ObservationRoom = () => {
 
   // Function to send a message
   const sendMessage = async () => {
- 
-
     if (!selectedObserver || !messageInput.trim()) {
       return;
     }
@@ -394,7 +390,6 @@ const ObservationRoom = () => {
         ? (maybe as MinimalSocket)
         : undefined;
 
-
     if (!s) {
       console.error("No socket available");
       return;
@@ -406,8 +401,6 @@ const ObservationRoom = () => {
         meRole === "Moderator" || meRole === "Admin"
           ? "stream_dm_obs_mod"
           : "observer_wait_dm";
-
-  
 
       s.emit(
         "chat:send",
@@ -432,16 +425,12 @@ const ObservationRoom = () => {
 
   // Function to send group chat message
   const sendGroupMessage = async () => {
-
-
     if (!groupText.trim()) {
       return;
     }
 
     const w = window as Window & { __meetingSocket?: unknown };
     const maybe = w.__meetingSocket as unknown;
-  
-   
 
     const s =
       maybe &&
@@ -463,8 +452,6 @@ const ObservationRoom = () => {
           ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
           : {};
 
-     
-
       const payload = {
         scope: "observer_wait_group",
         content: groupText.trim(),
@@ -472,14 +459,10 @@ const ObservationRoom = () => {
         name: saved?.name || "",
       };
 
-
-
       s.emit("chat:send", payload, (response?: unknown) => {
-        
         const data = response as SocketResponse;
         if (data?.ok) {
           setGroupText("");
-        
         } else {
           console.error("❌ Failed to send group message:", data?.error);
         }
@@ -492,11 +475,12 @@ const ObservationRoom = () => {
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
       <RightSidebarHeading
-  title="Observation Room"
-  observerCount={
-    observers.filter((o) => (o.name || "").toLowerCase() !== "observer").length
-  }
-/>
+        title="Observation Room"
+        observerCount={
+          observers.filter((o) => (o.name || "").toLowerCase() !== "observer")
+            .length
+        }
+      />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v)}>
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
@@ -646,215 +630,78 @@ const ObservationRoom = () => {
 
             {showGroupChat && (
               <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
-                <div className="flex items-center justify-between p-0.5 border-b">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      Observer Group Chat
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowGroupChat(false)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div ref={groupRef} className="flex-1 overflow-y-auto p-0.5">
-                  {groupLoading ? (
-                    <div className="text-sm text-gray-500">Loading...</div>
-                  ) : (
-                    <div className="space-y-2 text-sm">
-                      {groupMessages.length === 0 ? (
-                        <div className="text-gray-500">No messages yet.</div>
-                      ) : (
-                        groupMessages.map((message, idx) => {
-                          console.log("Group message data:", message);
-                          console.log("=== Email matching debug ===");
-                          console.log("meEmail:", meEmail);
-                          console.log(
-                            "message.senderEmail:",
-                            message.senderEmail
-                          );
-                          console.log("message.email:", message.email);
-                          console.log(
-                            "senderEmail match:",
-                            message.senderEmail?.toLowerCase() ===
-                              meEmail.toLowerCase()
-                          );
-                          console.log(
-                            "email match:",
-                            message.email?.toLowerCase() ===
-                              meEmail.toLowerCase()
-                          );
-
-                          const isFromMe =
-                            message.senderEmail?.toLowerCase() ===
-                              meEmail.toLowerCase() ||
-                            message.email?.toLowerCase() ===
-                              meEmail.toLowerCase();
-                          console.log("Final isFromMe:", isFromMe);
-
-                          const senderName =
-                            message.name ||
-                            message.senderEmail ||
-                            message.senderName ||
-                            "Unknown";
-                          console.log("Sender name resolved:", senderName);
-                          return (
-                            <div
-                              key={idx}
-                              className={`flex ${
-                                isFromMe ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              <div
-                                className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                                  isFromMe
-                                    ? "bg-custom-dark-blue-1 text-white"
-                                    : "bg-gray-100 text-gray-900"
-                                }`}
-                              >
-                                <div className="text-xs opacity-70 mb-1">
-                                  {senderName}
-                                </div>
-                                <div>{message.content}</div>
-                                <div className="text-xs opacity-70 mt-1">
-                                  {message.timestamp
-                                    ? new Date(
-                                        message.timestamp
-                                      ).toLocaleTimeString()
-                                    : "Just now"}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 flex items-center gap-2 border-t">
-                  <Input
-                    placeholder="Type a message..."
-                    value={groupText}
-                    onChange={(e) => setGroupText(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        console.log("⌨️ Enter key pressed in group chat input");
-                        sendGroupMessage();
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => {
-                      console.log("🔘 Group chat send button clicked");
-                      sendGroupMessage();
-                    }}
-                    disabled={!groupText.trim()}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                {/* Old group chat UI commented per migration to ChatWindow */}
+                {(() => {
+                  const mapped: ChatWindowMessage[] = groupMessages.map(
+                    (message, i) => ({
+                      id: i,
+                      senderEmail: message.senderEmail || message.email,
+                      senderName: message.name || message.senderName,
+                      content: message.content,
+                      timestamp: message.timestamp || new Date(),
+                    })
+                  );
+                  const send = () => {
+                    if (!groupText.trim()) return;
+                    sendGroupMessage();
+                  };
+                  return (
+                    <ChatWindow
+                      title="Observer Group Chat"
+                      meEmail={meEmail}
+                      messages={mapped}
+                      value={groupText}
+                      onChange={setGroupText}
+                      onSend={send}
+                      onClose={() => setShowGroupChat(false)}
+                      height="26vh"
+                    />
+                  );
+                })()}
               </div>
             )}
 
             {selectedObserver && (
               <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
-                <div className="flex items-center justify-between p-0.5 border-b">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm ">
-                      {meRole === "Moderator" || meRole === "Admin"
-                        ? `Message Observer: ${
-                            selectedObserver.name || selectedObserver.email
-                          }`
-                        : `Chat with ${
-                            selectedObserver.name || selectedObserver.email
-                          }`}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedObserver(null);
-                      setShowGroupChat(false);
-                    }}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div ref={dmRef} className="flex-1 overflow-y-auto p-0.5">
-                  <div className="space-y-2 text-sm">
-                    {messages.length === 0 ? (
-                      <div className="text-gray-500">No messages yet.</div>
-                    ) : (
-                      messages.map((message, idx) => {
-                        const isFromMe =
-                          message.email?.toLowerCase() ===
-                          meEmail.toLowerCase();
-                        return (
-                          <div
-                            key={idx}
-                            className={`flex ${
-                              isFromMe ? "justify-end" : "justify-start"
-                            }`}
-                          >
-                            <div
-                              className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                                isFromMe
-                                  ? "bg-custom-dark-blue-1 text-white"
-                                  : "bg-gray-100 text-gray-900"
-                              }`}
-                            >
-                              <div className="text-xs opacity-70 mb-1">
-                                {message.senderName || message.email}
-                              </div>
-                              <div>{message.content}</div>
-                              <div className="text-xs opacity-70 mt-1">
-                                {new Date(
-                                  message.timestamp
-                                ).toLocaleTimeString()}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-                <div className="p-2 flex items-center gap-2 border-t">
-                  <Input
-                    placeholder={
-                      meRole === "Moderator" || meRole === "Admin"
-                        ? "Send message to observer..."
-                        : "Type a message..."
-                    }
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        console.log("Enter key pressed");
-                        sendMessage();
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => {
-                      console.log("Send button clicked");
-                      sendMessage();
-                    }}
-                    disabled={!messageInput.trim()}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                {/* Old DM chat UI commented per migration to ChatWindow */}
+                {(() => {
+                  const mapped: ChatWindowMessage[] = messages.map(
+                    (message, i) => ({
+                      id: i,
+                      senderEmail: message.email,
+                      senderName: message.senderName,
+                      content: message.content,
+                      timestamp: message.timestamp,
+                    })
+                  );
+                  const title =
+                    meRole === "Moderator" || meRole === "Admin"
+                      ? `Message Observer: ${
+                          selectedObserver.name || selectedObserver.email
+                        }`
+                      : `Chat with ${
+                          selectedObserver.name || selectedObserver.email
+                        }`;
+                  const send = () => {
+                    if (!messageInput.trim()) return;
+                    sendMessage();
+                  };
+                  return (
+                    <ChatWindow
+                      title={title}
+                      meEmail={meEmail}
+                      messages={mapped}
+                      value={messageInput}
+                      onChange={setMessageInput}
+                      onSend={send}
+                      onClose={() => {
+                        setSelectedObserver(null);
+                        setShowGroupChat(false);
+                      }}
+                      height="26vh"
+                    />
+                  );
+                })()}
               </div>
             )}
           </div>

@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
-import { Input } from "components/ui/input";
-import { Button } from "components/ui/button";
-import { Send } from "lucide-react";
 import { Badge } from "components/ui/badge";
-import useChat, { ChatScope, ChatMessage } from "hooks/useChat";
-import { formatDisplayName } from "lib/utils";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
+import useChat, { ChatScope } from "hooks/useChat";
+
 
 export default function ParticipantChatPanel({
   socket,
@@ -75,18 +75,18 @@ export default function ParticipantChatPanel({
     if (tab === "dm") setLastReadDmIncoming(dmIncomingCount);
   }, [dmIncomingCount, tab]);
 
-  const onGroupScroll = () => {
-    const el = groupRef.current;
-    if (!el) return;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
-    if (nearBottom) setLastReadGroup(meetingGroupLength);
-  };
-  const onDmScroll = () => {
-    const el = dmRef.current;
-    if (!el) return;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
-    if (nearBottom) setLastReadDmIncoming(dmIncomingCount);
-  };
+  // const onGroupScroll = () => {
+  //   const el = groupRef.current;
+  //   if (!el) return;
+  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
+  //   if (nearBottom) setLastReadGroup(meetingGroupLength);
+  // };
+  // const onDmScroll = () => {
+  //   const el = dmRef.current;
+  //   if (!el) return;
+  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
+  //   if (nearBottom) setLastReadDmIncoming(dmIncomingCount);
+  // };
 
   const onSend = async (scope: ChatScope) => {
     const text = scope === "meeting_group" ? groupText : dmText;
@@ -99,15 +99,15 @@ export default function ParticipantChatPanel({
     }
   };
 
-  const groupItems = (messagesByScope["meeting_group"] || []).map((m, i) =>
-    renderItem(m, i)
-  );
-  const dmItems = (messagesByScope["meeting_dm"] || []).map((m, i) =>
-    renderItem(m, i)
-  );
+  // const groupItems = (messagesByScope["meeting_group"] || []).map((m, i) =>
+  //   renderItem(m, i)
+  // );
+  // const dmItems = (messagesByScope["meeting_dm"] || []).map((m, i) =>
+  //   renderItem(m, i)
+  // );
 
   return (
-    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden overflow-x-hidden w-full max-w-full flex flex-col">
+    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[80vh] min-h-[80vh] overflow-hidden overflow-x-hidden w-full max-w-full flex flex-col">
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v === "dm" ? "dm" : "group")}
@@ -144,101 +144,85 @@ export default function ParticipantChatPanel({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="group" className="flex-1 min-h-0">
-          <div
-            ref={groupRef}
-            onScroll={onGroupScroll}
-            className="h-[26vh] overflow-y-auto overflow-x-hidden bg-white rounded p-2"
-          >
-            <div className="space-y-1 text-sm">
-              {groupItems.length === 0 ? (
-                <div className="text-gray-500">No messages yet.</div>
-              ) : (
-                groupItems
-              )}
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              value={groupText}
-              onChange={(e) => setGroupText(e.target.value)}
-              placeholder="Write a message"
-              className="flex-1 min-w-0"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSend("meeting_group");
-                }
-              }}
-            />
-            <Button
-              onClick={() => onSend("meeting_group")}
-              size="sm"
-              className="h-8 w-8 p-0"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+        <TabsContent value="group" className="flex-1 min-h-0 h-full">
+          {/* Old UI commented; replaced with reusable ChatWindow */}
+          {(() => {
+            const mapped: ChatWindowMessage[] = (
+              messagesByScope["meeting_group"] || []
+            ).map((m, i) => ({
+              id: i,
+              senderEmail: (m.email || m.senderEmail) as string | undefined,
+              senderName: (m.senderName || m.name) as string | undefined,
+              content: m.content,
+              timestamp: m.timestamp || new Date(),
+            }));
+            const send = () => onSend("meeting_group");
+            return (
+              <ChatWindow
+                title="Group Chat"
+                meEmail={me.email}
+                messages={mapped}
+                value={groupText}
+                onChange={setGroupText}
+                onSend={send}
+                onClose={() => setTab("dm")}
+                height="72vh"
+                placeholder="Write a message"
+              />
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="dm" className="flex-1 min-h-0">
-          <div
-            ref={dmRef}
-            onScroll={onDmScroll}
-            className="h-[26vh] overflow-y-auto overflow-x-hidden bg-white rounded p-2"
-          >
-            <div className="space-y-1 text-sm">
-              {dmItems.length === 0 ? (
-                <div className="text-gray-500">No messages yet.</div>
-              ) : (
-                dmItems
-              )}
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              value={dmText}
-              onChange={(e) => setDmText(e.target.value)}
-              placeholder="Ask moderators privately"
-              className="flex-1 min-w-0"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSend("meeting_dm");
-                }
-              }}
-            />
-            <Button
-              onClick={() => onSend("meeting_dm")}
-              size="sm"
-              className="h-8 w-8 p-0"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Old UI commented; replaced with reusable ChatWindow */}
+          {(() => {
+            const mapped: ChatWindowMessage[] = (
+              messagesByScope["meeting_dm"] || []
+            ).map((m, i) => ({
+              id: i,
+              senderEmail: (m.email || m.senderEmail) as string | undefined,
+              senderName: (m.senderName || m.name) as string | undefined,
+              content: m.content,
+              timestamp: m.timestamp || new Date(),
+            }));
+            const send = () => onSend("meeting_dm");
+            return (
+              <ChatWindow
+                title="Chat with Moderators"
+                meEmail={me.email}
+                messages={mapped}
+                value={dmText}
+                onChange={setDmText}
+                onSend={send}
+                onClose={() => setTab("group")}
+                height="72vh"
+                placeholder="Ask moderators privately"
+              />
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function renderItem(m: ChatMessage, i: number) {
-  const raw = m.senderName || m.name || m.email || m.senderEmail || "";
-  const label = raw.includes("@") ? raw : formatDisplayName(raw);
-  const when = new Date(String(m.timestamp)).toLocaleTimeString();
-  const content = m.content;
-  const role = m.role || "Moderator";
-  return (
-    <div key={`${label}-${i}`} className="flex items-start gap-2">
-      <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
-      <div className="min-w-0">
-        <div className="text-[12px] text-gray-600">
-          <span className="font-medium text-gray-900">{label}</span>
-          <span className="ml-1 text-[11px] text-gray-500">{role}</span>
-          <span className="ml-2 text-[11px] text-gray-400">{when}</span>
-        </div>
-        <div className="whitespace-pre-wrap text-sm">{content}</div>
-      </div>
-    </div>
-  );
-}
+// function renderItem(m: ChatMessage, i: number) {
+//   const raw = m.senderName || m.name || m.email || m.senderEmail || "";
+//   const label = raw.includes("@") ? raw : formatDisplayName(raw);
+//   const when = new Date(String(m.timestamp)).toLocaleTimeString();
+//   const content = m.content;
+//   const role = m.role || "Moderator";
+//   return (
+//     <div key={`${label}-${i}`} className="flex items-start gap-2">
+//       <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+//       <div className="min-w-0">
+//         <div className="text-[12px] text-gray-600">
+//           <span className="font-medium text-gray-900">{label}</span>
+//           <span className="ml-1 text-[11px] text-gray-500">{role}</span>
+//           <span className="ml-2 text-[11px] text-gray-400">{when}</span>
+//         </div>
+//         <div className="whitespace-pre-wrap text-sm">{content}</div>
+//       </div>
+//     </div>
+//   );
+// }
