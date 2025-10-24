@@ -12,11 +12,7 @@ import {
 import { Input } from "components/ui/input";
 import { Button } from "components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
-import {
-  Control,
-  FieldValues,
-  Path,
-} from "react-hook-form";
+import { Control, FieldValues, Path } from "react-hook-form";
 
 interface PasswordFieldProps<TFieldValues extends FieldValues> {
   /** the RHF control object */
@@ -56,9 +52,6 @@ export default function PasswordField<TFieldValues extends FieldValues>({
                 placeholder={placeholder}
                 {...field}
                 disabled={disabled}
-                 onCopy={(e) => e.preventDefault()}
-               onPaste={(e) => e.preventDefault()}
-               onCut={(e) => e.preventDefault()}
               />
               <Button
                 type="button"
