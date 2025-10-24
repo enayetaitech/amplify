@@ -81,6 +81,13 @@ export default function EditSessionModal({
     placeholderData: keepPreviousData,
   });
 
+  // Only include Admins and Moderators (exclude Observers)
+  const availableModerators = (moderatorsData?.data || []).filter(
+    (m) =>
+      Array.isArray(m.roles) &&
+      (m.roles.includes("Admin") || m.roles.includes("Moderator"))
+  );
+
   // Normalize moderators into a string[] of moderator IDs in case
   // the incoming session has populated moderator objects
   function normalizeModeratorIds(input: unknown): string[] {
@@ -260,7 +267,7 @@ export default function EditSessionModal({
           <div className="grid gap-2">
             <label className="font-medium">Moderators</label>
             <MultiSelectDropdown
-              moderators={moderatorsData?.data || []}
+              moderators={availableModerators}
               selected={values.moderators}
               onChange={(ids) => setValues({ ...values, moderators: ids })}
               disabled={isSaving}
