@@ -5,7 +5,7 @@ export interface IProjectSession {
     number: number;
     duration: string;
 }
-export type ProjectStatus = "Draft" | "Active" | "Inactive" | "Closed" | "Archived";
+export type ProjectStatus = "Draft" | "Active" | "Paused" | "Inactive" | "Closed" | "Archived";
 export type ProjectService = "Concierge" | "Signature";
 export interface IProject {
     _id: string;
