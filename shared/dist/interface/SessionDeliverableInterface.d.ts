@@ -10,5 +10,8 @@ export interface ISessionDeliverable {
     uploadedBy: string;
     createdAt: Date;
     updatedAt: Date;
+    deletedAt?: Date;
+    purgeAfterAt?: Date;
+    deletedBy?: string;
 }
 //# sourceMappingURL=SessionDeliverableInterface.d.ts.map

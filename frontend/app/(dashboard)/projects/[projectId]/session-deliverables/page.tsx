@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import api from "lib/api";
 import { useParams } from "next/navigation";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ISessionDeliverable } from "@shared/interface/SessionDeliverableInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
@@ -20,7 +20,11 @@ import {
 } from "components/ui/table";
 import { Checkbox } from "components/ui/checkbox";
 import CustomButton from "components/shared/CustomButton";
-import { Download } from "lucide-react";
+import { Download, Pencil, Trash2, RotateCw } from "lucide-react";
+import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
+import { toast } from "sonner";
+import { safeLocalGet } from "utils/storage";
+import type { IUser } from "@shared/interface/UserInterface";
 
 const deliverableTabs = [
   { label: "Video", type: "VIDEO" },
@@ -38,21 +42,72 @@ const SessionDeliverables = () => {
   const limit = 10;
   const [selectedType, setSelectedType] = useState(deliverableTabs[0].type);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showDeleted, setShowDeleted] = useState(false);
 
-  const { data, isLoading, error } = useQuery<
+  const { data, isLoading, error, refetch } = useQuery<
     { data: ISessionDeliverable[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["sessionDeliverables", projectId, page, selectedType],
+    queryKey: [
+      "sessionDeliverables",
+      projectId,
+      page,
+      selectedType,
+      showDeleted,
+    ],
     queryFn: () =>
       api
         .get<{ data: ISessionDeliverable[]; meta: IPaginationMeta }>(
           `/api/v1/sessionDeliverables/project/${projectId}`,
-          { params: { page, limit, type: selectedType } }
+          {
+            params: {
+              page,
+              limit,
+              type: selectedType,
+              includeDeleted: showDeleted,
+            },
+          }
         )
         .then((res) => res.data),
     placeholderData: keepPreviousData,
   });
+
+  // Current user info
+  const me: IUser | null = safeLocalGet<IUser>("user");
+
+  // Fetch project team to check user's role in this specific project
+  const { data: projectTeam } = useQuery<
+    {
+      data: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        roles: string[];
+        adminAccess: boolean;
+      }[];
+    },
+    Error
+  >({
+    queryKey: ["projectTeam", projectId],
+    queryFn: () =>
+      api
+        .get(`/api/v1/moderators/project/${projectId}`)
+        .then((res) => res.data),
+    enabled: Boolean(projectId) && Boolean(me?.email),
+  });
+
+  // Admin within this project's team
+  const isProjectAdmin = useMemo(() => {
+    const email = (me?.email || "").toLowerCase();
+    const members = projectTeam?.data || [];
+    return members.some(
+      (m) =>
+        (m.email || "").toLowerCase() === email &&
+        Array.isArray(m.roles) &&
+        m.roles.includes("Admin")
+    );
+  }, [projectTeam, me?.email]);
 
   // 2️⃣ Mutation for single-download
   const downloadOneMutation = useMutation<string, unknown, string>({
@@ -83,6 +138,38 @@ const SessionDeliverables = () => {
       console.error("Bulk download failed", err);
     },
   });
+
+  // Rename
+  const renameMutation = useMutation<
+    unknown,
+    unknown,
+    { id: string; name: string }
+  >({
+    mutationFn: ({ id, name }) =>
+      api.patch(`/api/v1/sessionDeliverables/${id}/rename`, {
+        displayName: name,
+      }),
+    onSuccess: () => {
+      toast.success("Recording renamed");
+      refetch();
+    },
+    onError: () => toast.error("Rename failed"),
+  });
+
+  // Soft Delete (double-confirm)
+  const deleteMutation = useMutation<unknown, unknown, string>({
+    mutationFn: (id) => api.delete(`/api/v1/sessionDeliverables/${id}`),
+    onSuccess: () => {
+      toast.message(
+        "Recording deleted. It can be restored within 7–15 days before permanent deletion."
+      );
+      refetch();
+    },
+    onError: () => toast.error("Delete failed"),
+  });
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
@@ -147,6 +234,20 @@ const SessionDeliverables = () => {
             ))}
           </TabsList>
         </Tabs>
+        {isProjectAdmin && (
+          <div className="flex items-center gap-2 mb-2">
+            <label className="text-sm text-gray-600">Show deleted</label>
+            <input
+              type="checkbox"
+              checked={showDeleted}
+              onChange={(e) => {
+                setShowDeleted(e.target.checked);
+                setSelectedIds([]);
+                setPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
       {isLoading ? (
         <p className="text-custom-dark-blue-1 text-2xl text-center font-bold">
@@ -184,7 +285,7 @@ const SessionDeliverables = () => {
                 </TableHead>
                 <TableHead>Deliverable</TableHead>
                 <TableHead>Size</TableHead>
-                <TableHead className="text-center">Action</TableHead>
+                <TableHead className="text-left">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y">
@@ -199,18 +300,96 @@ const SessionDeliverables = () => {
                         className="cursor-pointer"
                       />
                     </TableCell>
-                    <TableCell>{del.displayName}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={
+                            del.deletedAt ? "line-through text-gray-400" : ""
+                          }
+                        >
+                          {del.displayName}
+                        </span>
+                        {del.deletedAt && (
+                          <span className="text-xs text-red-500">
+                            (deleted)
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
-                    <TableCell className="text-center">
-                      <CustomButton
-                        className="bg-custom-dark-blue-3 hover:bg-custom-dark-blue-2 rounded-lg"
-                        onClick={() => downloadOneMutation.mutate(del._id)}
-                        disabled={downloadOneMutation.isPending}
-                      >
-                        {downloadOneMutation.isPending
-                          ? "Downloading..."
-                          : "Download"}
-                      </CustomButton>
+                    <TableCell className="text-left">
+                      <div className="flex items-center justify-start gap-2">
+                        <CustomButton
+                          className="bg-custom-dark-blue-3 hover:bg-custom-dark-blue-2 rounded-lg"
+                          onClick={() => downloadOneMutation.mutate(del._id)}
+                          disabled={downloadOneMutation.isPending}
+                          aria-label="Download"
+                        >
+                          {downloadOneMutation.isPending ? (
+                            "Downloading..."
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </CustomButton>
+                        {isProjectAdmin && !del.deletedAt && (
+                          <>
+                            <CustomButton
+                              size="icon"
+                              variant="outline"
+                              className="border border-gray-300"
+                              onClick={() => {
+                                const name = prompt(
+                                  "Enter new name",
+                                  del.displayName
+                                );
+                                if (
+                                  name &&
+                                  name.trim() &&
+                                  name.trim() !== del.displayName
+                                ) {
+                                  renameMutation.mutate({
+                                    id: del._id,
+                                    name: name.trim(),
+                                  });
+                                }
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </CustomButton>
+                            <CustomButton
+                              size="icon"
+                              className="bg-custom-orange-2 text-white hover:bg-custom-orange-1"
+                              onClick={() => {
+                                setToDeleteId(del._id);
+                                setConfirmOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </CustomButton>
+                          </>
+                        )}
+                        {isProjectAdmin && del.deletedAt && (
+                          <CustomButton
+                            size="icon"
+                            variant="outline"
+                            className="border border-gray-300"
+                            aria-label="Restore"
+                            onClick={async () => {
+                              try {
+                                await api.post(
+                                  `/api/v1/sessionDeliverables/${del._id}/restore`
+                                );
+                                toast.success("Recording restored");
+                                refetch();
+                              } catch {
+                                toast.error("Restore failed");
+                              }
+                            }}
+                          >
+                            <RotateCw className="h-4 w-4" />
+                          </CustomButton>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -228,7 +407,20 @@ const SessionDeliverables = () => {
           </Table>
         </div>
       )}
-
+      <ConfirmationModalComponent
+        open={confirmOpen}
+        onCancel={() => setConfirmOpen(false)}
+        onYes={() => {
+          if (toDeleteId) {
+            // proceed with deletion (no native alert)
+            deleteMutation.mutate(toDeleteId);
+          }
+          setConfirmOpen(false);
+        }}
+        heading="Delete Recording?"
+        text="Are you sure you want to delete this recording? You can restore it within 7–15 days before it is permanently deleted."
+        cancelText="No"
+      />
       {totalPages > 1 && (
         <div className="w-full flex justify-end  pb-5">
           <CustomPagination
