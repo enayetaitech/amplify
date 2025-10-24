@@ -174,10 +174,10 @@ const SessionDeliverables = () => {
                         downloadAllMutation.isPending
                       }
                       size="sm"
-                      className="cursor-pointer hover:text-custom-dark-blue-1 hover:bg-white outline-0 border-0 shadow-lg bg-white"
+                      className="cursor-pointer bg-custom-orange-2 text-white hover:bg-custom-orange-1 border-0"
                     >
                       {downloadAllMutation.isPending
-                        ? "Preparing..."
+                        ? "Downloading..."
                         : "Download All"}
                     </CustomButton>
                   </div>
