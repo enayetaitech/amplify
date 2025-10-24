@@ -521,7 +521,11 @@ export default function ObserverWaitingRoom() {
                             ? "bg-custom-dark-blue-1 text-white"
                             : "bg-transparent border-custom-dark-blue-1 text-custom-dark-blue-1"
                         }`}
-                        onClick={() => setActiveTab("chat")}
+                        onClick={() => {
+                          setActiveTab("chat");
+                          setShowGroupChat(false);
+                          setSelectedObserver(null);
+                        }}
                       >
                         <span className="relative inline-flex items-center">
                           <span>Observer Chat</span>

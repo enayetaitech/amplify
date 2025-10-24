@@ -118,7 +118,7 @@ export default function ModeratorChatPanel({
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden flex flex-col">
       <Tabs
         value={tab}
-        onValueChange={(v) =>
+        onValueChange={(v) => {
           setTab(
             v === "dm"
               ? "dm"
@@ -127,8 +127,18 @@ export default function ModeratorChatPanel({
               : v === "mods"
               ? "mods"
               : "group"
-          )
-        }
+          );
+          // Closing any open chat window on tab switch
+          if (v === "dm" || v === "waiting" || v === "mods" || v === "group") {
+            setDmTarget("");
+            setWrTarget("");
+            setModTarget("");
+            setGroupText("");
+            setDmText("");
+            setWrText("");
+            setModText("");
+          }
+        }}
         className="flex-1 flex min-h-0 flex-col"
       >
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">

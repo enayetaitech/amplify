@@ -482,7 +482,16 @@ const ObservationRoom = () => {
         }
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v)}>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => {
+          setTab(v);
+          if (v === "list") {
+            setShowGroupChat(false);
+            setSelectedObserver(null);
+          }
+        }}
+      >
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger
             value="list"
@@ -493,6 +502,11 @@ const ObservationRoom = () => {
           <TabsTrigger
             value="chat"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer"
+            onClick={() => {
+              // Close any open chat window when switching to the Observer Chat tab
+              setShowGroupChat(false);
+              setSelectedObserver(null);
+            }}
           >
             Observer Chat
             {groupUnread +

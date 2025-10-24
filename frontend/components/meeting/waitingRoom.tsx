@@ -168,7 +168,12 @@ export default function ModeratorWaitingPanel() {
 
       <Tabs
         defaultValue="list"
-        onValueChange={(v) => setActiveTab(v as "list" | "chat")}
+        onValueChange={(v) => {
+          setActiveTab(v as "list" | "chat");
+          if (v === "chat") {
+            setSelectedEmail(null);
+          }
+        }}
       >
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger
@@ -180,6 +185,11 @@ export default function ModeratorWaitingPanel() {
           <TabsTrigger
             value="chat"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
+            onClick={() => {
+              // Ensure any open DM thread is closed when clicking the tab
+              setSelectedEmail(null);
+              setChatText("");
+            }}
           >
             Waiting Chat
             {totalUnreadCount > 0 && (

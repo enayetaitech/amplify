@@ -90,7 +90,15 @@ export default function ObserverMessageComponent({
     <>
       <RightSidebarHeading title="Backroom" observerCount={observerCount} />
       <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
-        <Tabs defaultValue="list">
+        <Tabs
+          defaultValue="list"
+          onValueChange={(v) => {
+            if (v === "list") {
+              setShowGroupChatObs(false);
+              setSelectedObserver(null);
+            }
+          }}
+        >
           <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
             <TabsTrigger
               value="list"
@@ -101,6 +109,11 @@ export default function ObserverMessageComponent({
             <TabsTrigger
               value="chat"
               className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
+              onClick={() => {
+                // Close any open chat window when switching to Observer Text tab
+                setShowGroupChatObs(false);
+                setSelectedObserver(null);
+              }}
             >
               Observer Text
               {totalObserverUnread > 0 && (
