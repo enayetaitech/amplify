@@ -83,16 +83,31 @@ const ProjectRow: React.FC<ProjectRowProps> = ({
         <CustomButton
           size="sm"
           variant="outline"
-          className="bg-custom-teal"
-          onClick={() => onShareClick(project, "observer")}
+          className={
+            project.status === "Archived"
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+              : "bg-custom-teal"
+          }
+          onClick={() =>
+            project.status !== "Archived" && onShareClick(project, "observer")
+          }
+          disabled={project.status === "Archived"}
         >
           Observer Link
         </CustomButton>
         <CustomButton
           size="sm"
           variant="outline"
-          className="bg-custom-teal"
-          onClick={() => onShareClick(project, "participant")}
+          className={
+            project.status === "Archived"
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+              : "bg-custom-teal"
+          }
+          onClick={() =>
+            project.status !== "Archived" &&
+            onShareClick(project, "participant")
+          }
+          disabled={project.status === "Archived"}
         >
           Participant Link
         </CustomButton>

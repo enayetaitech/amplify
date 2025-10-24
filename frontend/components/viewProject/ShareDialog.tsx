@@ -23,18 +23,20 @@ interface ShareDialogProps {
   description: string;
   fields: Array<{ label: string; value: string }>;
   copyPayload: string;
-  footerText?: string;               // ← new
+  footerText?: string; // ← new
+  disabled?: boolean; // ← for archived projects
 }
 
 const ShareDialog: React.FC<ShareDialogProps> = ({
-    open,
+  open,
   onOpenChange,
   triggerLabel,
   badgeLabel,
   description,
   fields,
   copyPayload,
-  footerText,                        // ← new
+  footerText, // ← new
+  disabled = false, // ← for archived projects
 }) => {
   const copyLink = () => {
     if (!navigator.clipboard) {
@@ -48,16 +50,21 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-       {triggerLabel && (
-      <DialogTrigger asChild>
-        <CustomButton
-          icon={<Copy />}
-          className="bg-custom-teal hover:bg-custom-dark-blue-1"
-        >
-          {triggerLabel}
-        </CustomButton>
-      </DialogTrigger>
- )}
+      {triggerLabel && (
+        <DialogTrigger asChild>
+          <CustomButton
+            icon={<Copy />}
+            className={
+              disabled
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60 hover:bg-gray-300"
+                : "bg-custom-teal hover:bg-custom-dark-blue-1"
+            }
+            disabled={disabled}
+          >
+            {triggerLabel}
+          </CustomButton>
+        </DialogTrigger>
+      )}
       <DialogContent className="rounded-2xl w-[420px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-center text-custom-black">
@@ -80,9 +87,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
           ))}
 
           {footerText && (
-            <p className="mt-2 text-xs text-custom-black">
-              {footerText}
-            </p>
+            <p className="mt-2 text-xs text-custom-black">{footerText}</p>
           )}
         </div>
 
