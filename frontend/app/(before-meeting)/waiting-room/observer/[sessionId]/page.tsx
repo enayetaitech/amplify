@@ -474,7 +474,7 @@ export default function ObserverWaitingRoom() {
           <div className=" rounded-xl bg-white p-4 lg:p-6">
             <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center">
               <p className="text-center text-slate-700">
-                Please wait, the meeting host will let you in soon.
+              Feel free to chat, the meeting stream will start soon.
               </p>
             </div>
           </div>
