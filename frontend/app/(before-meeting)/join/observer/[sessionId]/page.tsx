@@ -61,7 +61,6 @@ const ObserverJoinMeeting: React.FC = () => {
         name: nameTrimmed,
         email: emailNormalized,
         role: "Observer",
-        projectId: res?.data?.projectId, // Store projectId for project-based socket connections
       });
 
       const action = res?.data?.action as "waiting_room" | "stream" | undefined;

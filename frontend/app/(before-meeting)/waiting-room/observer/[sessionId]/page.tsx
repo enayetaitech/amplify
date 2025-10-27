@@ -17,6 +17,7 @@ import {
 import {
   MessageSquare,
   MoveLeftIcon,
+  
   MoveRightIcon,
   Video,
   X,
@@ -56,7 +57,6 @@ export default function ObserverWaitingRoom() {
   const router = useRouter();
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [mountKey, setMountKey] = useState(0);
   const [observerList, setObserverList] = useState<
     { name: string; email: string }[]
   >([]);
@@ -94,11 +94,6 @@ export default function ObserverWaitingRoom() {
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
 
-  // Increment mount key on component mount to force socket reconnection
-  useEffect(() => {
-    setMountKey((prev) => prev + 1);
-  }, []);
-
   useEffect(() => {
     // Effect: establish socket connection for this observer session
     // - Connects to the socket server with role=Observer and saved user info
@@ -106,10 +101,6 @@ export default function ObserverWaitingRoom() {
     // - Listens for participant admission announcements and shows toasts
     // - Cleans up listeners and disconnects the socket on unmount or sessionId change
     if (!sessionId) return;
-
-    console.log(
-      `[Observer Waiting Room] Establishing socket connection (mount key: ${mountKey})`
-    );
 
     const saved =
       typeof window !== "undefined" &&
@@ -121,48 +112,20 @@ export default function ObserverWaitingRoom() {
       withCredentials: true,
       query: {
         sessionId,
-        projectId: saved?.projectId || "", // Pass projectId for project-based rooms
         role: "Observer",
         name: saved?.name || "",
         email: saved?.email || "",
       },
     });
 
-    const onStarted = (payload?: {
-      playbackUrl?: string;
-      sessionId?: string;
-    }) => {
-      console.log(
-        "[Observer Waiting Room] Received observer:stream:started event",
-        payload
-      );
+    const onStarted = () => {
       toast.success(
         "Streaming started. You are being taken to the streaming page."
       );
-      // Pass playbackUrl via URL param to avoid race condition with API fetch
-      const playbackUrl = payload?.playbackUrl;
-      if (playbackUrl) {
-        router.replace(
-          `/meeting/${sessionId}?role=Observer&hlsUrl=${encodeURIComponent(
-            playbackUrl
-          )}`
-        );
-      } else {
-        router.replace(`/meeting/${sessionId}?role=Observer`);
-      }
-    };
-
-    const onStopped = (payload?: { sessionId?: string }) => {
-      console.log(
-        "[Observer Waiting Room] Received observer:stream:stopped event",
-        payload
-      );
-      // Observer is already in waiting room, just show a toast
-      toast.info("Streaming has ended.");
+      router.replace(`/meeting/${sessionId}?role=Observer`);
     };
 
     s.on("observer:stream:started", onStarted);
-    s.on("observer:stream:stopped", onStopped);
     setSocket(s);
 
     // Show toasts when participants are admitted
@@ -209,13 +172,12 @@ export default function ObserverWaitingRoom() {
 
     return () => {
       s.off("observer:stream:started", onStarted);
-      s.off("observer:stream:stopped", onStopped);
       s.off("announce:participant:admitted", onOneAdmitted);
       s.off("announce:participants:admitted", onManyAdmitted);
       s.off("chat:new", onChatNew);
       s.disconnect();
     };
-  }, [router, sessionId, selectedObserver, showGroupChat, mountKey]);
+  }, [router, sessionId, selectedObserver, showGroupChat]);
 
   // DM unread count across all observers
   useEffect(() => {
@@ -512,7 +474,7 @@ export default function ObserverWaitingRoom() {
           <div className=" rounded-xl bg-white p-4 lg:p-6">
             <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center">
               <p className="text-center text-slate-700">
-                Feel free to chat, the meeting stream will start soon.
+              Feel free to chat, the meeting stream will start soon.
               </p>
             </div>
           </div>
