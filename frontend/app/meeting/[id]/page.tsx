@@ -315,19 +315,31 @@ export default function Meeting() {
 
     if (role === "observer") {
       (async () => {
-        try {
-          const res = await api.get<ApiResponse<{ url: string }>>(
-            `/api/v1/livekit/${sessionId as string}/hls`
+        // Check if HLS URL was passed via URL param (from waiting room socket event)
+        const urlHls = searchParams?.get("hlsUrl");
+        if (urlHls) {
+          console.log(
+            "[Observer Meeting] Using HLS URL from URL param:",
+            urlHls
           );
-          const u = res.data?.data?.url || null;
-          if (!u) {
+          setHlsUrl(decodeURIComponent(urlHls));
+        } else {
+          // Fallback to API fetch
+          try {
+            const res = await api.get<ApiResponse<{ url: string }>>(
+              `/api/v1/livekit/${sessionId as string}/hls`
+            );
+            const u = res.data?.data?.url || null;
+            if (!u) {
+              router.replace(`/waiting-room/observer/${sessionId}`);
+              return;
+            }
+            console.log("[Observer Meeting] Fetched HLS URL from API:", u);
+            setHlsUrl(u);
+          } catch {
             router.replace(`/waiting-room/observer/${sessionId}`);
             return;
           }
-          setHlsUrl(u);
-        } catch {
-          router.replace(`/waiting-room/observer/${sessionId}`);
-          return;
         }
 
         // Additionally fetch a subscribe-only token so we can render a filmstrip
@@ -354,7 +366,7 @@ export default function Meeting() {
       setToken(lkToken);
       setWsUrl(url);
     })();
-  }, [sessionId, role, serverRole, router]);
+  }, [sessionId, role, serverRole, router, searchParams]);
 
   // fetch session metadata to get projectId for polls panel
   useEffect(() => {
@@ -413,6 +425,7 @@ export default function Meeting() {
       withCredentials: true,
       query: {
         sessionId: String(sessionId),
+        projectId: saved?.projectId || "", // Pass projectId for project-based rooms
         role: serverRole,
         name: my?.name || saved?.name || "",
         email: my?.email || saved?.email || "",
@@ -469,6 +482,20 @@ export default function Meeting() {
         router.replace(`/remove-participant`);
       } catch {}
     });
+
+    // Observer stream stopped - return to waiting room
+    if (role === "observer") {
+      s.on("observer:stream:stopped", (payload?: { sessionId?: string }) => {
+        try {
+          console.log(
+            "[Observer Meeting] Received observer:stream:stopped event",
+            payload
+          );
+          toast.info("Streaming has ended. Returning to waiting room.");
+          router.replace(`/waiting-room/observer/${sessionId}`);
+        } catch {}
+      });
+    }
 
     // Whiteboard visibility: seed current value and listen for changes
     try {
@@ -527,6 +554,9 @@ export default function Meeting() {
       s.off("meeting:ended", onMeetingEnded);
       s.off("meeting:force-mute");
       s.off("meeting:force-camera-off");
+      s.off("meeting:moved-to-waiting");
+      s.off("meeting:removed");
+      s.off("observer:stream:stopped");
       s.off("observer:list");
       s.off("whiteboard:visibility:changed", onWbVisibility);
       s.disconnect();
@@ -544,23 +574,6 @@ export default function Meeting() {
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [role]);
-
-  // If observer and stream stops, route back to observer waiting room
-  useEffect(() => {
-    if (role !== "observer") return;
-    const s = window.__meetingSocket;
-    if (!s) return;
-    const onStopped = () => {
-      toast.info(
-        "Streaming stopped. You are being taken to the observation room."
-      );
-      router.replace(`/waiting-room/observer/${sessionId}`);
-    };
-    s.on("observer:stream:stopped", onStopped);
-    return () => {
-      s.off("observer:stream:stopped", onStopped);
-    };
-  }, [role, router, sessionId]);
 
   // Always-mounted bridge for moderator/admin: toast when participants join waiting room
   useEffect(() => {

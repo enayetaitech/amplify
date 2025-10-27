@@ -195,7 +195,12 @@ export const enqueue = async (
       action = "stream";
     }
 
-    sendResponse(res, { action, sessionId }, "Enqueued", 200);
+    sendResponse(
+      res,
+      { action, sessionId, projectId: String(project._id) },
+      "Enqueued",
+      200
+    );
     return;
   } catch (err) {
     next(err);

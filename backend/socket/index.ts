@@ -63,6 +63,14 @@ const observerInfo = new Map<
   string,
   Map<string, { name: string; email: string }>
 >();
+
+// Track observer sockets per project for project-based observer flow
+const projectObserverSockets = new Map<string, Set<string>>();
+// Track observer display info per projectId -> (socketId -> { name, email, currentSessionId })
+const projectObserverInfo = new Map<
+  string,
+  Map<string, { name: string; email: string; currentSessionId?: string }>
+>();
 // Track moderator/admin display info per sessionId -> (socketId -> { name, email, role })
 const moderatorInfo = new Map<
   string,
@@ -104,9 +112,10 @@ export function attachSocket(server: HTTPServer) {
   setIo(io);
 
   io.on("connection", (socket: Socket) => {
-    // Expect query: ?sessionId=...&role=...&name=...&email=...
+    // Expect query: ?sessionId=...&projectId=...&role=...&name=...&email=...
     const q = socket.handshake.query;
     const sessionId = String(q.sessionId || "");
+    const projectId = String(q.projectId || "");
     const role = String(q.role || "Participant") as Role;
     const name = (q.name as string) || "";
     const email = (q.email as string) || "";
@@ -117,17 +126,72 @@ export function attachSocket(server: HTTPServer) {
       return socket.disconnect(true);
     }
 
+    // For observers, we need projectId - get it from session if not provided
+    let resolvedProjectId = projectId;
+    if (role === "Observer" && !resolvedProjectId) {
+      // This will be resolved asynchronously below
+      resolvedProjectId = "";
+    }
+
     const rooms = {
-      waiting: `waiting::${sessionId}`,
-      meeting: `meeting::${sessionId}`, // future milestones
-      observer: `observer::${sessionId}`, // future milestones
+      waiting:
+        role === "Observer" && resolvedProjectId
+          ? `waiting::project::${resolvedProjectId}`
+          : `waiting::${sessionId}`,
+      meeting: `meeting::${sessionId}`,
+      observer:
+        role === "Observer" && resolvedProjectId
+          ? `observer::project::${resolvedProjectId}`
+          : `observer::${sessionId}`,
+      session: `session::${sessionId}`,
     };
 
-    // Join waiting room by default; participant/observer wait here
-    socket.join(rooms.waiting);
+    // For observers without projectId, resolve it from sessionId
+    if (role === "Observer" && !resolvedProjectId) {
+      (async () => {
+        try {
+          const session = await SessionModel.findById(sessionId).lean();
+          if (session) {
+            resolvedProjectId = String(session.projectId);
+            const projectRooms = {
+              waiting: `waiting::project::${resolvedProjectId}`,
+              observer: `observer::project::${resolvedProjectId}`,
+            };
 
-    if (["Observer", "Moderator", "Admin"].includes(role)) {
-      socket.join(rooms.observer);
+            // Join project-based rooms
+            socket.join(projectRooms.waiting);
+            socket.join(projectRooms.observer);
+            console.log(
+              `[Socket] Observer (${email}) joined project rooms: ${projectRooms.observer}`
+            );
+
+            // Track in project-based maps
+            if (!projectObserverSockets.has(resolvedProjectId))
+              projectObserverSockets.set(resolvedProjectId, new Set());
+            projectObserverSockets.get(resolvedProjectId)!.add(socket.id);
+
+            if (!projectObserverInfo.has(resolvedProjectId))
+              projectObserverInfo.set(resolvedProjectId, new Map());
+            projectObserverInfo.get(resolvedProjectId)!.set(socket.id, {
+              name: name || email || "Observer",
+              email: email || "",
+              currentSessionId: sessionId,
+            });
+          }
+        } catch (e) {
+          console.error("Failed to resolve projectId for observer:", e);
+        }
+      })();
+    } else {
+      // Join waiting room by default; participant/observer wait here
+      socket.join(rooms.waiting);
+
+      if (["Observer", "Moderator", "Admin"].includes(role)) {
+        socket.join(rooms.observer);
+        console.log(
+          `[Socket] ${role} (${email}) joined observer room: ${rooms.observer}`
+        );
+      }
     }
     if (["Moderator", "Admin"].includes(role)) {
       if (!moderatorSockets.has(sessionId))
@@ -1931,10 +1995,38 @@ export function attachSocket(server: HTTPServer) {
           } catch {}
           console.log("Playback URL", live);
           console.log("hls", hls);
-          // tell all observers in this session that streaming is live
-          io.to(rooms.observer).emit("observer:stream:started", {
+
+          // Get projectId from session for project-based emission
+          const sessionDoc = await SessionModel.findById(sessionId).lean();
+          const projectId = sessionDoc ? String(sessionDoc.projectId) : null;
+
+          // Emit to session-based observer room (for backward compatibility)
+          const sessionObserverRoom = `observer::${sessionId}`;
+          const sessionObserverRoomSize =
+            io.sockets.adapter.rooms.get(sessionObserverRoom)?.size || 0;
+          console.log(
+            `[Stream Start] Emitting to ${sessionObserverRoomSize} observer(s) in session room ${sessionObserverRoom}`
+          );
+          io.to(sessionObserverRoom).emit("observer:stream:started", {
             playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
+            sessionId,
+            projectId,
           });
+
+          // Emit to project-based observer room (for project-wide observers)
+          if (projectId) {
+            const projectObserverRoom = `observer::project::${projectId}`;
+            const projectObserverRoomSize =
+              io.sockets.adapter.rooms.get(projectObserverRoom)?.size || 0;
+            console.log(
+              `[Stream Start] Emitting to ${projectObserverRoomSize} observer(s) in project room ${projectObserverRoom}`
+            );
+            io.to(projectObserverRoom).emit("observer:stream:started", {
+              playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
+              sessionId,
+              projectId,
+            });
+          }
 
           return ack?.({ ok: true });
         } catch (e: any) {
@@ -1999,8 +2091,36 @@ export function attachSocket(server: HTTPServer) {
           } catch {}
 
           console.log("stopped stream", live);
-          // notify observers to switch back to waiting UI in a later step
-          io.to(rooms.observer).emit("observer:stream:stopped", {});
+
+          // Get projectId from session for project-based emission
+          const sessionDoc = await SessionModel.findById(sessionId).lean();
+          const projectId = sessionDoc ? String(sessionDoc.projectId) : null;
+
+          // Emit to session-based observer room (for backward compatibility)
+          const sessionObserverRoom = `observer::${sessionId}`;
+          const sessionObserverRoomSize =
+            io.sockets.adapter.rooms.get(sessionObserverRoom)?.size || 0;
+          console.log(
+            `[Stream Stop] Emitting to ${sessionObserverRoomSize} observer(s) in session room ${sessionObserverRoom}`
+          );
+          io.to(sessionObserverRoom).emit("observer:stream:stopped", {
+            sessionId,
+            projectId,
+          });
+
+          // Emit to project-based observer room (for project-wide observers)
+          if (projectId) {
+            const projectObserverRoom = `observer::project::${projectId}`;
+            const projectObserverRoomSize =
+              io.sockets.adapter.rooms.get(projectObserverRoom)?.size || 0;
+            console.log(
+              `[Stream Stop] Emitting to ${projectObserverRoomSize} observer(s) in project room ${projectObserverRoom}`
+            );
+            io.to(projectObserverRoom).emit("observer:stream:stopped", {
+              sessionId,
+              projectId,
+            });
+          }
 
           return ack?.({ ok: true });
         } catch (e: any) {
