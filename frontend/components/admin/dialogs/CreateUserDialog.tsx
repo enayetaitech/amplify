@@ -81,6 +81,8 @@ export function CreateUserDialog({ open, onOpenChange, onCreated }: Props) {
       });
     },
     onSuccess: () => {
+      form.reset();
+      setSelectedCountry(null);
       onOpenChange(false);
       onCreated();
       toast.success("User created and invite sent");
