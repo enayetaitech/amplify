@@ -28,14 +28,8 @@ import {
 } from "components/ui/dialog";
 import { Input } from "components/ui/input";
 // session selection UI removed – uploads are project-scoped
-import { Checkbox } from "components/ui/checkbox";
-import {
-  FileText,
-  Folder,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+// selection UI removed
+import { FileText, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Separator } from "@radix-ui/react-select";
 import { useGlobalContext } from "context/GlobalContext";
 
@@ -49,7 +43,7 @@ const bytes = (n: number) =>
 export default function DocumentHub({ projectId }: { projectId: string }) {
   const [page, setPage] = useState(1);
   const limit = 10;
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // selection state removed
   const [uploadOpen, setUploadOpen] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useGlobalContext();
@@ -151,17 +145,7 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
     onError: (e) => toast.error(e?.message || "Upload failed"),
   });
 
-  const allSelected = data ? selectedIds.length === data.data.length : false;
-  const toggleSelectAll = (checked: boolean | "indeterminate") => {
-    if (checked) setSelectedIds(data?.data.map((d) => d._id) || []);
-    else setSelectedIds([]);
-  };
-  const toggleOne = (id: string) => (checked: boolean | "indeterminate") => {
-    const isTrue = checked === true;
-    setSelectedIds((prev) =>
-      isTrue ? [...prev, id] : prev.filter((x) => x !== id)
-    );
-  };
+  // selection handlers removed
 
   const totalPages = data?.meta.totalPages ?? 0;
 
@@ -217,11 +201,6 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
             <div className="bg-custom-gray-2 rounded-xl  p-2">
               <div className="flex items-center justify-between px-3 text-[12px] text-gray-600">
                 <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={toggleSelectAll}
-                    className="cursor-pointer"
-                  />
                   <span>Name</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -236,21 +215,14 @@ export default function DocumentHub({ projectId }: { projectId: string }) {
                       className="flex items-center justify-between px-2 py-1"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <Checkbox
-                          checked={selectedIds.includes(d._id)}
-                          onCheckedChange={toggleOne(d._id)}
-                          className="cursor-pointer"
-                          aria-label={`Select ${d.displayName}`}
-                        />
-                        <Folder className="h-4 w-4 shrink-0" />
                         <button
                           type="button"
                           className="truncate text-sm text-left hover:underline"
                           onClick={() => downloadOne(d._id)}
                           title={d.displayName}
                         >
-                          {d.displayName && d.displayName.length > 30
-                            ? `${d.displayName.slice(0, 30)}…`
+                          {d.displayName && d.displayName.length > 20
+                            ? `${d.displayName.slice(0, 20)}…`
                             : d.displayName}
                         </button>
                       </div>
