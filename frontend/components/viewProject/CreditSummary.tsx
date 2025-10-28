@@ -22,7 +22,7 @@ export default function CreditSummary({ project }: CreditSummaryProps) {
     project.meetings
   );
 
-  const usedToDate = project.cumulativeMinutes;
+  const usedToDate = project.cumulativeMinutes * 2.75; // 2.75 credits per minute
 
   const newTotal = usedToDate + creditNeededForRemainingSessions;
 
@@ -44,7 +44,6 @@ export default function CreditSummary({ project }: CreditSummaryProps) {
         <CardTitle className="text-custom-teal">Credit Summary</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        
         {rows.map(({ label, value }) => (
           <div key={label} className="flex justify-between">
             <span className="text-sm text-gray-600">{label}:</span>

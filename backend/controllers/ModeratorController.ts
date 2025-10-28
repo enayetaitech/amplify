@@ -211,10 +211,78 @@ export const editModerator = async (
     // Not yet verified: allow personal fields + adminAccess
     if (firstName !== undefined) moderator.firstName = firstName;
     if (lastName !== undefined) moderator.lastName = lastName;
-    if (email !== undefined) moderator.email = email;
+
+    // If email is provided and changed, ensure it won't duplicate another moderator in the same project
+    let emailChanged = false;
+    if (email !== undefined && email !== moderator.email) {
+      const duplicate = await ModeratorModel.findOne({
+        email,
+        projectId: moderator.projectId,
+      });
+      if (duplicate) {
+        return next(
+          new ErrorHandler(
+            "A moderator with the same email is already assigned to this project",
+            409
+          )
+        );
+      }
+
+      moderator.email = email;
+      emailChanged = true;
+    }
+
     if (companyName !== undefined) moderator.companyName = companyName;
     if (typeof adminAccess === "boolean") moderator.adminAccess = adminAccess;
     if (typeof isActive === "boolean") moderator.isActive = isActive;
+
+    // If email changed, re-check whether a User now exists with that email and update isVerified.
+    // Also send the appropriate notification or invite similar to the add flow.
+    if (emailChanged) {
+      const existingUserNow = await User.findOne({ email: moderator.email });
+      moderator.isVerified = !!existingUserNow;
+
+      // Lookup project to include project name and creator for email template
+      const project = await ProjectModel.findById(String(moderator.projectId));
+      const creator = project ? await User.findById(project.createdBy) : null;
+      const addedByName = creator
+        ? `${creator.firstName} ${creator.lastName}`
+        : "";
+
+      if (existingUserNow) {
+        const emailHtml = moderatorAddedEmailTemplate({
+          moderatorName: moderator.firstName,
+          addedByName,
+          projectName: project ? project.name : "",
+          loginUrl: `${config.frontend_base_url}/login`,
+          roles: moderator.roles || [],
+        });
+
+        await sendEmail({
+          to: moderator.email,
+          subject: `You’ve been added to "${project ? project.name : ""}"`,
+          html: emailHtml,
+        });
+      } else {
+        const registerUrl = `${
+          config.frontend_base_url
+        }/create-user?email=${encodeURIComponent(moderator.email)}`;
+        const inviteHtml = invitationToRegisterEmailTemplate({
+          inviteeFirstName: moderator.firstName,
+          projectName: project ? project.name : "",
+          registerUrl,
+          roles: moderator.roles || [],
+        });
+
+        await sendEmail({
+          to: moderator.email,
+          subject: `Invitation to join "${
+            project ? project.name : ""
+          }" on Amplify`,
+          html: inviteHtml,
+        });
+      }
+    }
   }
 
   // 3️⃣ Save and respond

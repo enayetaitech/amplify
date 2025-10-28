@@ -7,9 +7,7 @@ import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import CardSetupForm from "./CardSetupFormComponent";
 import BillingForm from "./BillingFormComponent";
-import {
-  PaymentIntegrationProps,
-} from "@shared/interface/CreateProjectInterface";
+import { PaymentIntegrationProps } from "@shared/interface/CreateProjectInterface";
 import { useGlobalContext } from "../../../context/GlobalContext";
 import api from "lib/api";
 import { ApiResponse } from "@shared/interface/ApiResponseInterface";
@@ -44,6 +42,7 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
 
   const [showCreatedModal, setShowCreatedModal] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const [isProcessingFlow, setIsProcessingFlow] = useState(false);
 
   // 1️⃣ A helper to re-fetch the logged-in user's profile
   const refetchUser = async () => {
@@ -59,34 +58,43 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
     }
   };
 
-  
-  const { mutate: chargePayment, isPending: isCharging } = useChargePayment(() => {
-    createProject({ uniqueId: uniqueId!, formState: projectData, totalPurchasePrice, totalCreditsNeeded });
-  });
- 
+  const { mutate: chargePayment, isPending: isCharging } = useChargePayment(
+    () => {
+      createProject({
+        uniqueId: uniqueId!,
+        formState: projectData,
+        totalPurchasePrice,
+        totalCreditsNeeded,
+      });
+    }
+  );
 
-  const { mutate: createProject } = useCreateExternalProject(formatProjectData, (newId) => {
-    setCreatedProjectId(newId);
-    setShowCreatedModal(true);
-  });
+  const { mutate: createProject } = useCreateExternalProject(
+    formatProjectData,
+    (newId) => {
+      setCreatedProjectId(newId);
+      // Make sure any processing flag is cleared so the dialog buttons are enabled
+      setIsProcessingFlow(false);
+      setShowCreatedModal(true);
+    }
+  );
 
   if (!user) return <div className="text-red-500">User not found</div>;
-
 
   const handleUseSavedCard = async () => {
     if (!user.stripeCustomerId) {
       return toast.error("No Stripe customer ID available");
     }
     const amountCents = Math.round(totalPurchasePrice * 100);
-    
-   chargePayment({
+    setIsProcessingFlow(true);
+
+    chargePayment({
       amount: amountCents,
       credits: totalCreditsNeeded,
       customerId: user.stripeCustomerId,
       userId: user._id!,
     });
   };
-
 
   const hasBilling = Boolean(user.billingInfo);
   const hasCard = Boolean(user.creditCardInfo?.last4);
@@ -109,6 +117,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
               return toast.error("No Stripe customer ID available");
             }
 
+            setIsProcessingFlow(true);
+
             chargePayment({
               amount: amountCents,
               credits: totalCreditsNeeded,
@@ -130,14 +140,14 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
             <CustomButton
               className="bg-custom-teal hover:bg-custom-dark-blue-3"
               onClick={handleUseSavedCard}
-              disabled={isCharging}
+              disabled={isCharging || isProcessingFlow}
             >
               {isCharging ? "Processing..." : "Use this Card"}
             </CustomButton>
             <CustomButton
               className="bg-custom-teal hover:bg-custom-dark-blue-3"
               onClick={() => setIsChangingCard(true)}
-              disabled={isCharging}
+              disabled={isCharging || isProcessingFlow}
             >
               Change Card
             </CustomButton>
@@ -148,7 +158,8 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       <Dialog
         open={showCreatedModal}
         onOpenChange={(open) => {
-          if (!open) {
+          // Only navigate on close when we're not already performing a navigation
+          if (!open && !isProcessingFlow) {
             router.push("/projects");
           }
           setShowCreatedModal(open);
@@ -162,19 +173,27 @@ export const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
           <DialogFooter className="flex justify-end space-x-2">
             <CustomButton
               variant="outline"
-              onClick={() => {
+              onClick={async () => {
+                // mark processing first so onOpenChange doesn't trigger navigation
+                setIsProcessingFlow(true);
                 setShowCreatedModal(false);
-                router.push("/projects");
+                await router.push("/projects");
+                setIsProcessingFlow(false);
               }}
+              disabled={isProcessingFlow}
             >
               No
             </CustomButton>
             <CustomButton
-              onClick={() => {
+              onClick={async () => {
+                // mark processing first so onOpenChange doesn't trigger navigation
+                setIsProcessingFlow(true);
                 setShowCreatedModal(false);
-                router.push(`/view-project/${createdProjectId}`);
+                await router.push(`/view-project/${createdProjectId}`);
+                setIsProcessingFlow(false);
               }}
               className="bg-custom-teal text-white hover:bg-custom-dark-blue-3"
+              disabled={isProcessingFlow}
             >
               Yes
             </CustomButton>

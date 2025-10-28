@@ -54,6 +54,11 @@ export async function startMeeting(
 
   await live.save();
 
+  // Update project's cumulativeMinutes by adding this session's rounded minutes
+  // Moved here to ensure we only add minutes when the meeting actually ends
+
+  // NOTE: cumulativeMinutes update moved to endMeeting to only record completed durations
+
   return {
     sessionId: String(session._id),
     roomName,
@@ -120,6 +125,32 @@ export async function endMeeting(
   }
 
   await live.save();
+
+  // Update project's cumulativeMinutes by adding this session's rounded minutes
+  try {
+    if (live.startTime && live.endTime && session && session.projectId) {
+      const durationMs =
+        (live.endTime as Date).getTime() - (live.startTime as Date).getTime();
+      if (!Number.isNaN(durationMs) && durationMs > 0) {
+        const minutesRounded = Math.ceil(durationMs / 60000);
+        try {
+          const ProjectModel = require("../../model/ProjectModel").default;
+          await ProjectModel.updateOne(
+            { _id: session.projectId },
+            { $inc: { cumulativeMinutes: minutesRounded } }
+          ).exec();
+        } catch (e) {
+          try {
+            console.error("Failed to update project cumulativeMinutes", e);
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {
+    try {
+      console.error("Error computing/adding cumulativeMinutes", e);
+    } catch {}
+  }
 
   // Process deliverables in background (non-blocking) - video conversion can take 1-2 minutes
   // We don't await this to ensure the HTTP response returns immediately

@@ -1,6 +1,7 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, Suspense } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -33,6 +34,8 @@ function SetNewPasswordBody() {
   const token = sp.get("token") || "";
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const form = useForm<z.infer<typeof Schema>>({
     resolver: zodResolver(Schema),
     defaultValues: { password: "", confirm: "" },
@@ -72,7 +75,24 @@ function SetNewPasswordBody() {
         <form className="space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
           <div>
             <Label>Password</Label>
-            <Input type="password" {...form.register("password")} />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                {...form.register("password")}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <Eye className="w-5 h-5 text-gray-500" />
+                ) : (
+                  <EyeOff className="w-5 h-5 text-gray-500" />
+                )}
+              </button>
+            </div>
             {form.formState.errors.password?.message && (
               <p className="text-xs text-red-600 mt-1">
                 {form.formState.errors.password.message}
@@ -81,7 +101,28 @@ function SetNewPasswordBody() {
           </div>
           <div>
             <Label>Confirm Password</Label>
-            <Input type="password" {...form.register("confirm")} />
+            <div className="relative">
+              <Input
+                type={showConfirm ? "text" : "password"}
+                {...form.register("confirm")}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
+                onClick={() => setShowConfirm((s) => !s)}
+                aria-label={
+                  showConfirm
+                    ? "Hide confirm password"
+                    : "Show confirm password"
+                }
+              >
+                {showConfirm ? (
+                  <EyeOff className="w-5 h-5 text-gray-500" />
+                ) : (
+                  <Eye className="w-5 h-5 text-gray-500" />
+                )}
+              </button>
+            </div>
             {form.formState.errors.confirm?.message && (
               <p className="text-xs text-red-600 mt-1">
                 {form.formState.errors.confirm.message}
