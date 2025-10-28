@@ -41,6 +41,11 @@ export const adminCreateUser = async (
     if (!canCreateRole(actor.role, data.role)) {
       return next(new ErrorHandler("Forbidden: cannot create this role", 403));
     }
+    // Prevent creating/inviting when a user with the same email already exists
+    const existingUser = await User.findOne({ email: data.email });
+    if (existingUser) {
+      return next(new ErrorHandler("User with this email already exists", 409));
+    }
     const user = await createUserAndInvite({ actorId: actor.userId, ...data });
     sendResponse(
       res,
