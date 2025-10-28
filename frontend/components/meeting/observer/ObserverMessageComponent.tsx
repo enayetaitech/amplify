@@ -2,12 +2,13 @@
 
 import { RefObject } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
-import { Input } from "components/ui/input";
-import { Button } from "components/ui/button";
 import { Badge } from "components/ui/badge";
-import { MessageSquare, Send, X } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import RightSidebarHeading from "components/meeting/RightSidebarHeading";
 import { formatDisplayName } from "lib/utils";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 
 type Observer = { name: string; email: string };
 type Moderator = { name: string; email: string; role: string };
@@ -76,6 +77,10 @@ export default function ObserverMessageComponent({
   setDmText,
   sendDm,
 }: Props) {
+  void groupRef;
+  void groupLoading;
+  void dmRef;
+  void loadingHistory;
   const totalDmUnread = Object.values(dmUnreadByEmail || {}).reduce(
     (s, v) => s + (v || 0),
     0
@@ -85,7 +90,15 @@ export default function ObserverMessageComponent({
     <>
       <RightSidebarHeading title="Backroom" observerCount={observerCount} />
       <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
-        <Tabs defaultValue="list">
+        <Tabs
+          defaultValue="list"
+          onValueChange={(v) => {
+            if (v === "list") {
+              setShowGroupChatObs(false);
+              setSelectedObserver(null);
+            }
+          }}
+        >
           <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
             <TabsTrigger
               value="list"
@@ -96,6 +109,11 @@ export default function ObserverMessageComponent({
             <TabsTrigger
               value="chat"
               className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
+              onClick={() => {
+                // Close any open chat window when switching to Observer Text tab
+                setShowGroupChatObs(false);
+                setSelectedObserver(null);
+              }}
             >
               Observer Text
               {totalObserverUnread > 0 && (
@@ -270,139 +288,62 @@ export default function ObserverMessageComponent({
               )}
               {showGroupChatObs && (
                 <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
-                  <div className="flex items-center justify-between p-2 border-b">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
-                        Observer Group Chat
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowGroupChatObs(false)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div ref={groupRef} className="flex-1 overflow-y-auto p-2">
-                    {groupLoading ? (
-                      <div className="text-sm text-gray-500">Loading…</div>
-                    ) : (
-                      <div className="space-y-1 text-sm">
-                        {groupMessages.length === 0 ? (
-                          <div className="text-gray-500">No messages yet.</div>
-                        ) : (
-                          groupMessages.map((m, idx) => (
-                            <div
-                              key={idx}
-                              className="mr-auto bg-gray-50 max-w-[90%] rounded px-2 py-1"
-                            >
-                              <div className="text-[11px] text-gray-500">
-                                {m.name || m.senderEmail}
-                              </div>
-                              <div className="whitespace-pre-wrap">
-                                {m.content}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2 flex items-center gap-2 border-t">
-                    <Input
-                      placeholder="Type a message..."
-                      value={groupText}
-                      onChange={(e) => setGroupText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          sendGroup();
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={sendGroup}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {(() => {
+                    const mapped: ChatWindowMessage[] = groupMessages.map(
+                      (m, i) => ({
+                        id: i,
+                        senderEmail: (m as { senderEmail?: string })
+                          .senderEmail,
+                        senderName: (m as { name?: string }).name,
+                        content: m.content,
+                        timestamp: new Date(),
+                      })
+                    );
+                    return (
+                      <ChatWindow
+                        title="Observer Group Chat"
+                        meEmail={myEmailLower}
+                        messages={mapped}
+                        value={groupText}
+                        onChange={setGroupText}
+                        onSend={sendGroup}
+                        onClose={() => setShowGroupChatObs(false)}
+                        height="32vh"
+                      />
+                    );
+                  })()}
                 </div>
               )}
               {selectedObserver && !showGroupChatObs && (
                 <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
-                  <div className="flex items-center justify-between p-2 border-b">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
-                        Chat with{" "}
-                        {selectedObserver.name
-                          ? formatDisplayName(selectedObserver.name)
-                          : selectedObserver.email}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedObserver(null)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div ref={dmRef} className="flex-1 overflow-y-auto p-2">
-                    {loadingHistory ? (
-                      <div className="text-sm text-gray-500">Loading…</div>
-                    ) : (
-                      <div className="space-y-1 text-sm">
-                        {dmMessages.length === 0 ? (
-                          <div className="text-gray-500">No messages yet.</div>
-                        ) : (
-                          dmMessages.map((m, idx) => {
-                            const fromMe =
-                              (m.email || "").toLowerCase() === myEmailLower;
-                            return (
-                              <div
-                                key={idx}
-                                className={`max-w-[85%] rounded px-2 py-1 ${
-                                  fromMe
-                                    ? "ml-auto bg-blue-50"
-                                    : "mr-auto bg-gray-50"
-                                }`}
-                              >
-                                {!fromMe && (
-                                  <div className="text-[11px] text-gray-500">
-                                    {m.senderName || m.email}
-                                  </div>
-                                )}
-                                <div className="whitespace-pre-wrap">
-                                  {m.content}
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2 flex items-center gap-2 border-t">
-                    <Input
-                      placeholder="Type a message..."
-                      value={dmText}
-                      onChange={(e) => setDmText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          sendDm();
-                        }
-                      }}
-                    />
-                    <Button size="sm" className="h-8 w-8 p-0" onClick={sendDm}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {(() => {
+                    const mapped: ChatWindowMessage[] = dmMessages.map(
+                      (m, i) => ({
+                        id: i,
+                        senderEmail: m.email,
+                        senderName: m.senderName,
+                        content: m.content,
+                        timestamp: m.timestamp || new Date(),
+                      })
+                    );
+                    const title = `Chat with ${
+                      selectedObserver.name
+                        ? formatDisplayName(selectedObserver.name)
+                        : selectedObserver.email
+                    }`;
+                    return (
+                      <ChatWindow
+                        title={title}
+                        meEmail={myEmailLower}
+                        messages={mapped}
+                        value={dmText}
+                        onChange={setDmText}
+                        onSend={sendDm}
+                        onClose={() => setSelectedObserver(null)}
+                        height="32vh"
+                      />
+                    );
+                  })()}
                 </div>
               )}
             </div>

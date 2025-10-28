@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { Input } from "components/ui/input";
-import { Button } from "components/ui/button";
-import { Send } from "lucide-react";
 import { Badge } from "components/ui/badge";
-import useChat, { ChatMessage } from "hooks/useChat";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
+import useChat from "hooks/useChat";
 
 export default function ModeratorChatPanel({
   socket,
@@ -36,9 +37,9 @@ export default function ModeratorChatPanel({
   const [modText, setModText] = useState("");
 
   const groupRef = useRef<HTMLDivElement | null>(null);
-  const dmRef = useRef<HTMLDivElement | null>(null);
-  const wrRef = useRef<HTMLDivElement | null>(null);
-  const modRef = useRef<HTMLDivElement | null>(null);
+  // const dmRef = useRef<HTMLDivElement | null>(null);
+  // const wrRef = useRef<HTMLDivElement | null>(null);
+  // const modRef = useRef<HTMLDivElement | null>(null);
   const [tab, setTab] = useState<"group" | "dm" | "waiting" | "mods">("group");
   const [lastReadGroup, setLastReadGroup] = useState(0);
 
@@ -74,12 +75,12 @@ export default function ModeratorChatPanel({
 
   const unreadGroup = Math.max(0, groupMessagesLength - lastReadGroup);
 
-  const onGroupScroll = () => {
-    const el = groupRef.current;
-    if (!el) return;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
-    if (nearBottom) setLastReadGroup(groupMessagesLength);
-  };
+  // const onGroupScroll = () => {
+  //   const el = groupRef.current;
+  //   if (!el) return;
+  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
+  //   if (nearBottom) setLastReadGroup(groupMessagesLength);
+  // };
 
   const onSendGroup = async () => {
     const text = groupText.trim();
@@ -109,15 +110,15 @@ export default function ModeratorChatPanel({
     if (ack.ok) setModText("");
   };
 
-  const groupItems = (messagesByScope["meeting_group"] || []).map((m, i) =>
-    renderItem(m, i)
-  );
+  // const groupItems = (messagesByScope["meeting_group"] || []).map((m, i) =>
+  //   renderItem(m, i)
+  // );
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden flex flex-col">
       <Tabs
         value={tab}
-        onValueChange={(v) =>
+        onValueChange={(v) => {
           setTab(
             v === "dm"
               ? "dm"
@@ -126,8 +127,18 @@ export default function ModeratorChatPanel({
               : v === "mods"
               ? "mods"
               : "group"
-          )
-        }
+          );
+          // Closing any open chat window on tab switch
+          if (v === "dm" || v === "waiting" || v === "mods" || v === "group") {
+            setDmTarget("");
+            setWrTarget("");
+            setModTarget("");
+            setGroupText("");
+            setDmText("");
+            setWrText("");
+            setModText("");
+          }
+        }}
         className="flex-1 flex min-h-0 flex-col"
       >
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
@@ -166,39 +177,30 @@ export default function ModeratorChatPanel({
         </TabsList>
 
         <TabsContent value="group" className="flex-1 min-h-0">
-          <div
-            ref={groupRef}
-            onScroll={onGroupScroll}
-            className="h-[22vh] overflow-y-auto bg-white rounded p-2"
-          >
-            <div className="space-y-1 text-sm">
-              {groupItems.length === 0 ? (
-                <div className="text-gray-500">No messages yet.</div>
-              ) : (
-                groupItems
-              )}
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              value={groupText}
-              onChange={(e) => setGroupText(e.target.value)}
-              placeholder="Write a message to everyone"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSendGroup();
-                }
-              }}
-            />
-            <Button
-              onClick={onSendGroup}
-              className="inline-flex items-center gap-1"
-            >
-              <Send className="h-4 w-4" />
-              Send
-            </Button>
-          </div>
+          {(() => {
+            const mapped: ChatWindowMessage[] = (
+              messagesByScope["meeting_group"] || []
+            ).map((m, i) => ({
+              id: i,
+              senderEmail: (m.email || m.senderEmail) as string | undefined,
+              senderName: (m.senderName || m.name) as string | undefined,
+              content: m.content,
+              timestamp: m.timestamp || new Date(),
+            }));
+            return (
+              <ChatWindow
+                title="Participant Group"
+                meEmail={me.email}
+                messages={mapped}
+                value={groupText}
+                onChange={setGroupText}
+                onSend={onSendGroup}
+                onClose={() => setTab("dm")}
+                height="22vh"
+                placeholder="Write a message to everyone"
+              />
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="dm" className="flex-1 min-h-0">
@@ -215,43 +217,35 @@ export default function ModeratorChatPanel({
               }
             />
           </div>
-          <div
-            ref={dmRef}
-            className="h-[18vh] overflow-y-auto bg-white rounded p-2"
-          >
-            <div className="space-y-1 text-sm">
-              {/* render thread from scope store for simplicity */}
-              {(messagesByScope["meeting_dm"] || [])
-                .filter((m) =>
-                  dmTarget
-                    ? (m.toEmail || "") === dmTarget.trim().toLowerCase() ||
-                      (m.email || "").toLowerCase() ===
-                        dmTarget.trim().toLowerCase()
-                    : true
-                )
-                .map((m, i) => renderItem(m, i))}
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              value={dmText}
-              onChange={(e) => setDmText(e.target.value)}
-              placeholder="Write a private message"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSendDm();
-                }
-              }}
-            />
-            <Button
-              onClick={onSendDm}
-              className="inline-flex items-center gap-1"
-            >
-              <Send className="h-4 w-4" />
-              Send
-            </Button>
-          </div>
+          {(() => {
+            const filtered = (messagesByScope["meeting_dm"] || []).filter((m) =>
+              dmTarget
+                ? (m.toEmail || "") === dmTarget.trim().toLowerCase() ||
+                  (m.email || "").toLowerCase() ===
+                    dmTarget.trim().toLowerCase()
+                : true
+            );
+            const mapped: ChatWindowMessage[] = filtered.map((m, i) => ({
+              id: i,
+              senderEmail: (m.email || m.senderEmail) as string | undefined,
+              senderName: (m.senderName || m.name) as string | undefined,
+              content: m.content,
+              timestamp: m.timestamp || new Date(),
+            }));
+            return (
+              <ChatWindow
+                title="Participant DMs"
+                meEmail={me.email}
+                messages={mapped}
+                value={dmText}
+                onChange={setDmText}
+                onSend={onSendDm}
+                onClose={() => setTab("waiting")}
+                height="18vh"
+                placeholder="Write a private message"
+              />
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="waiting" className="flex-1 min-h-0">
@@ -268,42 +262,35 @@ export default function ModeratorChatPanel({
               }
             />
           </div>
-          <div
-            ref={wrRef}
-            className="h-[18vh] overflow-y-auto bg-white rounded p-2"
-          >
-            <div className="space-y-1 text-sm">
-              {(messagesByScope["waiting_dm"] || [])
-                .filter((m) =>
-                  wrTarget
-                    ? (m.toEmail || "") === wrTarget.trim().toLowerCase() ||
-                      (m.email || "").toLowerCase() ===
-                        wrTarget.trim().toLowerCase()
-                    : true
-                )
-                .map((m, i) => renderItem(m, i))}
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              value={wrText}
-              onChange={(e) => setWrText(e.target.value)}
-              placeholder="Write a private message to waiting participant"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSendWr();
-                }
-              }}
-            />
-            <Button
-              onClick={onSendWr}
-              className="inline-flex items-center gap-1"
-            >
-              <Send className="h-4 w-4" />
-              Send
-            </Button>
-          </div>
+          {(() => {
+            const filtered = (messagesByScope["waiting_dm"] || []).filter((m) =>
+              wrTarget
+                ? (m.toEmail || "") === wrTarget.trim().toLowerCase() ||
+                  (m.email || "").toLowerCase() ===
+                    wrTarget.trim().toLowerCase()
+                : true
+            );
+            const mapped: ChatWindowMessage[] = filtered.map((m, i) => ({
+              id: i,
+              senderEmail: (m.email || m.senderEmail) as string | undefined,
+              senderName: (m.senderName || m.name) as string | undefined,
+              content: m.content,
+              timestamp: m.timestamp || new Date(),
+            }));
+            return (
+              <ChatWindow
+                title="Waiting DMs"
+                meEmail={me.email}
+                messages={mapped}
+                value={wrText}
+                onChange={setWrText}
+                onSend={onSendWr}
+                onClose={() => setTab("mods")}
+                height="18vh"
+                placeholder="Write a private message to waiting participant"
+              />
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="mods" className="flex-1 min-h-0">
@@ -320,64 +307,58 @@ export default function ModeratorChatPanel({
               }
             />
           </div>
-          <div
-            ref={modRef}
-            className="h-[18vh] overflow-y-auto bg-white rounded p-2"
-          >
-            <div className="space-y-1 text-sm">
-              {(messagesByScope["meeting_mod_dm"] || [])
-                .filter((m) =>
-                  modTarget
-                    ? (m.toEmail || "") === modTarget.trim().toLowerCase() ||
-                      (m.email || "").toLowerCase() ===
-                        modTarget.trim().toLowerCase()
-                    : true
-                )
-                .map((m, i) => renderItem(m, i))}
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              value={modText}
-              onChange={(e) => setModText(e.target.value)}
-              placeholder="Write a private message to moderator"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSendMod();
-                }
-              }}
-            />
-            <Button
-              onClick={onSendMod}
-              className="inline-flex items-center gap-1"
-            >
-              <Send className="h-4 w-4" />
-              Send
-            </Button>
-          </div>
+          {(() => {
+            const filtered = (messagesByScope["meeting_mod_dm"] || []).filter(
+              (m) =>
+                modTarget
+                  ? (m.toEmail || "") === modTarget.trim().toLowerCase() ||
+                    (m.email || "").toLowerCase() ===
+                      modTarget.trim().toLowerCase()
+                  : true
+            );
+            const mapped: ChatWindowMessage[] = filtered.map((m, i) => ({
+              id: i,
+              senderEmail: (m.email || m.senderEmail) as string | undefined,
+              senderName: (m.senderName || m.name) as string | undefined,
+              content: m.content,
+              timestamp: m.timestamp || new Date(),
+            }));
+            return (
+              <ChatWindow
+                title="Moderator DMs"
+                meEmail={me.email}
+                messages={mapped}
+                value={modText}
+                onChange={setModText}
+                onSend={onSendMod}
+                onClose={() => setTab("group")}
+                height="18vh"
+                placeholder="Write a private message to moderator"
+              />
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function renderItem(m: ChatMessage, i: number) {
-  const label = m.senderName || m.name || m.email || m.senderEmail || "";
-  const when = new Date(String(m.timestamp)).toLocaleTimeString();
-  const content = m.content;
-  const role = m.role || "Moderator";
-  return (
-    <div key={`${label}-${i}`} className="flex items-start gap-2">
-      <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
-      <div className="min-w-0">
-        <div className="text-[12px] text-gray-600">
-          <span className="font-medium text-gray-900">{label}</span>
-          <span className="ml-1 text-[11px] text-gray-500">{role}</span>
-          <span className="ml-2 text-[11px] text-gray-400">{when}</span>
-        </div>
-        <div className="whitespace-pre-wrap text-sm">{content}</div>
-      </div>
-    </div>
-  );
-}
+// function renderItem(m: ChatMessage, i: number) {
+//   const label = m.senderName || m.name || m.email || m.senderEmail || "";
+//   const when = new Date(String(m.timestamp)).toLocaleTimeString();
+//   const content = m.content;
+//   const role = m.role || "Moderator";
+//   return (
+//     <div key={`${label}-${i}`} className="flex items-start gap-2">
+//       <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+//       <div className="min-w-0">
+//         <div className="text-[12px] text-gray-600">
+//           <span className="font-medium text-gray-900">{label}</span>
+//           <span className="ml-1 text-[11px] text-gray-500">{role}</span>
+//           <span className="ml-2 text-[11px] text-gray-400">{when}</span>
+//         </div>
+//         <div className="whitespace-pre-wrap text-sm">{content}</div>
+//       </div>
+//     </div>
+//   );
+// }

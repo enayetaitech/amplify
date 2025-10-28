@@ -6,11 +6,12 @@ import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { SOCKET_URL } from "constant/socket";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
-import { Input } from "components/ui/input";
-import { Button } from "components/ui/button";
-import { MessageSquare, Send, X } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import useChat from "hooks/useChat";
 import { formatDisplayName } from "lib/utils";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 
 type WaitingUser = {
   name: string;
@@ -167,7 +168,12 @@ export default function ModeratorWaitingPanel() {
 
       <Tabs
         defaultValue="list"
-        onValueChange={(v) => setActiveTab(v as "list" | "chat")}
+        onValueChange={(v) => {
+          setActiveTab(v as "list" | "chat");
+          if (v === "chat") {
+            setSelectedEmail(null);
+          }
+        }}
       >
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger
@@ -179,6 +185,11 @@ export default function ModeratorWaitingPanel() {
           <TabsTrigger
             value="chat"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
+            onClick={() => {
+              // Ensure any open DM thread is closed when clicking the tab
+              setSelectedEmail(null);
+              setChatText("");
+            }}
           >
             Waiting Chat
             {totalUnreadCount > 0 && (
@@ -275,78 +286,38 @@ export default function ModeratorWaitingPanel() {
               </div>
             )}
             {selectedEmail && (
-              <div className="rounded bg-white flex flex-col h-full">
-                <>
-                  <div ref={chatListRef} className="flex-1 overflow-y-auto p-2">
-                    <div className="space-y-1 text-sm">
-                      {(messagesByScope["waiting_dm"] || [])
-                        .filter((m) =>
-                          selectedEmail
-                            ? (m.toEmail || "") === selectedEmail ||
-                              (m.email || "").toLowerCase() === selectedEmail
-                            : true
-                        )
-                        .map((m, i) => (
-                          <div key={i} className="flex items-start gap-2">
-                            <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
-                            <div className="min-w-0">
-                              <div className="text-[12px] text-gray-600">
-                                <span className="font-medium text-gray-900">
-                                  {(() => {
-                                    const raw =
-                                      m.senderName ||
-                                      m.name ||
-                                      m.email ||
-                                      m.senderEmail ||
-                                      "";
-                                    return raw.includes("@")
-                                      ? raw
-                                      : formatDisplayName(raw);
-                                  })()}
-                                </span>
-                                <span className="ml-2 text-[11px] text-gray-400">
-                                  {new Date(
-                                    String(m.timestamp)
-                                  ).toLocaleTimeString()}
-                                </span>
-                              </div>
-                              <div className="whitespace-pre-wrap text-sm">
-                                {m.content}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                  <div className="p-2 flex items-center gap-2 border-t">
-                    <Input
+              <div className="rounded bg-white flex flex-col h-full ">
+                {(() => {
+                  const filtered = (messagesByScope["waiting_dm"] || []).filter(
+                    (m) =>
+                      selectedEmail
+                        ? (m.toEmail || "") === selectedEmail ||
+                          (m.email || "").toLowerCase() === selectedEmail
+                        : true
+                  );
+                  const mapped: ChatWindowMessage[] = filtered.map((m, i) => ({
+                    id: i,
+                    senderEmail: (m.email || m.senderEmail) as
+                      | string
+                      | undefined,
+                    senderName: (m.senderName || m.name) as string | undefined,
+                    content: m.content,
+                    timestamp: m.timestamp || new Date(),
+                  }));
+                  const send = () => onSendChat();
+                  return (
+                    <ChatWindow
+                      title={`Message ${selectedEmail}`}
+                      meEmail={me.email}
+                      messages={mapped}
                       value={chatText}
-                      onChange={(e) => setChatText(e.target.value)}
-                      placeholder={`Message ${selectedEmail}`}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          onSendChat();
-                        }
-                      }}
+                      onChange={setChatText}
+                      onSend={send}
+                      onClose={() => setSelectedEmail(null)}
+                      height="24vh"
                     />
-                    <Button
-                      onClick={onSendChat}
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedEmail(null)}
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </>
+                  );
+                })()}
               </div>
             )}
           </div>

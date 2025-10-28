@@ -12,6 +12,7 @@ export interface IProjectSession {
 export type ProjectStatus =
   | "Draft"
   | "Active"
+  | "Paused"
   | "Inactive"
   | "Closed"
   | "Archived";

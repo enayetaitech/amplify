@@ -84,8 +84,15 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
   }, [formData.numberOfSessions, formData.sessions, updateFormData]);
 
   useEffect(() => {
-    if (data?.data && formData.allModerators?.length === 0) {
-      updateFormData({ allModerators: data.data });
+    if (!data?.data) return;
+    // Only include project members who are Admin or Moderator (exclude Observers)
+    const filtered = (data.data || []).filter(
+      (m) =>
+        Array.isArray(m.roles) &&
+        (m.roles.includes("Admin") || m.roles.includes("Moderator"))
+    );
+    if (filtered && formData.allModerators?.length === 0) {
+      updateFormData({ allModerators: filtered });
     }
   }, [data?.data]);
 
@@ -197,7 +204,11 @@ const AddSessionStep1: React.FC<AddSessionStep1Props> = ({
               Moderators<span className="text-red-500">*</span>
             </Label>
             <MultiSelectDropdown
-              moderators={data?.data || []}
+              moderators={(data?.data || []).filter(
+                (m) =>
+                  Array.isArray(m.roles) &&
+                  (m.roles.includes("Admin") || m.roles.includes("Moderator"))
+              )}
               selected={formData.selectedModerators}
               onChange={(ids) => updateFormData({ selectedModerators: ids })}
             />

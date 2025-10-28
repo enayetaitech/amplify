@@ -13,7 +13,7 @@ import { IObserverDocument } from "@shared/interface/ObserverDocumentInterface";
 import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import CustomButton from "components/shared/CustomButton";
-import { Download, Trash2, Upload } from "lucide-react";
+import { Download, Trash2, Upload, ChevronsUpDown } from "lucide-react";
 import CustomPagination from "components/shared/Pagination";
 import {
   Table,
@@ -34,6 +34,9 @@ import {
   DialogTrigger,
 } from "components/ui/dialog";
 import UploadObserverDocument from "components/projects/observerDocuments/UploadObserverDocuments";
+import { useGlobalContext } from "context/GlobalContext";
+import { Button } from "components/ui/button";
+import { useMemo } from "react";
 
 type CheckedState = boolean | "indeterminate";
 
@@ -50,8 +53,12 @@ const ObserverDocuments = () => {
       ? null
       : params.projectId;
 
+  const { user } = useGlobalContext();
+
   // 2️⃣ all hooks go here, top-level, unconditionally
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<"displayName">("displayName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const limit = 10;
   const queryClient = useQueryClient();
@@ -67,17 +74,57 @@ const ObserverDocuments = () => {
     { data: IObserverDocument[]; meta: IPaginationMeta },
     Error
   >({
-    queryKey: ["observerDocs", projectId, page],
+    queryKey: ["observerDocs", projectId, page, sortBy, sortOrder],
     queryFn: () =>
       api
         .get<{ data: IObserverDocument[]; meta: IPaginationMeta }>(
           `/api/v1/observerDocuments/project/${projectId}`,
-          { params: { page, limit } }
+          { params: { page, limit, sortBy, sortOrder } }
         )
         .then((res) => res.data),
     enabled: !!projectId,
     placeholderData: keepPreviousData,
   });
+
+  // Fetch project team to check user's role in this specific project
+  const { data: projectTeam } = useQuery<
+    {
+      data: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        roles: string[];
+        adminAccess: boolean;
+      }[];
+    },
+    Error
+  >({
+    queryKey: ["projectTeam", projectId],
+    queryFn: () =>
+      api
+        .get(`/api/v1/moderators/project/${projectId}`)
+        .then((res) => res.data),
+    enabled: !!projectId && !!user?.email,
+  });
+
+  // Check if user is Admin or Moderator in THIS specific project
+  const canDelete = useMemo(() => {
+    if (!user?.email || !projectTeam?.data) return false;
+
+    const teamMember = projectTeam.data.find(
+      (member) => member.email.toLowerCase() === user.email.toLowerCase()
+    );
+
+    if (!teamMember) return false;
+
+    // Check if user has Admin or Moderator role in this project
+    return (
+      teamMember.adminAccess ||
+      teamMember.roles?.includes("Admin") ||
+      teamMember.roles?.includes("Moderator")
+    );
+  }, [user?.email, projectTeam?.data]);
 
   // 2️⃣ Mutation for single-download
   const downloadOneMutation = useMutation<string, unknown, string>({
@@ -164,6 +211,14 @@ const ObserverDocuments = () => {
     );
   };
 
+  const handleHeaderClick = (field: "displayName"): void => {
+    const nextOrder: "asc" | "desc" =
+      sortBy === field && sortOrder === "asc" ? "desc" : "asc";
+    setSortBy(field);
+    setSortOrder(nextOrder);
+    setPage(1);
+  };
+
   return (
     <ComponentContainer>
       <div className="flex justify-between items-center bg-none pb-5 ">
@@ -217,7 +272,7 @@ const ObserverDocuments = () => {
                         downloadAllMutation.isPending
                       }
                       size="sm"
-                      className="cursor-pointer hover:text-custom-dark-blue-1 hover:bg-white outline-0 border-0 shadow-lg bg-white"
+                      className="cursor-pointer bg-custom-orange-2 text-white hover:bg-custom-orange-1 border-0"
                     >
                       {downloadAllMutation.isPending
                         ? "Downloading..."
@@ -225,7 +280,23 @@ const ObserverDocuments = () => {
                     </CustomButton>
                   </div>
                 </TableHead>
-                <TableHead>File Name</TableHead>
+                <TableHead>
+                  <button
+                    type="button"
+                    className="inline-flex items-center space-x-1 cursor-pointer"
+                    onClick={() => handleHeaderClick("displayName")}
+                  >
+                    <span>File Name</span>
+                    <ChevronsUpDown
+                      className={
+                        "h-4 w-4 " +
+                        (sortBy === "displayName"
+                          ? "text-custom-dark-blue-1"
+                          : "text-gray-400")
+                      }
+                    />
+                  </button>
+                </TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Added By</TableHead>
                 <TableHead className="text-center">Action</TableHead>
@@ -248,80 +319,87 @@ const ObserverDocuments = () => {
                     </TableCell>
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell>
-                      {(del.addedBy as unknown as PopulatedUser).firstName}
+                      {`${
+                        (del.addedBy as unknown as PopulatedUser).firstName
+                      } ${(del.addedBy as unknown as PopulatedUser).lastName}`}
                     </TableCell>
                     <TableCell className="text-center flex justify-center gap-2">
-                      <CustomButton
-                        className="bg-custom-teal hover:bg-custom-dark-blue-3 rounded-lg"
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="cursor-pointer"
                         onClick={() => downloadOneMutation.mutate(del._id)}
                         disabled={downloadOneMutation.isPending}
+                        title="Download document"
                       >
-                        {downloadOneMutation.isPending
-                          ? "Downloading..."
-                          : "Download"}
-                      </CustomButton>
-                      {/* Delete */}
-                      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-                        <DialogTrigger asChild>
-                          <CustomButton
-                            size="sm"
-                            className="bg-custom-orange-1 hover:bg-custom-orange-2"
-                            onClick={() => {
-                              setToDelete({
-                                id: del._id,
-                                name: del.displayName,
-                              });
-                              setDeleteOpen(true);
-                            }}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 size={16} />
-                          </CustomButton>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Confirm delete</DialogTitle>
-                          </DialogHeader>
-                          <p>
-                            Are you sure you want to delete{" "}
-                            {toDelete?.name
-                              ? `"${toDelete.name}"`
-                              : "this document"}
-                            ?
-                          </p>
-                          <DialogFooter>
-                            <CustomButton
-                              variant="outline"
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      {/* Delete - Only for Admin/Moderator */}
+                      {canDelete && (
+                        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700 cursor-pointer"
                               onClick={() => {
-                                setDeleteOpen(false);
-                                setToDelete(null);
+                                setToDelete({
+                                  id: del._id,
+                                  name: del.displayName,
+                                });
+                                setDeleteOpen(true);
                               }}
                               disabled={deleteMutation.isPending}
+                              title="Delete document"
                             >
-                              Cancel
-                            </CustomButton>
-                            <CustomButton
-                              className="ml-2 bg-red-600 text-white"
-                              onClick={() =>
-                                toDelete?.id &&
-                                deleteMutation.mutate(toDelete.id)
-                              }
-                              disabled={deleteMutation.isPending}
-                            >
-                              {deleteMutation.isPending
-                                ? "Deleting..."
-                                : "Delete"}
-                            </CustomButton>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Confirm delete</DialogTitle>
+                            </DialogHeader>
+                            <p>
+                              Are you sure you want to delete{" "}
+                              {toDelete?.name
+                                ? `"${toDelete.name}"`
+                                : "this document"}
+                              ?
+                            </p>
+                            <DialogFooter>
+                              <CustomButton
+                                variant="outline"
+                                onClick={() => {
+                                  setDeleteOpen(false);
+                                  setToDelete(null);
+                                }}
+                                disabled={deleteMutation.isPending}
+                              >
+                                Cancel
+                              </CustomButton>
+                              <CustomButton
+                                className="ml-2 bg-red-600 text-white"
+                                onClick={() =>
+                                  toDelete?.id &&
+                                  deleteMutation.mutate(toDelete.id)
+                                }
+                                disabled={deleteMutation.isPending}
+                              >
+                                {deleteMutation.isPending
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </CustomButton>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="text-center text-gray-500 py-8"
                   >
                     No deliverables found.

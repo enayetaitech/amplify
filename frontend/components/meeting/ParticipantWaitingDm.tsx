@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
-import { Input } from "components/ui/input";
-import { Button } from "components/ui/button";
-import { Send } from "lucide-react";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 import useChat, { ChatMessage, ChatScope } from "hooks/useChat";
-import { formatDisplayName } from "lib/utils";
 
 export default function ParticipantWaitingDm({
   socket,
@@ -64,47 +63,49 @@ export default function ParticipantWaitingDm({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div ref={listRef} className="flex-1 overflow-y-auto p-2 min-h-0">
-        <div className="space-y-1 text-sm">
-          {(messagesByScope["waiting_dm"] || []).map((m, i) => (
-            <MessageItem key={i} m={m} />
-          ))}
-        </div>
-      </div>
-      <div className="flex-shrink-0 p-2 flex items-center gap-2 border-t bg-white">
-        <Input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Message moderators"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSend();
-            }
-          }}
-        />
-        <Button onClick={onSend} size="sm" className="h-8 w-8 p-0">
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
+      {(() => {
+        const msgs = (messagesByScope["waiting_dm"] || []).map((m, i) => ({
+          id: i,
+          senderEmail: (m.email || m.senderEmail) as string | undefined,
+          senderName: (m.senderName || m.name) as string | undefined,
+          content: m.content,
+          timestamp: m.timestamp || new Date(),
+        })) as ChatWindowMessage[];
+        const send = () => onSend();
+        return (
+          <ChatWindow
+            title="Chat with Moderators"
+            meEmail={me.email}
+            messages={msgs}
+            value={text}
+            onChange={setText}
+            onSend={send}
+            onClose={() => {
+              /* parent controls visibility; no-op here */
+            }}
+            height="100%"
+            placeholder="Message moderators"
+          />
+        );
+      })()}
     </div>
   );
 }
 
-function MessageItem({ m }: { m: ChatMessage }) {
-  const raw = m.senderName || m.name || m.email || m.senderEmail || "";
-  const label = raw.includes("@") ? raw : formatDisplayName(raw);
-  const when = new Date(String(m.timestamp)).toLocaleTimeString();
-  return (
-    <div className="flex items-start gap-2">
-      <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
-      <div className="min-w-0">
-        <div className="text-[12px] text-gray-600">
-          <span className="font-medium text-gray-900">{label}</span>
-          <span className="ml-2 text-[11px] text-gray-400">{when}</span>
-        </div>
-        <div className="whitespace-pre-wrap text-sm">{m.content}</div>
-      </div>
-    </div>
-  );
-}
+// function MessageItem({ m }: { m: ChatMessage }) {
+//   const raw = m.senderName || m.name || m.email || m.senderEmail || "";
+//   const label = raw.includes("@") ? raw : formatDisplayName(raw);
+//   const when = new Date(String(m.timestamp)).toLocaleTimeString();
+//   return (
+//     <div className="flex items-start gap-2">
+//       <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
+//       <div className="min-w-0">
+//         <div className="text-[12px] text-gray-600">
+//           <span className="font-medium text-gray-900">{label}</span>
+//           <span className="ml-2 text-[11px] text-gray-400">{when}</span>
+//         </div>
+//         <div className="whitespace-pre-wrap text-sm">{m.content}</div>
+//       </div>
+//     </div>
+//   );
+// }

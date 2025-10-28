@@ -1,9 +1,9 @@
 import { Schema, model, Types, Document } from "mongoose";
-import { ISessionDeliverable } from "../../shared/interface/SessionDeliverableInterface"
+import { ISessionDeliverable } from "../../shared/interface/SessionDeliverableInterface";
 
 /* Convert string IDs to ObjectId for Mongo layer */
 type DeliverableDB = Omit<
-ISessionDeliverable,
+  ISessionDeliverable,
   "_id" | "sessionId" | "projectId" | "uploadedBy"
 > & {
   _id: Types.ObjectId;
@@ -18,12 +18,12 @@ export interface SessionDeliverableDocument
 
 const DeliverableSchema = new Schema<SessionDeliverableDocument>(
   {
-    sessionId:  { type: Schema.Types.ObjectId, ref: "Session",  required: true },
-    projectId:  { type: Schema.Types.ObjectId, ref: "Project",  required: true },
+    sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
 
     type: {
-      type:    String,
-      enum:    [
+      type: String,
+      enum: [
         "AUDIO",
         "VIDEO",
         "TRANSCRIPT",
@@ -34,13 +34,20 @@ const DeliverableSchema = new Schema<SessionDeliverableDocument>(
       ],
       required: true,
     },
-    displayName:  { type: String, required: true, trim: true },
-    size:         { type: Number, required: true }, 
-    storageKey:   { type: String, required: true, trim: true },
-    uploadedBy:   { type: Schema.Types.ObjectId, ref: "User", required: true },
+    displayName: { type: String, required: true, trim: true },
+    size: { type: Number, required: true },
+    storageKey: { type: String, required: true, trim: true },
+    uploadedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }
 );
+
+// Soft-delete fields
+DeliverableSchema.add({
+  deletedAt: { type: Date, default: null },
+  purgeAfterAt: { type: Date, default: null },
+  deletedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+});
 
 export const SessionDeliverableModel = model<SessionDeliverableDocument>(
   "SessionDeliverable",

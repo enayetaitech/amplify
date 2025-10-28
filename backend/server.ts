@@ -19,6 +19,7 @@ import {
   closeIdleProjects,
   archiveClosedProjects,
 } from "./services/projectStatusScheduler";
+import { purgeExpiredDeliverables } from "./services/purgeDeliverables";
 import { AuditLogModel } from "./model/AuditLog";
 import { ensureSuperAdmin } from "./scripts/ensureSuperAdmin";
 
@@ -129,6 +130,16 @@ server.listen(PORT, async () => {
       baseLogger.info("Project status lifecycle cron completed");
     } catch (err) {
       baseLogger.error({ err }, "Project status lifecycle cron failed");
+    }
+  });
+
+  // daily at 03:45 purge expired soft-deleted session deliverables
+  cron.schedule("45 3 * * *", async () => {
+    try {
+      const { deleted, s3Errors } = await purgeExpiredDeliverables();
+      baseLogger.info({ deleted, s3Errors }, "Deliverables purge completed");
+    } catch (err) {
+      baseLogger.error({ err }, "Deliverables purge failed");
     }
   });
 });

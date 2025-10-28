@@ -48,6 +48,10 @@ const UserSchema: Schema<IUserDocument> = new Schema(
       expiryMonth: { type: String },
       expiryYear: { type: String },
     },
+    // Email change verification fields
+    pendingEmail: { type: String },
+    emailVerificationCode: { type: String },
+    emailVerificationExpires: { type: Date },
   },
   {
     timestamps: true,

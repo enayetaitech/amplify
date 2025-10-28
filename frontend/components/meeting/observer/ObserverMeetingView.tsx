@@ -7,7 +7,7 @@ import ObserverHlsLayout from "./ObserverHlsLayout";
 
 // extracted messaging UI uses Tabs/Input/Button/Badge internally
 import { Separator } from "components/ui/separator";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { MoveLeftIcon, MoveRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import DocumentHub from "../rightSideBar/DocumentHub";
 // import ObserverChatPanel from "./ObserverChatPanel";
@@ -710,10 +710,10 @@ export default function ObserverMeetingView({
             <button
               type="button"
               onClick={() => setIsLeftOpen(false)}
-              className="absolute -right-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              className="absolute -right-0 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
               aria-label="Collapse left panel"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <MoveLeftIcon className="h-4 w-4" />
             </button>
             {/* Upper: Participants tabs */}
             <ParticipantMessageInObserverLeftSidebar
@@ -743,10 +743,10 @@ export default function ObserverMeetingView({
         <button
           type="button"
           onClick={() => setIsLeftOpen(true)}
-          className="absolute -left-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+          className="absolute -left-0 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
           aria-label="Expand left panel"
         >
-          <ChevronRight className="h-4 w-4" />
+          <MoveRightIcon className="h-4 w-4" />
         </button>
       )}
 
@@ -771,10 +771,10 @@ export default function ObserverMeetingView({
             <button
               type="button"
               onClick={() => setIsRightOpen(false)}
-              className="absolute -left-3 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+              className="absolute -left-0 top-3 z-50 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
               aria-label="Collapse right panel"
             >
-              <ChevronRight className="h-4 w-4" />
+              <MoveRightIcon className="h-4 w-4" />
             </button>
             <ObserverMessageComponent
               observerCount={observerCount}
@@ -810,10 +810,10 @@ export default function ObserverMeetingView({
         <button
           type="button"
           onClick={() => setIsRightOpen(true)}
-          className="absolute -right-3 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
+          className="absolute -right-0 top-3 z-20 h-8 w-8 rounded-full border bg-white shadow flex items-center justify-center"
           aria-label="Expand right panel"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <MoveLeftIcon className="h-4 w-4" />
         </button>
       )}
     </div>

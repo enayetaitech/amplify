@@ -12,15 +12,15 @@ import {
   Mic,
   Camera,
   MessageSquare,
-  Send,
-  X,
 } from "lucide-react";
 import { MoreVertical } from "lucide-react";
 import { Track } from "livekit-client";
 import type { Socket } from "socket.io-client";
 import type { UiRole } from "constant/roles";
 import useChat from "hooks/useChat";
-import { Input } from "components/ui/input";
+import ChatWindow, {
+  ChatWindowMessage,
+} from "components/meeting/chat/ChatWindow";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -266,21 +266,21 @@ export default function ParticipantsPanel({
     if (ack.ok) setParticipantChatText("");
   };
 
-  const onChatScroll = () => {
-    const el = chatListRef.current;
-    if (!el || !selectedParticipant) return;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-    if (nearBottom) {
-      const current = countIncomingFrom(selectedParticipant);
-      setLastReadCount((prev) => ({ ...prev, [selectedParticipant]: current }));
-    }
-  };
-  const onGroupChatScroll = () => {
-    const el = chatListRef.current;
-    if (!el || !showGroupChat) return;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-    if (nearBottom) setLastReadGroupCount(groupLen);
-  };
+  // const onChatScroll = () => {
+  //   const el = chatListRef.current;
+  //   if (!el || !selectedParticipant) return;
+  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+  //   if (nearBottom) {
+  //     const current = countIncomingFrom(selectedParticipant);
+  //     setLastReadCount((prev) => ({ ...prev, [selectedParticipant]: current }));
+  //   }
+  // };
+  // const onGroupChatScroll = () => {
+  //   const el = chatListRef.current;
+  //   if (!el || !showGroupChat) return;
+  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+  //   if (nearBottom) setLastReadGroupCount(groupLen);
+  // };
 
   if (!(role === "admin" || role === "moderator")) return null;
 
@@ -306,7 +306,15 @@ export default function ParticipantsPanel({
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-y-auto">
-      <Tabs defaultValue="list">
+      <Tabs
+        defaultValue="list"
+        onValueChange={(v) => {
+          if (v === "chat") {
+            setShowGroupChat(false);
+            setSelectedParticipant(null);
+          }
+        }}
+      >
         <TabsList className="sticky top-0 z-10 bg-custom-gray-2 w-full gap-2">
           <TabsTrigger
             value="list"
@@ -317,6 +325,11 @@ export default function ParticipantsPanel({
           <TabsTrigger
             value="chat"
             className="rounded-full h-6 px-4 border shadow-sm data-[state=active]:bg-custom-dark-blue-1 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=inactive]:bg-transparent data-[state=inactive]:border-custom-dark-blue-1 data-[state=inactive]:text-custom-dark-blue-1 cursor-pointer relative"
+            onClick={() => {
+              // Toggle close current chat window when clicking tab
+              setShowGroupChat(false);
+              setSelectedParticipant(null);
+            }}
           >
             Participant Chat
             {totalParticipantUnreadCount > 0 && (
@@ -746,13 +759,12 @@ export default function ParticipantsPanel({
                               )}
                             </div>
                             <div className="relative">
-                            <MessageSquare className="h-4 w-4 text-gray-400" />
+                              <MessageSquare className="h-4 w-4 text-gray-400" />
                               {email && unread > 0 && (
                                 <span className="absolute -top-1 -right-2 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
                                   {unread}
                                 </span>
                               )}
-
                             </div>
                           </div>
                         );
@@ -764,171 +776,75 @@ export default function ParticipantsPanel({
             )}
             {showGroupChat && (
               <div className="col-span-12 rounded bg-white flex flex-col">
-                <div className="flex items-center justify-between p-2 border-b">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      Participant Group Chat
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowGroupChat(false)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div
-                  ref={chatListRef}
-                  onScroll={onGroupChatScroll}
-                  className="flex-1 overflow-y-auto p-2"
-                >
-                  <div className="space-y-1 text-sm">
-                    {(messagesByScope["meeting_group"] || []).map((m, i) => {
-                      const who =
-                        m.senderName ||
-                        m.name ||
-                        m.email ||
-                        m.senderEmail ||
-                        "";
-                      return (
-                        <div
-                          key={`${who}-${i}`}
-                          className="flex items-start gap-2"
-                        >
-                          <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
-                          <div className="min-w-0">
-                            <div className="text-[12px] text-gray-600">
-                              <span className="font-medium text-gray-900">
-                                {who}
-                              </span>
-                              <span className="ml-2 text-[11px] text-gray-400">
-                                {new Date(
-                                  String(m.timestamp)
-                                ).toLocaleTimeString()}
-                              </span>
-                            </div>
-                            <div className="whitespace-pre-wrap text-sm">
-                              {m.content}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="p-2 flex items-center gap-2 border-t">
-                  <Input
-                    value={groupChatText}
-                    onChange={(e) => setGroupChatText(e.target.value)}
-                    placeholder="Type a message..."
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        const text = groupChatText.trim();
-                        if (!text) return;
-                        send("meeting_group", text).then((ack) => {
-                          if (ack.ok) setGroupChatText("");
-                        });
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={() => {
-                      const text = groupChatText.trim();
-                      if (!text) return;
-                      send("meeting_group", text).then((ack) => {
-                        if (ack.ok) setGroupChatText("");
-                      });
-                    }}
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                {(() => {
+                  const mapped: ChatWindowMessage[] = (
+                    messagesByScope["meeting_group"] || []
+                  ).map((m, i) => ({
+                    id: i,
+                    senderEmail: (m.email || m.senderEmail) as
+                      | string
+                      | undefined,
+                    senderName: (m.senderName || m.name) as string | undefined,
+                    content: m.content,
+                    timestamp: m.timestamp || new Date(),
+                  }));
+                  const sendMsg = () => {
+                    const text = groupChatText.trim();
+                    if (!text) return;
+                    send("meeting_group", text).then((ack) => {
+                      if (ack.ok) setGroupChatText("");
+                    });
+                  };
+                  return (
+                    <ChatWindow
+                      title="Participant Group Chat"
+                      meEmail={myEmail || ""}
+                      messages={mapped}
+                      value={groupChatText}
+                      onChange={setGroupChatText}
+                      onSend={sendMsg}
+                      onClose={() => setShowGroupChat(false)}
+                      height="28vh"
+                    />
+                  );
+                })()}
               </div>
             )}
             {selectedParticipant && !showGroupChat && (
               <div className="col-span-12 rounded bg-white flex flex-col">
-                <div className="flex items-center justify-between p-2 border-b">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      Chat with {selectedParticipantDisplayName}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={closeParticipantChat}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div
-                  ref={chatListRef}
-                  onScroll={onChatScroll}
-                  className="flex-1 overflow-y-auto p-2"
-                >
-                  <div className="space-y-1 text-sm">
-                    {(messagesByScope["meeting_dm"] || [])
-                      .filter(
-                        (m) =>
-                          (m.email?.toLowerCase?.() === selectedParticipant &&
-                            (m.toEmail?.toLowerCase?.() ===
-                              (myEmail || "").toLowerCase() ||
-                              m.toEmail === "__moderators__")) ||
-                          (m.email?.toLowerCase?.() ===
-                            (myEmail || "").toLowerCase() &&
-                            m.toEmail?.toLowerCase?.() === selectedParticipant)
-                      )
-                      .map((m, i) => (
-                        <div
-                          key={`${m.email}-${i}`}
-                          className="flex items-start gap-2"
-                        >
-                          <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
-                          <div className="min-w-0">
-                            <div className="text-[12px] text-gray-600">
-                              <span className="font-medium text-gray-900">
-                                {m.senderName || m.email}
-                              </span>
-                              <span className="ml-2 text-[11px] text-gray-400">
-                                {new Date(
-                                  String(m.timestamp)
-                                ).toLocaleTimeString()}
-                              </span>
-                            </div>
-                            <div className="whitespace-pre-wrap text-sm">
-                              {m.content}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-                <div className="p-2 flex items-center gap-2 border-t">
-                  <Input
-                    value={participantChatText}
-                    onChange={(e) => setParticipantChatText(e.target.value)}
-                    placeholder="Type a message..."
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendParticipantMessage();
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={sendParticipantMessage}
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                {(() => {
+                  const filtered = (messagesByScope["meeting_dm"] || []).filter(
+                    (m) =>
+                      (m.email?.toLowerCase?.() === selectedParticipant &&
+                        (m.toEmail?.toLowerCase?.() ===
+                          (myEmail || "").toLowerCase() ||
+                          m.toEmail === "__moderators__")) ||
+                      (m.email?.toLowerCase?.() ===
+                        (myEmail || "").toLowerCase() &&
+                        m.toEmail?.toLowerCase?.() === selectedParticipant)
+                  );
+                  const mapped: ChatWindowMessage[] = filtered.map((m, i) => ({
+                    id: i,
+                    senderEmail: (m.email || m.senderEmail) as
+                      | string
+                      | undefined,
+                    senderName: (m.senderName || m.name) as string | undefined,
+                    content: m.content,
+                    timestamp: m.timestamp || new Date(),
+                  }));
+                  return (
+                    <ChatWindow
+                      title={`Chat with ${selectedParticipantDisplayName}`}
+                      meEmail={myEmail || ""}
+                      messages={mapped}
+                      value={participantChatText}
+                      onChange={setParticipantChatText}
+                      onSend={sendParticipantMessage}
+                      onClose={closeParticipantChat}
+                      height="28vh"
+                    />
+                  );
+                })()}
               </div>
             )}
           </div>

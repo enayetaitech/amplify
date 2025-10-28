@@ -11,7 +11,7 @@ import {
   TableHead,
   TableCell,
 } from "components/ui/table";
-import {  Pencil } from "lucide-react";
+import { Pencil, ChevronsUpDown } from "lucide-react";
 import React, { useState } from "react";
 import EditModeratorModal from "./EditModeratorModal";
 
@@ -19,12 +19,18 @@ export interface ProjectTeamsTableProps {
   moderators: IModerator[];
   meta: IPaginationMeta;
   onPageChange: (newPage: number) => void;
+  sortBy: "lastName";
+  sortOrder: "asc" | "desc";
+  onSortChange: (field: "lastName", order: "asc" | "desc") => void;
 }
 
 const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
   moderators,
   meta,
   onPageChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeModerator, setActiveModerator] = useState<IModerator | null>(
@@ -40,23 +46,64 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
     setActiveModerator(null);
   };
 
+  const handleHeaderClick = (field: "lastName"): void => {
+    const nextOrder: "asc" | "desc" =
+      sortBy === field && sortOrder === "asc" ? "desc" : "asc";
+    onSortChange(field, nextOrder);
+  };
+
+  // Helper to sort roles in consistent order: Admin, Moderator, Observer
+  const formatRoles = (roles: string[] | undefined): string => {
+    if (!roles || roles.length === 0) return "";
+
+    const roleOrder = ["Admin", "Moderator", "Observer"];
+    const sorted = [...roles].sort((a, b) => {
+      const indexA = roleOrder.indexOf(a);
+      const indexB = roleOrder.indexOf(b);
+      return indexA - indexB;
+    });
+
+    return sorted.join(", ");
+  };
+
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto">
       <div className="bg-white rounded-lg shadow-lg">
         <Table className="min-w-full divide-y divide-gray-200">
           <TableHeader>
             <TableRow className="">
-              {["Member Name", "Role", "Activity Log", "Actions"].map((col) => (
-                <TableHead
-                  key={col}
-                  className="px-6 py-3 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider"
+              <TableHead className="px-6 py-3 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider">
+                <button
+                  type="button"
+                  className="inline-flex items-center space-x-1 cursor-pointer"
+                  onClick={() => handleHeaderClick("lastName")}
                 >
-                  <div className="inline-flex items-center space-x-1">
-                    <span>{col}</span>
-                    {/* <ChevronsUpDown className="h-4 w-4 text-gray-400" /> */}
-                  </div>
-                </TableHead>
-              ))}
+                  <span>Member Name</span>
+                  <ChevronsUpDown
+                    className={
+                      "h-4 w-4 " +
+                      (sortBy === "lastName"
+                        ? "text-custom-dark-blue-1"
+                        : "text-gray-400")
+                    }
+                  />
+                </button>
+              </TableHead>
+              <TableHead className="px-6 py-3 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Role</span>
+                </div>
+              </TableHead>
+              <TableHead className="px-6 py-3 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Activity Log</span>
+                </div>
+              </TableHead>
+              <TableHead className="px-6 py-3 text-center text-xs font-semibold text-custom-dark-blue-1 uppercase tracking-wider">
+                <div className="inline-flex items-center space-x-1">
+                  <span>Actions</span>
+                </div>
+              </TableHead>
               <TableHead className="px-6 py-3" />
             </TableRow>
           </TableHeader>
@@ -64,34 +111,33 @@ const ProjectTeamsTable: React.FC<ProjectTeamsTableProps> = ({
           <TableBody className="bg-white divide-y divide-gray-100 text-left">
             {moderators.map((m) => {
               const rowClass = m.isActive
-      ? "cursor-pointer hover:bg-gray-50"
-      : "bg-gray-100 text-gray-400";
-            return (
-              <TableRow key={m._id} className={`${rowClass}`}>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {m.firstName} {m.lastName}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 ">
-                  {m.roles?.length ? (
-                    m.roles.join(", ")
-                  ) : (
-                    <span className="text-gray-400">No role assigned</span>
-                  )}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {/*activity log*/}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
-                  <CustomButton
-                    icon={<Pencil />}
-                    onClick={() => openModal(m)}
-                    className=" bg-custom-orange-1 text-white hover:bg-custom-orange-2 font-semibold px-2"
-                  />
-                </TableCell>
-              </TableRow>
-            )
-            }
-            )}
+                ? "cursor-pointer hover:bg-gray-50"
+                : "bg-gray-100 text-gray-400";
+              return (
+                <TableRow key={m._id} className={`${rowClass}`}>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {m.lastName}, {m.firstName}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 ">
+                    {m.roles?.length ? (
+                      formatRoles(m.roles)
+                    ) : (
+                      <span className="text-gray-400">No role assigned</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {/*activity log*/}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
+                    <CustomButton
+                      icon={<Pencil />}
+                      onClick={() => openModal(m)}
+                      className=" bg-custom-orange-1 text-white hover:bg-custom-orange-2 font-semibold px-2"
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
           <TableFooter>
             <TableRow>

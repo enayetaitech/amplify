@@ -125,8 +125,20 @@ export const personalFields: Array<{
 }> = [
   { name: "firstName", label: "First Name*" },
   { name: "lastName", label: "Last Name*" },
+  { name: "email", label: "Email*" },
   { name: "phoneNumber", label: "Phone Number*" },
   { name: "companyName", label: "Company Name*" },
+];
+
+export const addressFields: Array<{
+  name: keyof EditUserFormValues;
+  label: string;
+}> = [
+  { name: "address", label: "Address" },
+  { name: "city", label: "City" },
+  { name: "state", label: "State" },
+  { name: "postalCode", label: "Postal Code" },
+  { name: "country", label: "Country" },
 ];
 
 export const numberFields: FieldConfig[] = [

@@ -27,18 +27,18 @@ type AccessConfig = {
 const SessionAccess: React.FC<SessionAccessProps> = ({ project }) => {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const participantLink = `${origin}/join/participant/${project._id ?? ""}`;
-  const observerLink   = `${origin}/join/observer/${project._id ?? ""}`;
-  const passcode       = project.projectPasscode ?? "";
+  const observerLink = `${origin}/join/observer/${project._id ?? ""}`;
+  const passcode = project.projectPasscode ?? "";
 
   const accessConfigs: AccessConfig[] = [
     {
       key: "observer",
       triggerLabel: "Observer Link",
-      badgeLabel:   "Observer Link",
-      description:  `You have been invited to the observer for ${project.name}.`,
+      badgeLabel: "Observer Link",
+      description: `You have been invited to the observer for ${project.name}.`,
       fields: [
         { label: "Meeting Link:", value: observerLink },
-        { label: "Passcode:",      value: passcode },
+        { label: "Passcode:", value: passcode },
       ],
       copyPayload: `Link: ${observerLink}\nPasscode: ${passcode}`,
       footerText:
@@ -47,11 +47,11 @@ const SessionAccess: React.FC<SessionAccessProps> = ({ project }) => {
     {
       key: "participant",
       triggerLabel: "Participant Link",
-      badgeLabel:   "Participant Link",
+      badgeLabel: "Participant Link",
       description:
         "You have been invited to participate in an upcoming research session. Please check the confirmation details from your recruiter for the time and date of your session.",
       fields: [
-        { label: "Project:",      value: project.name },
+        { label: "Project:", value: project.name },
         { label: "Session Link:", value: participantLink },
       ],
       copyPayload: participantLink,
@@ -66,17 +66,18 @@ const SessionAccess: React.FC<SessionAccessProps> = ({ project }) => {
         </CardHeader>
 
         <CardContent className="flex items-center gap-4">
-         {accessConfigs.map((cfg) => (
-          <ShareDialog
-            key={cfg.key}
-            triggerLabel={cfg.triggerLabel}
-            badgeLabel={cfg.badgeLabel}
-            description={cfg.description}
-            fields={cfg.fields}
-            copyPayload={cfg.copyPayload}
-            footerText={cfg.footerText}
-          />
-        ))}
+          {accessConfigs.map((cfg) => (
+            <ShareDialog
+              key={cfg.key}
+              triggerLabel={cfg.triggerLabel}
+              badgeLabel={cfg.badgeLabel}
+              description={cfg.description}
+              fields={cfg.fields}
+              copyPayload={cfg.copyPayload}
+              footerText={cfg.footerText}
+              disabled={project.status === "Archived"}
+            />
+          ))}
         </CardContent>
       </div>
     </Card>

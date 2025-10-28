@@ -29,6 +29,7 @@ const ShareProjectModal: React.FC<ShareProjectModalProps> = ({
       onOpenChange={onClose}
       triggerLabel=""
       badgeLabel={isObserver ? "Observer Link" : "Participant Link"}
+      disabled={project.status === "Archived"}
       description={
         isObserver
           ? `You have been invited to the observer for ${project.name}.`

@@ -27,8 +27,8 @@ import {
 } from "components/ui/sheet";
 import {
   MessageSquare,
-  PanelLeftClose,
-  PanelLeftOpen,
+  MoveLeftIcon,
+  MoveRightIcon,
   Video,
 } from "lucide-react";
 import ParticipantWaitingDm from "components/meeting/ParticipantWaitingDm";
@@ -214,12 +214,13 @@ export default function ParticipantWaitingRoom() {
                   WAITING ROOM CHAT
                 </h3>
                 <Button
-                  variant="ghost"
+                  
                   size="icon"
                   onClick={() => setIsChatOpen(false)}
                   aria-label="Close chat"
+                  className="rounded-full "
                 >
-                  <PanelLeftClose className="h-4 w-4" />
+                  <MoveLeftIcon className="h-4 w-4 text-white" />
                 </Button>
               </div>
               <div className="flex-1 flex flex-col min-h-0">
@@ -273,7 +274,7 @@ export default function ParticipantWaitingRoom() {
                 size="sm"
                 onClick={() => handleChatToggle(true)}
               >
-                <PanelLeftOpen className="h-4 w-4 mr-2" /> Open Chat
+                <MoveRightIcon className="h-4 w-4 mr-2" /> Open Chat
                 {unreadCount > 0 && (
                   <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
                     {unreadCount > 99 ? "99+" : unreadCount}

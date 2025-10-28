@@ -43,6 +43,10 @@ export interface IUser {
   stripeCustomerId?: string;
   billingInfo?: IBillingInfo;
   creditCardInfo?: ICreditCardInfo;
+  // Email change verification fields
+  pendingEmail?: string;
+  emailVerificationCode?: string;
+  emailVerificationExpires?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

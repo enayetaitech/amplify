@@ -10,7 +10,7 @@ import {
   uploadToS3,
 } from "../utils/uploadToS3";
 import { SessionModel } from "../model/SessionModel";
-import { Socket } from "dgram";
+import { AuthRequest } from "../middlewares/authenticateJwt";
 
 /**
  * POST /api/v1/deliverables
@@ -91,6 +91,7 @@ export const getDeliverablesByProjectId = async (
 ): Promise<void> => {
   const { projectId } = req.params;
   const { type } = req.query;
+  const includeDeleted = String(req.query.includeDeleted || "false") === "true";
   /* ––– pagination params ––– */
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.max(Number(req.query.limit) || 10, 1);
@@ -102,6 +103,9 @@ export const getDeliverablesByProjectId = async (
 
   /* ––– build filter ––– */
   const filter: Record<string, unknown> = { projectId };
+  if (!includeDeleted) {
+    filter.deletedAt = null;
+  }
   if (type) filter.type = type; // e.g. ?type=AUDIO
 
   /* ––– query slice + total in parallel ––– */
@@ -134,7 +138,10 @@ export const downloadDeliverable = async (
   next: NextFunction
 ): Promise<void> => {
   const { id } = req.params;
-  const deliverable = await SessionDeliverableModel.findById(id).lean();
+  const deliverable = await SessionDeliverableModel.findOne({
+    _id: id,
+    deletedAt: null,
+  }).lean();
 
   if (!deliverable) return next(new ErrorHandler("Not found", 404));
 
@@ -171,7 +178,7 @@ export const downloadMultipleDeliverable = async (
 };
 
 export const deleteDeliverable = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -181,10 +188,63 @@ export const deleteDeliverable = async (
   const doc = await SessionDeliverableModel.findById(id);
   if (!doc) return next(new ErrorHandler("Deliverable not found", 404));
 
-  await deleteFromS3(doc.storageKey);
+  // Soft delete: set deletedAt and purgeAfterAt (configurable retention)
+  const retentionDays = Number(process.env.DELIVERABLE_RETENTION_DAYS || 15);
+  const now = new Date();
+  const purgeAfterAt = new Date(
+    now.getTime() + retentionDays * 24 * 60 * 60 * 1000
+  );
 
-  /* ── delete DB row ────────────────────────────────────────── */
-  await doc.deleteOne();
+  doc.deletedAt = now;
+  doc.purgeAfterAt = purgeAfterAt;
+  if (req.user?.userId) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore store as ObjectId string
+    doc.deletedBy = req.user.userId;
+  }
+  await doc.save();
 
-  sendResponse(res, doc, "Deliverable deleted", 200);
+  sendResponse(res, doc, "Deliverable scheduled for deletion", 200);
+};
+
+export const restoreDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const doc = await SessionDeliverableModel.findById(id);
+  if (!doc) return next(new ErrorHandler("Deliverable not found", 404));
+  if (!doc.deletedAt) {
+    sendResponse(res, doc, "Deliverable not deleted", 200);
+    return;
+  }
+  if (doc.purgeAfterAt && doc.purgeAfterAt < new Date()) {
+    return next(new ErrorHandler("Deliverable purge window has passed", 410));
+  }
+  doc.deletedAt = null as unknown as Date; // set to null
+  doc.purgeAfterAt = null as unknown as Date;
+  doc.deletedBy = null as unknown as never;
+  await doc.save();
+  sendResponse(res, doc, "Deliverable restored", 200);
+};
+
+export const renameDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const { displayName } = req.body as { displayName?: string };
+  if (!displayName || !displayName.trim()) {
+    return next(new ErrorHandler("displayName is required", 400));
+  }
+  const doc = await SessionDeliverableModel.findOne({
+    _id: id,
+    deletedAt: null,
+  });
+  if (!doc) return next(new ErrorHandler("Deliverable not found", 404));
+  doc.displayName = displayName.trim();
+  await doc.save();
+  sendResponse(res, doc, "Deliverable renamed", 200);
 };
