@@ -35,6 +35,7 @@ import {
 } from "components/ui/dialog";
 import UploadObserverDocument from "components/projects/observerDocuments/UploadObserverDocuments";
 import { useGlobalContext } from "context/GlobalContext";
+import { useProject } from "hooks/useProject";
 import { Button } from "components/ui/button";
 import { useMemo } from "react";
 
@@ -70,21 +71,14 @@ const ObserverDocuments = () => {
 
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  const { data, isLoading, error } = useQuery<
-    { data: IObserverDocument[]; meta: IPaginationMeta },
-    Error
-  >({
-    queryKey: ["observerDocs", projectId, page, sortBy, sortOrder],
-    queryFn: () =>
-      api
-        .get<{ data: IObserverDocument[]; meta: IPaginationMeta }>(
-          `/api/v1/observerDocuments/project/${projectId}`,
-          { params: { page, limit, sortBy, sortOrder } }
-        )
-        .then((res) => res.data),
-    enabled: !!projectId,
-    placeholderData: keepPreviousData,
-  });
+  // Placeholder for observer documents; actual query initialized below
+  let isLoading = false;
+  let error: Error | null = null;
+
+  // Fetch project to check recordingAccess
+  const { data: projectData, isLoading: projectLoading } = useProject(
+    projectId || undefined
+  );
 
   // Fetch project team to check user's role in this specific project
   const { data: projectTeam } = useQuery<
@@ -107,6 +101,46 @@ const ObserverDocuments = () => {
         .then((res) => res.data),
     enabled: !!projectId && !!user?.email,
   });
+
+  // Determine project-scoped role for current user
+  const teamMember = projectTeam?.data?.find(
+    (member) => member.email.toLowerCase() === user?.email?.toLowerCase()
+  );
+
+  const isProjectObserver = Boolean(
+    teamMember &&
+      teamMember.roles?.includes("Observer") &&
+      !teamMember.adminAccess &&
+      !teamMember.roles?.includes("Admin") &&
+      !teamMember.roles?.includes("Moderator")
+  );
+
+  const recordingAccessFlag = projectData?.recordingAccess;
+  const isObserverRestricted =
+    isProjectObserver &&
+    projectLoading === false &&
+    recordingAccessFlag === false;
+
+  // Observer documents query: disabled when observer is restricted
+  const observerQuery = useQuery<
+    { data: IObserverDocument[]; meta: IPaginationMeta },
+    Error
+  >({
+    queryKey: ["observerDocs", projectId, page, sortBy, sortOrder],
+    queryFn: () =>
+      api
+        .get<{ data: IObserverDocument[]; meta: IPaginationMeta }>(
+          `/api/v1/observerDocuments/project/${projectId}`,
+          { params: { page, limit, sortBy, sortOrder } }
+        )
+        .then((res) => res.data),
+    enabled: !!projectId && !isObserverRestricted,
+    placeholderData: keepPreviousData,
+  });
+
+  const data = observerQuery.data;
+  isLoading = observerQuery.isLoading;
+  error = observerQuery.error ?? null;
 
   // Check if user is Admin or Moderator in THIS specific project
   const canDelete = useMemo(() => {
@@ -179,6 +213,21 @@ const ObserverDocuments = () => {
   }
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
+
+  // If observer is restricted, show explicit notice instead of table
+  if (isObserverRestricted) {
+    return (
+      <ComponentContainer>
+        <div className="p-6 text-center">
+          <HeadingBlue25px>Observer Documents</HeadingBlue25px>
+          <p className="mt-4 text-gray-600">
+            You are not permitted to see the observer documents for this
+            project.
+          </p>
+        </div>
+      </ComponentContainer>
+    );
+  }
 
   const totalPages = data?.meta.totalPages ?? 0;
 
