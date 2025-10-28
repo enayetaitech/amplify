@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import CustomPagination from "@/components/shared/Pagination";
 
 type Project = {
   _id: string;
@@ -18,14 +19,21 @@ type Project = {
 export default function ProjectsTable() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-projects", q, status],
+    queryKey: ["admin-projects", q, status, page, pageSize],
     queryFn: async () => {
       const res = await api.get("/api/v1/admin/projects", {
-        params: { q, status },
+        params: { q, status, page, pageSize },
       });
-      return res.data?.data as { items: Project[] };
+      return res.data?.data as {
+        items: Project[];
+        total?: number;
+        page?: number;
+        pageSize?: number;
+      };
     },
   });
 
@@ -96,10 +104,16 @@ export default function ProjectsTable() {
                         size="sm"
                         onClick={async () => {
                           await api.post(`/api/v1/projects/${p._id}/activate`);
+                          // invalidate the exact query so current filters/pages refresh
                           queryClient.invalidateQueries({
-                            queryKey: ["admin-projects"],
+                            queryKey: [
+                              "admin-projects",
+                              q,
+                              status,
+                              page,
+                              pageSize,
+                            ],
                           });
-                          window.location.reload();
                         }}
                       >
                         Activate
@@ -116,9 +130,14 @@ export default function ProjectsTable() {
                             }`
                           );
                           queryClient.invalidateQueries({
-                            queryKey: ["admin-projects"],
+                            queryKey: [
+                              "admin-projects",
+                              q,
+                              status,
+                              page,
+                              pageSize,
+                            ],
                           });
-                          window.location.reload();
                         }}
                       >
                         {p.status === "Inactive" ? "Unpause" : "Pause"}
@@ -130,6 +149,16 @@ export default function ProjectsTable() {
             )}
           </tbody>
         </table>
+        <div className="p-2">
+          <CustomPagination
+            totalPages={Math.max(
+              1,
+              Math.ceil((data?.total ?? 0) / (data?.pageSize || pageSize))
+            )}
+            currentPage={data?.page || page}
+            onPageChange={(p) => setPage(p)}
+          />
+        </div>
       </div>
     </div>
   );
