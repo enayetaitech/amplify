@@ -66,20 +66,40 @@ export function EditUserDialog({ user, onOpenChange, onSaved }: Props) {
             <div>
               <Label>First name</Label>
               <Input {...form.register("firstName")} />
+              {form.formState.errors.firstName && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.firstName.message}
+                </p>
+              )}
             </div>
             <div>
               <Label>Last name</Label>
               <Input {...form.register("lastName")} />
+              {form.formState.errors.lastName && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.lastName.message}
+                </p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Phone</Label>
               <Input {...form.register("phoneNumber")} />
+              {form.formState.errors.phoneNumber && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.phoneNumber.message}
+                </p>
+              )}
             </div>
             <div>
               <Label>Company</Label>
               <Input {...form.register("companyName")} />
+              {form.formState.errors.companyName && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.companyName.message}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
