@@ -214,7 +214,7 @@ export default function ModeratorWaitingPanel() {
                 >
                   <div className="min-w-0">
                     <div className="font-medium truncate">
-                      {u.name ? formatDisplayName(u.name) : u.email}
+                      {u.name ? formatDisplayName(u.name) : ""}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export default function ModeratorWaitingPanel() {
                   </div>
                 ) : (
                   waiting.map((u) => {
-                    const label = u.name ? formatDisplayName(u.name) : u.email;
+                    const label = u.name ? formatDisplayName(u.name) : "";
                     const isActive =
                       selectedEmail &&
                       selectedEmail.toLowerCase() === u.email.toLowerCase();
@@ -261,9 +261,6 @@ export default function ModeratorWaitingPanel() {
                         <div className="min-w-0">
                           <div className="text-sm font-medium truncate">
                             {label}
-                          </div>
-                          <div className="text-[11px] text-gray-500 truncate">
-                            {u.email}
                           </div>
                         </div>
                         <button
@@ -305,9 +302,28 @@ export default function ModeratorWaitingPanel() {
                     timestamp: m.timestamp || new Date(),
                   }));
                   const send = () => onSendChat();
+                  const user = waiting.find(
+                    (w) =>
+                      w.email.toLowerCase() ===
+                      (selectedEmail || "").toLowerCase()
+                  );
+                  const titleName = user
+                    ? (() => {
+                        const parts = (user.name || "")
+                          .trim()
+                          .split(/\s+/)
+                          .filter(Boolean);
+                        if (parts.length === 0) return selectedEmail;
+                        if (parts.length === 1) return parts[0];
+                        return `${parts[0]} ${parts[parts.length - 1].charAt(
+                          0
+                        )}`;
+                      })()
+                    : selectedEmail;
+
                   return (
                     <ChatWindow
-                      title={`Message ${selectedEmail}`}
+                      title={`Message ${titleName}`}
                       meEmail={me.email}
                       messages={mapped}
                       value={chatText}

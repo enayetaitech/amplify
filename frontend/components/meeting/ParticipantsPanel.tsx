@@ -141,6 +141,7 @@ export default function ParticipantsPanel({
     identity?: string | null;
     label?: string | null;
   } | null>(null);
+  
   const selectedParticipantDisplayName = useMemo(() => {
     if (!selectedParticipant) return "";
     const match = remotes.find((p) => {
