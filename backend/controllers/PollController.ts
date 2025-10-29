@@ -4,7 +4,7 @@ import { PollModel } from "../model/PollModel";
 import ErrorHandler from "../utils/ErrorHandler";
 import { sendResponse } from "../utils/responseHelpers";
 import { validateQuestion } from "../processors/poll/QuestionValidationProcessor";
-import { uploadToS3 } from "../utils/uploadToS3";
+import { uploadToS3, getSignedUrl } from "../utils/uploadToS3";
 import * as pollService from "../processors/poll/pollService";
 import { emitToRoom } from "../socket/bus";
 import { PollRunModel } from "../model/PollRun";
@@ -12,6 +12,45 @@ import PollResponse from "../model/PollResponse";
 import { LiveSessionModel } from "../model/LiveSessionModel";
 import { zLaunchPayload, zStopPayload, zRespondPayload } from "../schemas/poll";
 import { zSharePayload } from "../schemas/poll";
+
+/**
+ * Helper to convert image keys to signed URLs.
+ * Handles backward compatibility: if image is already a URL, return as-is.
+ * Works with single poll or array of polls.
+ */
+function transformPollImages(pollOrPolls: any): any {
+  if (!pollOrPolls) return pollOrPolls;
+
+  // Handle arrays
+  if (Array.isArray(pollOrPolls)) {
+    return pollOrPolls.map((p) => transformPollImages(p));
+  }
+
+  // Handle single poll
+  if (!pollOrPolls.questions) return pollOrPolls;
+
+  const transformed = { ...pollOrPolls };
+  transformed.questions = pollOrPolls.questions.map((q: any) => {
+    if (!q.image) return q;
+
+    // If it's already a URL (backward compatibility), keep it
+    if (q.image.startsWith("http://") || q.image.startsWith("https://")) {
+      return q;
+    }
+
+    // Otherwise, treat it as an S3 key and generate signed URL
+    try {
+      // Generate signed URL valid for 1 hour (3600 seconds)
+      const signedUrl = getSignedUrl(q.image, 3600);
+      return { ...q, image: signedUrl };
+    } catch {
+      // If signed URL generation fails, return original
+      return q;
+    }
+  });
+
+  return transformed;
+}
 
 /* ───────────────────────────────────────────────────────────── */
 /*  Controller – Create Poll                                    */
@@ -71,9 +110,8 @@ export const createPoll = async (
       (q) => q.tempImageName === file.originalname
     );
     if (q) {
-      q.image = result.url;
-      // optionally store the S3 key if you need it:
-      // q.imageKey = result.key;
+      // Store the S3 key instead of URL for signed URL generation
+      q.image = result.key;
       delete q.tempImageName;
     }
   }
@@ -95,7 +133,7 @@ export const createPoll = async (
     createdByRole,
   });
 
-  sendResponse(res, poll, "Poll created", 201);
+  sendResponse(res, transformPollImages(poll), "Poll created", 201);
 };
 
 /**
@@ -150,7 +188,7 @@ export const getPollsByProjectId = async (
     hasNext: page < totalPages,
   };
 
-  sendResponse(res, polls, "Polls fetched", 200, meta);
+  sendResponse(res, transformPollImages(polls), "Polls fetched", 200, meta);
 };
 
 /**
@@ -171,7 +209,7 @@ export const getPollById = async (
   }
 
   // 2️⃣ Return it
-  sendResponse(res, poll, "Poll fetched", 200);
+  sendResponse(res, transformPollImages(poll), "Poll fetched", 200);
 };
 
 /**
@@ -227,7 +265,8 @@ export const updatePoll = async (
         (qq) => qq.tempImageName === file.originalname
       );
       if (q) {
-        q.image = uploadResult.url;
+        // Store the S3 key instead of URL for signed URL generation
+        q.image = uploadResult.key;
         delete q.tempImageName;
       }
     }
@@ -248,7 +287,7 @@ export const updatePoll = async (
   // 4) perform the mongo update
   const updated = await PollModel.findByIdAndUpdate(id, updates, { new: true });
   if (!updated) return next(new ErrorHandler("Poll not found", 404));
-  sendResponse(res, updated, "Poll updated", 200);
+  sendResponse(res, transformPollImages(updated), "Poll updated", 200);
 };
 
 /**
@@ -284,7 +323,7 @@ export const duplicatePoll = async (
   // 3️⃣insert new document
   const copy = await PollModel.create(copyData);
 
-  sendResponse(res, copy, "Poll duplicated", 201);
+  sendResponse(res, transformPollImages(copy), "Poll duplicated", 201);
 };
 
 /**
@@ -312,10 +351,19 @@ export const launchPoll = async (req: any, res: any, next: any) => {
 
     // Emit socket: poll started to session room
     try {
-      emitToRoom(String(sessionId), "poll:started", { poll, run });
+      const transformedPoll = transformPollImages(poll);
+      emitToRoom(String(sessionId), "poll:started", {
+        poll: transformedPoll,
+        run,
+      });
     } catch {}
 
-    sendResponse(res, { poll, run }, "Poll launched", 201);
+    sendResponse(
+      res,
+      { poll: transformPollImages(poll), run },
+      "Poll launched",
+      201
+    );
   } catch (e: any) {
     next(new ErrorHandler(e?.message || "internal_error", 500));
   }

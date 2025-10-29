@@ -17,6 +17,7 @@ import api from "lib/api";
 import { toast } from "sonner";
 import { IPoll, PollQuestion } from "@shared/interface/PollInterface";
 import PollResults from "./PollResults";
+import Image from "next/image";
 
 type PollRun = {
   _id: string;
@@ -221,6 +222,19 @@ export default function ActivePoll({
           {(pollToRender?.questions || []).map((q: PollQuestion) => (
             <div key={q._id} className="mb-4">
               <div className="font-medium mb-2">{q.prompt}</div>
+              {/* Display image if present */}
+              {(q as unknown as { image?: string }).image && (
+                <div className="my-4">
+                  <Image
+                    width={200}
+                    height={200}
+                    unoptimized
+                    src={(q as unknown as { image: string }).image}
+                    alt={`Question ${q.prompt} Illustration`}
+                    className="max-h-60 w-auto object-contain rounded border"
+                  />
+                </div>
+              )}
               <PollResults aggregate={resultsMapping[q._id]} question={q} />
             </div>
           ))}
@@ -241,6 +255,19 @@ export default function ActivePoll({
                   <div className="text-xs text-red-600 font-semibold">*</div>
                 ) : null}
               </div>
+              {/* Display image if present */}
+              {(q as unknown as { image?: string }).image && (
+                <div className="my-4">
+                  <Image
+                    width={200}
+                    height={200}
+                    unoptimized
+                    src={(q as unknown as { image: string }).image}
+                    alt={`Question ${idx + 1} Illustration`}
+                    className="max-h-60 w-auto object-contain rounded border"
+                  />
+                </div>
+              )}
               {/* SINGLE_CHOICE */}
               {q.type === "SINGLE_CHOICE" && (
                 <div className="mt-2 space-y-2">

@@ -293,7 +293,7 @@ const AddPollDialog = ({
       const formData = new FormData();
 
       const questionsPayload = questions.map((q) => {
-        // Drop the two file fields from every question
+        // Drop the File object, but preserve tempImageName when a file is attached
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { imageFile, tempImageName, ...rest } = q;
 
@@ -309,8 +309,11 @@ const AddPollDialog = ({
           };
         }
 
-        // Everything else just keeps the other properties
-        return rest;
+        // Everything else keeps other properties; include tempImageName if a file is attached
+        return {
+          ...rest,
+          ...(imageFile ? { tempImageName } : {}),
+        };
       });
 
       formData.append("questions", JSON.stringify(questionsPayload));

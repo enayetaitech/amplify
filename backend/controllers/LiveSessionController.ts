@@ -14,6 +14,7 @@ import { PollModel } from "../model/PollModel";
 import { SessionModel } from "../model/SessionModel";
 import ProjectModel from "../model/ProjectModel";
 import User from "../model/UserModel";
+import { getSignedUrl } from "../utils/uploadToS3";
 
 // Deprecated: role-based start/end; moved to per-session moderator or project owner check
 const canStartOrEnd = (_role?: string) => false;
@@ -172,5 +173,35 @@ export const getActivePoll = async (
     return;
   }
 
-  sendResponse(res, { poll, run }, "Active poll fetched", 200);
+  // Transform poll images: convert S3 keys to signed URLs
+  const transformPollImages = (p: any): any => {
+    if (!p || !p.questions) return p;
+
+    const transformed = { ...p };
+    transformed.questions = p.questions.map((q: any) => {
+      if (!q.image) return q;
+
+      // If it's already a URL (backward compatibility), keep it
+      if (q.image.startsWith("http://") || q.image.startsWith("https://")) {
+        return q;
+      }
+
+      // Otherwise, treat it as an S3 key and generate signed URL
+      try {
+        const signedUrl = getSignedUrl(q.image, 3600);
+        return { ...q, image: signedUrl };
+      } catch {
+        return q;
+      }
+    });
+
+    return transformed;
+  };
+
+  sendResponse(
+    res,
+    { poll: transformPollImages(poll), run },
+    "Active poll fetched",
+    200
+  );
 };
