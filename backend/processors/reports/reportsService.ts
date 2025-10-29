@@ -178,7 +178,7 @@ export async function getProjectSessions(
   const baseMatch: any = { projectId: pid };
 
   // pipeline to enrich sessions with moderator names, credits, participant and observer counts
-  const enrichPipeline: any[] = [
+  let enrichPipeline: any[] = [
     { $match: baseMatch },
     // join moderators
     {
@@ -271,7 +271,15 @@ export async function getProjectSessions(
       $project: {
         title: 1,
         moderatorsNames: 1,
-        liveSession: 1,
+        liveSession: {
+          participantsList: 1,
+          observerList: 1,
+          participantHistory: 1,
+          observerHistory: 1,
+          startTime: 1,
+          endTime: 1,
+          durationMs: 1,
+        },
         startDate: 1,
         endDate: 1,
         durationMs: 1,
@@ -282,15 +290,126 @@ export async function getProjectSessions(
     },
   ];
 
-  // apply search if provided (match against title or moderator names)
+  // apply search if provided (match against title, name, moderator names, or participant/observer names)
   if (search && typeof search === "string" && search.trim()) {
     const regex = new RegExp(search.trim(), "i");
-    enrichPipeline.unshift({
-      $match: {
-        projectId: pid,
-        $or: [{ title: { $regex: regex } }, { name: { $regex: regex } }],
+
+    // Remove any existing project match to avoid duplicates
+    enrichPipeline = enrichPipeline.filter(
+      (stage) =>
+        !stage.$match ||
+        !stage.$match.projectId ||
+        Object.keys(stage.$match).length > 1
+    );
+
+    // Then, let's add a separate aggregation pipeline for searching by moderator, participant, or observer names
+    const searchByNamesPipeline = [
+      // Match by project first
+      { $match: { projectId: pid } },
+
+      // Join with moderators
+      {
+        $lookup: {
+          from: "moderators",
+          localField: "moderators",
+          foreignField: "_id",
+          as: "moderatorDocs",
+        },
       },
-    });
+      // Add moderator names
+      {
+        $addFields: {
+          moderatorsNames: {
+            $map: {
+              input: "$moderatorDocs",
+              as: "m",
+              in: {
+                $concat: [
+                  { $ifNull: ["$$m.firstName", ""] },
+                  " ",
+                  { $ifNull: ["$$m.lastName", ""] },
+                ],
+              },
+            },
+          },
+        },
+      },
+
+      // Join with live session
+      {
+        $lookup: {
+          from: "livesessions",
+          localField: "_id",
+          foreignField: "sessionId",
+          as: "liveSessionDocs",
+        },
+      },
+      {
+        $addFields: { liveSession: { $arrayElemAt: ["$liveSessionDocs", 0] } },
+      },
+
+      // Match by names
+      {
+        $match: {
+          $or: [
+            { moderatorsNames: { $elemMatch: { $regex: regex } } },
+            { "liveSession.participantHistory.name": { $regex: regex } },
+            { "liveSession.observerHistory.name": { $regex: regex } },
+          ],
+        },
+      },
+
+      // Project just the IDs for the union
+      { $project: { _id: 1 } },
+    ];
+
+    // Execute this pipeline separately to get matching session IDs
+    const Session =
+      require("../../model/SessionModel").SessionModel ||
+      require("../../model/SessionModel").default ||
+      require("../../model/SessionModel");
+
+    // Instead of using $unionWith which is causing issues,
+    // let's execute the second pipeline separately and merge results in JavaScript
+
+    try {
+      // Execute the name-based search pipeline
+      const nameMatchingSessions = await Session.aggregate(
+        searchByNamesPipeline
+      ).allowDiskUse(true);
+
+      // If we found sessions by name search, add a filter to include those IDs
+      if (nameMatchingSessions && nameMatchingSessions.length > 0) {
+        const matchingIds = nameMatchingSessions.map(
+          (s: { _id: any }) => s._id
+        );
+
+        // Add a $match stage to include sessions that match by ID
+        enrichPipeline.unshift({
+          $match: {
+            $or: [
+              // Keep existing title/name search
+              {
+                $and: [
+                  { projectId: pid },
+                  {
+                    $or: [
+                      { title: { $regex: regex } },
+                      { name: { $regex: regex } },
+                    ],
+                  },
+                ],
+              },
+              // Add ID-based search from name matches
+              { _id: { $in: matchingIds } },
+            ],
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error in name-based search:", error);
+      // If the name search fails, continue with just the title/name search
+    }
   }
 
   // pagination + sort via facet to get total count

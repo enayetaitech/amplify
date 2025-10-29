@@ -207,6 +207,21 @@ export const editModerator = async (
         )
       );
     }
+
+    // For verified moderators, sync company name from user profile if not explicitly provided
+    if (companyName === undefined) {
+      try {
+        const user = await User.findOne({ email: moderator.email });
+        if (user && user.companyName !== moderator.companyName) {
+          console.log(
+            `Syncing company name from user profile: ${user.companyName} for ${moderator.email}`
+          );
+          moderator.companyName = user.companyName;
+        }
+      } catch (e) {
+        console.error("Error syncing company name from user profile:", e);
+      }
+    }
   } else {
     // Not yet verified: allow personal fields + adminAccess
     if (firstName !== undefined) moderator.firstName = firstName;

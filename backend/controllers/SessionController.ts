@@ -285,12 +285,77 @@ export const getSessionsByProject = async (
         },
       ]).exec();
     } else {
-      sessions = await SessionModel.find({ projectId })
+      // Fetch sessions and enrich each with any existing LiveSession data
+      const baseSessions = await SessionModel.find({ projectId })
         .sort(sortSpec)
         .skip(skip)
         .limit(limit)
         .populate(SESSION_POPULATE)
         .lean();
+
+      // Find live sessions for these session ids in one query
+      const sessionIds = baseSessions.map((b: any) => b._id);
+      const liveSessions = await LiveSessionModel.find({
+        sessionId: { $in: sessionIds },
+      })
+        .lean()
+        .exec();
+
+      const liveBySession = new Map<string, any>();
+      for (const ls of liveSessions) {
+        liveBySession.set(String(ls.sessionId), ls);
+      }
+
+      sessions = baseSessions.map((b: any) => {
+        const ls = liveBySession.get(String(b._id));
+        if (!ls) return b;
+
+        // participant count: prefer unique emails from history or participantsList
+        let participantCount = 0;
+        const pHistory = Array.isArray(ls.participantHistory)
+          ? ls.participantHistory
+          : [];
+        const pList = Array.isArray(ls.participantsList)
+          ? ls.participantsList
+          : [];
+        if (pHistory.length > 0) {
+          const emails = new Set<string>();
+          for (const p of pHistory) {
+            const em = (p?.email || "").toString().toLowerCase();
+            if (em) emails.add(em);
+          }
+          participantCount = emails.size;
+        } else if (pList.length > 0) {
+          const emails = new Set<string>();
+          for (const p of pList) {
+            const em = (p?.email || "").toString().toLowerCase();
+            if (em) emails.add(em);
+          }
+          participantCount = emails.size;
+        }
+
+        // observer count: prefer observerHistory length else observerList
+        let observerCount = 0;
+        const oHistory = Array.isArray(ls.observerHistory)
+          ? ls.observerHistory
+          : [];
+        const oList = Array.isArray(ls.observerList) ? ls.observerList : [];
+        if (oHistory.length > 0) observerCount = oHistory.length;
+        else if (oList.length > 0) observerCount = oList.length;
+
+        // start/end times from live session when available
+        const startTime = ls.startTime ?? null;
+        const endTime = ls.endTime ?? null;
+
+        return {
+          ...b,
+          liveSession: ls,
+          participantCount,
+          observerCount,
+          liveStartTime: startTime,
+          liveEndTime: endTime,
+        };
+      });
     }
 
     const total = await totalPromise;

@@ -183,6 +183,10 @@ const SessionDeliverables = () => {
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${bytes} B`;
 
+  // truncate string to n characters with ellipsis
+  const truncate = (s: string | undefined, n = 50) =>
+    s && s.length > n ? `${s.slice(0, n)}…` : s || "";
+
   // checkbox handlers
   const allSelected = data ? selectedIds.length === data.data.length : false;
 
@@ -303,11 +307,12 @@ const SessionDeliverables = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span
+                          title={del.displayName}
                           className={
                             del.deletedAt ? "line-through text-gray-400" : ""
                           }
                         >
-                          {del.displayName}
+                          {truncate(del.displayName, 50)}
                         </span>
                         {del.deletedAt && (
                           <span className="text-xs text-red-500">

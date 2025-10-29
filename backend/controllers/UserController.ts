@@ -110,12 +110,23 @@ export const createAccount = async (
 
   sendResponse(res, userResponse, "User registered successfully", 201);
 
-  // Link new registrations to any pending team memberships
+  // Link new registrations to any pending team memberships and sync company name
   try {
-    await ModeratorModel.updateMany(
+    const result = await ModeratorModel.updateMany(
       { email: savedUser.email },
-      { $set: { isVerified: true } }
+      {
+        $set: {
+          isVerified: true,
+          // Ensure company name is synchronized with the user profile
+          companyName: savedUser.companyName,
+        },
+      }
     );
+    if (result.modifiedCount > 0) {
+      console.log(
+        `Updated ${result.modifiedCount} existing moderator records for new user ${savedUser.email}`
+      );
+    }
   } catch (e) {
     try {
       console.error("Failed to link moderator memberships on signup", e);
@@ -458,7 +469,15 @@ export const editUser = async (
     const updateFields: Record<string, string> = {};
     if (firstName !== undefined) updateFields.firstName = firstName;
     if (lastName !== undefined) updateFields.lastName = lastName;
-    if (companyName !== undefined) updateFields.companyName = companyName;
+
+    // Ensure company name is synchronized across all project teams
+    if (companyName !== undefined) {
+      updateFields.companyName = companyName;
+      console.log(
+        `Syncing company name change to '${companyName}' for user ${user.email}`
+      );
+    }
+
     // If email changed, update it in project teams too
     if (
       email !== undefined &&
@@ -468,9 +487,12 @@ export const editUser = async (
     }
 
     if (Object.keys(updateFields).length > 0) {
-      await ModeratorModel.updateMany(
+      const result = await ModeratorModel.updateMany(
         { email: user.email },
         { $set: updateFields }
+      );
+      console.log(
+        `Updated ${result.modifiedCount} project team records for user ${user.email}`
       );
     }
   } catch (e) {
@@ -616,9 +638,18 @@ export const verifyEmailChange = async (
 
   // Sync email change to project teams
   try {
-    await ModeratorModel.updateMany(
+    const result = await ModeratorModel.updateMany(
       { email: oldEmail },
-      { $set: { email: user.email } }
+      {
+        $set: {
+          email: user.email,
+          // Also ensure company name is in sync
+          companyName: user.companyName,
+        },
+      }
+    );
+    console.log(
+      `Updated ${result.modifiedCount} project team records for email change from ${oldEmail} to ${user.email}`
     );
   } catch (e) {
     console.error("Failed to sync email to project teams:", e);

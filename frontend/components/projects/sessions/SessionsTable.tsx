@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { resolveToIana } from "../../../utils/timezones";
 import { DateTime } from "luxon";
 import { ISession } from "@shared/interface/SessionInterface";
+import { ILiveSession } from "@shared/interface/LiveSessionInterface";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import {
   Table,
@@ -93,6 +94,8 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
       sortBy === field && sortOrder === "asc" ? "desc" : "asc";
     onSortChange(field, nextOrder);
   }
+
+
 
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto">
@@ -231,13 +234,71 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                   })()}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {/* participant count */}
+                  {(() => {
+                    // prefer liveSession derived lists when available
+                    const ls = (
+                      s as unknown as { liveSession?: ILiveSession | null }
+                    ).liveSession;
+                    if (ls) {
+                      // participant count: prefer unique emails from history or list
+                      const history = Array.isArray(ls.participantHistory)
+                        ? ls.participantHistory
+                        : Array.isArray(ls.participantsList)
+                        ? ls.participantsList
+                        : [];
+                      const emails = new Set<string>();
+                      for (const p of history) {
+                        const em = (p?.email || "").toString().toLowerCase();
+                        if (em) emails.add(em);
+                      }
+                      return emails.size;
+                    }
+                    return "—";
+                  })()}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {/* observer count */}
+                  {(() => {
+                    const ls = (
+                      s as unknown as { liveSession?: ILiveSession | null }
+                    ).liveSession;
+                    if (ls) {
+                      // observer count: prefer observerHistory length fallback to observerList
+                      if (
+                        Array.isArray(ls.observerHistory) &&
+                        ls.observerHistory.length
+                      ) {
+                        return ls.observerHistory.length;
+                      }
+                      if (Array.isArray(ls.observerList))
+                        return ls.observerList.length;
+                      return 0;
+                    }
+                    return "—";
+                  })()}
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {/* finalSessionMinutes */}
+                  {(() => {
+                    const ls = (
+                      s as unknown as { liveSession?: ILiveSession | null }
+                    ).liveSession;
+                    // final session minutes: compute from liveSession.startTime and endTime if present,
+                    // otherwise fall back to session.duration (minutes)
+                    if (ls && ls.startTime && ls.endTime) {
+                      try {
+                        const start = new Date(ls.startTime).getTime();
+                        const end = new Date(ls.endTime).getTime();
+                        if (!isNaN(start) && !isNaN(end) && end >= start) {
+                          const mins = Math.round((end - start) / 60000);
+                          return mins;
+                        }
+                      } catch {}
+                      return "—";
+                    }
+                    // fallback to session.duration (minutes)
+                    return typeof (s as ISession).duration === "number"
+                      ? (s as ISession).duration
+                      : "—";
+                  })()}
                 </TableCell>
 
                 <TableCell
