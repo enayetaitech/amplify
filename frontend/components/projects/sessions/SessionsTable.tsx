@@ -295,9 +295,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                       return "—";
                     }
                     // fallback to session.duration (minutes)
-                    return typeof (s as ISession).duration === "number"
-                      ? (s as ISession).duration
-                      : "—";
+                    return  "—";
                   })()}
                 </TableCell>
 
