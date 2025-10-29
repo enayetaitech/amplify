@@ -310,7 +310,7 @@ export default function SidebarContent({
       </ScrollArea>
 
       {/* User info */}
-      <div className="px-2 py-2 bg-gray-100">
+      <div className="px-2 py-2 bg-gray-100 w-64">
         <div className="relative flex items-center justify-between p-3 rounded-lg">
           <div className="flex items-center gap-3">
             <Avatar>
