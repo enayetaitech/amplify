@@ -54,8 +54,6 @@ export default function EditSessionModal({
     throw new Error("projectId is required and must be a string");
   }
   const projectId = params.projectId;
-  console.log("project id", projectId);
-  console.log("session", session);
 
   const { data: project } = useQuery<IProject, Error>({
     queryKey: ["project", projectId],
@@ -139,6 +137,18 @@ export default function EditSessionModal({
     }
   }, [session]);
 
+  // validate duration against allowed options to prevent transient invalid states (e.g., "")
+  const isValidDuration = (n: unknown): n is number =>
+    typeof n === "number" &&
+    Number.isFinite(n) &&
+    durations.some((d) => d.minutes === n);
+
+  // compute display value to avoid flashes when state hasn't synced yet
+  const displayDuration = isValidDuration(values.duration)
+    ? values.duration
+    : isValidDuration((session as unknown as { duration?: unknown })?.duration)
+    ? (session as unknown as { duration: number }).duration
+    : 30;
   // count business days between today and `target`
 
   const onSubmit = (data: EditSessionValues) => {
@@ -170,7 +180,7 @@ export default function EditSessionModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !session) return null;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -244,15 +254,20 @@ export default function EditSessionModal({
 
           <div className="grid gap-2">
             <label className="font-medium">Duration</label>
+            {/* prefer controlled state but fall back to incoming session to avoid flashes */}
             <Select
-              value={String(values.duration)}
-              onValueChange={(val) =>
-                setValues({ ...values, duration: Number(val) })
-              }
+              value={String(displayDuration)}
+              onValueChange={(val) => {
+                const parsed = Number(val);
+                // Ignore invalid/empty values that can momentarily occur
+                if (!Number.isFinite(parsed)) return;
+                if (!durations.some((d) => d.minutes === parsed)) return;
+                setValues((prev) => ({ ...prev, duration: parsed }));
+              }}
               disabled={isSaving}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select duration" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {durations.map((d) => (

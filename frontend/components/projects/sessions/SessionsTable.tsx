@@ -95,7 +95,7 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
     onSortChange(field, nextOrder);
   }
 
-  console.log("sessions", sessions);
+
 
   return (
     <div className=" rounded-lg shadow-lg overflow-x-auto">
