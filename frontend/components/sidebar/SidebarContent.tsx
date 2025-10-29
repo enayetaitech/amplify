@@ -96,6 +96,13 @@ export default function SidebarContent({
     return `${truncatedFirst}..${spacePlusInit}`;
   }
 
+  function formatEmail(email: string) {
+    const maxLen = 16;
+    if (email.length <= maxLen) return email;
+    // Keep total length at 16 by showing first 14 chars + ".."
+    return `${email.slice(0, maxLen - 2)}..`;
+  }
+
   return (
     <>
       <ScrollArea className="flex-1 px-6 overflow-y-auto">
@@ -281,7 +288,8 @@ export default function SidebarContent({
                         : "text-custom-blue-gray-1 hover:text-custom-gray-5"
                     }`}
                   >
-                    <MdOutlineInsertChart className="h-3.5 w-3.5" /> Internal Admin List
+                    <MdOutlineInsertChart className="h-3.5 w-3.5" /> Internal
+                    Admin List
                   </Link>
                   <Link
                     href="/admin/projects"
@@ -302,7 +310,7 @@ export default function SidebarContent({
       </ScrollArea>
 
       {/* User info */}
-      <div className="px-2 py-2 bg-gray-100">
+      <div className="px-2 py-2 bg-gray-100 w-64">
         <div className="relative flex items-center justify-between p-3 rounded-lg">
           <div className="flex items-center gap-3">
             <Avatar>
@@ -315,7 +323,9 @@ export default function SidebarContent({
               <p className="font-semibold">
                 {user ? formatDisplayName(user.firstName, user.lastName) : ""}
               </p>
-              <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+              <p className="text-xs text-gray-600 truncate">
+                {formatEmail(user?.email || "")}
+              </p>
             </div>
           </div>
           <div ref={menuRef}>

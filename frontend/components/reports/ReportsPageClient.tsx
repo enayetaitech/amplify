@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "lib/api";
 import { Button } from "components/ui/button";
 import { Dialog, DialogContent } from "components/ui/dialog";
@@ -16,6 +16,7 @@ import {
 import SessionsReportTable from "components/reports/SessionsReportTable";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useProject } from "hooks/useProject";
+import { useDebounce } from "hooks/useDebounce";
 import { resolveToIana } from "utils/timezones";
 import { DateTime } from "luxon";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
@@ -38,7 +39,6 @@ export default function ReportsPageClient({
   const router = useRouter();
 
   const { data: project } = useProject(projectId);
-
 
   const [summary, setSummary] = useState<null | {
     projectName?: string;
@@ -96,7 +96,9 @@ export default function ReportsPageClient({
   const [searchInput, setSearchInput] = useState<string>(
     (searchParams?.get("q") as string) || ""
   );
+  const debouncedSearchInput = useDebounce(searchInput, 500);
   const [accessDenied, setAccessDenied] = useState(false);
+  const isInitialMount = useRef(true);
   const [showProjectParticipants, setShowProjectParticipants] = useState(false);
   const [projectParticipants, setProjectParticipants] = useState<
     { _id?: string; name?: string; joinedAt?: string; sessions?: string[] }[]
@@ -175,10 +177,49 @@ export default function ReportsPageClient({
     };
   }, [showProjectObservers, projectId]);
 
+  // Update URL when debounced search input changes
+  useEffect(() => {
+    if (!projectId || isInitialMount.current) {
+      // Skip on initial mount - URL is already correct
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
+      }
+      return;
+    }
+
+    const currentQuery = searchParams?.get("q") || "";
+    const newQuery = debouncedSearchInput.trim();
+
+    // Only update URL if the debounced value differs from current URL query
+    if (currentQuery !== newQuery) {
+      const path = window.location.pathname;
+      const url = newQuery ? `${path}?q=${encodeURIComponent(newQuery)}` : path;
+      router.push(url);
+      setPage(1); // Reset to first page when search changes
+    }
+  }, [debouncedSearchInput, projectId, router, searchParams]);
+
+  // Sync searchInput from URL on external navigation (back/forward)
   useEffect(() => {
     if (!projectId) return;
     const q = searchParams?.get("q") || "";
-    setSearchInput(q as string);
+    const urlQuery = q.trim();
+    const currentInput = searchInput.trim();
+    const currentDebounced = debouncedSearchInput.trim();
+
+    // Only sync if URL changed externally (not from our debounced update)
+    // External navigation: URL differs from input, and debounced matches input
+    // This means user wasn't typing, URL changed from browser navigation
+    if (urlQuery !== currentInput && currentDebounced === currentInput) {
+      setSearchInput(q as string);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, projectId]);
+
+  // Fetch sessions when search params or pagination changes
+  useEffect(() => {
+    if (!projectId) return;
+    const q = searchParams?.get("q") || "";
     setAccessDenied(false);
 
     api
@@ -202,10 +243,12 @@ export default function ReportsPageClient({
   }, [projectId, searchParams, page, limit]);
 
   const doSearch = () => {
-    const q = searchInput || "";
+    // Immediately update URL without waiting for debounce
+    const q = searchInput.trim() || "";
     const path = window.location.pathname;
     const url = q ? `${path}?q=${encodeURIComponent(q)}` : path;
     router.push(url);
+    setPage(1);
   };
 
   const formatProjectDate = (v?: string | Date | null) => {
@@ -237,6 +280,11 @@ export default function ReportsPageClient({
           placeholder="Search sessions, moderators, participants..."
           value={searchInput}
           onChange={(e) => setSearchInput((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              doSearch();
+            }
+          }}
         />
         <Button onClick={doSearch}>Search</Button>
       </div>
@@ -365,7 +413,7 @@ export default function ReportsPageClient({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                      
+
                         <TableHead>Company</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Leave</TableHead>
@@ -376,7 +424,7 @@ export default function ReportsPageClient({
                       {projectObservers.map((p) => (
                         <TableRow key={p._id || p.email || Math.random()}>
                           <TableCell>{p.observerName || p.name}</TableCell>
-                        
+
                           <TableCell>{p.companyName || ""}</TableCell>
                           <TableCell>
                             {p.joinedAt

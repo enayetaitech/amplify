@@ -378,17 +378,18 @@ export async function getProjectSessions(
         searchByNamesPipeline
       ).allowDiskUse(true);
 
-      // If we found sessions by name search, add a filter to include those IDs
-      if (nameMatchingSessions && nameMatchingSessions.length > 0) {
-        const matchingIds = nameMatchingSessions.map(
-          (s: { _id: any }) => s._id
-        );
+      const matchingIds =
+        nameMatchingSessions && nameMatchingSessions.length > 0
+          ? nameMatchingSessions.map((s: { _id: any }) => s._id)
+          : [];
 
-        // Add a $match stage to include sessions that match by ID
+      // Always add a $match stage for search
+      // If we have name matches, include them; otherwise just filter by title/name
+      if (matchingIds.length > 0) {
         enrichPipeline.unshift({
           $match: {
             $or: [
-              // Keep existing title/name search
+              // Title/name search
               {
                 $and: [
                   { projectId: pid },
@@ -400,15 +401,40 @@ export async function getProjectSessions(
                   },
                 ],
               },
-              // Add ID-based search from name matches
+              // ID-based search from name matches
               { _id: { $in: matchingIds } },
+            ],
+          },
+        });
+      } else {
+        // No name matches found, only filter by title/name
+        enrichPipeline.unshift({
+          $match: {
+            $and: [
+              { projectId: pid },
+              {
+                $or: [
+                  { title: { $regex: regex } },
+                  { name: { $regex: regex } },
+                ],
+              },
             ],
           },
         });
       }
     } catch (error) {
       console.error("Error in name-based search:", error);
-      // If the name search fails, continue with just the title/name search
+      // If the name search fails, still add title/name search filter
+      enrichPipeline.unshift({
+        $match: {
+          $and: [
+            { projectId: pid },
+            {
+              $or: [{ title: { $regex: regex } }, { name: { $regex: regex } }],
+            },
+          ],
+        },
+      });
     }
   }
 

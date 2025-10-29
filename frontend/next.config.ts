@@ -7,8 +7,8 @@ const nextConfig: NextConfig = {
   },
   images: {
     domains: [
-     
       "interview-234343.s3.ap-southeast-2.amazonaws.com",
+      "amplify365aitech.s3.ap-south-1.amazonaws.com",
     ],
   },
 };

@@ -157,49 +157,58 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   // keep in sync when poll changes
   useEffect(() => {
     setTitle(poll.title);
-    const initialQs: DraftWithImage[] = poll.questions.map((q: PollQuestion) =>
-      defaultQuestion({
-        id: q._id,
-        prompt: q.prompt,
-        type: q.type,
-        required: q.required,
-        imageUrl: q.image,
-        tempImageName: undefined,
-        ...(q.type === "SINGLE_CHOICE" && {
-          answers: q.answers,
-          correctAnswer: q.correctAnswer,
-          showDropdown: q.showDropdown,
-        }),
-        ...(q.type === "MULTIPLE_CHOICE" && {
-          answers: q.answers,
-          correctAnswers: q.correctAnswers,
-        }),
-        ...(q.type === "MATCHING" && {
-          options: q.options,
-          answers: q.answers,
-        }),
-        ...(q.type === "RANK_ORDER" && {
-          rows: q.rows,
-          columns: q.columns,
-        }),
-        ...(q.type === "SHORT_ANSWER" && {
-          minChars: q.minChars ?? 1,
-          maxChars: q.maxChars ?? 200,
-        }),
-        ...(q.type === "LONG_ANSWER" && {
-          minChars: q.minChars ?? 1,
-          maxChars: q.maxChars ?? 2000,
-        }),
-        ...(q.type === "FILL_IN_BLANK" && {
-          answers: q.answers,
-        }),
-        ...(q.type === "RATING_SCALE" && {
-          scoreFrom: q.scoreFrom,
-          scoreTo: q.scoreTo,
-          lowLabel: q.lowLabel,
-          highLabel: q.highLabel,
-        }),
-      })
+    const initialQs: DraftWithImage[] = poll.questions.map(
+      (q: PollQuestion) => {
+        // Safety check: only use imageUrl if it's a valid URL (not an S3 key)
+        const imageUrl =
+          q.image &&
+          (q.image.startsWith("http://") || q.image.startsWith("https://"))
+            ? q.image
+            : undefined;
+
+        return defaultQuestion({
+          id: q._id,
+          prompt: q.prompt,
+          type: q.type,
+          required: q.required,
+          imageUrl,
+          tempImageName: undefined,
+          ...(q.type === "SINGLE_CHOICE" && {
+            answers: q.answers,
+            correctAnswer: q.correctAnswer,
+            showDropdown: q.showDropdown,
+          }),
+          ...(q.type === "MULTIPLE_CHOICE" && {
+            answers: q.answers,
+            correctAnswers: q.correctAnswers,
+          }),
+          ...(q.type === "MATCHING" && {
+            options: q.options,
+            answers: q.answers,
+          }),
+          ...(q.type === "RANK_ORDER" && {
+            rows: q.rows,
+            columns: q.columns,
+          }),
+          ...(q.type === "SHORT_ANSWER" && {
+            minChars: q.minChars ?? 1,
+            maxChars: q.maxChars ?? 200,
+          }),
+          ...(q.type === "LONG_ANSWER" && {
+            minChars: q.minChars ?? 1,
+            maxChars: q.maxChars ?? 2000,
+          }),
+          ...(q.type === "FILL_IN_BLANK" && {
+            answers: q.answers,
+          }),
+          ...(q.type === "RATING_SCALE" && {
+            scoreFrom: q.scoreFrom,
+            scoreTo: q.scoreTo,
+            lowLabel: q.lowLabel,
+            highLabel: q.highLabel,
+          }),
+        });
+      }
     );
 
     setQuestions(initialQs);
@@ -726,15 +735,17 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                   <span>Required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {q.imageUrl && !q.imageFile && (
-                    <Image
-                      src={q.imageUrl}
-                      alt="Question image"
-                      height={64}
-                      width={64}
-                      className="max-h-16 rounded-md mr-2"
-                    />
-                  )}
+                  {q.imageUrl &&
+                    !q.imageFile &&
+                    q.imageUrl.startsWith("http") && (
+                      <Image
+                        src={q.imageUrl}
+                        alt="Question image"
+                        height={64}
+                        width={64}
+                        className="max-h-16 rounded-md mr-2"
+                      />
+                    )}
 
                   {/* ← this label/file-input combo */}
                   <label className="flex items-center gap-1 cursor-pointer text-sm text-gray-600">

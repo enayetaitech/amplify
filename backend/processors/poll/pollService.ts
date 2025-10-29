@@ -45,6 +45,9 @@ export async function launchPoll(
     timeLimitSec: settings?.timeLimitSec,
   });
 
+  // Update Poll model: set isRun to true whenever a poll is launched
+  await PollModel.findByIdAndUpdate(p._id, { isRun: true });
+
   return { poll: p, run };
 }
 
@@ -104,6 +107,11 @@ export async function submitResponse(
     },
     answers,
     submittedAt: new Date(),
+  });
+
+  // Increment responsesCount on Poll model
+  await PollModel.findByIdAndUpdate(pollId, {
+    $inc: { responsesCount: 1 },
   });
 
   const aggregates = await aggregateResults(pollId, runId);
