@@ -74,10 +74,10 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
           enableWorker: true,
           lowLatencyMode: false,
           liveDurationInfinity: true,
-          liveSyncDurationCount: 3,
+          liveSyncDurationCount: 5,
           maxLiveSyncPlaybackRate: 1.2,
           backBufferLength: 30,
-          maxBufferLength: 15,
+          maxBufferLength: 45,
           // Make timeouts more forgiving for very slow networks
           fragLoadingTimeOut: 20000,
           manifestLoadingTimeOut: 20000,
@@ -180,10 +180,51 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
         video.addEventListener("waiting", onStall);
         video.addEventListener("suspend", onStall);
 
+        // Helper: move to next buffered range or live edge if we're in a gap
+        const jumpToBufferedOrLive = () => {
+          const v = video as HTMLVideoElement;
+          try {
+            const br = v.buffered;
+            for (let i = 0; i < br.length; i++) {
+              const start = br.start(i);
+              const end = br.end(i);
+              if (v.currentTime < start - 0.05) {
+                v.currentTime = start + 0.05;
+                setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+                return;
+              }
+              if (v.currentTime > end - 0.05 && i + 1 < br.length) {
+                const nstart = br.start(i + 1);
+                v.currentTime = nstart + 0.05;
+                setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+                return;
+              }
+            }
+          } catch {}
+          // No suitable buffered range; go to live edge if known
+          try {
+            const anyHls = hls as unknown as Record<string, unknown>;
+            const liveSync =
+              (anyHls["liveSyncPosition"] as number | undefined) || undefined;
+            if (typeof liveSync === "number" && Number.isFinite(liveSync)) {
+              v.currentTime = Math.max(0, liveSync - 0.5);
+              setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+            }
+          } catch {}
+        };
+
+        // On user play attempt, ensure we're on a playable point
+        const onPlay = () => jumpToBufferedOrLive();
+        video.addEventListener("play", onPlay);
+
         hls.loadSource(hlsUrl);
         hls.attachMedia(video);
+        try {
+          hls.startLoad(-1); // force start at live edge
+        } catch {}
 
         try {
+          (video as HTMLVideoElement).muted = true;
           await (video as HTMLVideoElement).play();
         } catch {}
         cleanup = () => {
@@ -192,6 +233,7 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
           video.removeEventListener("stalled", onStall);
           video.removeEventListener("waiting", onStall);
           video.removeEventListener("suspend", onStall);
+          video.removeEventListener("play", onPlay);
           hls.destroy();
         };
       }
@@ -205,7 +247,8 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
   // Enable overlay via hash param `#hlsDebug=1`
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const enabled = (window.location.hash || "").includes("hlsDebug=1");
+    const hay = `${window.location.hash || ""}${window.location.search || ""}`;
+    const enabled = /hlsdebug=1/i.test(hay);
     if (enabled) setDebug((d) => ({ ...d, enabled: true }));
   }, []);
 
@@ -245,6 +288,8 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
                 controls
                 playsInline
                 autoPlay
+                muted
+                preload="auto"
                 crossOrigin="anonymous"
                 className="w-full h-full object-cover bg-black"
               />
