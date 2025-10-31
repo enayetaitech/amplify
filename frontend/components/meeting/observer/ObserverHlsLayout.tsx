@@ -11,6 +11,19 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
     w: 0,
     h: 0,
   });
+  const [debug, setDebug] = useState<{
+    enabled: boolean;
+    lastPlaylistUpdateTs: number | null;
+    lastSegmentSn: number | null;
+    recoveryCount: number;
+    lastError: string | null;
+  }>({
+    enabled: false,
+    lastPlaylistUpdateTs: null,
+    lastSegmentSn: null,
+    recoveryCount: 0,
+    lastError: null,
+  });
 
   useEffect(() => {
     const el = containerRef.current;
@@ -58,29 +71,129 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
       }
       if (Hls.isSupported()) {
         const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
           liveDurationInfinity: true,
           liveSyncDurationCount: 3,
           maxLiveSyncPlaybackRate: 1.2,
+          backBufferLength: 30,
+          maxBufferLength: 15,
+          // Make timeouts more forgiving for very slow networks
+          fragLoadingTimeOut: 20000,
+          manifestLoadingTimeOut: 20000,
+          levelLoadingTimeOut: 20000,
           fragLoadingRetryDelay: 1000,
           manifestLoadingRetryDelay: 1000,
           levelLoadingRetryDelay: 1000,
           fragLoadingMaxRetry: 6,
           manifestLoadingMaxRetry: 6,
           levelLoadingMaxRetry: 6,
+          // Help cross small decode gaps on poor networks
+          maxBufferHole: 1,
+          nudgeOffset: 0.1,
         });
-        hls.loadSource(hlsUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.ERROR, (_e, data) => {
-          if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-            if (data.type === Hls.ErrorTypes.MEDIA_ERROR)
-              hls.recoverMediaError();
+
+        let lastUpdateAt = Date.now();
+
+        hls.on(Hls.Events.LEVEL_UPDATED, () => {
+          lastUpdateAt = Date.now();
+          setDebug((d) => ({ ...d, lastPlaylistUpdateTs: lastUpdateAt }));
+        });
+
+        hls.on(Hls.Events.FRAG_LOADED, (_e, data: unknown) => {
+          if (typeof data === "object" && data !== null) {
+            const d = data as Record<string, unknown>;
+            const frag =
+              (d["frag"] as Record<string, unknown> | undefined) || undefined;
+            const maybeSn = frag?.["sn"];
+            if (typeof maybeSn === "number") {
+              setDebug((dd) => ({ ...dd, lastSegmentSn: maybeSn }));
+            }
           }
         });
+
+        // If the playlist doesn't update for 8s, restart loader
+        const watchdog = setInterval(() => {
+          const now = Date.now();
+          if (now - lastUpdateAt > 8000) {
+            try {
+              hls.stopLoad();
+              hls.startLoad();
+            } catch {}
+            lastUpdateAt = now;
+            setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+          }
+        }, 3000);
+
+        // If playback time stops advancing for a while, try to gently recover
+        let lastT = 0;
+        let stagnantSince: number | null = null;
+        const progressMon = setInterval(() => {
+          const v = video as HTMLVideoElement;
+          if (!v || v.paused || v.readyState < 2) return;
+          const t = v.currentTime;
+          if (t <= lastT + 0.01) {
+            if (stagnantSince == null) stagnantSince = Date.now();
+            if (Date.now() - stagnantSince > 8000) {
+              try {
+                // Nudge and restart loader to re-buffer
+                v.currentTime = Math.max(0, t - 0.05);
+                hls.startLoad();
+              } catch {}
+              stagnantSince = Date.now();
+              setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+            }
+          } else {
+            stagnantSince = null;
+          }
+          lastT = t;
+        }, 2000);
+
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              hls.startLoad();
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              hls.recoverMediaError();
+            } else {
+              try {
+                hls.stopLoad();
+                hls.startLoad();
+              } catch {}
+            }
+            setDebug((d) => ({
+              ...d,
+              recoveryCount: d.recoveryCount + 1,
+              lastError: `${data.type}:${data.details || "fatal"}`,
+            }));
+          }
+        });
+
+        // React to element-level stalls/waits
+        const onStall = () => {
+          try {
+            hls.startLoad();
+          } catch {}
+          setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+        };
+        video.addEventListener("stalled", onStall);
+        video.addEventListener("waiting", onStall);
+        video.addEventListener("suspend", onStall);
+
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+
         try {
           await (video as HTMLVideoElement).play();
         } catch {}
-        cleanup = () => hls.destroy();
+        cleanup = () => {
+          clearInterval(watchdog);
+          clearInterval(progressMon);
+          video.removeEventListener("stalled", onStall);
+          video.removeEventListener("waiting", onStall);
+          video.removeEventListener("suspend", onStall);
+          hls.destroy();
+        };
       }
     })();
 
@@ -88,6 +201,13 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
       if (cleanup) cleanup();
     };
   }, [hlsUrl]);
+
+  // Enable overlay via hash param `#hlsDebug=1`
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const enabled = (window.location.hash || "").includes("hlsDebug=1");
+    if (enabled) setDebug((d) => ({ ...d, enabled: true }));
+  }, []);
 
   return (
     <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col">
@@ -128,6 +248,24 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
                 crossOrigin="anonymous"
                 className="w-full h-full object-cover bg-black"
               />
+              {debug.enabled ? (
+                <div className="absolute top-2 left-2 text-[10px] leading-tight bg-black/60 text-white rounded px-2 py-1 space-y-0.5">
+                  <div>HLS Debug</div>
+                  <div>
+                    Last playlist:{" "}
+                    {debug.lastPlaylistUpdateTs
+                      ? new Date(
+                          debug.lastPlaylistUpdateTs
+                        ).toLocaleTimeString()
+                      : "-"}
+                  </div>
+                  <div>Last segment SN: {debug.lastSegmentSn ?? "-"}</div>
+                  <div>Recovery count: {debug.recoveryCount}</div>
+                  {debug.lastError ? (
+                    <div>Last error: {debug.lastError}</div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           );
         })()}
