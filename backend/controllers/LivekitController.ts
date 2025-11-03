@@ -45,6 +45,35 @@ export const getLivekitToken = async (
   sendResponse(res, { token }, "LiveKit token issued");
 };
 
+// Public endpoint for observers (no authentication required)
+export const getObserverLivekitToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { sessionId } = req.params;
+  const { name, email } = req.body as { name?: string; email?: string };
+
+  if (!sessionId) {
+    return next(new ErrorHandler("sessionId is required", 400));
+  }
+
+  // Generate a stable identity from email if provided, otherwise use random
+  const identity = email
+    ? participantIdentity(sessionId, email)
+    : `observer_${sessionId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+  const token = await issueRoomToken({
+    identity,
+    name: name || email || "Observer",
+    role: "Observer",
+    roomName: sessionId,
+    email: email || undefined,
+  });
+
+  sendResponse(res, { token }, "Observer LiveKit token issued");
+};
+
 export const exchangeAdmitForLivekitToken = async (
   req: Request,
   res: Response,
@@ -65,9 +94,12 @@ export const exchangeAdmitForLivekitToken = async (
     });
 
     sendResponse(res, { token }, "LiveKit token issued");
-  } catch (err: any) {
+  } catch (err: unknown) {
     return next(
-      new ErrorHandler(err?.message || "Invalid/expired admitToken", 401)
+      new ErrorHandler(
+        err instanceof Error ? err.message : "Invalid/expired admitToken",
+        401
+      )
     );
   }
 };

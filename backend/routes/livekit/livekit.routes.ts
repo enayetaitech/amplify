@@ -6,6 +6,7 @@ import { catchError } from "../../middlewares/CatchErrorMiddleware";
 import {
   exchangeAdmitForLivekitToken,
   getLivekitToken,
+  getObserverLivekitToken,
 } from "../../controllers/LivekitController";
 import { getObserverHls } from "../../controllers/LiveReadController";
 import {
@@ -29,6 +30,12 @@ router.post("/exchange", catchError(exchangeAdmitForLivekitToken));
 
 // POST /api/v1/livekit/:sessionId/hls
 router.get("/:sessionId/hls", catchError(getObserverHls));
+
+// POST /api/v1/livekit/public/:sessionId/token (public, no auth required for observers)
+router.post(
+  "/public/:sessionId/token",
+  catchError(getObserverLivekitToken)
+);
 
 // ===== Breakouts =====
 router.post(
