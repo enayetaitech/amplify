@@ -330,17 +330,33 @@ export default function Meeting() {
           return;
         }
 
-        // Additionally fetch a subscribe-only token so we can render a filmstrip
+        // Fetch WebRTC token for observer (public endpoint, no auth required)
         try {
-          const lkToken = await fetchLiveKitToken(
-            sessionId as string,
-            serverRole
+          // Get observer info from localStorage (from join flow)
+          const observerInfo = safeLocalGet<{ name?: string; email?: string }>(
+            "liveSessionUser"
           );
+          
+          const res = await api.post<ApiResponse<{ token: string }>>(
+            `/api/v1/livekit/public/${sessionId as string}/token`,
+            {
+              name: observerInfo?.name || "",
+              email: observerInfo?.email || "",
+            }
+          );
+          
+          const lkToken = res.data?.data?.token;
           if (lkToken) {
             setToken(lkToken);
             setWsUrl(process.env.NEXT_PUBLIC_LIVEKIT_URL!);
+            console.log("[Observer] WebRTC token obtained, using WebRTC streaming");
+          } else {
+            console.warn("[Observer] WebRTC token not available, falling back to HLS");
           }
-        } catch {}
+        } catch (err) {
+          console.error("[Observer] Failed to get WebRTC token:", err);
+          // Will fall back to HLS
+        }
       })();
       return;
     }

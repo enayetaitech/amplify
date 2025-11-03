@@ -62,22 +62,50 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
           liveSyncDurationCount: 3,
           maxLiveSyncPlaybackRate: 1.2,
           fragLoadingRetryDelay: 1000,
-          manifestLoadingRetryDelay: 1000,
-          levelLoadingRetryDelay: 1000,
+          manifestLoadingRetryDelay: 2000,
+          levelLoadingRetryDelay: 2000,
           fragLoadingMaxRetry: 6,
           manifestLoadingMaxRetry: 6,
           levelLoadingMaxRetry: 6,
+          // Buffer configuration to prevent over-buffering on fast networks
+          maxBufferLength: 20,
+          maxMaxBufferLength: 30,
+          maxBufferSize: 30 * 1000 * 1000,
+          maxBufferHole: 0.5,
+          // Prevent requesting segments too quickly (causes 404/timeouts on fast networks)
+          startFragPrefetch: false,
+          // Add delay between segment requests to avoid race conditions
+          fragLoadingTimeOut: 20000,
+          manifestLoadingTimeOut: 10000,
+          // Disable low latency mode which can cause issues on fast networks
+          lowLatencyMode: false,
         });
         hls.loadSource(hlsUrl);
         hls.attachMedia(video);
+        
+        // Wait for manifest before playing (prevents race conditions on fast networks)
+        const waitForManifest = new Promise<void>((resolve) => {
+          const onManifestLoaded = () => {
+            hls.off(Hls.Events.MANIFEST_LOADED, onManifestLoaded);
+            // Small delay after manifest loads to ensure segments are available
+            setTimeout(() => resolve(), 500);
+          };
+          hls.on(Hls.Events.MANIFEST_LOADED, onManifestLoaded);
+        });
+
         hls.on(Hls.Events.ERROR, (_e, data) => {
           if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              // Wait a bit before retrying to avoid hammering server
+              setTimeout(() => hls.startLoad(), 2000);
+            }
             if (data.type === Hls.ErrorTypes.MEDIA_ERROR)
               hls.recoverMediaError();
           }
         });
+        
         try {
+          await waitForManifest;
           await (video as HTMLVideoElement).play();
         } catch {}
         cleanup = () => hls.destroy();

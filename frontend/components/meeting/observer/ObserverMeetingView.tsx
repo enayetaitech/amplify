@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import api from "lib/api";
 import type { Socket } from "socket.io-client";
 import ObserverHlsLayout from "./ObserverHlsLayout";
+import ObserverWebRTCLayout from "./ObserverWebRTCLayout";
 
 // extracted messaging UI uses Tabs/Input/Button/Badge internally
 import { Separator } from "components/ui/separator";
@@ -88,8 +89,7 @@ export default function ObserverMeetingView({
   const [groupLoading, setGroupLoading] = useState(false);
   const [groupUnread, setGroupUnread] = useState(0);
 
-  void lkToken;
-  void wsUrl;
+  // lkToken and wsUrl are now used for WebRTC streaming
   // Participant group chat state (meeting_group)
   type ParticipantGroupMessage = {
     senderEmail?: string;
@@ -753,11 +753,19 @@ export default function ObserverMeetingView({
       <div
         className={`col-span-12 ${mainColSpanClass} rounded p-3 flex flex-col min-h-0`}
       >
-        {url ? (
-          <ObserverHlsLayout hlsUrl={url} />
-        ) : (
-          <div className="m-auto text-gray-500">No live stream…</div>
-        )}
+        {(() => {
+          // Debug logging
+          if (lkToken && wsUrl) {
+            console.log("[ObserverMeetingView] Using WebRTC streaming");
+            return <ObserverWebRTCLayout token={lkToken} serverUrl={wsUrl} />;
+          }
+          if (url) {
+            console.log("[ObserverMeetingView] WebRTC not available, using HLS fallback");
+            return <ObserverHlsLayout hlsUrl={url} />;
+          }
+          console.warn("[ObserverMeetingView] No streaming method available");
+          return <div className="m-auto text-gray-500">No live stream…</div>;
+        })()}
       </div>
 
       {isRightOpen && (
