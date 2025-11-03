@@ -11,6 +11,19 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
     w: 0,
     h: 0,
   });
+  const [debug, setDebug] = useState<{
+    enabled: boolean;
+    lastPlaylistUpdateTs: number | null;
+    lastSegmentSn: number | null;
+    recoveryCount: number;
+    lastError: string | null;
+  }>({
+    enabled: false,
+    lastPlaylistUpdateTs: null,
+    lastSegmentSn: null,
+    recoveryCount: 0,
+    lastError: null,
+  });
 
   useEffect(() => {
     const el = containerRef.current;
@@ -58,57 +71,171 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
       }
       if (Hls.isSupported()) {
         const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
           liveDurationInfinity: true,
-          liveSyncDurationCount: 3,
+          liveSyncDurationCount: 5,
           maxLiveSyncPlaybackRate: 1.2,
+          backBufferLength: 30,
+          maxBufferLength: 45,
+          // Make timeouts more forgiving for very slow networks
+          fragLoadingTimeOut: 20000,
+          manifestLoadingTimeOut: 20000,
+          levelLoadingTimeOut: 20000,
           fragLoadingRetryDelay: 1000,
           manifestLoadingRetryDelay: 2000,
           levelLoadingRetryDelay: 2000,
           fragLoadingMaxRetry: 6,
           manifestLoadingMaxRetry: 6,
           levelLoadingMaxRetry: 6,
-          // Buffer configuration to prevent over-buffering on fast networks
-          maxBufferLength: 20,
-          maxMaxBufferLength: 30,
-          maxBufferSize: 30 * 1000 * 1000,
-          maxBufferHole: 0.5,
-          // Prevent requesting segments too quickly (causes 404/timeouts on fast networks)
-          startFragPrefetch: false,
-          // Add delay between segment requests to avoid race conditions
-          fragLoadingTimeOut: 20000,
-          manifestLoadingTimeOut: 10000,
-          // Disable low latency mode which can cause issues on fast networks
-          lowLatencyMode: false,
+          // Help cross small decode gaps on poor networks
+          maxBufferHole: 1,
+          nudgeOffset: 0.1,
         });
-        hls.loadSource(hlsUrl);
-        hls.attachMedia(video);
-        
-        // Wait for manifest before playing (prevents race conditions on fast networks)
-        const waitForManifest = new Promise<void>((resolve) => {
-          const onManifestLoaded = () => {
-            hls.off(Hls.Events.MANIFEST_LOADED, onManifestLoaded);
-            // Small delay after manifest loads to ensure segments are available
-            setTimeout(() => resolve(), 500);
-          };
-          hls.on(Hls.Events.MANIFEST_LOADED, onManifestLoaded);
+
+        let lastUpdateAt = Date.now();
+
+        hls.on(Hls.Events.LEVEL_UPDATED, () => {
+          lastUpdateAt = Date.now();
+          setDebug((d) => ({ ...d, lastPlaylistUpdateTs: lastUpdateAt }));
         });
+
+        hls.on(Hls.Events.FRAG_LOADED, (_e, data: unknown) => {
+          if (typeof data === "object" && data !== null) {
+            const d = data as Record<string, unknown>;
+            const frag =
+              (d["frag"] as Record<string, unknown> | undefined) || undefined;
+            const maybeSn = frag?.["sn"];
+            if (typeof maybeSn === "number") {
+              setDebug((dd) => ({ ...dd, lastSegmentSn: maybeSn }));
+            }
+          }
+        });
+
+        // If the playlist doesn't update for 8s, restart loader
+        const watchdog = setInterval(() => {
+          const now = Date.now();
+          if (now - lastUpdateAt > 8000) {
+            try {
+              hls.stopLoad();
+              hls.startLoad();
+            } catch {}
+            lastUpdateAt = now;
+            setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+          }
+        }, 3000);
+
+        // If playback time stops advancing for a while, try to gently recover
+        let lastT = 0;
+        let stagnantSince: number | null = null;
+        const progressMon = setInterval(() => {
+          const v = video as HTMLVideoElement;
+          if (!v || v.paused || v.readyState < 2) return;
+          const t = v.currentTime;
+          if (t <= lastT + 0.01) {
+            if (stagnantSince == null) stagnantSince = Date.now();
+            if (Date.now() - stagnantSince > 8000) {
+              try {
+                // Nudge and restart loader to re-buffer
+                v.currentTime = Math.max(0, t - 0.05);
+                hls.startLoad();
+              } catch {}
+              stagnantSince = Date.now();
+              setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+            }
+          } else {
+            stagnantSince = null;
+          }
+          lastT = t;
+        }, 2000);
 
         hls.on(Hls.Events.ERROR, (_e, data) => {
           if (data.fatal) {
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              // Wait a bit before retrying to avoid hammering server
-              setTimeout(() => hls.startLoad(), 2000);
-            }
-            if (data.type === Hls.ErrorTypes.MEDIA_ERROR)
+              hls.startLoad();
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
               hls.recoverMediaError();
+            } else {
+              try {
+                hls.stopLoad();
+                hls.startLoad();
+              } catch {}
+            }
+            setDebug((d) => ({
+              ...d,
+              recoveryCount: d.recoveryCount + 1,
+              lastError: `${data.type}:${data.details || "fatal"}`,
+            }));
           }
         });
-        
+
+        // React to element-level stalls/waits
+        const onStall = () => {
+          try {
+            hls.startLoad();
+          } catch {}
+          setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+        };
+        video.addEventListener("stalled", onStall);
+        video.addEventListener("waiting", onStall);
+        video.addEventListener("suspend", onStall);
+
+        // Helper: move to next buffered range or live edge if we're in a gap
+        const jumpToBufferedOrLive = () => {
+          const v = video as HTMLVideoElement;
+          try {
+            const br = v.buffered;
+            for (let i = 0; i < br.length; i++) {
+              const start = br.start(i);
+              const end = br.end(i);
+              if (v.currentTime < start - 0.05) {
+                v.currentTime = start + 0.05;
+                setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+                return;
+              }
+              if (v.currentTime > end - 0.05 && i + 1 < br.length) {
+                const nstart = br.start(i + 1);
+                v.currentTime = nstart + 0.05;
+                setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+                return;
+              }
+            }
+          } catch {}
+          // No suitable buffered range; go to live edge if known
+          try {
+            const anyHls = hls as unknown as Record<string, unknown>;
+            const liveSync =
+              (anyHls["liveSyncPosition"] as number | undefined) || undefined;
+            if (typeof liveSync === "number" && Number.isFinite(liveSync)) {
+              v.currentTime = Math.max(0, liveSync - 0.5);
+              setDebug((d) => ({ ...d, recoveryCount: d.recoveryCount + 1 }));
+            }
+          } catch {}
+        };
+
+        // On user play attempt, ensure we're on a playable point
+        const onPlay = () => jumpToBufferedOrLive();
+        video.addEventListener("play", onPlay);
+
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
         try {
-          await waitForManifest;
+          hls.startLoad(-1); // force start at live edge
+        } catch {}
+
+        try {
+          (video as HTMLVideoElement).muted = true;
           await (video as HTMLVideoElement).play();
         } catch {}
-        cleanup = () => hls.destroy();
+        cleanup = () => {
+          clearInterval(watchdog);
+          clearInterval(progressMon);
+          video.removeEventListener("stalled", onStall);
+          video.removeEventListener("waiting", onStall);
+          video.removeEventListener("suspend", onStall);
+          video.removeEventListener("play", onPlay);
+          hls.destroy();
+        };
       }
     })();
 
@@ -116,6 +243,14 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
       if (cleanup) cleanup();
     };
   }, [hlsUrl]);
+
+  // Enable overlay via hash param `#hlsDebug=1`
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hay = `${window.location.hash || ""}${window.location.search || ""}`;
+    const enabled = /hlsdebug=1/i.test(hay);
+    if (enabled) setDebug((d) => ({ ...d, enabled: true }));
+  }, []);
 
   return (
     <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col">
@@ -153,9 +288,29 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
                 controls
                 playsInline
                 autoPlay
+                muted
+                preload="auto"
                 crossOrigin="anonymous"
                 className="w-full h-full object-cover bg-black"
               />
+              {debug.enabled ? (
+                <div className="absolute top-2 left-2 text-[10px] leading-tight bg-black/60 text-white rounded px-2 py-1 space-y-0.5">
+                  <div>HLS Debug</div>
+                  <div>
+                    Last playlist:{" "}
+                    {debug.lastPlaylistUpdateTs
+                      ? new Date(
+                          debug.lastPlaylistUpdateTs
+                        ).toLocaleTimeString()
+                      : "-"}
+                  </div>
+                  <div>Last segment SN: {debug.lastSegmentSn ?? "-"}</div>
+                  <div>Recovery count: {debug.recoveryCount}</div>
+                  {debug.lastError ? (
+                    <div>Last error: {debug.lastError}</div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           );
         })()}
