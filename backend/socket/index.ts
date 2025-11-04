@@ -1937,6 +1937,9 @@ export function attachSocket(server: HTTPServer) {
             playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
           });
 
+          // Broadcast streaming status change to moderators/admins
+          io.to(sessionId).emit("meeting:stream:status:changed", { streaming: true });
+
           return ack?.({ ok: true });
         } catch (e: any) {
           console.error("meeting:stream:start failed", e);
@@ -1944,6 +1947,26 @@ export function attachSocket(server: HTTPServer) {
             ok: false,
             error: e?.message || "Failed to start stream",
           });
+        }
+      }
+    );
+
+    // --- Get streaming status (admin/mod only) ---
+    socket.on(
+      "meeting:stream:status:get",
+      async (_payload, ack?: (r: { streaming?: boolean; error?: string }) => void) => {
+        try {
+          if (!["Moderator", "Admin"].includes(role)) {
+            return ack?.({ streaming: false, error: "Forbidden" });
+          }
+          const live = await LiveSessionModel.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+          }).lean();
+          const isStreaming = Boolean(live?.streaming);
+          return ack?.({ streaming: isStreaming });
+        } catch (e: any) {
+          console.error("meeting:stream:status:get failed", e);
+          return ack?.({ streaming: false, error: e?.message || "Failed to get status" });
         }
       }
     );
@@ -2002,6 +2025,9 @@ export function attachSocket(server: HTTPServer) {
           console.log("stopped stream", live);
           // notify observers to switch back to waiting UI in a later step
           io.to(rooms.observer).emit("observer:stream:stopped", {});
+
+          // Broadcast streaming status change to moderators/admins
+          io.to(sessionId).emit("meeting:stream:status:changed", { streaming: false });
 
           return ack?.({ ok: true });
         } catch (e: any) {

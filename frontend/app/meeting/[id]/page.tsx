@@ -526,6 +526,29 @@ export default function Meeting() {
       }
     );
 
+    // Fetch initial streaming status (for moderators/admins only)
+    if (role === "admin" || role === "moderator") {
+      try {
+        s.emit(
+          "meeting:stream:status:get",
+          {},
+          (resp?: { streaming?: boolean; error?: string }) => {
+            if (resp?.streaming !== undefined) {
+              setIsStreaming(resp.streaming);
+            }
+          }
+        );
+      } catch {}
+    }
+
+    // Listen for streaming status changes
+    const onStreamStatusChanged = (p: { streaming?: boolean }) => {
+      if (p?.streaming !== undefined) {
+        setIsStreaming(p.streaming);
+      }
+    };
+    s.on("meeting:stream:status:changed", onStreamStatusChanged);
+
     // Request initial waiting list snapshot broadcast for seeding moderator toasts
     try {
       s.emit("join-room", {});
@@ -549,6 +572,7 @@ export default function Meeting() {
       s.off("meeting:force-camera-off");
       s.off("observer:list");
       s.off("whiteboard:visibility:changed", onWbVisibility);
+      s.off("meeting:stream:status:changed", onStreamStatusChanged);
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
@@ -746,7 +770,7 @@ export default function Meeting() {
                         (ack?: { ok?: boolean; error?: string }) => {
                           setStreamBusy(null);
                           if (ack?.ok) {
-                            setIsStreaming(true);
+                            // Status will be updated via backend broadcast
                             toast.success("Streaming started");
                           } else {
                             toast.error(
@@ -763,7 +787,7 @@ export default function Meeting() {
                         (ack?: { ok?: boolean; error?: string }) => {
                           setStreamBusy(null);
                           if (ack?.ok) {
-                            setIsStreaming(false);
+                            // Status will be updated via backend broadcast
                             toast.success("Streaming stopped");
                           } else {
                             toast.error(
