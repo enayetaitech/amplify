@@ -8,37 +8,25 @@ import CustomButton from "components/shared/CustomButton";
 export interface MultipleChoiceQuestionProps {
   id: string;
   answers: string[];
-  correctAnswers: number[];
   onAnswerChange: (index: number, value: string) => void;
   onAddChoice: () => void;
   onRemoveChoice: (index: number) => void;
-  onToggleCorrectAnswer: (index: number, checked: boolean) => void;
   disabled?: boolean;
 }
 
 const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
   id,
   answers,
-  correctAnswers,
   onAnswerChange,
   onAddChoice,
   onRemoveChoice,
-  onToggleCorrectAnswer,
   disabled
 }) => {
+  void id;  
   return (
     <div className="space-y-4">
       {answers.map((ans, i) => (
         <div key={i} className="relative group flex items-center space-x-2">
-          <input
-            type="checkbox"
-            name={`correct-${id}-${i}`}
-            checked={correctAnswers.includes(i)}
-            onChange={(e) => onToggleCorrectAnswer(i, e.target.checked)}
-            className="cursor-pointer"
-            disabled={disabled}
-          />
-
           <Input
             value={ans}
             onChange={(e) => onAnswerChange(i, e.target.value)}

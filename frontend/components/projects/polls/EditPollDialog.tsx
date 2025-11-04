@@ -129,7 +129,7 @@ const defaultQuestion = (
   rows: [],
   columns: [],
   required: false,
-  correctAnswer: 0,
+  correctAnswer: undefined,
   showDropdown: true,
   correctAnswers: [],
   minChars: 1,
@@ -175,12 +175,10 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
           tempImageName: undefined,
           ...(q.type === "SINGLE_CHOICE" && {
             answers: q.answers,
-            correctAnswer: q.correctAnswer,
             showDropdown: q.showDropdown,
           }),
           ...(q.type === "MULTIPLE_CHOICE" && {
             answers: q.answers,
-            correctAnswers: q.correctAnswers,
           }),
           ...(q.type === "MATCHING" && {
             options: q.options,
@@ -199,7 +197,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
             maxChars: q.maxChars ?? 2000,
           }),
           ...(q.type === "FILL_IN_BLANK" && {
-            answers: q.answers,
+            // No answers needed for fill-in-blank
           }),
           ...(q.type === "RATING_SCALE" && {
             scoreFrom: q.scoreFrom,
@@ -263,7 +261,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
         type,
         options: ["", ""],
         answers: ["", ""],
-        correctAnswer: 0,
+        correctAnswer: undefined,
         showDropdown: true,
         correctAnswers: [],
       });
@@ -317,7 +315,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
         maxChars: 2000,
       });
     else if (type === "FILL_IN_BLANK") {
-      updateQuestion(id, { type, prompt: "", answers: [] });
+      updateQuestion(id, { type, prompt: "", answers: undefined });
     } else updateQuestion(id, { type, options: [], answers: ["", ""] });
   };
 
@@ -377,11 +375,12 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
   // Fill‐in‐the‐blank fallback
   const addBlank = (id: string) => {
     const q = questions.find((q) => q.id === id)!;
-    const n = q.answers.length + 1;
+    // Count existing blanks to get the next number
+    const existingBlanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g));
+    const n = existingBlanks.length + 1;
     const tag = `[blank ${n}]`;
     updateQuestion(id, {
       prompt: q.prompt + tag,
-      answers: [...q.answers, ""],
     });
   };
 
@@ -621,7 +620,6 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                   <SingleChoiceQuestion
                     id={q.id}
                     answers={q.answers}
-                    correctAnswer={q.correctAnswer!}
                     showDropdown={q.showDropdown!}
                     onAnswerChange={(i, v) => updateChoice(q.id, i, v)}
                     onAddChoice={() => addChoice(q.id)}
@@ -629,25 +627,15 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                     onToggleShowDropdown={(v) =>
                       updateQuestion(q.id, { showDropdown: v })
                     }
-                    onCorrectAnswerChange={(i) =>
-                      updateQuestion(q.id, { correctAnswer: i })
-                    }
                     disabled={isUpdating}
                   />
                 ) : q.type === "MULTIPLE_CHOICE" ? (
                   <MultipleChoiceQuestion
                     id={q.id}
                     answers={q.answers}
-                    correctAnswers={q.correctAnswers!}
                     onAnswerChange={(i, v) => updateChoice(q.id, i, v)}
                     onAddChoice={() => addChoice(q.id)}
                     onRemoveChoice={(i) => removeChoice(q.id, i)}
-                    onToggleCorrectAnswer={(i, checked) => {
-                      const next = checked
-                        ? [...(q.correctAnswers || []), i]
-                        : (q.correctAnswers || []).filter((x) => x !== i);
-                      updateQuestion(q.id, { correctAnswers: next });
-                    }}
                     disabled={isUpdating}
                   />
                 ) : q.type === "MATCHING" ? (
@@ -713,10 +701,7 @@ export default function EditPollDialog({ poll, onClose }: EditPollDialogProps) {
                   q.type === "FILL_IN_BLANK" && (
                     <FillInBlankQuestion
                       // id={q.id}
-                      answers={q.answers}
                       onAddBlank={() => addBlank(q.id)}
-                      onAnswerChange={(i, v) => updateAnswer(q.id, i, v)}
-                      onRemoveAnswer={(i) => removeAnswer(q.id, i)}
                       disabled={isUpdating}
                     />
                   )

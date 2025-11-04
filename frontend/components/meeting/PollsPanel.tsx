@@ -44,7 +44,9 @@ function PollResultsWrapper({
   if (q.isLoading)
     return <div className="text-sm text-gray-500">Loading results…</div>;
 
-  const mapping = q.data as
+  const aggregates = q.data?.aggregates;
+  const totalParticipants = q.data?.totalParticipants;
+  const mapping = aggregates as
     | Record<
         string,
         { total: number; counts: { value: unknown; count: number }[] }
@@ -59,6 +61,7 @@ function PollResultsWrapper({
           <PollResults
             aggregate={mapping ? mapping[quest._id] : undefined}
             question={quest as PollQuestion}
+            totalParticipants={totalParticipants}
           />
         </div>
       ))}
@@ -566,46 +569,23 @@ function RespondentsWrapper({
                   let label = "";
 
                   if (def) {
-                    // SINGLE_CHOICE: show option text + correctness
+                    // SINGLE_CHOICE: show option text
                     if (def.type === "SINGLE_CHOICE") {
                       const chosen =
                         typeof v === "number" ? (v as number) : null;
-                      const correct = (
-                        def as Extract<PollQuestion, { type: "SINGLE_CHOICE" }>
-                      ).correctAnswer;
                       const text =
                         chosen !== null
                           ? def.answers?.[chosen] ?? String(chosen)
                           : "—";
-                      if (chosen === null) label = "—";
-                      else if (correct !== undefined)
-                        label = `${text} — ${
-                          chosen === correct ? "Correct" : "Wrong"
-                        }`;
-                      else label = text;
+                      label = chosen === null ? "—" : text;
 
-                      // MULTIPLE_CHOICE: show chosen options and correctness
+                      // MULTIPLE_CHOICE: show chosen options
                     } else if (def.type === "MULTIPLE_CHOICE") {
                       const chosen = Array.isArray(v) ? (v as number[]) : [];
                       const chosenText = chosen
                         .map((i) => def.answers?.[i] ?? String(i))
                         .join(", ");
-                      const correctArr =
-                        (
-                          def as Extract<
-                            PollQuestion,
-                            { type: "MULTIPLE_CHOICE" }
-                          >
-                        ).correctAnswers || [];
-                      const setA = new Set(chosen);
-                      const setB = new Set(correctArr);
-                      const eq =
-                        setA.size === setB.size &&
-                        [...setA].every((x) => setB.has(x));
-                      if (chosen.length === 0) label = "—";
-                      else if (correctArr.length)
-                        label = `${chosenText} — ${eq ? "Correct" : "Wrong"}`;
-                      else label = chosenText;
+                      label = chosen.length === 0 ? "—" : chosenText;
 
                       // MATCHING: value is array of pairs
                     } else if (def.type === "MATCHING") {
@@ -630,16 +610,7 @@ function RespondentsWrapper({
                     } else if (def.type === "FILL_IN_BLANK") {
                       if (Array.isArray(v)) {
                         const vals = v as string[];
-                        const txt = vals.join(", ");
-                        const expected = def.answers || [];
-                        const ok =
-                          expected.length === vals.length &&
-                          vals.every(
-                            (vv, idx) =>
-                              (vv ?? "").trim().toLowerCase() ===
-                              (expected[idx] ?? "").trim().toLowerCase()
-                          );
-                        label = `${txt} — ${ok ? "Correct" : "Wrong"}`;
+                        label = vals.join(", ");
                       } else label = String(v ?? "");
 
                       // RANK_ORDER: value is array of indices

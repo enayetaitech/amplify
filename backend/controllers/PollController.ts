@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { PollModel } from "../model/PollModel";
 import ErrorHandler from "../utils/ErrorHandler";
 import { sendResponse } from "../utils/responseHelpers";
@@ -631,7 +631,49 @@ export const getPollResults = async (req: any, res: any, next: any) => {
       return next(new ErrorHandler("Forbidden: wrong session", 403));
 
     const aggregates = await pollService.aggregateResults(pollId, runId);
-    sendResponse(res, aggregates, "Results fetched", 200);
+    
+    // Get total participants count from LiveSession
+    let totalParticipants: number | undefined = undefined;
+    try {
+      const LiveSessionModel = require("../model/LiveSessionModel").LiveSessionModel ||
+                               require("../model/LiveSessionModel").default ||
+                               require("../model/LiveSessionModel");
+      const live = await LiveSessionModel.findOne({
+        sessionId: new Types.ObjectId(sessionId),
+      }).lean();
+      
+      if (live) {
+        const pHistory = Array.isArray(live.participantHistory)
+          ? live.participantHistory
+          : [];
+        const pList = Array.isArray(live.participantsList)
+          ? live.participantsList
+          : [];
+        
+        if (pHistory.length > 0) {
+          const emails = new Set<string>();
+          for (const p of pHistory) {
+            const em = (p?.email || "").toString().toLowerCase();
+            if (em) emails.add(em);
+          }
+          totalParticipants = emails.size;
+        } else if (pList.length > 0) {
+          const emails = new Set<string>();
+          for (const p of pList) {
+            const em = (p?.email || "").toString().toLowerCase();
+            if (em) emails.add(em);
+          }
+          totalParticipants = emails.size;
+        }
+      }
+    } catch {}
+
+    sendResponse(
+      res,
+      { aggregates, totalParticipants },
+      "Results fetched",
+      200
+    );
   } catch (e: any) {
     next(new ErrorHandler(e?.message || "internal_error", 500));
   }

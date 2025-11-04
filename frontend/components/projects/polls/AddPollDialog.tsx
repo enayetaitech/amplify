@@ -129,7 +129,7 @@ const defaultQuestion = (
   rows: [],
   columns: [],
   required: false,
-  correctAnswer: 0,
+  correctAnswer: undefined,
   showDropdown: true,
   correctAnswers: [],
   minChars: 1,
@@ -166,14 +166,11 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
     case "SINGLE_CHOICE":
       if (q.answers.length < 2) return "Need at least two choices";
       if (q.answers.some((a) => !a.trim())) return "All choices must be filled";
-      if (q.correctAnswer == null) return "Select a correct answer";
       return null;
 
     case "MULTIPLE_CHOICE":
       if (q.answers.length < 2) return "Need at least two choices";
       if (q.answers.some((a) => !a.trim())) return "All choices must be filled";
-      if (!q.correctAnswers?.length)
-        return "Select at least one correct answer";
       return null;
 
     case "MATCHING":
@@ -216,12 +213,6 @@ export const validateQuestion = (q: DraftWithImage): string | null => {
       const blanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g)).length;
       if (blanks === 0) {
         return "Insert at least one blank (`[blank N]`) tag";
-      }
-      if (q.answers.length !== blanks) {
-        return "Number of answers must match number of blanks";
-      }
-      if (q.answers.some((a) => !a.trim())) {
-        return "All blank answers must be filled";
       }
       return null;
 
@@ -422,7 +413,7 @@ const AddPollDialog = ({
         type,
         options: ["", ""],
         answers: ["", ""],
-        correctAnswer: 0,
+        correctAnswer: undefined,
         showDropdown: true,
         correctAnswers: [],
       });
@@ -466,7 +457,7 @@ const AddPollDialog = ({
         maxChars: 2000,
       });
     else if (type === "FILL_IN_BLANK") {
-      updateQuestion(id, { type, prompt: "", answers: [] });
+      updateQuestion(id, { type, prompt: "", answers: undefined });
     } else updateQuestion(id, { type, options: [], answers: ["", ""] });
   };
 
@@ -521,7 +512,9 @@ const AddPollDialog = ({
   // Fill-in-Blank: insert <blank N> at cursor
   function addBlank(id: string) {
     const q = questions.find((x) => x.id === id)!;
-    const n = (q.answers || []).length + 1;
+    // Count existing blanks to get the next number
+    const existingBlanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g));
+    const n = existingBlanks.length + 1;
     const tag = `[blank ${n}]`;
 
     const input = inputRefs.current[id];
@@ -540,7 +533,6 @@ const AddPollDialog = ({
 
       updateQuestion(id, {
         prompt: newPrompt,
-        answers: [...(q.answers || []), ""],
       });
 
       // 4️⃣ restore focus/caret
@@ -553,7 +545,6 @@ const AddPollDialog = ({
       // fallback
       updateQuestion(id, {
         prompt: q.prompt + tag,
-        answers: [...(q.answers || []), ""],
       });
     }
   }
@@ -752,7 +743,6 @@ const AddPollDialog = ({
                   <SingleChoiceQuestion
                     id={q.id}
                     answers={q.answers}
-                    correctAnswer={q.correctAnswer}
                     showDropdown={q.showDropdown!}
                     onAnswerChange={(idx, val) => updateChoice(q.id, idx, val)}
                     onAddChoice={() => addChoice(q.id)}
@@ -760,25 +750,15 @@ const AddPollDialog = ({
                     onToggleShowDropdown={(show) =>
                       updateQuestion(q.id, { showDropdown: show })
                     }
-                    onCorrectAnswerChange={(idx) =>
-                      updateQuestion(q.id, { correctAnswer: idx })
-                    }
                     disabled={isSaving}
                   />
                 ) : q.type === "MULTIPLE_CHOICE" ? (
                   <MultipleChoiceQuestion
                     id={q.id}
                     answers={q.answers}
-                    correctAnswers={q.correctAnswers!}
                     onAnswerChange={(idx, val) => updateChoice(q.id, idx, val)}
                     onAddChoice={() => addChoice(q.id)}
                     onRemoveChoice={(idx) => removeChoice(q.id, idx)}
-                    onToggleCorrectAnswer={(idx, checked) => {
-                      const next = checked
-                        ? [...(q.correctAnswers || []), idx]
-                        : (q.correctAnswers || []).filter((x) => x !== idx);
-                      updateQuestion(q.id, { correctAnswers: next });
-                    }}
                     disabled={isSaving}
                   />
                 ) : q.type === "MATCHING" ? (
@@ -832,12 +812,7 @@ const AddPollDialog = ({
                   q.type === "FILL_IN_BLANK" && (
                     <FillInBlankQuestion
                       // id={q.id}
-                      answers={q.answers}
                       onAddBlank={() => addBlank(q.id)}
-                      onAnswerChange={(idx, val) =>
-                        updateAnswer(q.id, idx, val)
-                      }
-                      onRemoveAnswer={(idx) => removeAnswer(q.id, idx)}
                       disabled={isSaving}
                     />
                   )
