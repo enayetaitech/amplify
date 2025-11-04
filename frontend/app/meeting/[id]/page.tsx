@@ -577,16 +577,59 @@ export default function Meeting() {
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
 
-  // Clear local storage on browser/tab close for participants
+  // Clear localStorage and cookies on browser/tab close
   useEffect(() => {
-    if (role !== "participant") return;
-    const onBeforeUnload = () => {
+    const cleanupStorage = () => {
       try {
-        localStorage.removeItem("liveSessionUser");
-      } catch {}
+        if (role === "admin" || role === "moderator") {
+          // Remove user data from localStorage
+          localStorage.removeItem("user");
+
+          // Call logout API to clear cookies (using fetch with keepalive for reliability during unload)
+          try {
+            const baseUrl =
+              process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
+              "https://amplifyre.shop";
+            const logoutUrl = `${baseUrl}/api/v1/users/logout`;
+            // Use fetch with keepalive flag for reliable execution during page unload
+            fetch(logoutUrl, {
+              method: "POST",
+              credentials: "include",
+              keepalive: true,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }).catch(() => {
+              // Ignore errors during unload - cleanup is best effort
+            });
+          } catch {
+            // Ignore errors - cleanup is best effort
+          }
+        } else if (role === "observer" || role === "participant") {
+          // Remove liveSessionUser from localStorage
+          localStorage.removeItem("liveSessionUser");
+        }
+      } catch {
+        // Ignore errors
+      }
     };
+
+    const onBeforeUnload = () => {
+      cleanupStorage();
+    };
+
+    const onPageHide = () => {
+      cleanupStorage();
+    };
+
+    // Use both beforeunload and pagehide for better coverage across browsers
     window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+    };
   }, [role]);
 
   // If observer and stream stops, route back to observer waiting room
