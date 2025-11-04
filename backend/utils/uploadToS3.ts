@@ -173,3 +173,28 @@ export async function uploadFileToS3(
     .promise();
   return { key };
 }
+
+/**
+ * Download text content from S3 as a string.
+ * Useful for displaying text files (e.g., chat logs, transcripts) in the browser.
+ */
+export async function getTextContentFromS3(key: string): Promise<string> {
+  const Bucket = config.s3_bucket_name as string;
+  const result = await s3
+    .getObject({
+      Bucket,
+      Key: key,
+    })
+    .promise();
+
+  if (!result.Body) {
+    throw new Error("Empty file");
+  }
+
+  // Handle both Buffer and stream types
+  const body = result.Body instanceof Buffer
+    ? result.Body
+    : Buffer.from(result.Body as string);
+
+  return body.toString("utf8");
+}

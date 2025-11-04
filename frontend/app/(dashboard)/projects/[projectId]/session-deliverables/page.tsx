@@ -9,6 +9,12 @@ import ComponentContainer from "components/shared/ComponentContainer";
 import HeadingBlue25px from "components/shared/HeadingBlue25pxComponent";
 import { IPaginationMeta } from "@shared/interface/PaginationInterface";
 import { Tabs, TabsList, TabsTrigger } from "components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "components/ui/dialog";
 import CustomPagination from "components/shared/Pagination";
 import {
   Table,
@@ -20,7 +26,7 @@ import {
 } from "components/ui/table";
 import { Checkbox } from "components/ui/checkbox";
 import CustomButton from "components/shared/CustomButton";
-import { Download, Pencil, Trash2, RotateCw, Eye } from "lucide-react";
+import { Download, Pencil, Trash2, RotateCw, Eye, FileText } from "lucide-react";
 import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { toast } from "sonner";
 import { safeLocalGet } from "utils/storage";
@@ -169,8 +175,43 @@ const SessionDeliverables = () => {
     onError: () => toast.error("Delete failed"),
   });
 
+  // View text content
+  const viewTextMutation = useMutation<
+    { content: string; displayName: string },
+    unknown,
+    string
+  >({
+    mutationFn: (id) =>
+      api
+        .get<{
+          success: boolean;
+          message: string;
+          data: { content: string; displayName: string };
+        }>(`/api/v1/sessionDeliverables/${id}/view`)
+        .then((res) => res.data.data),
+    onSuccess: (data) => {
+      if (data && data.content) {
+        setTextContent(data.content);
+        setTextTitle(data.displayName || "");
+        setTextViewOpen(true);
+      } else {
+        toast.error("No content available");
+      }
+    },
+    onError: (error: unknown) => {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String(error.message)
+          : "Failed to load content";
+      toast.error(message);
+    },
+  });
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
+  const [textViewOpen, setTextViewOpen] = useState(false);
+  const [textContent, setTextContent] = useState<string>("");
+  const [textTitle, setTextTitle] = useState<string>("");
 
   if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
@@ -342,6 +383,24 @@ const SessionDeliverables = () => {
                             <Eye className="h-4 w-4" />
                           </CustomButton>
                         )}
+                        {(selectedType === "SESSION_CHAT" ||
+                          selectedType === "BACKROOM_CHAT") &&
+                          !del.deletedAt && (
+                            <CustomButton
+                              size="icon"
+                              variant="outline"
+                              className="border border-gray-300"
+                              onClick={() => viewTextMutation.mutate(del._id)}
+                              disabled={viewTextMutation.isPending}
+                              aria-label="View"
+                            >
+                              {viewTextMutation.isPending ? (
+                                <RotateCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
+                            </CustomButton>
+                          )}
                         <CustomButton
                           className="bg-custom-dark-blue-3 hover:bg-custom-dark-blue-2 rounded-lg"
                           onClick={() => downloadOneMutation.mutate(del._id)}
@@ -444,6 +503,33 @@ const SessionDeliverables = () => {
         text="Are you sure you want to delete this recording? You can restore it within 7–15 days before it is permanently deleted."
         cancelText="No"
       />
+      <Dialog open={textViewOpen} onOpenChange={setTextViewOpen}>
+        <DialogContent className="max-w-[80vw] w-[80vw] h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="truncate" title={textTitle}>
+              {truncate(textTitle, 80)}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="w-full flex-1 overflow-auto bg-gray-50 p-4 rounded">
+            {viewTextMutation.isPending ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center gap-2">
+                  <RotateCw className="h-6 w-6 animate-spin text-gray-400" />
+                  <p className="text-sm text-gray-500">Loading content...</p>
+                </div>
+              </div>
+            ) : textContent ? (
+              <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800">
+                {textContent}
+              </pre>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                No content available
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       {totalPages > 1 && (
         <div className="w-full flex justify-end  pb-5">
           <CustomPagination
