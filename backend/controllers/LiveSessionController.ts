@@ -12,6 +12,7 @@ import { Types } from "mongoose";
 import { PollRunModel } from "../model/PollRun";
 import { PollModel } from "../model/PollModel";
 import { SessionModel } from "../model/SessionModel";
+import { LiveSessionModel } from "../model/LiveSessionModel";
 import ProjectModel from "../model/ProjectModel";
 import User from "../model/UserModel";
 import { getSignedUrl } from "../utils/uploadToS3";
@@ -69,6 +70,32 @@ export const startLiveSession = async (
   if (!isSessionModerator && !isProjectOwner) {
     return next(new ErrorHandler("Forbidden", 403));
   }
+
+  // Prevent starting another meeting in the same project if one is already ongoing
+  try {
+    const allSessionIds = (
+      await SessionModel.find({ projectId: session.projectId })
+        .select({ _id: 1 })
+        .lean()
+    ).map((s) => (s as { _id: Types.ObjectId })._id);
+
+    const concurrent = await LiveSessionModel.findOne({
+      ongoing: true,
+      sessionId: { $in: allSessionIds },
+    }).lean();
+
+    if (
+      concurrent &&
+      String(concurrent.sessionId) !== String((session as any)._id)
+    ) {
+      return next(
+        new ErrorHandler(
+          "Another meeting for this project is already ongoing",
+          409
+        )
+      );
+    }
+  } catch {}
 
   const result = await startMeeting(sessionId, user.userId);
   sendResponse(res, result, "Meeting started");
