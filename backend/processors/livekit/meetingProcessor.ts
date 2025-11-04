@@ -3,13 +3,7 @@
 import config from "../../config/index";
 import { LiveSessionModel } from "../../model/LiveSessionModel";
 import { SessionModel } from "../../model/SessionModel";
-import {
-  startHlsEgress,
-  stopHlsEgress,
-  startFileEgress,
-  stopFileEgress,
-  ensureRoom,
-} from "./livekitService";
+import { startHlsEgress, stopHlsEgress, startFileEgress, stopFileEgress, ensureRoom } from "./livekitService";
 import mongoose from "mongoose";
 import { finalizeSessionDeliverables } from "../session/finalizeDeliverables";
 
@@ -40,17 +34,18 @@ export async function startMeeting(
 
   await ensureRoom(roomName);
 
-  const hls = await startHlsEgress(roomName); // { egressId, playbackUrl, playlistName }
-  const rec = await startFileEgress(roomName);
+  // NOTE: do not start streaming or recording on meeting start.
+  // Streaming and recording are tied to explicit stream start/stop events.
 
   live.ongoing = true;
   live.startTime = new Date();
   live.startedBy = startedBy as any;
 
-  live.hlsPlaybackUrl = hls.playbackUrl ?? null;
-  live.hlsEgressId = hls.egressId ?? null;
-  live.hlsPlaylistName = hls.playlistName ?? null;
-  live.fileEgressId = rec.egressId ?? null;
+  // Initialize fields to null; will be set when streaming starts
+  live.hlsPlaybackUrl = null as any;
+  live.hlsEgressId = null as any;
+  live.hlsPlaylistName = null as any;
+  live.fileEgressId = null as any;
 
   await live.save();
 

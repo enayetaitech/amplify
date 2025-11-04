@@ -24,6 +24,8 @@ import {
   serverMuteMicrophone,
   startHlsEgress,
   stopHlsEgress,
+  startFileEgress,
+  stopFileEgress,
 } from "../processors/livekit/livekitService";
 import { endMeeting } from "../processors/livekit/meetingProcessor";
 import BreakoutRoom from "../model/BreakoutRoom";
@@ -1887,8 +1889,9 @@ export function attachSocket(server: HTTPServer) {
           if (existing?.streaming)
             return ack?.({ ok: false, error: "Already streaming" });
 
-          // start HLS egress and persist to LiveSession
-          const hls = await startHlsEgress(roomName); // returns { egressId, playbackUrl, playlistName }
+          // start HLS egress and file recording; persist to LiveSession
+          const hls = await startHlsEgress(roomName); // { egressId, playbackUrl, playlistName }
+          const rec = await startFileEgress(roomName); // { egressId }
           const live = await LiveSessionModel.findOneAndUpdate(
             { sessionId: new Types.ObjectId(sessionId) },
             {
@@ -1898,6 +1901,7 @@ export function attachSocket(server: HTTPServer) {
                 hlsEgressId: hls.egressId ?? null,
                 hlsPlaybackUrl: hls.playbackUrl ?? null,
                 hlsPlaylistName: hls.playlistName ?? null,
+                fileEgressId: rec.egressId ?? null,
               },
             },
             { upsert: true, new: true }
@@ -2000,6 +2004,11 @@ export function attachSocket(server: HTTPServer) {
           if (live?.hlsEgressId) {
             await stopHlsEgress(live.hlsEgressId); // you already use this in endMeeting
           }
+          if (live?.fileEgressId) {
+            try {
+              await stopFileEgress(live.fileEgressId);
+            } catch {}
+          }
 
           await LiveSessionModel.updateOne(
             { sessionId: new Types.ObjectId(sessionId) },
@@ -2008,7 +2017,12 @@ export function attachSocket(server: HTTPServer) {
                 streaming: false,
                 hlsStoppedAt: new Date(),
               }, // meeting may continue; only stream stops
-              $unset: { hlsEgressId: 1, hlsPlaybackUrl: 1, hlsPlaylistName: 1 },
+              $unset: {
+                hlsEgressId: 1,
+                hlsPlaybackUrl: 1,
+                hlsPlaylistName: 1,
+                fileEgressId: 1,
+              },
             }
           );
 
