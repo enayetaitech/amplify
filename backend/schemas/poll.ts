@@ -34,7 +34,7 @@ const longAnswer = baseQuestion.extend({
 
 const fillInBlank = baseQuestion.extend({
   type: z.literal("FILL_IN_BLANK"),
-  answers: z.array(z.string()),
+  answers: z.array(z.string()).optional(),
 });
 
 const matching = baseQuestion.extend({

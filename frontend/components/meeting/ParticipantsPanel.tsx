@@ -96,6 +96,16 @@ function emailFromParticipant(p: {
   return null;
 }
 
+function getRoleFromMetadata(meta?: string | null): string | null {
+  if (!meta) return null;
+  try {
+    const obj = JSON.parse(meta);
+    return (obj?.role as string | null) || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ParticipantsPanel({
   role,
   socket,
@@ -111,7 +121,12 @@ export default function ParticipantsPanel({
     Record<string, boolean | undefined>
   >({});
   const all = useParticipants();
-  const remotes = all.filter((p) => !p.isLocal);
+  const remotes = all.filter((p) => {
+    if (p.isLocal) return false;
+    // Filter out observers - only show participants, moderators, and admins
+    const participantRole = getRoleFromMetadata(p.metadata);
+    return participantRole !== "Observer";
+  });
   const [bulkBusy, setBulkBusy] = useState(false);
 
   // Chat state for moderator → participants meeting DMs
@@ -141,7 +156,7 @@ export default function ParticipantsPanel({
     identity?: string | null;
     label?: string | null;
   } | null>(null);
-  
+
   const selectedParticipantDisplayName = useMemo(() => {
     if (!selectedParticipant) return "";
     const match = remotes.find((p) => {

@@ -13,14 +13,20 @@ export function usePollResults(
   runId: string | undefined | null,
   sessionId?: string
 ) {
-  return useQuery<AggregatesMap>({
+  return useQuery<{
+    aggregates: AggregatesMap;
+    totalParticipants?: number;
+  }>({
     queryKey: ["poll-results", pollId, runId, sessionId],
     queryFn: async () => {
-      if (!runId) return {} as AggregatesMap;
+      if (!runId) return { aggregates: {} as AggregatesMap };
       const r = await api.get(`/api/v1/polls/${pollId}/results`, {
         params: { runId, sessionId },
       });
-      return r.data.data as AggregatesMap;
+      return r.data.data as {
+        aggregates: AggregatesMap;
+        totalParticipants?: number;
+      };
     },
     enabled: !!pollId && !!runId && !!sessionId,
   });

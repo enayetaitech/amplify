@@ -113,29 +113,38 @@ function LeaveMeetingButton({
     try {
       setBusy(true);
       if (role === "admin" || role === "moderator") {
+        // Show success toast immediately
+        toast.success("Meeting ended");
+
+        // Fire-and-forget end request to avoid blocking navigation
+        // Backend may take time for long-running tasks, but we don't wait
         try {
-          await api.post<ApiResponse<unknown>>(
-            `/api/v1/liveSessions/${sessionId}/end`,
-            {},
-            { timeout: 15000 } // 15 second timeout for end meeting request
-          );
-          toast.success("Meeting ended");
-        } catch (err) {
-          // Even if request times out, the meeting may have ended successfully
-          // The socket event will handle navigation if it did
-          console.log(err);
-          toast.error("Failed to end meeting");
-          setBusy(false);
-          setOpen(false);
-          return;
-        }
-        try {
-          await room.disconnect(true);
+          const baseUrl =
+            process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
+            "https://amplifyre.shop";
+          const url = `${baseUrl}/api/v1/liveSessions/${sessionId}/end`;
+          // Use fetch with keepalive so it can complete during page navigation
+          fetch(url, {
+            method: "POST",
+            credentials: "include",
+            keepalive: true,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }).catch(() => {});
         } catch {}
+
+        // Cleanup localStorage immediately
         try {
           localStorage.removeItem("liveSessionUser");
         } catch {}
+
+        // Navigate immediately - don't wait for room disconnect or API response
         router.push("/projects");
+
+        // Disconnect room in background (non-blocking)
+        try {
+          room.disconnect(true).catch(() => {});
+        } catch {}
       } else {
         try {
           try {
@@ -336,7 +345,7 @@ export default function Meeting() {
           const observerInfo = safeLocalGet<{ name?: string; email?: string }>(
             "liveSessionUser"
           );
-          
+
           const res = await api.post<ApiResponse<{ token: string }>>(
             `/api/v1/livekit/public/${sessionId as string}/token`,
             {
@@ -344,14 +353,18 @@ export default function Meeting() {
               email: observerInfo?.email || "",
             }
           );
-          
+
           const lkToken = res.data?.data?.token;
           if (lkToken) {
             setToken(lkToken);
             setWsUrl(process.env.NEXT_PUBLIC_LIVEKIT_URL!);
-            console.log("[Observer] WebRTC token obtained, using WebRTC streaming");
+            console.log(
+              "[Observer] WebRTC token obtained, using WebRTC streaming"
+            );
           } else {
-            console.warn("[Observer] WebRTC token not available, falling back to HLS");
+            console.warn(
+              "[Observer] WebRTC token not available, falling back to HLS"
+            );
           }
         } catch (err) {
           console.error("[Observer] Failed to get WebRTC token:", err);
@@ -522,6 +535,29 @@ export default function Meeting() {
       }
     );
 
+    // Fetch initial streaming status (for moderators/admins only)
+    if (role === "admin" || role === "moderator") {
+      try {
+        s.emit(
+          "meeting:stream:status:get",
+          {},
+          (resp?: { streaming?: boolean; error?: string }) => {
+            if (resp?.streaming !== undefined) {
+              setIsStreaming(resp.streaming);
+            }
+          }
+        );
+      } catch {}
+    }
+
+    // Listen for streaming status changes
+    const onStreamStatusChanged = (p: { streaming?: boolean }) => {
+      if (p?.streaming !== undefined) {
+        setIsStreaming(p.streaming);
+      }
+    };
+    s.on("meeting:stream:status:changed", onStreamStatusChanged);
+
     // Request initial waiting list snapshot broadcast for seeding moderator toasts
     try {
       s.emit("join-room", {});
@@ -545,21 +581,81 @@ export default function Meeting() {
       s.off("meeting:force-camera-off");
       s.off("observer:list");
       s.off("whiteboard:visibility:changed", onWbVisibility);
+      s.off("meeting:stream:status:changed", onStreamStatusChanged);
       s.disconnect();
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
 
-  // Clear local storage on browser/tab close for participants
+  // Clear localStorage/cookies on browser/tab close and end meeting if host closes tab
   useEffect(() => {
-    if (role !== "participant") return;
-    const onBeforeUnload = () => {
+    const cleanupStorage = () => {
       try {
-        localStorage.removeItem("liveSessionUser");
-      } catch {}
+        if (role === "admin" || role === "moderator") {
+          // Remove user data from localStorage
+          localStorage.removeItem("user");
+
+          // Call logout API to clear cookies (using fetch with keepalive for reliability during unload)
+          try {
+            const baseUrl =
+              process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
+              "https://amplifyre.shop";
+            const logoutUrl = `${baseUrl}/api/v1/users/logout`;
+            // Use fetch with keepalive flag for reliable execution during page unload
+            fetch(logoutUrl, {
+              method: "POST",
+              credentials: "include",
+              keepalive: true,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }).catch(() => {
+              // Ignore errors during unload - cleanup is best effort
+            });
+
+            // Also end the meeting if the host closes the tab (non-blocking)
+            if (sessionId) {
+              const endUrl = `${baseUrl}/api/v1/liveSessions/${String(
+                sessionId
+              )}/end`;
+              fetch(endUrl, {
+                method: "POST",
+                credentials: "include",
+                keepalive: true,
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({}),
+              }).catch(() => {});
+            }
+          } catch {
+            // Ignore errors - cleanup is best effort
+          }
+        } else if (role === "observer" || role === "participant") {
+          // Remove liveSessionUser from localStorage
+          localStorage.removeItem("liveSessionUser");
+        }
+      } catch {
+        // Ignore errors
+      }
     };
+
+    const onBeforeUnload = () => {
+      cleanupStorage();
+    };
+
+    const onPageHide = () => {
+      cleanupStorage();
+    };
+
+    // Use both beforeunload and pagehide for better coverage across browsers
     window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [role]);
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [role, sessionId]);
 
   // If observer and stream stops, route back to observer waiting room
   useEffect(() => {
@@ -742,7 +838,7 @@ export default function Meeting() {
                         (ack?: { ok?: boolean; error?: string }) => {
                           setStreamBusy(null);
                           if (ack?.ok) {
-                            setIsStreaming(true);
+                            // Status will be updated via backend broadcast
                             toast.success("Streaming started");
                           } else {
                             toast.error(
@@ -759,7 +855,7 @@ export default function Meeting() {
                         (ack?: { ok?: boolean; error?: string }) => {
                           setStreamBusy(null);
                           if (ack?.ok) {
-                            setIsStreaming(false);
+                            // Status will be updated via backend broadcast
                             toast.success("Streaming stopped");
                           } else {
                             toast.error(
@@ -834,7 +930,9 @@ export default function Meeting() {
                   myEmail={my?.email || null}
                   sessionId={String(sessionId)}
                 />
-                <ModeratorWaitingPanel />
+                {(role === "admin" || role === "moderator") && (
+                  <ModeratorWaitingPanel />
+                )}
                 {/* Polls: participant view only */}
                 {(role as UiRole) === "participant" && (
                   <div className="mt-2">

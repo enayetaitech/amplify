@@ -18,19 +18,11 @@ export const validateQuestion = (
     case "SINGLE_CHOICE":
       if (!Array.isArray(q.answers) || q.answers.length < 2)
         return fail("requires at least two answers");
-      if (typeof q.correctAnswer !== "number")
-        return fail("correctAnswer (index) is required");
-      if (q.correctAnswer < 0 || q.correctAnswer >= q.answers.length)
-        return fail("correctAnswer index is out of range");
       break;
 
     case "MULTIPLE_CHOICE":
       if (!Array.isArray(q.answers) || q.answers.length < 2)
         return fail("requires at least two answers");
-      if (!Array.isArray(q.correctAnswers) || q.correctAnswers.length === 0)
-        return fail("correctAnswers array is required");
-      if (q.correctAnswers.some((n: number) => n < 0 || n >= q.answers.length))
-        return fail("one or more correctAnswers indices are out of range");
       break;
 
     case "MATCHING":
@@ -52,8 +44,7 @@ export const validateQuestion = (
       break;
 
     case "FILL_IN_BLANK":
-      if (!Array.isArray(q.answers) || q.answers.length === 0)
-        return fail("answers array is required");
+      // No validation needed - blanks don't require answers
       break;
 
     case "RATING_SCALE":

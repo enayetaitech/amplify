@@ -11,40 +11,27 @@ import { Switch } from "components/ui/switch";
 export interface SingleChoiceQuestionProps {
   id: string;
   answers: string[];
-  correctAnswer: number;
   showDropdown: boolean;
   onAnswerChange: (index: number, value: string) => void;
   onAddChoice: () => void;
   onRemoveChoice: (index: number) => void;
   onToggleShowDropdown: (show: boolean) => void;
-  onCorrectAnswerChange: (index: number) => void;
   disabled?: boolean;
 }
 
 const SingleChoiceQuestion: React.FC<SingleChoiceQuestionProps> = ({
-  id,
+  
   answers,
-  correctAnswer,
   showDropdown,
   onAnswerChange,
   onAddChoice,
   onRemoveChoice,
   onToggleShowDropdown,
-  onCorrectAnswerChange,
   disabled,
 }) => (
   <div className="space-y-4">
     {answers.map((ans, i) => (
       <div key={i} className="relative group flex items-center space-x-2">
-        <input
-          type="radio"
-          name={`correct-${id}`}
-          checked={correctAnswer === i}
-          onChange={() => onCorrectAnswerChange(i)}
-          className="cursor-pointer"
-          disabled={disabled}
-        />
-
         <Input
           value={ans}
           onChange={(e) => onAnswerChange(i, e.target.value)}

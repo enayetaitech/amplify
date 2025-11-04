@@ -8,14 +8,17 @@ type OptionCount = { value: unknown; count: number };
 export default function PollResults({
   aggregate,
   question,
+  totalParticipants,
 }: {
   aggregate: { total: number; counts: OptionCount[] } | null | undefined;
   question?: PollQuestion | null;
+  totalParticipants?: number;
 }) {
   if (!aggregate)
     return <div className="text-sm text-gray-500">No responses yet</div>;
 
-  const total = aggregate?.total || 0;
+  const answered = aggregate?.total || 0;
+  const total = totalParticipants || answered;
 
   // sort counts descending
   const counts = (aggregate?.counts || [])
@@ -24,12 +27,17 @@ export default function PollResults({
 
   return (
     <div className="space-y-3">
+      {totalParticipants !== undefined && (
+        <div className="text-xs text-gray-500 mb-2">
+          {answered} answered / {total} total participants
+        </div>
+      )}
       {counts.map((c, i) => {
-        const pct = total ? Math.round((c.count / total) * 100) : 0;
+        // Percentage should be based on answered count, not total participants
+        const pct = answered > 0 ? Math.round((c.count / answered) * 100) : 0;
 
-        // derive a human-friendly label and correctness when question metadata is provided
+        // derive a human-friendly label when question metadata is provided
         let labelText = String(c.value);
-        let correctness: string | null = null;
 
         try {
           if (question) {
@@ -38,9 +46,6 @@ export default function PollResults({
               case "SINGLE_CHOICE":
                 if (typeof c.value === "number") {
                   labelText = q.answers?.[c.value as number] ?? String(c.value);
-                  if (q.correctAnswer !== undefined)
-                    correctness =
-                      Number(c.value) === q.correctAnswer ? "Correct" : "Wrong";
                 }
                 break;
 
@@ -50,14 +55,6 @@ export default function PollResults({
                   labelText = chosen
                     .map((idx) => q.answers?.[idx] ?? String(idx))
                     .join(", ");
-                  const correct = q.correctAnswers || [];
-                  const setA = new Set(chosen);
-                  const setB = new Set(correct);
-                  const eq =
-                    setA.size === setB.size &&
-                    [...setA].every((x) => setB.has(x));
-                  correctness =
-                    chosen.length === 0 ? null : eq ? "Correct" : "Wrong";
                 }
                 break;
 
@@ -73,10 +70,6 @@ export default function PollResults({
                         }`
                     )
                     .join(", ");
-                  // consider correct if each left maps to same index (creator used aligned arrays)
-                  const ok = pairs.every((p) => p[1] === p[0]);
-                  correctness =
-                    pairs.length === 0 ? null : ok ? "Correct" : "Wrong";
                 }
                 break;
 
@@ -84,15 +77,6 @@ export default function PollResults({
                 if (Array.isArray(c.value)) {
                   const vals = c.value as string[];
                   labelText = vals.join(", ");
-                  const expected = q.answers || [];
-                  const ok =
-                    expected.length === vals.length &&
-                    vals.every(
-                      (v, idx) =>
-                        (v ?? "").trim().toLowerCase() ===
-                        (expected[idx] ?? "").trim().toLowerCase()
-                    );
-                  correctness = ok ? "Correct" : "Wrong";
                 }
                 break;
 
@@ -102,10 +86,6 @@ export default function PollResults({
                   labelText = arr
                     .map((idx) => q.columns?.[idx] ?? String(idx))
                     .join(", ");
-                  // correct if identity mapping (arr[i] === i)
-                  const ok = arr.every((val, idx) => val === idx);
-                  correctness =
-                    arr.length === 0 ? null : ok ? "Correct" : "Wrong";
                 }
                 break;
 
@@ -119,20 +99,7 @@ export default function PollResults({
         return (
           <div key={i}>
             <div className="flex justify-between text-sm mb-1">
-              <div className="truncate">
-                {labelText}
-                {correctness ? (
-                  <span
-                    className={`ml-2 text-xs ${
-                      correctness === "Correct"
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {`— ${correctness}`}
-                  </span>
-                ) : null}
-              </div>
+              <div className="truncate">{labelText}</div>
               <div className="text-gray-500">
                 {c.count} ({pct}%)
               </div>

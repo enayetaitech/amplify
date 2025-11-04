@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from "components/ui/dialog";
 import {
-  FillInBlankQuestion,
   IPoll,
   LongAnswerQuestion,
   MatchingQuestion,
@@ -218,10 +217,11 @@ const PreviewPollDialog: React.FC<PreviewPollDialogProps> = ({
                 {/* FILL_IN_BLANK */}
                 {q.type === "FILL_IN_BLANK" &&
                   (() => {
-                    const fib = q as FillInBlankQuestion;
+                    // Count blanks from prompt
+                    const blanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g));
                     return (
                       <div className="mt-2 space-y-4">
-                        {fib.answers.map((_, i) => {
+                        {blanks.map((_, i) => {
                           const key = `${q._id}-${i}`;
                           return (
                             <div key={i}>

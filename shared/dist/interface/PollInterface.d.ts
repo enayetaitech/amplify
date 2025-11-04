@@ -9,13 +9,13 @@ export type BaseQuestion = {
 export interface SingleChoiceQuestion extends BaseQuestion {
     type: "SINGLE_CHOICE";
     answers: string[];
-    correctAnswer: number;
+    correctAnswer?: number;
     showDropdown: boolean;
 }
 export interface MultipleChoiceQuestion extends BaseQuestion {
     type: "MULTIPLE_CHOICE";
     answers: string[];
-    correctAnswers: number[];
+    correctAnswers?: number[];
 }
 export interface MatchingQuestion extends BaseQuestion {
     type: "MATCHING";
@@ -39,7 +39,7 @@ export interface LongAnswerQuestion extends TextQuestionBase {
 }
 export interface FillInBlankQuestion extends BaseQuestion {
     type: "FILL_IN_BLANK";
-    answers: string[];
+    answers?: string[];
 }
 export interface RatingScaleQuestion extends BaseQuestion {
     type: "RATING_SCALE";
@@ -76,9 +76,9 @@ export interface DraftQuestion {
     rows: string[];
     columns: string[];
     required: boolean;
-    correctAnswer: number;
+    correctAnswer?: number;
     showDropdown: boolean;
-    correctAnswers: number[];
+    correctAnswers?: number[];
     scoreFrom: number;
     scoreTo: number;
     lowLabel: string;

@@ -24,7 +24,10 @@ import {
   serverMuteMicrophone,
   startHlsEgress,
   stopHlsEgress,
+  startFileEgress,
+  stopFileEgress,
 } from "../processors/livekit/livekitService";
+import { endMeeting } from "../processors/livekit/meetingProcessor";
 import BreakoutRoom from "../model/BreakoutRoom";
 import { SessionModel } from "../model/SessionModel";
 import { LiveSessionModel } from "../model/LiveSessionModel";
@@ -1432,7 +1435,13 @@ export function attachSocket(server: HTTPServer) {
                 const md = mdRaw ? JSON.parse(mdRaw) : undefined;
                 role = md?.role as string | undefined;
               } catch {}
-              if (role === "Admin" || role === "Moderator") return false;
+              // Filter out Admin, Moderator, and Observer - only show actual participants
+              if (
+                role === "Admin" ||
+                role === "Moderator" ||
+                role === "Observer"
+              )
+                return false;
               return true;
             })
             .map((p) => {
@@ -1880,8 +1889,9 @@ export function attachSocket(server: HTTPServer) {
           if (existing?.streaming)
             return ack?.({ ok: false, error: "Already streaming" });
 
-          // start HLS egress and persist to LiveSession
-          const hls = await startHlsEgress(roomName); // returns { egressId, playbackUrl, playlistName }
+          // start HLS egress and file recording; persist to LiveSession
+          const hls = await startHlsEgress(roomName); // { egressId, playbackUrl, playlistName }
+          const rec = await startFileEgress(roomName); // { egressId }
           const live = await LiveSessionModel.findOneAndUpdate(
             { sessionId: new Types.ObjectId(sessionId) },
             {
@@ -1891,6 +1901,7 @@ export function attachSocket(server: HTTPServer) {
                 hlsEgressId: hls.egressId ?? null,
                 hlsPlaybackUrl: hls.playbackUrl ?? null,
                 hlsPlaylistName: hls.playlistName ?? null,
+                fileEgressId: rec.egressId ?? null,
               },
             },
             { upsert: true, new: true }
@@ -1936,12 +1947,43 @@ export function attachSocket(server: HTTPServer) {
             playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
           });
 
+          // Broadcast streaming status change to moderators/admins
+          io.to(sessionId).emit("meeting:stream:status:changed", {
+            streaming: true,
+          });
+
           return ack?.({ ok: true });
         } catch (e: any) {
           console.error("meeting:stream:start failed", e);
           return ack?.({
             ok: false,
             error: e?.message || "Failed to start stream",
+          });
+        }
+      }
+    );
+
+    // --- Get streaming status (admin/mod only) ---
+    socket.on(
+      "meeting:stream:status:get",
+      async (
+        _payload,
+        ack?: (r: { streaming?: boolean; error?: string }) => void
+      ) => {
+        try {
+          if (!["Moderator", "Admin"].includes(role)) {
+            return ack?.({ streaming: false, error: "Forbidden" });
+          }
+          const live = await LiveSessionModel.findOne({
+            sessionId: new Types.ObjectId(sessionId),
+          }).lean();
+          const isStreaming = Boolean(live?.streaming);
+          return ack?.({ streaming: isStreaming });
+        } catch (e: any) {
+          console.error("meeting:stream:status:get failed", e);
+          return ack?.({
+            streaming: false,
+            error: e?.message || "Failed to get status",
           });
         }
       }
@@ -1962,6 +2004,11 @@ export function attachSocket(server: HTTPServer) {
           if (live?.hlsEgressId) {
             await stopHlsEgress(live.hlsEgressId); // you already use this in endMeeting
           }
+          if (live?.fileEgressId) {
+            try {
+              await stopFileEgress(live.fileEgressId);
+            } catch {}
+          }
 
           await LiveSessionModel.updateOne(
             { sessionId: new Types.ObjectId(sessionId) },
@@ -1970,7 +2017,12 @@ export function attachSocket(server: HTTPServer) {
                 streaming: false,
                 hlsStoppedAt: new Date(),
               }, // meeting may continue; only stream stops
-              $unset: { hlsEgressId: 1, hlsPlaybackUrl: 1, hlsPlaylistName: 1 },
+              $unset: {
+                hlsEgressId: 1,
+                hlsPlaybackUrl: 1,
+                hlsPlaylistName: 1,
+                fileEgressId: 1,
+              },
             }
           );
 
@@ -2001,6 +2053,11 @@ export function attachSocket(server: HTTPServer) {
           console.log("stopped stream", live);
           // notify observers to switch back to waiting UI in a later step
           io.to(rooms.observer).emit("observer:stream:stopped", {});
+
+          // Broadcast streaming status change to moderators/admins
+          io.to(sessionId).emit("meeting:stream:status:changed", {
+            streaming: false,
+          });
 
           return ack?.({ ok: true });
         } catch (e: any) {
@@ -2381,7 +2438,8 @@ export function attachSocket(server: HTTPServer) {
         const set = moderatorSockets.get(sessionId);
         if (set) {
           set.delete(socket.id);
-          if (set.size === 0) moderatorSockets.delete(sessionId);
+          const becameEmpty = set.size === 0;
+          if (becameEmpty) moderatorSockets.delete(sessionId);
         }
         // remove from moderator/admin info map and emit updated list
         const infoMap = moderatorInfo.get(sessionId);
@@ -2399,6 +2457,22 @@ export function attachSocket(server: HTTPServer) {
               }))
             : [];
           io.to(sessionId).emit("moderator:list", { moderators });
+        } catch {}
+
+        // If no moderators/admins remain connected, end the meeting automatically
+        try {
+          const set2 = moderatorSockets.get(sessionId);
+          if (!set2 || set2.size === 0) {
+            (async () => {
+              try {
+                const endedBy = userId || "system";
+                await endMeeting(sessionId, endedBy);
+              } catch {}
+              try {
+                io.to(sessionId).emit("meeting:ended", {});
+              } catch {}
+            })();
+          }
         } catch {}
       }
       // cleanup userId index

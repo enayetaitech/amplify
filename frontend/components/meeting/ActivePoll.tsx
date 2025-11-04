@@ -59,6 +59,52 @@ export default function ActivePoll({
   > | null>(null);
   const [sharedPoll, setSharedPoll] = useState<IPoll | null>(null);
   const [textErrors, setTextErrors] = useState<Record<string, string>>({});
+  const [totalParticipants, setTotalParticipants] = useState<
+    number | undefined
+  >(undefined);
+
+  // Fetch total participants count when component mounts or sessionId changes
+  useEffect(() => {
+    const fetchTotalParticipants = async () => {
+      try {
+        // Try to get from session endpoint that includes liveSession
+        const sessionRes = await api.get(`/api/v1/sessions/${sessionId}`);
+        const sessionData = sessionRes?.data?.data;
+        if (sessionData?.liveSession) {
+          const ls = sessionData.liveSession;
+          const pHistory = Array.isArray(ls.participantHistory)
+            ? ls.participantHistory
+            : [];
+          const pList = Array.isArray(ls.participantsList)
+            ? ls.participantsList
+            : [];
+
+          if (pHistory.length > 0) {
+            const emails = new Set<string>();
+            for (const p of pHistory) {
+              const em = (p?.email || "").toString().toLowerCase();
+              if (em) emails.add(em);
+            }
+            setTotalParticipants(emails.size);
+          } else if (pList.length > 0) {
+            const emails = new Set<string>();
+            for (const p of pList) {
+              const em = (p?.email || "").toString().toLowerCase();
+              if (em) emails.add(em);
+            }
+            setTotalParticipants(emails.size);
+          }
+        }
+      } catch {
+        // Fallback: if session endpoint doesn't work, try to calculate from results
+        // The totalParticipants will remain undefined and we'll just show answered count
+      }
+    };
+
+    if (sessionId) {
+      fetchTotalParticipants();
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     // connect socket
@@ -235,7 +281,11 @@ export default function ActivePoll({
                   />
                 </div>
               )}
-              <PollResults aggregate={resultsMapping[q._id]} question={q} />
+              <PollResults
+                aggregate={resultsMapping[q._id]}
+                question={q}
+                totalParticipants={totalParticipants}
+              />
             </div>
           ))}
         </div>
@@ -383,32 +433,39 @@ export default function ActivePoll({
               )}
 
               {/* FILL_IN_BLANK */}
-              {q.type === "FILL_IN_BLANK" && (
-                <div className="mt-2 space-y-2">
-                  {q.answers.map((_: string, i: number) => (
-                    <input
-                      key={i}
-                      className="w-full border rounded px-2 py-1"
-                      placeholder={`Answer ${i + 1}`}
-                      value={
-                        Array.isArray(localAnswers[q._id])
-                          ? (localAnswers[q._id] as string[])[i] || ""
-                          : ""
-                      }
-                      onChange={(e) =>
-                        setLocalAnswers((s) => {
-                          const arr = Array.isArray(s[q._id])
-                            ? [...(s[q._id] as string[])]
-                            : [];
-                          arr[i] = e.target.value;
-                          return { ...s, [q._id]: arr };
-                        })
-                      }
-                      disabled={!canSubmit}
-                    />
-                  ))}
-                </div>
-              )}
+              {q.type === "FILL_IN_BLANK" &&
+                (() => {
+                  // Count blanks from prompt
+                  const blanks = Array.from(
+                    q.prompt.matchAll(/\[blank \d+\]/g)
+                  );
+                  return (
+                    <div className="mt-2 space-y-2">
+                      {blanks.map((_, i: number) => (
+                        <input
+                          key={i}
+                          className="w-full border rounded px-2 py-1"
+                          placeholder={`Answer ${i + 1}`}
+                          value={
+                            Array.isArray(localAnswers[q._id])
+                              ? (localAnswers[q._id] as string[])[i] || ""
+                              : ""
+                          }
+                          onChange={(e) =>
+                            setLocalAnswers((s) => {
+                              const arr = Array.isArray(s[q._id])
+                                ? [...(s[q._id] as string[])]
+                                : [];
+                              arr[i] = e.target.value;
+                              return { ...s, [q._id]: arr };
+                            })
+                          }
+                          disabled={!canSubmit}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
 
               {/* MATCHING */}
               {q.type === "MATCHING" && (
