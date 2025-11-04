@@ -113,29 +113,38 @@ function LeaveMeetingButton({
     try {
       setBusy(true);
       if (role === "admin" || role === "moderator") {
+        // Show success toast immediately
+        toast.success("Meeting ended");
+
+        // Fire-and-forget end request to avoid blocking navigation
+        // Backend may take time for long-running tasks, but we don't wait
         try {
-          await api.post<ApiResponse<unknown>>(
-            `/api/v1/liveSessions/${sessionId}/end`,
-            {},
-            { timeout: 15000 } // 15 second timeout for end meeting request
-          );
-          toast.success("Meeting ended");
-        } catch (err) {
-          // Even if request times out, the meeting may have ended successfully
-          // The socket event will handle navigation if it did
-          console.log(err);
-          toast.error("Failed to end meeting");
-          setBusy(false);
-          setOpen(false);
-          return;
-        }
-        try {
-          await room.disconnect(true);
+          const baseUrl =
+            process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
+            "https://amplifyre.shop";
+          const url = `${baseUrl}/api/v1/liveSessions/${sessionId}/end`;
+          // Use fetch with keepalive so it can complete during page navigation
+          fetch(url, {
+            method: "POST",
+            credentials: "include",
+            keepalive: true,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }).catch(() => {});
         } catch {}
+
+        // Cleanup localStorage immediately
         try {
           localStorage.removeItem("liveSessionUser");
         } catch {}
+
+        // Navigate immediately - don't wait for room disconnect or API response
         router.push("/projects");
+
+        // Disconnect room in background (non-blocking)
+        try {
+          room.disconnect(true).catch(() => {});
+        } catch {}
       } else {
         try {
           try {
