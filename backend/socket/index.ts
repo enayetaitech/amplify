@@ -25,6 +25,7 @@ import {
   startHlsEgress,
   stopHlsEgress,
 } from "../processors/livekit/livekitService";
+import { endMeeting } from "../processors/livekit/meetingProcessor";
 import BreakoutRoom from "../model/BreakoutRoom";
 import { SessionModel } from "../model/SessionModel";
 import { LiveSessionModel } from "../model/LiveSessionModel";
@@ -1433,7 +1434,12 @@ export function attachSocket(server: HTTPServer) {
                 role = md?.role as string | undefined;
               } catch {}
               // Filter out Admin, Moderator, and Observer - only show actual participants
-              if (role === "Admin" || role === "Moderator" || role === "Observer") return false;
+              if (
+                role === "Admin" ||
+                role === "Moderator" ||
+                role === "Observer"
+              )
+                return false;
               return true;
             })
             .map((p) => {
@@ -1938,7 +1944,9 @@ export function attachSocket(server: HTTPServer) {
           });
 
           // Broadcast streaming status change to moderators/admins
-          io.to(sessionId).emit("meeting:stream:status:changed", { streaming: true });
+          io.to(sessionId).emit("meeting:stream:status:changed", {
+            streaming: true,
+          });
 
           return ack?.({ ok: true });
         } catch (e: any) {
@@ -1954,7 +1962,10 @@ export function attachSocket(server: HTTPServer) {
     // --- Get streaming status (admin/mod only) ---
     socket.on(
       "meeting:stream:status:get",
-      async (_payload, ack?: (r: { streaming?: boolean; error?: string }) => void) => {
+      async (
+        _payload,
+        ack?: (r: { streaming?: boolean; error?: string }) => void
+      ) => {
         try {
           if (!["Moderator", "Admin"].includes(role)) {
             return ack?.({ streaming: false, error: "Forbidden" });
@@ -1966,7 +1977,10 @@ export function attachSocket(server: HTTPServer) {
           return ack?.({ streaming: isStreaming });
         } catch (e: any) {
           console.error("meeting:stream:status:get failed", e);
-          return ack?.({ streaming: false, error: e?.message || "Failed to get status" });
+          return ack?.({
+            streaming: false,
+            error: e?.message || "Failed to get status",
+          });
         }
       }
     );
@@ -2027,7 +2041,9 @@ export function attachSocket(server: HTTPServer) {
           io.to(rooms.observer).emit("observer:stream:stopped", {});
 
           // Broadcast streaming status change to moderators/admins
-          io.to(sessionId).emit("meeting:stream:status:changed", { streaming: false });
+          io.to(sessionId).emit("meeting:stream:status:changed", {
+            streaming: false,
+          });
 
           return ack?.({ ok: true });
         } catch (e: any) {
@@ -2408,7 +2424,8 @@ export function attachSocket(server: HTTPServer) {
         const set = moderatorSockets.get(sessionId);
         if (set) {
           set.delete(socket.id);
-          if (set.size === 0) moderatorSockets.delete(sessionId);
+          const becameEmpty = set.size === 0;
+          if (becameEmpty) moderatorSockets.delete(sessionId);
         }
         // remove from moderator/admin info map and emit updated list
         const infoMap = moderatorInfo.get(sessionId);
@@ -2426,6 +2443,22 @@ export function attachSocket(server: HTTPServer) {
               }))
             : [];
           io.to(sessionId).emit("moderator:list", { moderators });
+        } catch {}
+
+        // If no moderators/admins remain connected, end the meeting automatically
+        try {
+          const set2 = moderatorSockets.get(sessionId);
+          if (!set2 || set2.size === 0) {
+            (async () => {
+              try {
+                const endedBy = userId || "system";
+                await endMeeting(sessionId, endedBy);
+              } catch {}
+              try {
+                io.to(sessionId).emit("meeting:ended", {});
+              } catch {}
+            })();
+          }
         } catch {}
       }
       // cleanup userId index

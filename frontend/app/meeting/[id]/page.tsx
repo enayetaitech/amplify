@@ -586,7 +586,7 @@ export default function Meeting() {
     };
   }, [sessionId, my?.email, my?.name, serverRole, role, router]);
 
-  // Clear localStorage and cookies on browser/tab close
+  // Clear localStorage/cookies on browser/tab close and end meeting if host closes tab
   useEffect(() => {
     const cleanupStorage = () => {
       try {
@@ -611,6 +611,22 @@ export default function Meeting() {
             }).catch(() => {
               // Ignore errors during unload - cleanup is best effort
             });
+
+            // Also end the meeting if the host closes the tab (non-blocking)
+            if (sessionId) {
+              const endUrl = `${baseUrl}/api/v1/liveSessions/${String(
+                sessionId
+              )}/end`;
+              fetch(endUrl, {
+                method: "POST",
+                credentials: "include",
+                keepalive: true,
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({}),
+              }).catch(() => {});
+            }
           } catch {
             // Ignore errors - cleanup is best effort
           }
@@ -639,7 +655,7 @@ export default function Meeting() {
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [role]);
+  }, [role, sessionId]);
 
   // If observer and stream stops, route back to observer waiting room
   useEffect(() => {
