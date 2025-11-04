@@ -6,7 +6,9 @@ import { sendResponse } from "../utils/responseHelpers";
 import {
   deleteFromS3,
   getSignedUrl,
+  getSignedUrlInline,
   getSignedUrls,
+  getTextContentFromS3,
   uploadToS3,
 } from "../utils/uploadToS3";
 import { SessionModel } from "../model/SessionModel";
@@ -147,6 +149,75 @@ export const downloadDeliverable = async (
 
   const url = getSignedUrl(deliverable.storageKey, 300);
   res.redirect(url);
+};
+
+/**
+ * GET /api/v1/sessionDeliverables/:id/preview
+ * Returns a 302 redirect to an inline signed URL so the browser can preview (e.g., PNG).
+ */
+export const previewDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const deliverable = await SessionDeliverableModel.findOne({
+    _id: id,
+    deletedAt: null,
+  }).lean();
+
+  if (!deliverable) return next(new ErrorHandler("Not found", 404));
+
+  const url = getSignedUrlInline(deliverable.storageKey, 300);
+  res.redirect(url);
+};
+
+/**
+ * GET /api/v1/sessionDeliverables/:id/view
+ * Returns the text content of a deliverable (for SESSION_CHAT, BACKROOM_CHAT, TRANSCRIPT).
+ */
+export const viewTextContent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const deliverable = await SessionDeliverableModel.findOne({
+    _id: id,
+    deletedAt: null,
+  }).lean();
+
+  if (!deliverable) return next(new ErrorHandler("Not found", 404));
+
+  // Only allow text-based deliverables (include CSV poll results)
+  const textTypes = [
+    "SESSION_CHAT",
+    "BACKROOM_CHAT",
+    "TRANSCRIPT",
+    "POLL_RESULT",
+  ];
+  if (!textTypes.includes(deliverable.type)) {
+    return next(
+      new ErrorHandler("This deliverable type does not support text viewing", 400)
+    );
+  }
+
+  try {
+    const content = await getTextContentFromS3(deliverable.storageKey);
+    sendResponse(
+      res,
+      { content, displayName: deliverable.displayName },
+      "Content retrieved",
+      200
+    );
+  } catch (error) {
+    return next(
+      new ErrorHandler(
+        `Failed to retrieve content: ${error instanceof Error ? error.message : "Unknown error"}`,
+        500
+      )
+    );
+  }
 };
 
 export const downloadMultipleDeliverable = async (
