@@ -189,8 +189,13 @@ export const viewTextContent = async (
 
   if (!deliverable) return next(new ErrorHandler("Not found", 404));
 
-  // Only allow text-based deliverables
-  const textTypes = ["SESSION_CHAT", "BACKROOM_CHAT", "TRANSCRIPT"];
+  // Only allow text-based deliverables (include CSV poll results)
+  const textTypes = [
+    "SESSION_CHAT",
+    "BACKROOM_CHAT",
+    "TRANSCRIPT",
+    "POLL_RESULT",
+  ];
   if (!textTypes.includes(deliverable.type)) {
     return next(
       new ErrorHandler("This deliverable type does not support text viewing", 400)

@@ -384,7 +384,8 @@ const SessionDeliverables = () => {
                           </CustomButton>
                         )}
                         {(selectedType === "SESSION_CHAT" ||
-                          selectedType === "BACKROOM_CHAT") &&
+                          selectedType === "BACKROOM_CHAT" ||
+                          selectedType === "POLL_RESULT") &&
                           !del.deletedAt && (
                             <CustomButton
                               size="icon"
