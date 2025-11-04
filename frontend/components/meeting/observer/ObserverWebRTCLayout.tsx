@@ -84,6 +84,58 @@ function ObserverVideoGrid() {
     return !!(pub && pub.isSubscribed && !pub.isMuted && pub.track);
   });
 
+  // Helper: parse role from participant metadata
+  const roleFromMetadata = (meta?: string | null): string | null => {
+    if (!meta) return null;
+    try {
+      const obj = JSON.parse(meta);
+      const raw = (obj?.role || obj?.userRole || obj?.serverRole) as unknown;
+      return typeof raw === "string" ? raw : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Include only Admin, Moderator, and Participant (exclude Observer)
+  const shouldInclude = (ref: {
+    participant?: { metadata?: string | null };
+  }): boolean => {
+    const meta = ref.participant?.metadata as string | null | undefined;
+    const role = roleFromMetadata(meta)?.toLowerCase() || null;
+    // Explicitly include Admin, Moderator, Participant
+    // If role is null/undefined, include it (likely a participant without metadata)
+    if (!role) return true; // Include if role cannot be determined
+    return role === "admin" || role === "moderator" || role === "participant";
+  };
+
+  const cameraRefs = activeTracks.filter(
+    (r) => r.publication?.source === Track.Source.Camera && shouldInclude(r)
+  );
+  const screenshareRefs = activeTracks.filter(
+    (r) =>
+      r.publication?.source === Track.Source.ScreenShare && shouldInclude(r)
+  );
+
+  // If someone is screen sharing, prioritize that share and show it at 60% width.
+  const hasScreenShare = screenshareRefs.length > 0;
+
+  // Include all cameras in the right-side list, including the sharer's camera
+  const cameraRefsForGrid = cameraRefs;
+
+  // Decide auto grid size (snap up to 2/4/8/16)
+  const desired = cameraRefsForGrid.length;
+  const gridSteps = [2, 4, 8, 16];
+  const gridSize = gridSteps.find((n) => desired <= n) || 16;
+
+  // Map gridSize to columns/rows
+  const gridToColsRows: Record<number, { cols: number; rows: number }> = {
+    2: { cols: 2, rows: 1 },
+    4: { cols: 2, rows: 2 },
+    8: { cols: 4, rows: 2 },
+    16: { cols: 4, rows: 4 },
+  };
+  const { cols, rows } = gridToColsRows[gridSize];
+
   // Calculate video dimensions to match HLS layout (16:9 aspect ratio)
   const W = containerSize.w;
   const H = containerSize.h;
@@ -97,14 +149,82 @@ function ObserverVideoGrid() {
       className="flex-1 min-h-0 flex items-center justify-center"
     >
       {activeTracks.length > 0 ? (
-        <div
-          style={{ width: viewW, height: viewH }}
-          className="relative rounded-lg overflow-hidden bg-black"
-        >
-          <GridLayout tracks={activeTracks}>
-            <ParticipantTile />
-          </GridLayout>
-        </div>
+        hasScreenShare ? (
+          // Split layout: 60% screen share on the left, 40% participant grid on the right
+          <div
+            style={{ width: viewW, height: viewH }}
+            className="relative rounded-lg overflow-hidden bg-black flex"
+          >
+            <div
+              className="h-full"
+              style={{ width: `${Math.floor(viewW * 0.6)}px` }}
+            >
+              <GridLayout tracks={[screenshareRefs[0]]}>
+                <ParticipantTile />
+              </GridLayout>
+            </div>
+            <div
+              className="h-full overflow-y-auto"
+              style={{ width: `${viewW - Math.floor(viewW * 0.6)}px` }}
+            >
+              <div className="w-full flex flex-col gap-1 p-1">
+                {cameraRefsForGrid.map((tr) => {
+                  // Calculate tile height to ensure at least 4 tiles are visible by default
+                  // Account for gaps (gap-1 = 4px) and padding (p-1 = 4px top/bottom = 8px total)
+                  const gapHeight = 4; // gap-1 = 4px between tiles
+                  const paddingHeight = 8; // p-1 = 4px top + 4px bottom
+                  const targetVisibleTiles = 4;
+                  const availableHeight = viewH - paddingHeight;
+                  const tileHeight = Math.floor(
+                    (availableHeight - gapHeight * (targetVisibleTiles - 1)) /
+                      targetVisibleTiles
+                  );
+
+                  return (
+                    <div
+                      key={`${tr.participant?.identity}-${tr.publication?.trackSid}`}
+                      className="relative overflow-hidden rounded bg-black flex-shrink-0"
+                      style={{
+                        width: "100%",
+                        height: `${tileHeight}px`,
+                        minHeight: `${tileHeight}px`,
+                      }}
+                    >
+                      <GridLayout tracks={[tr]}>
+                        <ParticipantTile />
+                      </GridLayout>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // No screenshare: centered grid that snaps to 2/4/8/16
+          <div
+            style={{ width: viewW, height: viewH }}
+            className="relative rounded-lg overflow-hidden bg-black"
+          >
+            <div
+              className="w-full h-full grid gap-1 p-1"
+              style={{
+                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+              }}
+            >
+              {cameraRefsForGrid.slice(0, gridSize).map((tr) => (
+                <div
+                  key={`${tr.participant?.identity}-${tr.publication?.trackSid}`}
+                  className="relative overflow-hidden rounded bg-black"
+                >
+                  <GridLayout tracks={[tr]}>
+                    <ParticipantTile />
+                  </GridLayout>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
       ) : (
         <div className="m-auto text-gray-500">Waiting for participants...</div>
       )}
@@ -156,9 +276,7 @@ function ConnectionStatusInner() {
   return (
     <div className="flex items-center gap-2 text-xs">
       <span
-        className={`inline-block h-2 w-2 rounded-full ${
-          qualityColors[quality]
-        }`}
+        className={`inline-block h-2 w-2 rounded-full ${qualityColors[quality]}`}
       />
       <span>{isConnected ? "Connected" : "Connecting..."}</span>
     </div>
@@ -195,7 +313,7 @@ export default function ObserverWebRTCLayout({
                 <span>Disconnected</span>
               </div>
               <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
-                Observer View 
+                Observer View
               </span>
             </div>
             <div className="flex items-center">
