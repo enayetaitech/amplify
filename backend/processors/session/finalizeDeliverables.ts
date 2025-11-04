@@ -14,6 +14,9 @@ import {
 } from "../../utils/deliverables";
 import { findLatestObjectByPrefix } from "../../utils/uploadToS3";
 import { packageHlsToMp4AndUpload } from "../video/packFromHls";
+import https from "https";
+import http from "http";
+import { URL } from "url";
 
 // Utility: simple CSV escaper
 function csvEscape(v: unknown): string {
@@ -24,6 +27,79 @@ function csvEscape(v: unknown): string {
 
 function toText(lines: string[]): Buffer {
   return Buffer.from(lines.join("\n"), "utf8");
+}
+
+/**
+ * Construct VOD URL from live playback URL
+ * Converts: https://cdn.example.com/hls/roomName/live.m3u8
+ * To: https://cdn.example.com/hls/roomName/index.m3u8
+ */
+function getVodUrlFromLiveUrl(liveUrl: string): string {
+  if (!liveUrl) return liveUrl;
+  // Replace live.m3u8 with index.m3u8
+  return liveUrl.replace(/\/live\.m3u8$/i, "/index.m3u8");
+}
+
+/**
+ * Make HTTP request (GET) using Node.js built-in modules
+ */
+function httpGet(url: string): Promise<{ status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const client = urlObj.protocol === "https:" ? https : http;
+    
+    const req = client.get(
+      url,
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => {
+          resolve({ status: res.statusCode || 0, text: data });
+        });
+      }
+    );
+    
+    req.on("error", (err) => {
+      reject(err);
+    });
+    
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error("Request timeout"));
+    });
+  });
+}
+
+/**
+ * Wait for HLS VOD playlist to be available with retries
+ * LiveKit needs time to finalize the index.m3u8 after stopping egress
+ */
+async function waitForHlsPlaylistAvailable(
+  vodUrl: string,
+  maxRetries = 5,
+  delayMs = 3000
+): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await httpGet(vodUrl);
+      if (response.status === 200) {
+        const text = response.text;
+        // VOD playlist should have EXT-X-ENDLIST tag or multiple segments
+        if (text.includes("EXT-X-ENDLIST") || text.split("#EXTINF").length > 2) {
+          return true;
+        }
+      }
+    } catch (e) {
+      // Playlist not ready yet
+    }
+    
+    if (i < maxRetries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
 }
 
 export async function finalizeSessionDeliverables(
@@ -100,8 +176,23 @@ export async function finalizeSessionDeliverables(
           storageKey: mp4Key,
         });
         if (!exists) {
+          // Wait for HLS VOD playlist to be finalized after egress stop
+          // LiveKit needs time (usually 3-10 seconds) to finalize index.m3u8
+          const vodUrl = getVodUrlFromLiveUrl(live.hlsPlaybackUrl);
+          
+          console.log(`[DELIVERABLES] Waiting for HLS VOD playlist: ${vodUrl}`);
+          const playlistReady = await waitForHlsPlaylistAvailable(vodUrl, 8, 5000);
+          
+          if (!playlistReady) {
+            console.warn(
+              `[DELIVERABLES] HLS VOD playlist not ready after retries for session ${sessionId}, attempting anyway`
+            );
+          } else {
+            console.log(`[DELIVERABLES] HLS VOD playlist ready for session ${sessionId}`);
+          }
+          
           const out = await packageHlsToMp4AndUpload({
-            hlsUrl: live.hlsPlaybackUrl.replace("/live.m3u8", "/index.m3u8"),
+            hlsUrl: vodUrl,
             s3Key: mp4Key,
           });
           const objSize = await (
@@ -116,10 +207,14 @@ export async function finalizeSessionDeliverables(
             storageKey: out.key,
             uploadedBy: (endedBy as any) || session.moderators?.[0],
           });
+          console.log(`[DELIVERABLES] Successfully packaged HLS to MP4 for session ${sessionId}`);
         }
       } catch (e) {
         try {
-          console.error("HLS to MP4 packaging failed", e);
+          console.error(
+            `[DELIVERABLES] HLS to MP4 packaging failed for session ${sessionId}:`,
+            e
+          );
         } catch {}
       }
     }

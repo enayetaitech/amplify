@@ -20,6 +20,10 @@ export async function packageHlsToMp4AndUpload(params: {
     `pack_${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`
   );
 
+  // Capture ffmpeg output for debugging
+  let ffmpegStderr = "";
+  let ffmpegStdout = "";
+
   // Spawn ffmpeg to read HLS and mux to MP4 (seekable)
   const ff = spawn(
     "ffmpeg",
@@ -45,14 +49,36 @@ export async function packageHlsToMp4AndUpload(params: {
       "+faststart",
       tmpFile,
     ],
-    { stdio: ["ignore", "inherit", "inherit"] }
+    { stdio: ["ignore", "pipe", "pipe"] }
   );
+
+  ff.stdout.on("data", (data) => {
+    ffmpegStdout += data.toString();
+  });
+
+  ff.stderr.on("data", (data) => {
+    ffmpegStderr += data.toString();
+  });
 
   const exitCode: number = await new Promise((resolve) => {
     ff.on("close", (code) => resolve(code ?? 1));
   });
+  
   if (exitCode !== 0) {
-    throw new Error(`ffmpeg exited with code ${exitCode}`);
+    console.error(`[HLS_PACKAGE] ffmpeg failed for ${hlsUrl}`);
+    console.error(`[HLS_PACKAGE] stderr: ${ffmpegStderr}`);
+    console.error(`[HLS_PACKAGE] stdout: ${ffmpegStdout}`);
+    throw new Error(
+      `ffmpeg exited with code ${exitCode}. URL: ${hlsUrl}. Error: ${ffmpegStderr.slice(-500)}`
+    );
+  }
+
+  // Log duration info from ffmpeg output if available
+  const durationMatch = ffmpegStderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+  if (durationMatch) {
+    const [, hours, minutes, seconds] = durationMatch;
+    const totalSeconds = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
+    console.log(`[HLS_PACKAGE] Packaged video duration: ${totalSeconds} seconds (${hours}:${minutes}:${seconds})`);
   }
 
   try {
