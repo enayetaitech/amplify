@@ -336,7 +336,7 @@ export default function Meeting() {
           const observerInfo = safeLocalGet<{ name?: string; email?: string }>(
             "liveSessionUser"
           );
-          
+
           const res = await api.post<ApiResponse<{ token: string }>>(
             `/api/v1/livekit/public/${sessionId as string}/token`,
             {
@@ -344,14 +344,18 @@ export default function Meeting() {
               email: observerInfo?.email || "",
             }
           );
-          
+
           const lkToken = res.data?.data?.token;
           if (lkToken) {
             setToken(lkToken);
             setWsUrl(process.env.NEXT_PUBLIC_LIVEKIT_URL!);
-            console.log("[Observer] WebRTC token obtained, using WebRTC streaming");
+            console.log(
+              "[Observer] WebRTC token obtained, using WebRTC streaming"
+            );
           } else {
-            console.warn("[Observer] WebRTC token not available, falling back to HLS");
+            console.warn(
+              "[Observer] WebRTC token not available, falling back to HLS"
+            );
           }
         } catch (err) {
           console.error("[Observer] Failed to get WebRTC token:", err);
@@ -834,7 +838,9 @@ export default function Meeting() {
                   myEmail={my?.email || null}
                   sessionId={String(sessionId)}
                 />
-                <ModeratorWaitingPanel />
+                {(role === "admin" || role === "moderator") && (
+                  <ModeratorWaitingPanel />
+                )}
                 {/* Polls: participant view only */}
                 {(role as UiRole) === "participant" && (
                   <div className="mt-2">

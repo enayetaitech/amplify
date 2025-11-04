@@ -99,9 +99,7 @@ export default function PollResults({
         return (
           <div key={i}>
             <div className="flex justify-between text-sm mb-1">
-              <div className="truncate">
-                {labelText}
-              </div>
+              <div className="truncate">{labelText}</div>
               <div className="text-gray-500">
                 {c.count} ({pct}%)
               </div>

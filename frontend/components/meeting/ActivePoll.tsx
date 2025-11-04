@@ -59,7 +59,9 @@ export default function ActivePoll({
   > | null>(null);
   const [sharedPoll, setSharedPoll] = useState<IPoll | null>(null);
   const [textErrors, setTextErrors] = useState<Record<string, string>>({});
-  const [totalParticipants, setTotalParticipants] = useState<number | undefined>(undefined);
+  const [totalParticipants, setTotalParticipants] = useState<
+    number | undefined
+  >(undefined);
 
   // Fetch total participants count when component mounts or sessionId changes
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function ActivePoll({
           const pList = Array.isArray(ls.participantsList)
             ? ls.participantsList
             : [];
-          
+
           if (pHistory.length > 0) {
             const emails = new Set<string>();
             for (const p of pHistory) {
@@ -98,7 +100,7 @@ export default function ActivePoll({
         // The totalParticipants will remain undefined and we'll just show answered count
       }
     };
-    
+
     if (sessionId) {
       fetchTotalParticipants();
     }
@@ -279,8 +281,8 @@ export default function ActivePoll({
                   />
                 </div>
               )}
-              <PollResults 
-                aggregate={resultsMapping[q._id]} 
+              <PollResults
+                aggregate={resultsMapping[q._id]}
                 question={q}
                 totalParticipants={totalParticipants}
               />
@@ -431,36 +433,39 @@ export default function ActivePoll({
               )}
 
               {/* FILL_IN_BLANK */}
-              {q.type === "FILL_IN_BLANK" && (() => {
-                // Count blanks from prompt
-                const blanks = Array.from(q.prompt.matchAll(/\[blank \d+\]/g));
-                return (
-                  <div className="mt-2 space-y-2">
-                    {blanks.map((_, i: number) => (
-                      <input
-                        key={i}
-                        className="w-full border rounded px-2 py-1"
-                        placeholder={`Answer ${i + 1}`}
-                        value={
-                          Array.isArray(localAnswers[q._id])
-                            ? (localAnswers[q._id] as string[])[i] || ""
-                            : ""
-                        }
-                        onChange={(e) =>
-                          setLocalAnswers((s) => {
-                            const arr = Array.isArray(s[q._id])
-                              ? [...(s[q._id] as string[])]
-                              : [];
-                            arr[i] = e.target.value;
-                            return { ...s, [q._id]: arr };
-                          })
-                        }
-                        disabled={!canSubmit}
-                      />
-                    ))}
-                  </div>
-                );
-              })()}
+              {q.type === "FILL_IN_BLANK" &&
+                (() => {
+                  // Count blanks from prompt
+                  const blanks = Array.from(
+                    q.prompt.matchAll(/\[blank \d+\]/g)
+                  );
+                  return (
+                    <div className="mt-2 space-y-2">
+                      {blanks.map((_, i: number) => (
+                        <input
+                          key={i}
+                          className="w-full border rounded px-2 py-1"
+                          placeholder={`Answer ${i + 1}`}
+                          value={
+                            Array.isArray(localAnswers[q._id])
+                              ? (localAnswers[q._id] as string[])[i] || ""
+                              : ""
+                          }
+                          onChange={(e) =>
+                            setLocalAnswers((s) => {
+                              const arr = Array.isArray(s[q._id])
+                                ? [...(s[q._id] as string[])]
+                                : [];
+                              arr[i] = e.target.value;
+                              return { ...s, [q._id]: arr };
+                            })
+                          }
+                          disabled={!canSubmit}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
 
               {/* MATCHING */}
               {q.type === "MATCHING" && (

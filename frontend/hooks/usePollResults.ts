@@ -23,7 +23,10 @@ export function usePollResults(
       const r = await api.get(`/api/v1/polls/${pollId}/results`, {
         params: { runId, sessionId },
       });
-      return r.data.data as { aggregates: AggregatesMap; totalParticipants?: number };
+      return r.data.data as {
+        aggregates: AggregatesMap;
+        totalParticipants?: number;
+      };
     },
     enabled: !!pollId && !!runId && !!sessionId,
   });

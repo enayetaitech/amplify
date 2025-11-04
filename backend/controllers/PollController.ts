@@ -631,17 +631,18 @@ export const getPollResults = async (req: any, res: any, next: any) => {
       return next(new ErrorHandler("Forbidden: wrong session", 403));
 
     const aggregates = await pollService.aggregateResults(pollId, runId);
-    
+
     // Get total participants count from LiveSession
     let totalParticipants: number | undefined = undefined;
     try {
-      const LiveSessionModel = require("../model/LiveSessionModel").LiveSessionModel ||
-                               require("../model/LiveSessionModel").default ||
-                               require("../model/LiveSessionModel");
+      const LiveSessionModel =
+        require("../model/LiveSessionModel").LiveSessionModel ||
+        require("../model/LiveSessionModel").default ||
+        require("../model/LiveSessionModel");
       const live = await LiveSessionModel.findOne({
         sessionId: new Types.ObjectId(sessionId),
       }).lean();
-      
+
       if (live) {
         const pHistory = Array.isArray(live.participantHistory)
           ? live.participantHistory
@@ -649,7 +650,7 @@ export const getPollResults = async (req: any, res: any, next: any) => {
         const pList = Array.isArray(live.participantsList)
           ? live.participantsList
           : [];
-        
+
         if (pHistory.length > 0) {
           const emails = new Set<string>();
           for (const p of pHistory) {
