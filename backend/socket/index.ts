@@ -1668,13 +1668,13 @@ export function attachSocket(server: HTTPServer) {
             );
             if (idx >= 0) {
               const user = live.participantsList.splice(idx, 1)[0];
-              // push into waiting room
+              // push into waiting room - preserve original waiting room joinedAt
               live.participantWaitingRoom = live.participantWaitingRoom || [];
               live.participantWaitingRoom.push({
                 name: user.name || user.email,
                 email: user.email,
                 role: user.role || "Participant",
-                joinedAt: new Date(),
+                joinedAt: (user && (user.joinedAt || null)) || new Date(),
               } as any);
               // record transfer to waiting room in participantHistory
               try {

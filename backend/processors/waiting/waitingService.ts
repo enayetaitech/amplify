@@ -17,20 +17,22 @@ export async function listState(sessionId: string) {
 /** Admit a single participant (by email) from waiting → active */
 export async function admitByEmail(sessionId: string, email: string) {
   const live = await LiveSessionModel.findOne({ sessionId });
-  
+
   if (!live) throw new Error("LiveSession not found");
 
-  const i = live.participantWaitingRoom.findIndex((u) => u.email.toLowerCase() === email.toLowerCase());
+  const i = live.participantWaitingRoom.findIndex(
+    (u) => u.email.toLowerCase() === email.toLowerCase()
+  );
   if (i >= 0) {
     const user = live.participantWaitingRoom[i];
     // remove from waiting
     live.participantWaitingRoom.splice(i, 1);
-    // add to active list
+    // add to active list - preserve waiting room joinedAt
     live.participantsList.push({
       name: user.name,
       email: user.email,
       role: user.role,
-      joinedAt: new Date(),
+      joinedAt: user.joinedAt || new Date(),
     });
     await live.save();
   }
@@ -43,7 +45,10 @@ export async function admitByEmail(sessionId: string, email: string) {
 }
 
 /** Remove from waiting room (do not admit) */
-export async function removeFromWaitingByEmail(sessionId: string, email: string) {
+export async function removeFromWaitingByEmail(
+  sessionId: string,
+  email: string
+) {
   const live = await LiveSessionModel.findOne({ sessionId });
   if (!live) throw new Error("LiveSession not found");
 
@@ -65,7 +70,6 @@ export async function admitAll(sessionId: string) {
   const live = await LiveSessionModel.findOne({ sessionId });
   if (!live) throw new Error("LiveSession not found");
 
-  const now = new Date();
   const toAdmit = [...live.participantWaitingRoom];
   live.participantWaitingRoom = [];
   for (const user of toAdmit) {
@@ -73,7 +77,7 @@ export async function admitAll(sessionId: string) {
       name: user.name,
       email: user.email,
       role: user.role,
-      joinedAt: now,
+      joinedAt: user.joinedAt || new Date(),
     });
   }
   await live.save();
