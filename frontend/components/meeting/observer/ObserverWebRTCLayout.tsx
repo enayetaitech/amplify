@@ -195,7 +195,7 @@ export default function ObserverWebRTCLayout({
                 <span>Disconnected</span>
               </div>
               <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
-                Observer View (WebRTC)
+                Observer View 
               </span>
             </div>
             <div className="flex items-center">
@@ -237,7 +237,7 @@ export default function ObserverWebRTCLayout({
               <div className="flex items-center gap-3">
                 <ConnectionStatusInner />
                 <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
-                  Observer View (WebRTC)
+                  Observer View
                 </span>
               </div>
               <div className="flex items-center">

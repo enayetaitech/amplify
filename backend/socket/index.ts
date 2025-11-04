@@ -1432,7 +1432,8 @@ export function attachSocket(server: HTTPServer) {
                 const md = mdRaw ? JSON.parse(mdRaw) : undefined;
                 role = md?.role as string | undefined;
               } catch {}
-              if (role === "Admin" || role === "Moderator") return false;
+              // Filter out Admin, Moderator, and Observer - only show actual participants
+              if (role === "Admin" || role === "Moderator" || role === "Observer") return false;
               return true;
             })
             .map((p) => {

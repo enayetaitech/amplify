@@ -293,7 +293,7 @@ export default function ObserverHlsLayoutImproved({
             <span>{error ? "Error" : isLoading ? "Loading..." : "Live"}</span>
           </div>
           <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
-            Observer View (HLS)
+            Observer View 
           </span>
         </div>
         <div className="flex items-center">

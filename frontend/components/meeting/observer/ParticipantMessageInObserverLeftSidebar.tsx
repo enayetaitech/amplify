@@ -50,6 +50,20 @@ export default function ParticipantMessageInObserverLeftSidebar({
     participantGroupLoading,
     resultsMapping,
   ]);
+
+  // Filter out observers from the participant list
+  // Observers may have names starting with "Observer" or be identified by their identity pattern
+  const filteredParticipants = participants.filter((p) => {
+    const name = (p.name || "").trim();
+    const identity = (p.identity || "").toLowerCase();
+    // Filter out if name starts with "Observer" (case-insensitive)
+    if (name.toLowerCase().startsWith("observer")) return false;
+    // Filter out if identity contains "observer" pattern
+    if (identity.includes("observer_") || identity.startsWith("observer"))
+      return false;
+    return true;
+  });
+
   return (
     <div className="bg-custom-gray-2 rounded-lg p-2 flex-1 min-h-0 overflow-y-auto">
       <h3 className="font-semibold mb-2">Participants</h3>
@@ -70,10 +84,10 @@ export default function ParticipantMessageInObserverLeftSidebar({
         </TabsList>
         <TabsContent value="plist">
           <div className="space-y-2">
-            {participants.length === 0 && (
+            {filteredParticipants.length === 0 && (
               <div className="text-sm text-gray-500">No participants yet.</div>
             )}
-            {participants.map((p) => (
+            {filteredParticipants.map((p) => (
               <div key={p.identity} className="text-sm">
                 {p.name}
               </div>
