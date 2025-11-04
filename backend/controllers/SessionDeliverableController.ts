@@ -6,6 +6,7 @@ import { sendResponse } from "../utils/responseHelpers";
 import {
   deleteFromS3,
   getSignedUrl,
+  getSignedUrlInline,
   getSignedUrls,
   uploadToS3,
 } from "../utils/uploadToS3";
@@ -146,6 +147,27 @@ export const downloadDeliverable = async (
   if (!deliverable) return next(new ErrorHandler("Not found", 404));
 
   const url = getSignedUrl(deliverable.storageKey, 300);
+  res.redirect(url);
+};
+
+/**
+ * GET /api/v1/sessionDeliverables/:id/preview
+ * Returns a 302 redirect to an inline signed URL so the browser can preview (e.g., PNG).
+ */
+export const previewDeliverable = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { id } = req.params;
+  const deliverable = await SessionDeliverableModel.findOne({
+    _id: id,
+    deletedAt: null,
+  }).lean();
+
+  if (!deliverable) return next(new ErrorHandler("Not found", 404));
+
+  const url = getSignedUrlInline(deliverable.storageKey, 300);
   res.redirect(url);
 };
 

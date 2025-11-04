@@ -5,6 +5,7 @@ import {
   createDeliverable,
   deleteDeliverable,
   downloadDeliverable,
+  previewDeliverable,
   downloadMultipleDeliverable,
   getDeliverablesByProjectId,
   renameDeliverable,
@@ -29,6 +30,9 @@ router.get("/project/:projectId", catchError(getDeliverablesByProjectId));
 
 // GET    /api/v1/sessionDeliverables/:id/download
 router.get("/:id/download", catchError(downloadDeliverable));
+
+// GET    /api/v1/sessionDeliverables/:id/preview
+router.get("/:id/preview", catchError(previewDeliverable));
 
 // POST   /api/v1/sessionDeliverables/download
 router.post(

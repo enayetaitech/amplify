@@ -20,7 +20,7 @@ import {
 } from "components/ui/table";
 import { Checkbox } from "components/ui/checkbox";
 import CustomButton from "components/shared/CustomButton";
-import { Download, Pencil, Trash2, RotateCw } from "lucide-react";
+import { Download, Pencil, Trash2, RotateCw, Eye } from "lucide-react";
 import ConfirmationModalComponent from "components/shared/ConfirmationModalComponent";
 import { toast } from "sonner";
 import { safeLocalGet } from "utils/storage";
@@ -325,6 +325,23 @@ const SessionDeliverables = () => {
                     <TableCell>{formatSize(del.size)}</TableCell>
                     <TableCell className="text-left">
                       <div className="flex items-center justify-start gap-2">
+                        {selectedType === "WHITEBOARD" && !del.deletedAt && (
+                          <CustomButton
+                            size="icon"
+                            variant="outline"
+                            className="border border-gray-300"
+                            onClick={() => {
+                              const base = api.defaults.baseURL || "";
+                              window.open(
+                                `${base}/api/v1/sessionDeliverables/${del._id}/preview`,
+                                "_blank"
+                              );
+                            }}
+                            aria-label="Preview"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </CustomButton>
+                        )}
                         <CustomButton
                           className="bg-custom-dark-blue-3 hover:bg-custom-dark-blue-2 rounded-lg"
                           onClick={() => downloadOneMutation.mutate(del._id)}

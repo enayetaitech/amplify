@@ -62,6 +62,19 @@ export function getSignedUrl(key: string, expiresSeconds = 120): string {
   });
 }
 
+/**
+ * Generate a short-lived signed URL without forcing download, allowing inline preview in the browser.
+ */
+export function getSignedUrlInline(key: string, expiresSeconds = 120): string {
+  const Bucket = config.s3_bucket_name as string;
+  return s3.getSignedUrl("getObject", {
+    Bucket,
+    Key: key,
+    Expires: expiresSeconds,
+    // No ResponseContentDisposition → respect original Content-Type for inline display
+  } as any);
+}
+
 /* ───────────────────────────────────────────────────────────── */
 /*  MULTIPLE DOWNLOAD HELPER                                    */
 /*  — Returns an array of { key, url } signed links             */
