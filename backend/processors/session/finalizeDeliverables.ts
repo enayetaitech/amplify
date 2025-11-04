@@ -7,7 +7,6 @@ import ObserverGroupMessageModel from "../../model/ObserverGroupMessage";
 import { PollRunModel } from "../../model/PollRun";
 import { PollModel } from "../../model/PollModel";
 import PollResponse from "../../model/PollResponse";
-import { aggregateResults } from "../poll/pollService";
 import { renderAndStoreWhiteboardSnapshot } from "../whiteboard/renderSnapshot";
 import {
   buildS3Key,
@@ -16,6 +15,7 @@ import {
 } from "../../utils/deliverables";
 import { findLatestObjectByPrefix } from "../../utils/uploadToS3";
 import { packageHlsToMp4AndUpload } from "../video/packFromHls";
+import { extractAudioFromVideoAndUpload } from "../video/extractAudio";
 import https from "https";
 import http from "http";
 import { URL } from "url";
@@ -121,6 +121,9 @@ export async function finalizeSessionDeliverables(
 
   // 1) Register Video deliverable (prefer MP4 file egress result; fallback HLS VOD playlist)
   const videoTasks: Promise<any>[] = [];
+  let videoS3Key: string | null = null;
+  let hlsVodUrl: string | null = null;
+
   if (live) {
     const roomName = String(session._id);
     // Primary: MP4 produced by file egress under known prefix we set in startFileEgress()
@@ -135,6 +138,7 @@ export async function finalizeSessionDeliverables(
       });
     }
     if (mp4) {
+      videoS3Key = mp4.key;
       const filename = formatDeliverableFilename({
         baseTs,
         type: "VIDEO",
@@ -158,7 +162,21 @@ export async function finalizeSessionDeliverables(
           uploadedBy: (endedBy as any) || session.moderators?.[0],
         });
       }
-    } else if (live.hlsPlaybackUrl) {
+    }
+
+    // Check if VIDEO deliverable already exists from previous run (even if MP4 not found in S3)
+    if (!videoS3Key) {
+      const existingVideo = await SessionDeliverableModel.findOne({
+        projectId,
+        sessionId: session._id,
+        type: "VIDEO",
+      }).lean();
+      if (existingVideo) {
+        videoS3Key = existingVideo.storageKey;
+      }
+    }
+
+    if (!videoS3Key && live.hlsPlaybackUrl) {
       // Fallback: package HLS to MP4 via ffmpeg and upload to S3
       try {
         const filename = formatDeliverableFilename({
@@ -182,6 +200,7 @@ export async function finalizeSessionDeliverables(
           // Wait for HLS VOD playlist to be finalized after egress stop
           // LiveKit needs time (usually 3-10 seconds) to finalize index.m3u8
           const vodUrl = getVodUrlFromLiveUrl(live.hlsPlaybackUrl);
+          hlsVodUrl = vodUrl;
 
           console.log(`[DELIVERABLES] Waiting for HLS VOD playlist: ${vodUrl}`);
           const playlistReady = await waitForHlsPlaylistAvailable(
@@ -204,6 +223,7 @@ export async function finalizeSessionDeliverables(
             hlsUrl: vodUrl,
             s3Key: mp4Key,
           });
+          videoS3Key = out.key;
           const objSize = await (
             await import("../../utils/uploadToS3")
           ).headObjectSize(out.key);
@@ -219,6 +239,9 @@ export async function finalizeSessionDeliverables(
           console.log(
             `[DELIVERABLES] Successfully packaged HLS to MP4 for session ${sessionId}`
           );
+        } else {
+          // Video already exists, use the S3 key
+          videoS3Key = mp4Key;
         }
       } catch (e) {
         try {
@@ -226,8 +249,70 @@ export async function finalizeSessionDeliverables(
             `[DELIVERABLES] HLS to MP4 packaging failed for session ${sessionId}:`,
             e
           );
+          // If HLS packaging fails but we have HLS URL, still try to extract audio from HLS
+          if (!hlsVodUrl && live.hlsPlaybackUrl) {
+            hlsVodUrl = getVodUrlFromLiveUrl(live.hlsPlaybackUrl);
+          }
         } catch {}
       }
+    }
+
+    // 1.5) Extract Audio from Video (same naming rule)
+    if (videoS3Key || hlsVodUrl) {
+      const audioTask = (async () => {
+        try {
+          const filename = formatDeliverableFilename({
+            baseTs,
+            type: "AUDIO",
+            sessionTitle,
+            extension: ".mp3",
+          });
+          const audioKey = buildS3Key({
+            projectId,
+            sessionId: session._id,
+            filename,
+          });
+          const exists = await SessionDeliverableModel.exists({
+            projectId,
+            sessionId: session._id,
+            type: "AUDIO",
+            storageKey: audioKey,
+          });
+          if (!exists) {
+            console.log(
+              `[DELIVERABLES] Extracting audio for session ${sessionId}`
+            );
+            const out = await extractAudioFromVideoAndUpload({
+              videoS3Key: videoS3Key || undefined,
+              hlsUrl: hlsVodUrl || undefined,
+              audioS3Key: audioKey,
+            });
+            const objSize = await (
+              await import("../../utils/uploadToS3")
+            ).headObjectSize(out.key);
+            await SessionDeliverableModel.create({
+              sessionId: session._id,
+              projectId,
+              type: "AUDIO",
+              displayName: filename,
+              size: objSize || 0,
+              storageKey: out.key,
+              uploadedBy: (endedBy as any) || session.moderators?.[0],
+            });
+            console.log(
+              `[DELIVERABLES] Successfully extracted audio for session ${sessionId}`
+            );
+          }
+        } catch (e) {
+          try {
+            console.error(
+              `[DELIVERABLES] Audio extraction failed for session ${sessionId}:`,
+              e
+            );
+          } catch {}
+        }
+      })();
+      videoTasks.push(audioTask);
     }
   }
 

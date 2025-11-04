@@ -28,6 +28,7 @@ import type { IUser } from "@shared/interface/UserInterface";
 
 const deliverableTabs = [
   { label: "Video", type: "VIDEO" },
+  { label: "Audio", type: "AUDIO" },
   { label: "Backroom Chat", type: "BACKROOM_CHAT" },
   { label: "Session Chat", type: "SESSION_CHAT" },
   { label: "Whiteboards", type: "WHITEBOARD" },
