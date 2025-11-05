@@ -50,16 +50,53 @@ export default function Stage({ role }: StageProps) {
     return map;
   }, [participants]);
 
+  function parseDisplayNameFromMetadata(meta?: string | null): string | null {
+    if (!meta) return null;
+    try {
+      const obj = JSON.parse(meta);
+      const fromDirect =
+        (typeof obj?.displayName === "string" && obj.displayName) ||
+        (typeof obj?.name === "string" && obj.name);
+      if (fromDirect) return String(fromDirect);
+      const fromNested =
+        (obj?.user &&
+          (obj.user.displayName ||
+            obj.user.name ||
+            (obj.user.firstName && obj.user.lastName
+              ? `${obj.user.firstName} ${obj.user.lastName}`
+              : null) ||
+            obj.user.email)) ||
+        null;
+      return fromNested ? String(fromNested) : null;
+    } catch {
+      return null;
+    }
+  }
+
   const identityToName: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
     for (const p of participants) {
       const id = p.identity || "";
       if (!id) continue;
-      const name = p.name || id;
+      const metaName = parseDisplayNameFromMetadata(p.metadata);
+      const name = metaName || p.name || id;
       map[id] = name;
     }
     return map;
   }, [participants]);
+
+  // Debug: log participant identities and resolved names whenever list changes
+  useEffect(() => {
+    try {
+      const rows = participants.map((p) => ({
+        identity: p.identity,
+        p_name: p.name,
+        meta: p.metadata,
+        resolved: identityToName[p.identity || ""],
+      }));
+      console.table(rows);
+    } catch {}
+  }, [participants, identityToName]);
 
   const identityToCamOn: Record<string, boolean> = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -239,6 +276,17 @@ export default function Stage({ role }: StageProps) {
         }}
         aria-label={`${name}${speaking ? ", speaking" : ""}`}
       >
+        {(() => {
+          try {
+            console.debug("[Stage] Tile render", {
+              identity,
+              resolvedName: name,
+              camOn,
+              speaking,
+            });
+          } catch {}
+          return null;
+        })()}
         <ParticipantTile trackRef={trackRef} />
 
         {/* Bottom-left: placeholder avatar when camera off */}

@@ -1233,6 +1233,15 @@ export function attachSocket(server: HTTPServer) {
       "meeting:register-identity",
       (payload: { identity: string; email?: string }) => {
         try {
+          try {
+            console.debug("[Socket] meeting:register-identity", {
+              sessionId,
+              role,
+              socketId: socket.id,
+              identity: payload?.identity,
+              email: payload?.email || null,
+            });
+          } catch {}
           if (!payload?.identity) return;
           if (!identityIndex.has(sessionId))
             identityIndex.set(sessionId, new Map());
