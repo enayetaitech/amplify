@@ -43,8 +43,28 @@ export async function issueRoomToken(params: {
   const at = new AccessToken(apiKey, apiSecret, {
     identity,
     name,
-    metadata: JSON.stringify({ role, email: email ?? null }),
+    // Include display name in metadata as a fallback for clients where p.name may be empty
+    metadata: JSON.stringify({
+      role,
+      email: email ?? null,
+      name: name || null,
+      displayName: name || null,
+      user:
+        name || email
+          ? { name: name || undefined, email: email || undefined }
+          : undefined,
+    }),
   });
+
+  try {
+    console.log("[LiveKit] issueRoomToken", {
+      roomName,
+      identity,
+      name,
+      role,
+      email: email || null,
+    });
+  } catch {}
 
   // Base grant applies to everyone who joins the room
   const grant: VideoGrant = {
