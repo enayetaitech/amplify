@@ -1036,7 +1036,10 @@ export default function Meeting() {
                 </div>
               </div>
             ) : (
-              <Stage role={role} />
+              // Make tiles scrollable on small screens and avoid overlapping the control bar
+              <div className="flex-1 min-h-0 overflow-y-auto pb-20">
+                <Stage role={role} />
+              </div>
             )}
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
