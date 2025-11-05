@@ -1036,8 +1036,9 @@ export default function Meeting() {
                 </div>
               </div>
             ) : (
-              // Make tiles scrollable on small screens and avoid overlapping the control bar
-              <div className="flex-1 min-h-0 overflow-y-auto pb-20">
+              // Mobile: scrollable with padding to avoid control bar overlap
+              // Large screens: wrapper doesn't constrain, Stage measures parent flex container
+              <div className="flex-1 min-h-0 overflow-y-auto pb-20 lg:overflow-visible lg:pb-0 lg:flex lg:flex-1 lg:min-h-0">
                 <Stage role={role} />
               </div>
             )}
