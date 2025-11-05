@@ -252,6 +252,16 @@ export default function Stage({ role }: StageProps) {
           </div>
         )}
 
+        {/* Bottom-left: participant name (always visible, mobile-friendly) */}
+        <div className="absolute left-2 bottom-2 max-w-[75%]">
+          <span
+            className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
+            title={name}
+          >
+            {name}
+          </span>
+        </div>
+
         {/* Bottom-right: role badge only */}
         <div className="absolute right-2 bottom-2">
           {(() => {

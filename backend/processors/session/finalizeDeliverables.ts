@@ -127,53 +127,64 @@ export async function finalizeSessionDeliverables(
   if (live) {
     const roomName = String(session._id);
     // Primary: MP4 produced by file egress under known prefix we set in startFileEgress()
-    let mp4: { key: string; size: number } | null =
-      await findLatestObjectByPrefix(
-        `recordings/${encodeURIComponent(roomName)}/`,
-        { suffix: ".mp4" }
-      );
-    if (!mp4) {
-      mp4 = await findLatestObjectByPrefix(`${encodeURIComponent(roomName)}-`, {
-        suffix: ".mp4",
-      });
-    }
-    if (mp4) {
-      videoS3Key = mp4.key;
-      const filename = formatDeliverableFilename({
-        baseTs,
-        type: "VIDEO",
-        sessionTitle,
-        extension: ".mp4",
-      });
-      const exists = await SessionDeliverableModel.exists({
-        projectId,
-        sessionId: session._id,
-        type: "VIDEO",
-        storageKey: mp4.key,
-      });
-      if (!exists) {
-        await SessionDeliverableModel.create({
-          sessionId: session._id,
-          projectId,
-          type: "VIDEO",
-          displayName: filename,
-          size: mp4.size,
-          storageKey: mp4.key,
-          uploadedBy: (endedBy as any) || session.moderators?.[0],
+    try {
+      let mp4: { key: string; size: number } | null =
+        await findLatestObjectByPrefix(
+          `recordings/${encodeURIComponent(roomName)}/`,
+          { suffix: ".mp4" }
+        );
+      if (!mp4) {
+        mp4 = await findLatestObjectByPrefix(`${encodeURIComponent(roomName)}-`, {
+          suffix: ".mp4",
         });
       }
+      if (mp4) {
+        videoS3Key = mp4.key;
+        const filename = formatDeliverableFilename({
+          baseTs,
+          type: "VIDEO",
+          sessionTitle,
+          extension: ".mp4",
+        });
+        const exists = await SessionDeliverableModel.exists({
+          projectId,
+          sessionId: session._id,
+          type: "VIDEO",
+          storageKey: mp4.key,
+        });
+        if (!exists) {
+          await SessionDeliverableModel.create({
+            sessionId: session._id,
+            projectId,
+            type: "VIDEO",
+            displayName: filename,
+            size: mp4.size,
+            storageKey: mp4.key,
+            uploadedBy: (endedBy as any) || session.moderators?.[0],
+          });
+        }
+      }
+    } catch (e) {
+      try {
+        console.warn(
+          `[DELIVERABLES] MP4 discovery via S3 listing failed for session ${sessionId}:`,
+          (e as any)?.message || e
+        );
+      } catch {}
     }
 
     // Check if VIDEO deliverable already exists from previous run (even if MP4 not found in S3)
     if (!videoS3Key) {
-      const existingVideo = await SessionDeliverableModel.findOne({
-        projectId,
-        sessionId: session._id,
-        type: "VIDEO",
-      }).lean();
-      if (existingVideo) {
-        videoS3Key = existingVideo.storageKey;
-      }
+      try {
+        const existingVideo = await SessionDeliverableModel.findOne({
+          projectId,
+          sessionId: session._id,
+          type: "VIDEO",
+        }).lean();
+        if (existingVideo) {
+          videoS3Key = existingVideo.storageKey;
+        }
+      } catch {}
     }
 
     if (!videoS3Key && live.hlsPlaybackUrl) {

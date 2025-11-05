@@ -1036,7 +1036,11 @@ export default function Meeting() {
                 </div>
               </div>
             ) : (
-              <Stage role={role} />
+              // Mobile: scrollable with padding to avoid control bar overlap
+              // Large screens: wrapper doesn't constrain, Stage measures parent flex container
+              <div className="flex-1 min-h-0 overflow-y-auto pb-20 lg:overflow-visible lg:pb-0 lg:flex lg:flex-1 lg:min-h-0">
+                <Stage role={role} />
+              </div>
             )}
             <div className="shrink-0 pt-2  gap-2">
               <ControlBar variation="minimal" controls={{ leave: false }} />
