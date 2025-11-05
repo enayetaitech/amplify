@@ -1,0 +1,40 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Hostinger server
+        env:
+          SERVER_USER: ${{ secrets.HOSTINGER_USER }}
+          SERVER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          SERVER_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH || '/var/www/amplify' }}
+        run: |
+          echo "Connecting to ${SERVER_USER}@${SERVER_HOST}..."
+          ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} \
+            "cd ${SERVER_PATH} && bash deploy.sh"
+
+      - name: Deployment status
+        run: |
+          echo "✓ Deployment to Hostinger completed successfully"
