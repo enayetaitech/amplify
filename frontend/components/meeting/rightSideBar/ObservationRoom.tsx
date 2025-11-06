@@ -454,7 +454,7 @@ const ObservationRoom = () => {
           : {};
 
       const payload = {
-        scope: "observer_wait_group",
+        scope: "observer_project_group",
         content: groupText.trim(),
         email: saved?.email || "",
         name: saved?.name || "",

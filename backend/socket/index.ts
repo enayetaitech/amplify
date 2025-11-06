@@ -166,6 +166,20 @@ export function attachSocket(server: HTTPServer) {
                 name: name || email || "Observer",
                 email: email || "",
               });
+              
+              // Emit project-level observer list to all moderators/admins in the project
+              (async () => {
+                try {
+                  const projectObserverRoom = `project_observer::${projectId}`;
+                  const m = projectObserverInfo.get(projectId);
+                  const observers = m
+                    ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+                    : [];
+                  io.to(projectObserverRoom).emit("observer:list", { observers });
+                } catch (err) {
+                  console.error("Failed to emit project observer list on connect:", err);
+                }
+              })();
             }
           }
         } catch (err) {
@@ -177,6 +191,28 @@ export function attachSocket(server: HTTPServer) {
       if (!moderatorSockets.has(sessionId))
         moderatorSockets.set(sessionId, new Set());
       moderatorSockets.get(sessionId)!.add(socket.id);
+      
+      // Join project-level observer room so moderators can see all observers across sessions
+      (async () => {
+        try {
+          const session = await SessionModel.findById(sessionId).lean();
+          if (session) {
+            const pid = (session.projectId as any)?._id || session.projectId;
+            const projectId = String(pid);
+            const projectObserverRoom = `project_observer::${projectId}`;
+            socket.join(projectObserverRoom);
+            
+            // Immediately emit current project-level observer list to this moderator
+            const m = projectObserverInfo.get(projectId);
+            const observers = m
+              ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+              : [];
+            socket.emit("observer:list", { observers });
+          }
+        } catch (err) {
+          console.error("Failed to join moderator to project observer room:", err);
+        }
+      })();
     }
     // Helper to emit observer count to session
     const emitObserverCount = () => {
@@ -191,6 +227,24 @@ export function attachSocket(server: HTTPServer) {
         ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
         : [];
       io.to(sessionId).emit("observer:list", { observers });
+    };
+    // Helper to emit project-level observer list to moderators/admins
+    const emitProjectObserverList = async () => {
+      try {
+        const session = await SessionModel.findById(sessionId).lean();
+        if (session) {
+          const pid = (session.projectId as any)?._id || session.projectId;
+          const projectId = String(pid);
+          const projectObserverRoom = `project_observer::${projectId}`;
+          const m = projectObserverInfo.get(projectId);
+          const observers = m
+            ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+            : [];
+          io.to(projectObserverRoom).emit("observer:list", { observers });
+        }
+      } catch (err) {
+        console.error("Failed to emit project observer list:", err);
+      }
     };
     // Helper to emit moderator/admin list (names/emails/role) to the session
     const emitModeratorList = () => {
@@ -1107,9 +1161,7 @@ export function attachSocket(server: HTTPServer) {
               const pid = (session.projectId as any)?._id || session.projectId;
               const projectId = new Types.ObjectId(String(pid));
               
-              // Calculate 24-hour window: only save messages within last 24 hours
-              const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-              
+              // Save message (will be archived to deliverables and deleted at midnight daily)
               const saved = await ObserverProjectChatModel.create({
                 projectId,
                 senderEmail: senderEmail,
@@ -1118,15 +1170,20 @@ export function attachSocket(server: HTTPServer) {
                 scope,
               });
               
-              // Broadcast to project-level observer room
+              // Broadcast to project-level observer room with correct format
               const projectObserverRoom = `project_observer::${String(pid)}`;
+              const messageObj = saved.toObject();
+              // Transform to match frontend GroupMessage format
               io.to(projectObserverRoom).emit("chat:new", {
                 scope,
-                message: saved.toObject(),
+                message: {
+                  senderEmail: messageObj.senderEmail,
+                  name: messageObj.name,
+                  content: messageObj.content,
+                  timestamp: messageObj.timestamp,
+                  _id: messageObj._id,
+                },
               });
-              
-              // Also clean up messages older than 24 hours (optional, can be done in background job)
-              // For now, we'll filter in queries
               
               return ack?.({ ok: true });
             }
@@ -1242,25 +1299,24 @@ export function attachSocket(server: HTTPServer) {
               const pid = (session.projectId as any)?._id || session.projectId;
               const projectId = new Types.ObjectId(String(pid));
               
-              // Calculate 24-hour window: only return messages within last 24 hours
-              const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+              // Calculate today's date range: only return messages from today (chat resets daily at midnight)
+              const today = new Date();
+              today.setHours(0, 0, 0, 0); // Start of today
               
               const items = await ObserverProjectChatModel.find({
                 projectId,
                 scope,
-                timestamp: { $gte: twentyFourHoursAgo },
+                timestamp: { $gte: today },
               })
                 .sort({ timestamp: 1 })
                 .limit(lim)
                 .lean();
               
-              // Transform to match expected format
+              // Transform to match expected format (GroupMessage: { senderEmail?, name?, content })
               const transformed = items.map((item) => ({
                 _id: item._id,
                 senderEmail: item.senderEmail,
-                senderName: item.name,
                 name: item.name,
-                email: item.senderEmail,
                 content: item.content,
                 timestamp: item.timestamp,
                 scope: item.scope,
@@ -1491,11 +1547,34 @@ export function attachSocket(server: HTTPServer) {
     // Provide current observer list snapshot on demand
     socket.on(
       "observer:list:get",
-      (
+      async (
         _payload: {},
         ack?: (resp: { observers: { name: string; email: string }[] }) => void
       ) => {
         try {
+          // For moderators/admins, return project-level observers (all sessions)
+          // For observers, return session-level observers only
+          if (["Moderator", "Admin"].includes(role)) {
+            try {
+              const session = await SessionModel.findById(sessionId).lean();
+              if (session) {
+                const pid = (session.projectId as any)?._id || session.projectId;
+                const projectId = String(pid);
+                const m = projectObserverInfo.get(projectId);
+                const observers = m
+                  ? Array.from(m.values()).map((v) => ({
+                      name: v.name,
+                      email: v.email,
+                    }))
+                  : [];
+                return ack?.({ observers });
+              }
+            } catch (err) {
+              console.error("Failed to get project-level observer list:", err);
+            }
+          }
+          
+          // Fallback to session-level observers
           const m = observerInfo.get(sessionId);
           const observers = m
             ? Array.from(m.values()).map((v) => ({

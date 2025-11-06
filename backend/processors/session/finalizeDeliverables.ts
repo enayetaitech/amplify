@@ -4,6 +4,7 @@ import { LiveSessionModel } from "../../model/LiveSessionModel";
 import { SessionDeliverableModel } from "../../model/SessionDeliverableModel";
 import GroupMessageModel from "../../model/GroupMessage";
 import ObserverGroupMessageModel from "../../model/ObserverGroupMessage";
+import { ObserverProjectChatModel } from "../../model/ObserverProjectChatModel";
 import { PollRunModel } from "../../model/PollRun";
 import { PollModel } from "../../model/PollModel";
 import PollResponse from "../../model/PollResponse";
@@ -338,11 +339,54 @@ export async function finalizeSessionDeliverables(
       .sort({ timestamp: 1 })
       .lean();
 
-    const backroomChats = await ObserverGroupMessageModel.find({
+    // Get session-scoped backroom chats (legacy)
+    const sessionBackroomChats = await ObserverGroupMessageModel.find({
       sessionId: liveId,
     })
       .sort({ timestamp: 1 })
       .lean();
+
+    // Get project-level observer chat messages (unified chat)
+    // Include messages from the session start time to now (or end time if ended)
+    const sessionStartTime = session.startAtEpoch
+      ? new Date(session.startAtEpoch)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000); // Fallback to last 24h if no start time
+    const sessionEndTime = session.endAtEpoch
+      ? new Date(session.endAtEpoch)
+      : new Date(); // Use current time if session hasn't ended yet
+    
+    // Get project ID (handle both ObjectId and string)
+    const projectIdObj = session.projectId instanceof Types.ObjectId
+      ? session.projectId
+      : new Types.ObjectId(String(session.projectId));
+    
+    // Get project-level observer chat messages within session timeframe
+    const projectObserverChats = await ObserverProjectChatModel.find({
+      projectId: projectIdObj,
+      timestamp: {
+        $gte: sessionStartTime,
+        $lte: sessionEndTime,
+      },
+      scope: "observer_project_group",
+    })
+      .sort({ timestamp: 1 })
+      .lean();
+
+    // Combine session-scoped and project-level chats
+    const backroomChats = [
+      ...sessionBackroomChats,
+      ...projectObserverChats.map((m) => ({
+        ...m,
+        // Transform to match ObserverGroupMessage format for consistent processing
+        name: m.name,
+        content: m.content,
+        timestamp: m.timestamp,
+      })),
+    ].sort((a, b) => {
+      const timeA = new Date((a as any).timestamp || 0).getTime();
+      const timeB = new Date((b as any).timestamp || 0).getTime();
+      return timeA - timeB;
+    });
 
     if (sessionChats.length) {
       const lines: string[] = [
