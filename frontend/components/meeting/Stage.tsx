@@ -301,7 +301,7 @@ export default function Stage({ role }: StageProps) {
         )}
 
         {/* Bottom-left: participant name (always visible, mobile-friendly) */}
-        <div className="absolute left-2 bottom-2 max-w-[75%]">
+        <div className="absolute left-2 bottom-2 max-w-[75%] z-20 participant-name-overlay">
           <span
             className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
             title={name}
@@ -311,7 +311,7 @@ export default function Stage({ role }: StageProps) {
         </div>
 
         {/* Bottom-right: role badge only */}
-        <div className="absolute right-2 bottom-2">
+        <div className="absolute right-2 bottom-2 z-20 participant-name-overlay">
           {(() => {
             const tileRole = identityToUiRole[identity];
             if (!tileRole) return null;
