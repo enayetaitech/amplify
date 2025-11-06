@@ -54,3 +54,37 @@
   color: #fff !important;
   border-color: rgba(255, 255, 255, 0.4) !important;
 }
+
+/* Ensure custom overlays appear above LiveKit video elements */
+.lk-scope .lk-participant-tile {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Force video elements to stay below overlays */
+.lk-scope .lk-participant-tile video,
+.lk-scope .lk-participant-tile canvas,
+.lk-scope [data-lk-source="camera"] video,
+.lk-scope [data-lk-source="camera"] canvas {
+  position: relative;
+  z-index: 0;
+}
+
+/* Force hardware acceleration and proper stacking for participant name overlays on mobile */
+.lk-scope [data-lk-source="camera"] {
+  position: relative;
+}
+
+/* Ensure name overlays are not clipped by overflow and appear above video on mobile */
+.lk-scope .participant-name-overlay {
+  z-index: 30 !important;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  position: absolute !important;
+  pointer-events: none;
+}
+
+.lk-scope .participant-name-overlay > * {
+  pointer-events: auto;
+}
