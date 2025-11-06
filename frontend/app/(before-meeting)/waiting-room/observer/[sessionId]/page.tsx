@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { SOCKET_URL } from "constant/socket";
+import api from "lib/api";
 import Logo from "components/shared/LogoComponent";
 import { Button } from "components/ui/button";
 import { Input } from "components/ui/input";
@@ -65,6 +66,8 @@ export default function ObserverWaitingRoom() {
   >([]);
   const [activeTab, setActiveTab] = useState<string>("list");
   const [meEmail, setMeEmail] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>("");
+  void projectId;
   const [selectedObserver, setSelectedObserver] = useState<{
     name?: string;
     email?: string;
@@ -118,11 +121,12 @@ export default function ObserverWaitingRoom() {
       },
     });
 
-    const onStarted = () => {
+    const onStarted = (payload?: { sessionId?: string; playbackUrl?: string | null }) => {
+      const targetSessionId = payload?.sessionId || sessionId;
       toast.success(
         "Streaming started. You are being taken to the streaming page."
       );
-      router.replace(`/meeting/${sessionId}?role=Observer`);
+      router.replace(`/meeting/${targetSessionId}?role=Observer`);
     };
 
     s.on("observer:stream:started", onStarted);
@@ -142,8 +146,8 @@ export default function ObserverWaitingRoom() {
 
     // Chat message handling
     const onChatNew = (payload: ChatPayload) => {
-      if (payload.scope === "observer_wait_group") {
-        // Group chat message
+      if (payload.scope === "observer_project_group" || payload.scope === "observer_wait_group") {
+        // Group chat message (support both old and new scope for backward compatibility)
         const groupMessage = payload.message as GroupMessage;
         if (showGroupChat) {
           setGroupMessages((prev) => [...prev, groupMessage]);
@@ -187,10 +191,24 @@ export default function ObserverWaitingRoom() {
       if (
         !payload?.scope ||
         (payload.scope !== "observer_wait_dm" &&
-          payload.scope !== "stream_dm_obs_mod") ||
+          payload.scope !== "stream_dm_obs_mod" &&
+          payload.scope !== "observer_project_group") ||
         !payload?.message
       )
         return;
+      
+      // Handle project-level group chat unread
+      if (payload.scope === "observer_project_group") {
+        const groupMessage = payload.message as GroupMessage;
+        void groupMessage
+        if (showGroupChat) {
+          // Already visible, don't count as unread
+          return;
+        } else {
+          setGroupUnread((prev) => prev + 1);
+          return;
+        }
+      }
 
       const message = payload.message;
       const from = (message.email || "").toLowerCase();
@@ -218,8 +236,9 @@ export default function ObserverWaitingRoom() {
     };
   }, [socket, selectedObserver, showGroupChat, meEmail]);
 
-  // Effect: load current observer identity from localStorage
+  // Effect: load current observer identity and projectId from localStorage
   // - Reads `liveSessionUser` from localStorage to set `meEmail`
+  // - Reads `observerProjectId` from localStorage for project-level chat
   // - Used to avoid showing the current observer in the observer list
   // - Runs once on mount
   useEffect(() => {
@@ -229,10 +248,53 @@ export default function ObserverWaitingRoom() {
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
       setMeEmail(saved?.email || "");
+      
+      // Get projectId from localStorage (stored during join)
+      const storedProjectId = window.localStorage.getItem("observerProjectId");
+      if (storedProjectId) {
+        setProjectId(storedProjectId);
+      } else {
+        // Fallback: fetch from session if not in localStorage
+        (async () => {
+          try {
+            const res = await api.get(`/api/v1/sessions/${sessionId}`);
+            const sess = res.data?.data;
+            if (sess) {
+              const raw = (sess as { projectId?: unknown }).projectId;
+              const extractId = (v: unknown): string | null => {
+                if (!v) return null;
+                if (typeof v === "string") return v;
+                if (typeof v === "object") {
+                  const obj = v as { _id?: unknown; toString?: () => string };
+                  if (typeof obj._id === "string") return obj._id;
+                  if (
+                    obj._id &&
+                    typeof (obj._id as { toString?: () => string }).toString ===
+                      "function"
+                  ) {
+                    const s = String(
+                      (obj._id as { toString?: () => string }).toString?.()
+                    );
+                    if (s && s !== "[object Object]") return s;
+                  }
+                }
+                return null;
+              };
+              const pid = extractId(raw);
+              if (pid) {
+                setProjectId(pid);
+                window.localStorage.setItem("observerProjectId", pid);
+              }
+            }
+          } catch {
+            // ignore
+          }
+        })();
+      }
     } catch {
       // ignore
     }
-  }, []);
+  }, [sessionId]);
 
   // Effect: subscribe to observer list updates via socket
   // - Registers a handler for the "observer:list" event to update `observerList`
@@ -338,10 +400,11 @@ export default function ObserverWaitingRoom() {
     const loadGroupChatHistory = async () => {
       try {
         setGroupLoading(true);
+        // Use project-level scope for unified chat
         socket.emit(
           "chat:history:get",
           {
-            scope: "observer_wait_group",
+            scope: "observer_project_group",
             limit: 50,
           },
           (response?: { items: GroupMessage[] }) => {
@@ -409,10 +472,11 @@ export default function ObserverWaitingRoom() {
     if (!socket || !groupText.trim()) return;
 
     try {
+      // Use project-level scope for unified chat
       socket.emit(
         "chat:send",
         {
-          scope: "observer_wait_group",
+          scope: "observer_project_group",
           content: groupText.trim(),
         },
         (response?: SocketResponse) => {

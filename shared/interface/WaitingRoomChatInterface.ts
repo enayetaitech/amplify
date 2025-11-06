@@ -6,6 +6,7 @@ export type ChatScope =
   | "meeting_mod_dm"
   | "observer_wait_group"
   | "observer_wait_dm"
+  | "observer_project_group"
   | "stream_group"
   | "stream_dm_obs_obs"
   | "stream_dm_obs_mod";

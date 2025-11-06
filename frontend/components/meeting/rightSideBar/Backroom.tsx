@@ -63,14 +63,14 @@ const Backroom = ({
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
 
-  // Group chat: load when opened
+  // Group chat: load when opened (project-level unified chat)
   useEffect(() => {
     if (!socket) return;
     if (!showGroupChatObs) return;
     setGroupLoading(true);
     socket.emit(
       "chat:history:get",
-      { scope: "stream_group", limit: 100 },
+      { scope: "observer_project_group", limit: 100 },
       (resp?: { items?: GroupMessage[] }) => {
         setGroupMessages(Array.isArray(resp?.items) ? resp!.items! : []);
         setGroupLoading(false);
@@ -79,11 +79,11 @@ const Backroom = ({
     );
   }, [socket, showGroupChatObs]);
 
-  // Group chat: live updates
+  // Group chat: live updates (project-level unified chat)
   useEffect(() => {
     if (!socket) return;
     const onNew = (p: { scope?: string; message?: GroupMessage }) => {
-      if (p?.scope !== "stream_group" || !p?.message) return;
+      if (p?.scope !== "observer_project_group" || !p?.message) return;
       if (showGroupChatObs) {
         setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
         setGroupUnread(0);
@@ -382,7 +382,7 @@ const Backroom = ({
                     if (!txt) return;
                     socket?.emit(
                       "chat:send",
-                      { scope: "stream_group", content: txt },
+                      { scope: "observer_project_group", content: txt },
                       (ack?: { ok?: boolean; error?: string }) => {
                         if (ack?.ok) setGroupText("");
                       }

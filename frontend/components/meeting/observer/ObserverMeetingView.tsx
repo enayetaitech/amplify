@@ -446,7 +446,7 @@ export default function ObserverMeetingView({
     );
   };
 
-  // Group chat: load history when opened
+  // Group chat: load history when opened (project-level unified chat)
   useEffect(() => {
     const s = meetingSocket;
     if (!s) return;
@@ -455,7 +455,7 @@ export default function ObserverMeetingView({
     try {
       s.emit(
         "chat:history:get",
-        { scope: "stream_group", limit: 100 },
+        { scope: "observer_project_group", limit: 100 },
         (resp?: { items?: GroupMessage[] }) => {
           setGroupMessages(Array.isArray(resp?.items) ? resp!.items! : []);
           setGroupLoading(false);
@@ -468,12 +468,12 @@ export default function ObserverMeetingView({
     }
   }, [meetingSocket, showGroupChatObs]);
 
-  // Group chat: live updates
+  // Group chat: live updates (project-level unified chat)
   useEffect(() => {
     const s = meetingSocket;
     if (!s) return;
     const onNew = (p: { scope?: string; message?: GroupMessage }) => {
-      if (p?.scope !== "stream_group" || !p?.message) return;
+      if (p?.scope !== "observer_project_group" || !p?.message) return;
       if (showGroupChatObs) {
         setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
         setGroupUnread(0);
@@ -537,7 +537,7 @@ export default function ObserverMeetingView({
     el.scrollTop = el.scrollHeight;
   }, [showGroupChatObs, groupMessages.length, groupLoading]);
 
-  // Group chat: send
+  // Group chat: send (project-level unified chat)
   const sendGroup = () => {
     const s = meetingSocket;
     if (!s) return;
@@ -545,7 +545,7 @@ export default function ObserverMeetingView({
     if (!txt) return;
     s.emit(
       "chat:send",
-      { scope: "stream_group", content: txt },
+      { scope: "observer_project_group", content: txt },
       (ack?: { ok?: boolean; error?: string }) => {
         if (ack?.ok) setGroupText("");
         else toast.error(ack?.error || "Failed to send message");
