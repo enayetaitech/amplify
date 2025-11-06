@@ -142,4 +142,23 @@ server.listen(PORT, async () => {
       baseLogger.error({ err }, "Deliverables purge failed");
     }
   });
+
+  // daily at 00:00 (midnight) export project chat to deliverables and start fresh
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      const { exportDailyProjectChat } = await import(
+        "./services/dailyChatExport"
+      );
+      const { exported, deleted, errors } = await exportDailyProjectChat();
+      baseLogger.info(
+        { exported, deleted, errors },
+        "Daily project chat export completed"
+      );
+      if (errors.length > 0) {
+        baseLogger.warn({ errors }, "Daily chat export had errors");
+      }
+    } catch (err) {
+      baseLogger.error({ err }, "Daily chat export failed");
+    }
+  });
 });

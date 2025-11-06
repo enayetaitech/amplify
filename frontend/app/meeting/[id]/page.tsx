@@ -662,11 +662,16 @@ export default function Meeting() {
     if (role !== "observer") return;
     const s = window.__meetingSocket;
     if (!s) return;
-    const onStopped = () => {
-      toast.info(
-        "Streaming stopped. You are being taken to the observation room."
-      );
-      router.replace(`/waiting-room/observer/${sessionId}`);
+    const onStopped = (payload?: { sessionId?: string }) => {
+      // If the stopped session is the current one, navigate to waiting room
+      // If it's a different session, we can stay on current session if it's still streaming
+      const stoppedSessionId = payload?.sessionId || sessionId;
+      if (stoppedSessionId === String(sessionId)) {
+        toast.info(
+          "Streaming stopped. You are being taken to the observation room."
+        );
+        router.replace(`/waiting-room/observer/${sessionId}`);
+      }
     };
     s.on("observer:stream:stopped", onStopped);
     return () => {
