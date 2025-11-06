@@ -10,6 +10,7 @@ jobs:
   deploy:
     name: Deploy to Production Server
     runs-on: ubuntu-latest
+    timeout-minutes: 120
 
     steps:
       - name: Checkout code
@@ -30,7 +31,7 @@ jobs:
           SERVER_USER: ${{ secrets.HOSTINGER_USER }}
           SERVER_HOST: ${{ secrets.HOSTINGER_HOST }}
           SERVER_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH || '/var/www/amplify' }}
-        timeout-minutes: 30
+        timeout-minutes: 90
         run: |
           echo "Connecting to ${SERVER_USER}@${SERVER_HOST}..."
           ssh -o StrictHostKeyChecking=no \
