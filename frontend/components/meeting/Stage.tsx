@@ -31,6 +31,20 @@ export default function Stage({ role }: StageProps) {
   const [spotlightIds, setSpotlightIds] = useState<string[]>([]);
   const [focusedShareIdx, setFocusedShareIdx] = useState<number>(0);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  // Track each tile DOM element by identity for fallback overlay positioning
+  const tileElByIdentityRef = useRef<Record<string, HTMLElement | null>>({});
+  const [tileLabelPos, setTileLabelPos] = useState<
+    Record<string, { left: number; top: number }>
+  >({});
+  const isMobileUA = useMemo(() => {
+    try {
+      if (typeof navigator === "undefined") return false;
+      const ua = navigator.userAgent || "";
+      return /iPhone|iPad|iPod|Android/i.test(ua);
+    } catch {
+      return false;
+    }
+  }, []);
   // Socket-based participant info: identity -> { name, email, role }
   const [socketParticipantInfo, setSocketParticipantInfo] = useState<
     Record<string, { name: string; email: string; role: string }>
@@ -279,6 +293,45 @@ export default function Stage({ role }: StageProps) {
     identityToName,
   ]);
 
+  // Compute absolute positions for fallback labels on mobile (sibling top-layer overlay)
+  useEffect(() => {
+    if (!isMobileUA) return;
+    const el = stageRef.current;
+    if (!el) return;
+    let raf = 0;
+    const measure = () => {
+      try {
+        const containerRect = el.getBoundingClientRect();
+        const next: Record<string, { left: number; top: number }> = {};
+        // Approximate chip height (text-xs with padding) ~ 20px
+        const chipH = 20;
+        for (const [id, node] of Object.entries(tileElByIdentityRef.current)) {
+          if (!node) continue;
+          const r = node.getBoundingClientRect();
+          const left = Math.max(0, Math.round(r.left - containerRect.left + 8));
+          const top = Math.max(
+            0,
+            Math.round(r.bottom - containerRect.top - 8 - chipH)
+          );
+          next[id] = { left, top };
+        }
+        setTileLabelPos(next);
+      } catch {}
+    };
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    });
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      cancelAnimationFrame(raf);
+    };
+  }, [isMobileUA, orderedTracks.length]);
+
   const togglePin = useCallback((identity: string) => {
     setPinnedIdentity((prev) => (prev === identity ? null : identity));
   }, []);
@@ -352,10 +405,14 @@ export default function Stage({ role }: StageProps) {
     return (
       <div
         key={trackRef.publication?.trackSid || identity}
-        className={`relative rounded-lg overflow-hidden bg-black group outline-none ${
+        className={`relative isolate rounded-lg overflow-hidden bg-black group outline-none ${
           speaking ? "ring-2 ring-custom-light-blue-2" : "ring-0"
         }`}
         tabIndex={0}
+        ref={(node) => {
+          // store for fallback overlay positioning
+          tileElByIdentityRef.current[identity] = node;
+        }}
         onDoubleClick={(e) => {
           if (!identity) return;
           if ((role === "moderator" || role === "admin") && e.shiftKey)
@@ -526,7 +583,7 @@ export default function Stage({ role }: StageProps) {
       }
 
       return (
-        <div ref={stageRef} className="flex-1 min-h-0">
+        <div ref={stageRef} className="relative flex-1 min-h-0">
           <div className="flex" style={{ gap }}>
             <div
               className="flex items-center justify-center"
@@ -587,6 +644,38 @@ export default function Stage({ role }: StageProps) {
               </div>
             )}
           </div>
+          {isMobileUA && (
+            <div className="pointer-events-none absolute inset-0 z-[100]">
+              {Object.entries(tileLabelPos).map(([id, pos]) => (
+                <div
+                  key={`fallback-${id}`}
+                  className="absolute"
+                  style={{ left: pos.left, top: pos.top }}
+                >
+                  <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
+                    {identityToName[id] || id}
+                  </span>
+                  {(() => {
+                    const tileRole = identityToUiRole[id];
+                    if (!tileRole) return null;
+                    const label =
+                      tileRole === "moderator"
+                        ? "Host"
+                        : tileRole === "admin"
+                        ? "Admin"
+                        : tileRole === "participant"
+                        ? "Participant"
+                        : "Observer";
+                    return (
+                      <span className="ml-2 inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white">
+                        {label}
+                      </span>
+                    );
+                  })()}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
@@ -622,7 +711,7 @@ export default function Stage({ role }: StageProps) {
     return (
       <div
         ref={stageRef}
-        className="flex-1 min-h-0 flex flex-col"
+        className="relative flex-1 min-h-0 flex flex-col"
         style={{ gap }}
       >
         <div
@@ -682,12 +771,44 @@ export default function Stage({ role }: StageProps) {
             </TrackLoop>
           </div>
         )}
+        {isMobileUA && (
+          <div className="pointer-events-none absolute inset-0 z-[100]">
+            {Object.entries(tileLabelPos).map(([id, pos]) => (
+              <div
+                key={`fallback-${id}`}
+                className="absolute"
+                style={{ left: pos.left, top: pos.top }}
+              >
+                <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
+                  {identityToName[id] || id}
+                </span>
+                {(() => {
+                  const tileRole = identityToUiRole[id];
+                  if (!tileRole) return null;
+                  const label =
+                    tileRole === "moderator"
+                      ? "Host"
+                      : tileRole === "admin"
+                      ? "Admin"
+                      : tileRole === "participant"
+                      ? "Participant"
+                      : "Observer";
+                  return (
+                    <span className="ml-2 inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white">
+                      {label}
+                    </span>
+                  );
+                })()}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div ref={stageRef} className="flex-1 min-h-0">
+    <div ref={stageRef} className="relative flex-1 min-h-0">
       <div
         className="grid"
         style={{
@@ -704,6 +825,38 @@ export default function Stage({ role }: StageProps) {
           </div>
         </TrackLoop>
       </div>
+      {isMobileUA && (
+        <div className="pointer-events-none absolute inset-0 z-[100]">
+          {Object.entries(tileLabelPos).map(([id, pos]) => (
+            <div
+              key={`fallback-${id}`}
+              className="absolute"
+              style={{ left: pos.left, top: pos.top }}
+            >
+              <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
+                {identityToName[id] || id}
+              </span>
+              {(() => {
+                const tileRole = identityToUiRole[id];
+                if (!tileRole) return null;
+                const label =
+                  tileRole === "moderator"
+                    ? "Host"
+                    : tileRole === "admin"
+                    ? "Admin"
+                    : tileRole === "participant"
+                    ? "Participant"
+                    : "Observer";
+                return (
+                  <span className="ml-2 inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white">
+                    {label}
+                  </span>
+                );
+              })()}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

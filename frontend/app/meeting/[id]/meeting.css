@@ -59,6 +59,7 @@
 .lk-scope .lk-participant-tile {
   position: relative;
   isolation: isolate;
+  contain: paint;
 }
 
 /* Force video elements to stay below overlays */
