@@ -34,7 +34,7 @@ export default function Stage({ role }: StageProps) {
   // Track each tile DOM element by identity for fallback overlay positioning
   const tileElByIdentityRef = useRef<Record<string, HTMLElement | null>>({});
   const [tileLabelPos, setTileLabelPos] = useState<
-    Record<string, { left: number; top: number }>
+    Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number }>
   >({});
   const isMobileUA = useMemo(() => {
     try {
@@ -302,14 +302,16 @@ export default function Stage({ role }: StageProps) {
     const measure = () => {
       try {
         const containerRect = el.getBoundingClientRect();
-        const next: Record<string, { left: number; top: number }> = {};
+        const next: Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number }> = {};
         for (const [id, node] of Object.entries(tileElByIdentityRef.current)) {
           if (!node) continue;
           const r = node.getBoundingClientRect();
-          const left = Math.max(0, Math.round(r.left - containerRect.left + 8));
-          // Place at tile bottom then shift up by 100% via CSS transform for exact chip height
-          const top = Math.max(0, Math.round(r.bottom - containerRect.top - 8));
-          next[id] = { left, top };
+          const tileLeft = Math.round(r.left - containerRect.left);
+          const tileRight = Math.round(r.right - containerRect.left);
+          const nameLeft = Math.max(0, tileLeft + 8);
+          const roleRight = Math.max(0, tileRight - 8);
+          const bottom = Math.max(0, Math.round(r.bottom - containerRect.top - 8));
+          next[id] = { nameLeft, roleRight, bottom, tileLeft, tileRight };
         }
         setTileLabelPos(next);
       } catch {}
@@ -445,7 +447,7 @@ export default function Stage({ role }: StageProps) {
         )}
 
         {/* Bottom-left: participant name (always visible, mobile-friendly) */}
-        <div className="absolute left-2 bottom-2 max-w-[75%] z-20 participant-name-overlay">
+        <div className="absolute left-2 bottom-2 max-w-[75%] z-50 participant-name-overlay">
           <span
             className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
             title={name}
@@ -455,7 +457,7 @@ export default function Stage({ role }: StageProps) {
         </div>
 
         {/* Bottom-right: role badge only */}
-        <div className="absolute right-2 bottom-2 z-20 participant-name-overlay">
+        <div className="absolute right-2 bottom-2 z-50 participant-name-overlay">
           {(() => {
             const tileRole = identityToUiRole[identity];
             if (!tileRole) return null;
@@ -643,14 +645,15 @@ export default function Stage({ role }: StageProps) {
           {isMobileUA && (
             <div className="pointer-events-none absolute inset-0 z-[100]">
               {Object.entries(tileLabelPos).map(([id, pos]) => (
-                <div
-                  key={`fallback-${id}`}
-                  className="absolute -translate-y-full"
-                  style={{ left: pos.left, top: pos.top }}
-                >
-                  <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
+                <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+                  {/* Name at bottom-left */}
+                  <span
+                    className="absolute inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                    style={{ left: `${pos.nameLeft}px`, bottom: `${8}px` }}
+                  >
                     {identityToName[id] || id}
                   </span>
+                  {/* Role at bottom-right */}
                   {(() => {
                     const tileRole = identityToUiRole[id];
                     if (!tileRole) return null;
@@ -663,7 +666,10 @@ export default function Stage({ role }: StageProps) {
                         ? "Participant"
                         : "Observer";
                     return (
-                      <span className="ml-2 inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white">
+                      <span
+                        className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white"
+                        style={{ left: `${pos.roleRight}px`, bottom: `${8}px`, transform: 'translateX(-100%)' }}
+                      >
                         {label}
                       </span>
                     );
@@ -770,14 +776,15 @@ export default function Stage({ role }: StageProps) {
         {isMobileUA && (
           <div className="pointer-events-none absolute inset-0 z-[100]">
             {Object.entries(tileLabelPos).map(([id, pos]) => (
-              <div
-                key={`fallback-${id}`}
-                className="absolute -translate-y-full"
-                style={{ left: pos.left, top: pos.top }}
-              >
-                <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
+              <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+                {/* Name at bottom-left */}
+                <span
+                  className="absolute inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                  style={{ left: `${pos.nameLeft}px`, bottom: `${8}px` }}
+                >
                   {identityToName[id] || id}
                 </span>
+                {/* Role at bottom-right */}
                 {(() => {
                   const tileRole = identityToUiRole[id];
                   if (!tileRole) return null;
@@ -790,7 +797,10 @@ export default function Stage({ role }: StageProps) {
                       ? "Participant"
                       : "Observer";
                   return (
-                    <span className="ml-2 inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white">
+                    <span
+                      className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white"
+                      style={{ right: `${8}px`, bottom: `${8}px` }}
+                    >
                       {label}
                     </span>
                   );
@@ -827,14 +837,15 @@ export default function Stage({ role }: StageProps) {
       {isMobileUA && (
         <div className="pointer-events-none absolute inset-0 z-[100]">
           {Object.entries(tileLabelPos).map(([id, pos]) => (
-            <div
-              key={`fallback-${id}`}
-              className="absolute -translate-y-full"
-              style={{ left: pos.left, top: pos.top }}
-            >
-              <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
+            <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+              {/* Name at bottom-left */}
+              <span
+                className="absolute inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                style={{ left: `${pos.nameLeft}px`, bottom: `${8}px` }}
+              >
                 {identityToName[id] || id}
               </span>
+              {/* Role at bottom-right */}
               {(() => {
                 const tileRole = identityToUiRole[id];
                 if (!tileRole) return null;
@@ -847,7 +858,10 @@ export default function Stage({ role }: StageProps) {
                     ? "Participant"
                     : "Observer";
                 return (
-                  <span className="ml-2 inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white">
+                  <span
+                    className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white"
+                    style={{ right: `${8}px`, bottom: `${8}px` }}
+                  >
                     {label}
                   </span>
                 );
