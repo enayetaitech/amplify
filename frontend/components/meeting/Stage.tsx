@@ -31,6 +31,10 @@ export default function Stage({ role }: StageProps) {
   const [spotlightIds, setSpotlightIds] = useState<string[]>([]);
   const [focusedShareIdx, setFocusedShareIdx] = useState<number>(0);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  // Socket-based participant info: identity -> { name, email, role }
+  const [socketParticipantInfo, setSocketParticipantInfo] = useState<
+    Record<string, { name: string; email: string; role: string }>
+  >({});
 
   const participants = useParticipants();
   const cameraTracks = useTracks([
@@ -78,12 +82,90 @@ export default function Stage({ role }: StageProps) {
     for (const p of participants) {
       const id = p.identity || "";
       if (!id) continue;
-      const metaName = parseDisplayNameFromMetadata(p.metadata);
-      const name = metaName || p.name || id;
-      map[id] = name;
+      // Prefer socket-based name, fallback to LiveKit metadata/name
+      const socketInfo = socketParticipantInfo[id.toLowerCase()];
+      if (socketInfo?.name) {
+        map[id] = socketInfo.name;
+      } else {
+        const metaName = parseDisplayNameFromMetadata(p.metadata);
+        map[id] = metaName || p.name || id;
+      }
     }
     return map;
-  }, [participants]);
+  }, [participants, socketParticipantInfo]);
+
+  // Listen for socket-based participant info updates
+  useEffect(() => {
+    const sock =
+      typeof window !== "undefined"
+        ? (window as unknown as { __meetingSocket?: { on?: (ev: string, cb: (p?: unknown) => void) => void; off?: (ev: string, cb: (p?: unknown) => void) => void; emit?: (ev: string, payload: unknown, ack?: (resp: unknown) => void) => void } })
+            .__meetingSocket || null
+        : null;
+    if (!sock) return;
+
+    // Request initial participant list
+    if (sock.emit && typeof sock.emit === "function") {
+      sock.emit("meeting:get-participants-info", (resp?: unknown) => {
+        try {
+          const r = resp as { participants?: Array<{ identity: string; name: string; email: string; role: string }> };
+          if (r?.participants && Array.isArray(r.participants)) {
+            const infoMap: Record<string, { name: string; email: string; role: string }> = {};
+            for (const p of r.participants) {
+              infoMap[p.identity.toLowerCase()] = {
+                name: p.name,
+                email: p.email,
+                role: p.role,
+              };
+            }
+            setSocketParticipantInfo((prev) => ({ ...prev, ...infoMap }));
+          }
+        } catch {}
+      });
+    }
+
+    // Listen for participant info updates
+    const onParticipantInfo = (payload?: unknown) => {
+      try {
+        const p = payload as { identity?: string; name?: string; email?: string; role?: string };
+        if (p?.identity && p.name) {
+          setSocketParticipantInfo((prev) => ({
+            ...prev,
+            [p.identity!.toLowerCase()]: {
+              name: p.name!,
+              email: p.email || "",
+              role: p.role || "",
+            },
+          }));
+        }
+      } catch {}
+    };
+
+    // Listen for participant removal
+    const onParticipantRemoved = (payload?: unknown) => {
+      try {
+        const p = payload as { identity?: string };
+        if (p?.identity) {
+          setSocketParticipantInfo((prev) => {
+            const next = { ...prev };
+            delete next[p.identity!.toLowerCase()];
+            return next;
+          });
+        }
+      } catch {}
+    };
+
+    if (sock.on && typeof sock.on === "function") {
+      sock.on("meeting:participant-info", onParticipantInfo);
+      sock.on("meeting:participant-removed", onParticipantRemoved);
+    }
+
+    return () => {
+      if (sock.off && typeof sock.off === "function") {
+        sock.off("meeting:participant-info", onParticipantInfo);
+        sock.off("meeting:participant-removed", onParticipantRemoved);
+      }
+    };
+  }, []);
 
   // Debug: log participant identities and resolved names whenever list changes
   useEffect(() => {
@@ -92,11 +174,12 @@ export default function Stage({ role }: StageProps) {
         identity: p.identity,
         p_name: p.name,
         meta: p.metadata,
+        socket_name: socketParticipantInfo[p.identity?.toLowerCase() || ""]?.name,
         resolved: identityToName[p.identity || ""],
       }));
       console.table(rows);
     } catch {}
-  }, [participants, identityToName]);
+  }, [participants, identityToName, socketParticipantInfo]);
 
   const identityToCamOn: Record<string, boolean> = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -135,12 +218,20 @@ export default function Stage({ role }: StageProps) {
     for (const p of participants) {
       const id = p.identity || "";
       if (!id) continue;
-      const ui =
-        parseUiRoleFromMetadata(p.metadata) ?? (p.isLocal ? role : null);
-      map[id] = ui;
+      // Prefer socket-based role, fallback to LiveKit metadata
+      const socketInfo = socketParticipantInfo[id.toLowerCase()];
+      if (socketInfo?.role) {
+        const serverRole = normalizeServerRole(socketInfo.role);
+        const ui = serverRole ? toUiRole(serverRole) : null;
+        map[id] = ui ?? (p.isLocal ? role : null);
+      } else {
+        const ui =
+          parseUiRoleFromMetadata(p.metadata) ?? (p.isLocal ? role : null);
+        map[id] = ui;
+      }
     }
     return map;
-  }, [participants, role]);
+  }, [participants, role, socketParticipantInfo]);
 
   const orderedTracks = useMemo(() => {
     // Filter to hide non-video unless speaking/pinned/spotlight
