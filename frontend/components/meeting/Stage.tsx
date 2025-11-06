@@ -303,16 +303,12 @@ export default function Stage({ role }: StageProps) {
       try {
         const containerRect = el.getBoundingClientRect();
         const next: Record<string, { left: number; top: number }> = {};
-        // Approximate chip height (text-xs with padding) ~ 20px
-        const chipH = 20;
         for (const [id, node] of Object.entries(tileElByIdentityRef.current)) {
           if (!node) continue;
           const r = node.getBoundingClientRect();
           const left = Math.max(0, Math.round(r.left - containerRect.left + 8));
-          const top = Math.max(
-            0,
-            Math.round(r.bottom - containerRect.top - 8 - chipH)
-          );
+          // Place at tile bottom then shift up by 100% via CSS transform for exact chip height
+          const top = Math.max(0, Math.round(r.bottom - containerRect.top - 8));
           next[id] = { left, top };
         }
         setTileLabelPos(next);
@@ -649,7 +645,7 @@ export default function Stage({ role }: StageProps) {
               {Object.entries(tileLabelPos).map(([id, pos]) => (
                 <div
                   key={`fallback-${id}`}
-                  className="absolute"
+                  className="absolute -translate-y-full"
                   style={{ left: pos.left, top: pos.top }}
                 >
                   <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
@@ -776,7 +772,7 @@ export default function Stage({ role }: StageProps) {
             {Object.entries(tileLabelPos).map(([id, pos]) => (
               <div
                 key={`fallback-${id}`}
-                className="absolute"
+                className="absolute -translate-y-full"
                 style={{ left: pos.left, top: pos.top }}
               >
                 <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">
@@ -808,7 +804,10 @@ export default function Stage({ role }: StageProps) {
   }
 
   return (
-    <div ref={stageRef} className="relative flex-1 min-h-0">
+    <div
+      ref={stageRef}
+      className={`relative flex-1 min-h-0 ${isMobileUA ? "mobile-fallback" : ""}`}
+    >
       <div
         className="grid"
         style={{
@@ -830,7 +829,7 @@ export default function Stage({ role }: StageProps) {
           {Object.entries(tileLabelPos).map(([id, pos]) => (
             <div
               key={`fallback-${id}`}
-              className="absolute"
+              className="absolute -translate-y-full"
               style={{ left: pos.left, top: pos.top }}
             >
               <span className="inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white">

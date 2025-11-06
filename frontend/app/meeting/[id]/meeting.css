@@ -86,6 +86,11 @@
   pointer-events: none;
 }
 
+/* When mobile fallback overlay is active, hide in-tile overlays to prevent duplicates */
+.lk-scope .mobile-fallback .participant-name-overlay {
+  display: none !important;
+}
+
 .lk-scope .participant-name-overlay > * {
   pointer-events: auto;
 }
