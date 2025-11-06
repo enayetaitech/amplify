@@ -98,8 +98,8 @@ const ObservationRoom = () => {
     // Chat message handling
     const onChatNew = (payload: unknown) => {
       const data = payload as ChatPayload;
-      if (data.scope === "observer_wait_group") {
-        // Group chat message
+      if (data.scope === "observer_project_group" || data.scope === "observer_wait_group") {
+        // Group chat message (support both old and new scope for backward compatibility)
         const groupMessage = data.message as GroupMessage;
         if (showGroupChat) {
           setGroupMessages((prev) => [...prev, groupMessage]);
@@ -335,10 +335,11 @@ const ObservationRoom = () => {
     const loadGroupChatHistory = async () => {
       try {
         setGroupLoading(true);
+        // Use project-level scope for unified chat
         s.emit(
           "chat:history:get",
           {
-            scope: "observer_wait_group",
+            scope: "observer_project_group",
             limit: 50,
           },
           (response?: unknown) => {
@@ -453,7 +454,7 @@ const ObservationRoom = () => {
           : {};
 
       const payload = {
-        scope: "observer_wait_group",
+        scope: "observer_project_group",
         content: groupText.trim(),
         email: saved?.email || "",
         name: saved?.name || "",

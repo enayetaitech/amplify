@@ -44,7 +44,7 @@ const ObserverJoinMeeting: React.FC = () => {
     const nameTrimmed = `${values.firstName.trim()} ${values.lastName.trim()}`;
     const emailNormalized = values.email.trim().toLowerCase();
     try {
-      const { latest } = await resolve(idParam);
+      const { latest, projectId } = await resolve(idParam);
 
       const res = await enqueue({
         sessionId: latest.sessionId,
@@ -62,6 +62,9 @@ const ObserverJoinMeeting: React.FC = () => {
         email: emailNormalized,
         role: "Observer",
       });
+      
+      // Store projectId for project-level chat and tracking
+      safeLocalSet("observerProjectId", projectId);
 
       const action = res?.data?.action as "waiting_room" | "stream" | undefined;
       if (action === "stream") {
