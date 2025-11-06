@@ -30,14 +30,14 @@ jobs:
           SERVER_USER: ${{ secrets.HOSTINGER_USER }}
           SERVER_HOST: ${{ secrets.HOSTINGER_HOST }}
           SERVER_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH || '/var/www/amplify' }}
-        timeout-minutes: 30
+        timeout-minutes: 90
         run: |
           echo "Connecting to ${SERVER_USER}@${SERVER_HOST}..."
           ssh -o StrictHostKeyChecking=no \
             -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=10 \
+            -o ServerAliveCountMax=150 \
             -o TCPKeepAlive=yes \
-            -o ConnectTimeout=30 \
+            -o ConnectTimeout=90 \
             ${SERVER_USER}@${SERVER_HOST} \
             "cd ${SERVER_PATH} && bash deploy.sh 2>&1 | tee /tmp/deploy.log || (cat /tmp/deploy.log && exit 1)"
 

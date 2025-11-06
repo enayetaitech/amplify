@@ -40,6 +40,7 @@ import ObserverGroupMessageModel, {
   ObserverGroupMessageModel as ObsGroupMsgNamed,
 } from "../model/ObserverGroupMessage";
 import { ObserverWaitingRoomChatModel } from "../model/ObserverWaitingRoomChatModel";
+import { ObserverProjectChatModel } from "../model/ObserverProjectChatModel";
 import WhiteboardStroke from "../model/WhiteboardStroke";
 import {
   WhiteboardJoinSchema,
@@ -63,6 +64,13 @@ const moderatorSockets = new Map<string, Set<string>>();
 const observerSockets = new Map<string, Set<string>>();
 // Track observer display info per sessionId -> (socketId -> { name, email })
 const observerInfo = new Map<
+  string,
+  Map<string, { name: string; email: string }>
+>();
+// Track observer sockets per project for project-level broadcasts
+const projectObserverSockets = new Map<string, Set<string>>();
+// Track observer display info per projectId -> (socketId -> { name, email })
+const projectObserverInfo = new Map<
   string,
   Map<string, { name: string; email: string }>
 >();
@@ -126,11 +134,44 @@ export function attachSocket(server: HTTPServer) {
       observer: `observer::${sessionId}`, // future milestones
     };
 
+    // Extract projectId for project-level tracking (async, will be set after session lookup)
+    let projectId: string | null = null;
+
     // Join waiting room by default; participant/observer wait here
     socket.join(rooms.waiting);
 
     if (["Observer", "Moderator", "Admin"].includes(role)) {
       socket.join(rooms.observer);
+      
+      // Extract projectId from sessionId for project-level room
+      (async () => {
+        try {
+          const session = await SessionModel.findById(sessionId).lean();
+          if (session) {
+            const pid = (session.projectId as any)?._id || session.projectId;
+            projectId = String(pid);
+            const projectObserverRoom = `project_observer::${projectId}`;
+            socket.join(projectObserverRoom);
+            
+            // Track observers at project level
+            if (role === "Observer") {
+              if (!projectObserverSockets.has(projectId)) {
+                projectObserverSockets.set(projectId, new Set());
+              }
+              projectObserverSockets.get(projectId)!.add(socket.id);
+              if (!projectObserverInfo.has(projectId)) {
+                projectObserverInfo.set(projectId, new Map());
+              }
+              projectObserverInfo.get(projectId)!.set(socket.id, {
+                name: name || email || "Observer",
+                email: email || "",
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Failed to extract projectId for observer:", err);
+        }
+      })();
     }
     if (["Moderator", "Admin"].includes(role)) {
       if (!moderatorSockets.has(sessionId))
@@ -1049,6 +1090,46 @@ export function attachSocket(server: HTTPServer) {
               });
               return ack?.({ ok: true });
             }
+            case "observer_project_group": {
+              if (
+                !(
+                  role === "Observer" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              // Extract projectId from sessionId
+              const session = await SessionModel.findById(sessionId).lean();
+              if (!session) {
+                return ack?.({ ok: false, error: "session_not_found" });
+              }
+              const pid = (session.projectId as any)?._id || session.projectId;
+              const projectId = new Types.ObjectId(String(pid));
+              
+              // Calculate 24-hour window: only save messages within last 24 hours
+              const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+              
+              const saved = await ObserverProjectChatModel.create({
+                projectId,
+                senderEmail: senderEmail,
+                name: senderName || senderEmail,
+                content,
+                scope,
+              });
+              
+              // Broadcast to project-level observer room
+              const projectObserverRoom = `project_observer::${String(pid)}`;
+              io.to(projectObserverRoom).emit("chat:new", {
+                scope,
+                message: saved.toObject(),
+              });
+              
+              // Also clean up messages older than 24 hours (optional, can be done in background job)
+              // For now, we'll filter in queries
+              
+              return ack?.({ ok: true });
+            }
             case "stream_dm_obs_obs": {
               if (role !== "Observer")
                 return ack?.({ ok: false, error: "forbidden" });
@@ -1151,6 +1232,41 @@ export function attachSocket(server: HTTPServer) {
                 .limit(lim)
                 .lean();
               return ack?.({ items });
+            }
+            case "observer_project_group": {
+              // Extract projectId from sessionId
+              const session = await SessionModel.findById(sessionId).lean();
+              if (!session) {
+                return ack?.({ items: [] });
+              }
+              const pid = (session.projectId as any)?._id || session.projectId;
+              const projectId = new Types.ObjectId(String(pid));
+              
+              // Calculate 24-hour window: only return messages within last 24 hours
+              const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+              
+              const items = await ObserverProjectChatModel.find({
+                projectId,
+                scope,
+                timestamp: { $gte: twentyFourHoursAgo },
+              })
+                .sort({ timestamp: 1 })
+                .limit(lim)
+                .lean();
+              
+              // Transform to match expected format
+              const transformed = items.map((item) => ({
+                _id: item._id,
+                senderEmail: item.senderEmail,
+                senderName: item.name,
+                name: item.name,
+                email: item.senderEmail,
+                content: item.content,
+                timestamp: item.timestamp,
+                scope: item.scope,
+              }));
+              
+              return ack?.({ items: transformed });
             }
             case "waiting_dm": {
               // Combine participant→__moderators__ and moderator→participant
@@ -1953,6 +2069,16 @@ export function attachSocket(server: HTTPServer) {
           console.log("hls", hls);
           // tell all observers in this session that streaming is live
           io.to(rooms.observer).emit("observer:stream:started", {
+            sessionId: sessionId,
+            playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
+          });
+
+          // Also broadcast to project-level room so observers in ANY session of this project get notified
+          const pid = (session.projectId as any)?._id || session.projectId;
+          const projectId = String(pid);
+          const projectObserverRoom = `project_observer::${projectId}`;
+          io.to(projectObserverRoom).emit("observer:stream:started", {
+            sessionId: sessionId,
             playbackUrl: live?.hlsPlaybackUrl || hls.playbackUrl || null,
           });
 
@@ -2061,7 +2187,24 @@ export function attachSocket(server: HTTPServer) {
 
           console.log("stopped stream", live);
           // notify observers to switch back to waiting UI in a later step
-          io.to(rooms.observer).emit("observer:stream:stopped", {});
+          io.to(rooms.observer).emit("observer:stream:stopped", {
+            sessionId: sessionId,
+          });
+
+          // Also broadcast to project-level room
+          try {
+            const session = await SessionModel.findById(sessionId).lean();
+            if (session) {
+              const pid = (session.projectId as any)?._id || session.projectId;
+              const projectId = String(pid);
+              const projectObserverRoom = `project_observer::${projectId}`;
+              io.to(projectObserverRoom).emit("observer:stream:stopped", {
+                sessionId: sessionId,
+              });
+            }
+          } catch (err) {
+            console.error("Failed to broadcast stream stop to project level:", err);
+          }
 
           // Broadcast streaming status change to moderators/admins
           io.to(sessionId).emit("meeting:stream:status:changed", {
@@ -2381,6 +2524,29 @@ export function attachSocket(server: HTTPServer) {
         }
         emitObserverCount();
         emitObserverList();
+        
+        // Clean up project-level tracking
+        (async () => {
+          try {
+            const session = await SessionModel.findById(sessionId).lean();
+            if (session) {
+              const pid = (session.projectId as any)?._id || session.projectId;
+              const projectId = String(pid);
+              const projectSet = projectObserverSockets.get(projectId);
+              if (projectSet) {
+                projectSet.delete(socket.id);
+                if (projectSet.size === 0) projectObserverSockets.delete(projectId);
+              }
+              const projectInfoMap = projectObserverInfo.get(projectId);
+              if (projectInfoMap) {
+                projectInfoMap.delete(socket.id);
+                if (projectInfoMap.size === 0) projectObserverInfo.delete(projectId);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to cleanup project-level observer tracking:", err);
+          }
+        })();
         // Mark observerHistory on disconnect
         (async () => {
           try {
