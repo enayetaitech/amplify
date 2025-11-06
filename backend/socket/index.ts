@@ -58,6 +58,11 @@ const emailIndex = new Map<string, Map<string, string>>();
 // Track sockets by userId for force-logout
 const userIdIndex = new Map<string, Set<string>>();
 const identityIndex = new Map<string, Map<string, string>>();
+// Track participant info by identity: sessionId -> (identity -> { name, email, role })
+const identityInfo = new Map<
+  string,
+  Map<string, { name: string; email: string; role: Role }>
+>();
 // Track moderator sockets per session (Moderators/Admins only)
 const moderatorSockets = new Map<string, Set<string>>();
 // Track observer sockets per session for accurate counts
@@ -1429,11 +1434,44 @@ export function attachSocket(server: HTTPServer) {
               .get(sessionId)!
               .set(payload.email.toLowerCase(), socket.id);
           }
+
+          // Store participant info by identity for frontend to use
+          if (!identityInfo.has(sessionId))
+            identityInfo.set(sessionId, new Map());
+          identityInfo.get(sessionId)!.set(payload.identity.toLowerCase(), {
+            name: name || payload.email || payload.identity,
+            email: payload.email || email || "",
+            role,
+          });
+
+          // Emit participant info update to all clients in the session
+          const participantInfo = {
+            identity: payload.identity.toLowerCase(),
+            name: name || payload.email || payload.identity,
+            email: payload.email || email || "",
+            role,
+          };
+          io.to(sessionId).emit("meeting:participant-info", participantInfo);
+
           // Notify moderators/admin panels that the live participants list may have changed
           io.to(sessionId).emit("meeting:participants-changed", {});
         } catch {}
       }
     );
+
+    // Client can request all participant info by identity
+    socket.on("meeting:get-participants-info", (ack?: (resp: { participants: Array<{ identity: string; name: string; email: string; role: Role }> }) => void) => {
+      try {
+        const infoMap = identityInfo.get(sessionId);
+        const participants = infoMap
+          ? Array.from(infoMap.entries()).map(([identity, info]) => ({
+              identity,
+              ...info,
+            }))
+          : [];
+        if (ack) ack({ participants });
+      } catch {}
+    });
 
     // Client notifies server it is leaving the meeting (explicit UX action)
     socket.on(
@@ -2526,7 +2564,19 @@ export function attachSocket(server: HTTPServer) {
       const idMap = identityIndex.get(sessionId);
       if (idMap) {
         for (const [idLower, sockId] of idMap.entries()) {
-          if (sockId === socket.id) idMap.delete(idLower);
+          if (sockId === socket.id) {
+            idMap.delete(idLower);
+            // Also remove from identityInfo and notify clients
+            const infoMap = identityInfo.get(sessionId);
+            if (infoMap && infoMap.has(idLower)) {
+              infoMap.delete(idLower);
+              if (infoMap.size === 0) identityInfo.delete(sessionId);
+              // Emit removal event to clients
+              io.to(sessionId).emit("meeting:participant-removed", {
+                identity: idLower,
+              });
+            }
+          }
         }
       }
       // Notify panels to refresh participant lists (may affect move UI)
