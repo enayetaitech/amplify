@@ -69,7 +69,7 @@ export default function ObserverMeetingView({
     name?: string;
   } | null>(null);
   const [showGroupChatObs, setShowGroupChatObs] = useState(false);
-  type DmScope = "stream_dm_obs_mod" | "stream_dm_obs_obs";
+  type DmScope = "stream_dm_obs_mod" | "stream_dm_obs_obs" | "backroom_dm";
   type DmMessage = {
     email: string;
     senderName?: string;
@@ -343,8 +343,11 @@ export default function ObserverMeetingView({
       setDmScope(null);
       return;
     }
+    // When in backroom (streaming), use backroom_dm for moderators/admins
+    // Otherwise use stream_dm_obs_mod for observation room
+    // For observer-to-observer, always use stream_dm_obs_obs
     const scope: DmScope = selectedIsModerator
-      ? "stream_dm_obs_mod"
+      ? "backroom_dm"  // Use backroom_dm when chatting with moderators/admins in backroom
       : "stream_dm_obs_obs";
     setDmScope(scope);
     setLoadingHistory(true);
@@ -416,7 +419,8 @@ export default function ObserverMeetingView({
     if (!s) return;
     const onNew = (p: { scope?: string; message?: DmMessage }) => {
       if (!p?.scope || !p?.message) return;
-      if (!(p.scope === "stream_dm_obs_mod" || p.scope === "stream_dm_obs_obs"))
+      // Listen for backroom_dm (when chatting with moderators) and stream_dm_obs_obs (when chatting with observers)
+      if (!(p.scope === "backroom_dm" || p.scope === "stream_dm_obs_obs"))
         return;
       const me = myEmailLower;
       const from = (p.message.email || "").toLowerCase();

@@ -1526,6 +1526,83 @@ export function attachSocket(server: HTTPServer) {
 
               return ack?.({ ok: true });
             }
+            case "backroom_dm": {
+              if (
+                !(
+                  role === "Observer" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              const target = (payload.toEmail || "").toLowerCase();
+              if (!target)
+                return ack?.({ ok: false, error: "toEmail_required" });
+              const saved = await ObserverWaitingRoomChatModel.create({
+                sessionId: liveId,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
+                role: role === "Observer" ? "Observer" : "Moderator",
+                content,
+                timestamp: now,
+                scope,
+                toEmail: target,
+              });
+
+              const messageObj = saved.toObject();
+
+              // Track emitted sockets to avoid duplicate emissions
+              const emittedSockets = new Set<string>();
+
+              // Emit to sender (if not already emitted)
+              if (!emittedSockets.has(socket.id)) {
+                emitNew(socket.id, messageObj);
+                emittedSockets.add(socket.id);
+              }
+
+              // Emit to target by email (session-level)
+              const targetId = emailIndex.get(sessionId)?.get(target);
+              if (targetId && !emittedSockets.has(targetId)) {
+                emitNew(targetId, messageObj);
+                emittedSockets.add(targetId);
+              }
+
+              // Also broadcast to project-level observer room for cross-session visibility
+              (async () => {
+                try {
+                  const session = await SessionModel.findById(sessionId).lean();
+                  if (session) {
+                    const pid =
+                      (session.projectId as any)?._id || session.projectId;
+                    const projectId = String(pid);
+
+                    // Find target socket in project-level rooms
+                    // Check all sessions in the project for the target email
+                    const sessions = await SessionModel.find({
+                      projectId: new Types.ObjectId(projectId),
+                    }).lean();
+
+                    for (const sess of sessions) {
+                      const sessId = String(sess._id);
+                      const targetSocketId = emailIndex
+                        .get(sessId)
+                        ?.get(target);
+                      if (
+                        targetSocketId &&
+                        !emittedSockets.has(targetSocketId)
+                      ) {
+                        emitNew(targetSocketId, messageObj);
+                        emittedSockets.add(targetSocketId);
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.error("Failed to broadcast DM to project room:", err);
+                }
+              })();
+
+              return ack?.({ ok: true });
+            }
             default:
               return ack?.({ ok: false, error: "unknown_scope" });
           }
@@ -1665,7 +1742,8 @@ export function attachSocket(server: HTTPServer) {
             }
             case "observer_wait_dm":
             case "stream_dm_obs_obs":
-            case "stream_dm_obs_mod": {
+            case "stream_dm_obs_mod":
+            case "backroom_dm": {
               const peer = (thread?.withEmail || "").toLowerCase();
               if (!peer) return ack?.({ items: [] });
               const me = (email || "").toLowerCase();

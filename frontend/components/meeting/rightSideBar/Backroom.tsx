@@ -100,12 +100,8 @@ const Backroom = ({
           }
           // Sort by timestamp if available
           return merged.sort((a, b) => {
-            const aTime = a.timestamp
-              ? new Date(a.timestamp).getTime()
-              : 0;
-            const bTime = b.timestamp
-              ? new Date(b.timestamp).getTime()
-              : 0;
+            const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
             return aTime - bTime;
           });
         });
@@ -171,16 +167,31 @@ const Backroom = ({
     socket.emit(
       "chat:history:get",
       {
-        scope: "stream_dm_obs_mod",
+        scope: "backroom_dm",
         thread: { withEmail: selectedObserver.email },
         limit: 100,
       },
       (resp?: { items?: DmMessage[] }) => {
         const historyItems = Array.isArray(resp?.items) ? resp!.items! : [];
+        // Filter to ensure only DM messages (must have toEmail) are included
+        // This prevents group chat messages from appearing in DM chat
+        const filteredItems = historyItems.filter((msg) => {
+          // Must have toEmail to be a DM message (group messages don't have toEmail)
+          if (!msg.toEmail) return false;
+          const msgFrom = (msg.email || "").toLowerCase();
+          const msgTo = (msg.toEmail || "").toLowerCase();
+          const selectedEmail = (selectedObserver.email || "").toLowerCase();
+          const myEmail = meLower;
+          // Message must be between me and the selected observer
+          return (
+            (msgFrom === selectedEmail && msgTo === myEmail) ||
+            (msgFrom === myEmail && msgTo === selectedEmail)
+          );
+        });
         // Merge with existing messages, deduplicating by _id or timestamp + content + email
         setDmMessages((prev) => {
           const merged = [...prev];
-          for (const msg of historyItems) {
+          for (const msg of filteredItems) {
             const messageWithId = msg as DmMessage & { _id?: string };
             const messageId =
               messageWithId._id ||
@@ -198,27 +209,29 @@ const Backroom = ({
           }
           // Sort by timestamp if available
           return merged.sort((a, b) => {
-            const aTime = a.timestamp
-              ? new Date(a.timestamp).getTime()
-              : 0;
-            const bTime = b.timestamp
-              ? new Date(b.timestamp).getTime()
-              : 0;
+            const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
             return aTime - bTime;
           });
         });
         setLoadingHistory(false);
       }
     );
-  }, [socket, selectedObserver, showGroupChatObs]);
+  }, [socket, selectedObserver, showGroupChatObs, meLower]);
 
   // Live updates for DM
   useEffect(() => {
     if (!socket) return;
     const onNew = (p: { scope?: string; message?: DmMessage }) => {
-      if (!p?.scope || p.scope !== "stream_dm_obs_mod" || !p?.message) return;
+      // Only process backroom DM messages, explicitly reject group chat messages and observation room DMs
+      if (!p?.scope || p.scope !== "backroom_dm" || !p?.message) return;
       if (!selectedObserver) return;
       const message = p.message;
+
+      // CRITICAL: Ensure this is a DM message by checking for toEmail
+      // Group chat messages (observer_project_group) don't have toEmail
+      if (!message.toEmail) return;
+
       const selectedEmail = (selectedObserver.email || "").toLowerCase();
       const messageFrom = (message.email || "").toLowerCase();
       const messageTo = (message.toEmail || "").toLowerCase();
@@ -237,12 +250,13 @@ const Backroom = ({
           const messageWithId = message as DmMessage & { _id?: string };
           const messageId =
             messageWithId._id ||
-            `${message.timestamp || ""}${message.content}${message.email || ""}`;
+            `${message.timestamp || ""}${message.content}${
+              message.email || ""
+            }`;
           const exists = prev.some((m) => {
             const mWithId = m as DmMessage & { _id?: string };
             const mId =
-              mWithId._id ||
-              `${m.timestamp || ""}${m.content}${m.email || ""}`;
+              mWithId._id || `${m.timestamp || ""}${m.content}${m.email || ""}`;
             return mId === messageId;
           });
           if (exists) return prev; // Don't add duplicate
@@ -268,7 +282,7 @@ const Backroom = ({
   useEffect(() => {
     if (!socket) return;
     const onNew = (p: { scope?: string; message?: DmMessage }) => {
-      if (!p?.scope || p.scope !== "stream_dm_obs_mod" || !p?.message) return;
+      if (!p?.scope || p.scope !== "backroom_dm" || !p?.message) return;
       const from = (p.message.email || "").toLowerCase();
       const incomingFromObserver = from !== meLower;
       if (!incomingFromObserver) return; // don't count own messages
@@ -383,7 +397,8 @@ const Backroom = ({
               <div className="col-span-12 rounded bg-white overflow-y-auto">
                 <div className="space-y-1 p-2">
                   {observerList.filter(
-                    (o) => (o.email || "").toLowerCase() !== me.email.toLowerCase()
+                    (o) =>
+                      (o.email || "").toLowerCase() !== me.email.toLowerCase()
                   ).length === 0 ? (
                     <div className="text-sm text-gray-500">
                       No observers yet.
@@ -419,7 +434,9 @@ const Backroom = ({
                       </div>
                       {observerList
                         .filter(
-                          (o) => (o.email || "").toLowerCase() !== me.email.toLowerCase()
+                          (o) =>
+                            (o.email || "").toLowerCase() !==
+                            me.email.toLowerCase()
                         )
                         .map((o) => {
                           const label = o.name
@@ -523,7 +540,23 @@ const Backroom = ({
               <div className="col-span-12 rounded bg-white flex flex-col min-h-0 overflow-y-auto">
                 {/* Old DM chat UI commented per migration to ChatWindow */}
                 {(() => {
-                  const mapped: ChatWindowMessage[] = dmMessages.map(
+                  // Filter to ensure only DM messages are displayed (must have toEmail)
+                  // This prevents group chat messages from appearing in DM chat
+                  const filteredDmMessages = dmMessages.filter((m) => {
+                    if (!m.toEmail) return false; // Group messages don't have toEmail
+                    const msgFrom = (m.email || "").toLowerCase();
+                    const msgTo = (m.toEmail || "").toLowerCase();
+                    const selectedEmail = (
+                      selectedObserver.email || ""
+                    ).toLowerCase();
+                    const myEmail = meLower;
+                    // Message must be between me and the selected observer
+                    return (
+                      (msgFrom === selectedEmail && msgTo === myEmail) ||
+                      (msgFrom === myEmail && msgTo === selectedEmail)
+                    );
+                  });
+                  const mapped: ChatWindowMessage[] = filteredDmMessages.map(
                     (m, i) => ({
                       id: i,
                       senderEmail: m.email,
@@ -539,7 +572,7 @@ const Backroom = ({
                     socket?.emit(
                       "chat:send",
                       {
-                        scope: "stream_dm_obs_mod",
+                        scope: "backroom_dm",
                         content: txt,
                         toEmail: selectedObserver.email,
                       },
