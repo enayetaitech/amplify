@@ -2613,7 +2613,7 @@ export function attachSocket(server: HTTPServer) {
                     email: user?.email || "",
                     joinedAt: (user && (user.joinedAt || null)) || null,
                     leaveAt: new Date(),
-                    history: "Left",
+                    reason: "Left",
                   } as any);
                   try {
                     await live.save();
