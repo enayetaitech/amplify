@@ -147,7 +147,7 @@ export function attachSocket(server: HTTPServer) {
 
     if (["Observer", "Moderator", "Admin"].includes(role)) {
       socket.join(rooms.observer);
-      
+
       // Extract projectId from sessionId for project-level room
       (async () => {
         try {
@@ -157,7 +157,7 @@ export function attachSocket(server: HTTPServer) {
             projectId = String(pid);
             const projectObserverRoom = `project_observer::${projectId}`;
             socket.join(projectObserverRoom);
-            
+
             // Track observers at project level
             if (role === "Observer") {
               if (!projectObserverSockets.has(projectId)) {
@@ -171,18 +171,26 @@ export function attachSocket(server: HTTPServer) {
                 name: name || email || "Observer",
                 email: email || "",
               });
-              
+
               // Emit project-level observer list to all moderators/admins in the project
               (async () => {
                 try {
                   const projectObserverRoom = `project_observer::${projectId}`;
                   const m = projectObserverInfo.get(projectId);
                   const observers = m
-                    ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+                    ? Array.from(m.values()).map((v) => ({
+                        name: v.name,
+                        email: v.email,
+                      }))
                     : [];
-                  io.to(projectObserverRoom).emit("observer:list", { observers });
+                  io.to(projectObserverRoom).emit("observer:list", {
+                    observers,
+                  });
                 } catch (err) {
-                  console.error("Failed to emit project observer list on connect:", err);
+                  console.error(
+                    "Failed to emit project observer list on connect:",
+                    err
+                  );
                 }
               })();
             }
@@ -196,7 +204,7 @@ export function attachSocket(server: HTTPServer) {
       if (!moderatorSockets.has(sessionId))
         moderatorSockets.set(sessionId, new Set());
       moderatorSockets.get(sessionId)!.add(socket.id);
-      
+
       // Join project-level observer room so moderators can see all observers across sessions
       (async () => {
         try {
@@ -206,16 +214,22 @@ export function attachSocket(server: HTTPServer) {
             const projectId = String(pid);
             const projectObserverRoom = `project_observer::${projectId}`;
             socket.join(projectObserverRoom);
-            
+
             // Immediately emit current project-level observer list to this moderator
             const m = projectObserverInfo.get(projectId);
             const observers = m
-              ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+              ? Array.from(m.values()).map((v) => ({
+                  name: v.name,
+                  email: v.email,
+                }))
               : [];
             socket.emit("observer:list", { observers });
           }
         } catch (err) {
-          console.error("Failed to join moderator to project observer room:", err);
+          console.error(
+            "Failed to join moderator to project observer room:",
+            err
+          );
         }
       })();
     }
@@ -243,7 +257,10 @@ export function attachSocket(server: HTTPServer) {
           const projectObserverRoom = `project_observer::${projectId}`;
           const m = projectObserverInfo.get(projectId);
           const observers = m
-            ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+            ? Array.from(m.values()).map((v) => ({
+                name: v.name,
+                email: v.email,
+              }))
             : [];
           io.to(projectObserverRoom).emit("observer:list", { observers });
         }
@@ -1165,7 +1182,7 @@ export function attachSocket(server: HTTPServer) {
               }
               const pid = (session.projectId as any)?._id || session.projectId;
               const projectId = new Types.ObjectId(String(pid));
-              
+
               // Save message (will be archived to deliverables and deleted at midnight daily)
               const saved = await ObserverProjectChatModel.create({
                 projectId,
@@ -1174,7 +1191,7 @@ export function attachSocket(server: HTTPServer) {
                 content,
                 scope,
               });
-              
+
               // Broadcast to project-level observer room with correct format
               const projectObserverRoom = `project_observer::${String(pid)}`;
               const messageObj = saved.toObject();
@@ -1189,7 +1206,7 @@ export function attachSocket(server: HTTPServer) {
                   _id: messageObj._id,
                 },
               });
-              
+
               return ack?.({ ok: true });
             }
             case "stream_dm_obs_obs": {
@@ -1303,11 +1320,11 @@ export function attachSocket(server: HTTPServer) {
               }
               const pid = (session.projectId as any)?._id || session.projectId;
               const projectId = new Types.ObjectId(String(pid));
-              
+
               // Calculate today's date range: only return messages from today (chat resets daily at midnight)
               const today = new Date();
               today.setHours(0, 0, 0, 0); // Start of today
-              
+
               const items = await ObserverProjectChatModel.find({
                 projectId,
                 scope,
@@ -1316,7 +1333,7 @@ export function attachSocket(server: HTTPServer) {
                 .sort({ timestamp: 1 })
                 .limit(lim)
                 .lean();
-              
+
               // Transform to match expected format (GroupMessage: { senderEmail?, name?, content })
               const transformed = items.map((item) => ({
                 _id: item._id,
@@ -1326,7 +1343,7 @@ export function attachSocket(server: HTTPServer) {
                 timestamp: item.timestamp,
                 scope: item.scope,
               }));
-              
+
               return ack?.({ items: transformed });
             }
             case "waiting_dm": {
@@ -1460,18 +1477,30 @@ export function attachSocket(server: HTTPServer) {
     );
 
     // Client can request all participant info by identity
-    socket.on("meeting:get-participants-info", (ack?: (resp: { participants: Array<{ identity: string; name: string; email: string; role: Role }> }) => void) => {
-      try {
-        const infoMap = identityInfo.get(sessionId);
-        const participants = infoMap
-          ? Array.from(infoMap.entries()).map(([identity, info]) => ({
-              identity,
-              ...info,
-            }))
-          : [];
-        if (ack) ack({ participants });
-      } catch {}
-    });
+    socket.on(
+      "meeting:get-participants-info",
+      (
+        ack?: (resp: {
+          participants: Array<{
+            identity: string;
+            name: string;
+            email: string;
+            role: Role;
+          }>;
+        }) => void
+      ) => {
+        try {
+          const infoMap = identityInfo.get(sessionId);
+          const participants = infoMap
+            ? Array.from(infoMap.entries()).map(([identity, info]) => ({
+                identity,
+                ...info,
+              }))
+            : [];
+          if (ack) ack({ participants });
+        } catch {}
+      }
+    );
 
     // Client notifies server it is leaving the meeting (explicit UX action)
     socket.on(
@@ -1596,7 +1625,8 @@ export function attachSocket(server: HTTPServer) {
             try {
               const session = await SessionModel.findById(sessionId).lean();
               if (session) {
-                const pid = (session.projectId as any)?._id || session.projectId;
+                const pid =
+                  (session.projectId as any)?._id || session.projectId;
                 const projectId = String(pid);
                 const m = projectObserverInfo.get(projectId);
                 const observers = m
@@ -1611,7 +1641,7 @@ export function attachSocket(server: HTTPServer) {
               console.error("Failed to get project-level observer list:", err);
             }
           }
-          
+
           // Fallback to session-level observers
           const m = observerInfo.get(sessionId);
           const observers = m
@@ -2320,7 +2350,10 @@ export function attachSocket(server: HTTPServer) {
               });
             }
           } catch (err) {
-            console.error("Failed to broadcast stream stop to project level:", err);
+            console.error(
+              "Failed to broadcast stream stop to project level:",
+              err
+            );
           }
 
           // Broadcast streaming status change to moderators/admins
@@ -2653,7 +2686,7 @@ export function attachSocket(server: HTTPServer) {
         }
         emitObserverCount();
         emitObserverList();
-        
+
         // Clean up project-level tracking
         (async () => {
           try {
@@ -2664,16 +2697,21 @@ export function attachSocket(server: HTTPServer) {
               const projectSet = projectObserverSockets.get(projectId);
               if (projectSet) {
                 projectSet.delete(socket.id);
-                if (projectSet.size === 0) projectObserverSockets.delete(projectId);
+                if (projectSet.size === 0)
+                  projectObserverSockets.delete(projectId);
               }
               const projectInfoMap = projectObserverInfo.get(projectId);
               if (projectInfoMap) {
                 projectInfoMap.delete(socket.id);
-                if (projectInfoMap.size === 0) projectObserverInfo.delete(projectId);
+                if (projectInfoMap.size === 0)
+                  projectObserverInfo.delete(projectId);
               }
             }
           } catch (err) {
-            console.error("Failed to cleanup project-level observer tracking:", err);
+            console.error(
+              "Failed to cleanup project-level observer tracking:",
+              err
+            );
           }
         })();
         // Mark observerHistory on disconnect
