@@ -257,8 +257,13 @@ export default function Meeting() {
   // current user's name/email (dashboard or join flow)
   const my = useMemo(() => {
     if (user?.email) {
+      // Construct full name from firstName and lastName
+      const fullName =
+        user?.firstName && user?.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user?.firstName || user?.lastName || "";
       return {
-        name: user?.firstName || user?.lastName || "",
+        name: fullName,
         email: user.email as string,
         role: (user.role as ServerRole) || "Observer",
       };
@@ -443,7 +448,13 @@ export default function Meeting() {
       query: {
         sessionId: String(sessionId),
         role: serverRole,
-        name: my?.name || saved?.name || "",
+        name:
+          my?.name ||
+          saved?.name ||
+          (user?.firstName && user?.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : user?.firstName || user?.lastName || "") ||
+          "",
         email: my?.email || saved?.email || "",
       },
     });

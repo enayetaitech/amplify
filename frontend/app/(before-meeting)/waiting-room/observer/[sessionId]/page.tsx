@@ -18,7 +18,6 @@ import {
 import {
   MessageSquare,
   MoveLeftIcon,
-  
   MoveRightIcon,
   Video,
   X,
@@ -97,6 +96,68 @@ export default function ObserverWaitingRoom() {
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
 
+  const formatDisplayName = React.useCallback(
+    (rawName?: string, email?: string | null, role?: string) => {
+      const trimmed = (rawName || "").trim();
+      const lowered = trimmed.toLowerCase();
+      // Filter out "mod", "moderator", "observer" as display names
+      if (
+        trimmed &&
+        lowered !== "moderator" &&
+        lowered !== "observer" &&
+        lowered !== "mod"
+      ) {
+        return trimmed;
+      }
+
+      if (email) {
+        const local = email.split("@")[0] || "";
+        if (local) {
+          return local
+            .split(/[._-]+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(" ");
+        }
+      }
+
+      if (role && role !== "Observer") return role;
+
+      return trimmed || email || "Moderator";
+    },
+    []
+  );
+
+  const combinedPeople = React.useMemo(() => {
+    const lowerMeEmail = meEmail.toLowerCase();
+    const seen = new Map<string, { name: string; email?: string }>();
+
+    const addPerson = (rawName?: string, email?: string, role?: string) => {
+      if (!email) return; // require email to avoid duplicate placeholder entries
+      const formatted = formatDisplayName(rawName, email, role);
+      const key = (email || formatted || "").toLowerCase();
+      if (!key) return;
+      // Skip the current observer entry, but keep moderators/admins even if emails match
+      if (
+        email &&
+        email.toLowerCase() === lowerMeEmail &&
+        (!role || role.toLowerCase() === "observer")
+      )
+        return;
+      if (!seen.has(key)) {
+        seen.set(key, { name: formatted, email });
+      }
+    };
+
+    observerList.forEach((o) => addPerson(o.name, o.email, "Observer"));
+    moderators.forEach((m) => addPerson(m.name, m.email, m.role));
+
+    // Filter out entries with "Mod" as the name (case-insensitive)
+    return Array.from(seen.values()).filter(
+      (p) => p.name.toLowerCase() !== "mod"
+    );
+  }, [observerList, moderators, meEmail, formatDisplayName]);
+
   useEffect(() => {
     // Effect: establish socket connection for this observer session
     // - Connects to the socket server with role=Observer and saved user info
@@ -121,7 +182,10 @@ export default function ObserverWaitingRoom() {
       },
     });
 
-    const onStarted = (payload?: { sessionId?: string; playbackUrl?: string | null }) => {
+    const onStarted = (payload?: {
+      sessionId?: string;
+      playbackUrl?: string | null;
+    }) => {
       const targetSessionId = payload?.sessionId || sessionId;
       toast.success(
         "Streaming started. You are being taken to the streaming page."
@@ -146,7 +210,10 @@ export default function ObserverWaitingRoom() {
 
     // Chat message handling
     const onChatNew = (payload: ChatPayload) => {
-      if (payload.scope === "observer_project_group" || payload.scope === "observer_wait_group") {
+      if (
+        payload.scope === "observer_project_group" ||
+        payload.scope === "observer_wait_group"
+      ) {
         // Group chat message (support both old and new scope for backward compatibility)
         const groupMessage = payload.message as GroupMessage;
         if (showGroupChat) {
@@ -161,13 +228,19 @@ export default function ObserverWaitingRoom() {
           payload.scope === "stream_dm_obs_mod")
       ) {
         const message = payload.message;
-        const isFromSelectedObserver =
-          message.email?.toLowerCase() ===
-            selectedObserver.email?.toLowerCase() ||
-          message.toEmail?.toLowerCase() ===
-            selectedObserver.email?.toLowerCase();
+        // Get current observer's email from saved (from socket connection) or state
+        const currentObserverEmail = (saved?.email || "").toLowerCase();
+        const peerLower = (selectedObserver.email || "").toLowerCase();
+        const fromLower = (message.email || "").toLowerCase();
+        const toLower = (message.toEmail || "").toLowerCase();
 
-        if (isFromSelectedObserver) {
+        // Message is relevant if it's between me (current observer) and the selected peer
+        // (either I sent it to them, or they sent it to me)
+        const isRelevantMessage =
+          (fromLower === currentObserverEmail && toLower === peerLower) ||
+          (fromLower === peerLower && toLower === currentObserverEmail);
+
+        if (isRelevantMessage) {
           setMessages((prev) => [...prev, message]);
         }
       }
@@ -196,11 +269,11 @@ export default function ObserverWaitingRoom() {
         !payload?.message
       )
         return;
-      
+
       // Handle project-level group chat unread
       if (payload.scope === "observer_project_group") {
         const groupMessage = payload.message as GroupMessage;
-        void groupMessage
+        void groupMessage;
         if (showGroupChat) {
           // Already visible, don't count as unread
           return;
@@ -248,7 +321,7 @@ export default function ObserverWaitingRoom() {
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
       setMeEmail(saved?.email || "");
-      
+
       // Get projectId from localStorage (stored during join)
       const storedProjectId = window.localStorage.getItem("observerProjectId");
       if (storedProjectId) {
@@ -342,12 +415,22 @@ export default function ObserverWaitingRoom() {
     };
   }, [socket]);
 
+  // Effect: clear messages when sessionId changes to prevent stale chat references
+  useEffect(() => {
+    setMessages([]);
+    setGroupMessages([]);
+    setSelectedObserver(null);
+  }, [sessionId]);
+
   // Effect: load chat history when observer is selected
   useEffect(() => {
-    if (!socket || !selectedObserver) {
+    if (!socket || !selectedObserver || !sessionId) {
       setMessages([]);
       return;
     }
+
+    // Clear messages first to prevent showing stale data
+    setMessages([]);
 
     const loadChatHistory = async () => {
       try {
@@ -355,6 +438,7 @@ export default function ObserverWaitingRoom() {
         const scopes = ["observer_wait_dm", "stream_dm_obs_mod"];
         let allMessages: ChatMessage[] = [];
         let loadedScopes = 0;
+        const currentSessionId = sessionId; // Capture current sessionId to verify responses
 
         scopes.forEach((scope) => {
           socket.emit(
@@ -365,6 +449,11 @@ export default function ObserverWaitingRoom() {
               limit: 50,
             },
             (response?: ChatHistoryResponse) => {
+              // Only process if we're still on the same session (prevent race conditions)
+              if (currentSessionId !== sessionId) {
+                return; // Session changed, ignore this response
+              }
+
               if (response?.items) {
                 allMessages = [...allMessages, ...response.items];
               }
@@ -372,12 +461,15 @@ export default function ObserverWaitingRoom() {
 
               // When both scopes are loaded, sort by timestamp and set messages
               if (loadedScopes === scopes.length) {
-                allMessages.sort(
-                  (a, b) =>
-                    new Date(a.timestamp).getTime() -
-                    new Date(b.timestamp).getTime()
-                );
-                setMessages(allMessages);
+                // Double-check we're still on the same session before setting messages
+                if (currentSessionId === sessionId) {
+                  allMessages.sort(
+                    (a, b) =>
+                      new Date(a.timestamp).getTime() -
+                      new Date(b.timestamp).getTime()
+                  );
+                  setMessages(allMessages);
+                }
               }
             }
           );
@@ -388,19 +480,24 @@ export default function ObserverWaitingRoom() {
     };
 
     loadChatHistory();
-  }, [socket, selectedObserver]);
+  }, [socket, selectedObserver, sessionId]);
 
   // Effect: load group chat history when group chat is opened
   useEffect(() => {
-    if (!socket || !showGroupChat) {
+    if (!socket || !showGroupChat || !sessionId) {
       setGroupMessages([]);
       return;
     }
 
+    // Clear messages first to prevent showing stale data from previous sessions
+    setGroupMessages([]);
+
     const loadGroupChatHistory = async () => {
       try {
         setGroupLoading(true);
-        // Use project-level scope for unified chat
+        const currentSessionId = sessionId; // Capture current sessionId to verify responses
+
+        // Use project-level scope for unified chat (only today's messages)
         socket.emit(
           "chat:history:get",
           {
@@ -408,6 +505,12 @@ export default function ObserverWaitingRoom() {
             limit: 50,
           },
           (response?: { items: GroupMessage[] }) => {
+            // Only process if we're still on the same session (prevent race conditions)
+            if (currentSessionId !== sessionId) {
+              setGroupLoading(false);
+              return; // Session changed, ignore this response
+            }
+
             if (response?.items) {
               setGroupMessages(response.items);
             }
@@ -422,7 +525,7 @@ export default function ObserverWaitingRoom() {
     };
 
     loadGroupChatHistory();
-  }, [socket, showGroupChat]);
+  }, [socket, showGroupChat, sessionId]);
 
   // Auto-scroll group chat when opened or messages appended
   useEffect(() => {
@@ -538,7 +641,7 @@ export default function ObserverWaitingRoom() {
           <div className=" rounded-xl bg-white p-4 lg:p-6">
             <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center">
               <p className="text-center text-slate-700">
-              Feel free to chat, the meeting stream will start soon.
+                Feel free to chat, the meeting stream will start soon.
               </p>
             </div>
           </div>
@@ -622,30 +725,7 @@ export default function ObserverWaitingRoom() {
                       >
                         <div className="space-y-2">
                           {(() => {
-                            const filteredModerators = moderators
-                              .filter((m) => {
-                                const name = (m.name || "").trim();
-                                const email = (m.email || "").toLowerCase();
-                                const myEmail = meEmail.toLowerCase();
-                                const shouldInclude =
-                                  name !== "Moderator" && email !== myEmail;
-
-                                return shouldInclude;
-                              })
-                              .map((m) => ({
-                                name: m.name || m.email || "Moderator",
-                                email: m.email,
-                              }));
-
-                            const allPeople = [
-                              ...observerList,
-                              ...filteredModerators,
-                            ].filter(
-                              (o) =>
-                                (o.email || "").toLowerCase() !==
-                                  meEmail.toLowerCase() &&
-                                (o.name || "").toLowerCase() !== "observer"
-                            );
+                            const allPeople = combinedPeople;
 
                             if (allPeople.length === 0) {
                               return (
@@ -714,30 +794,7 @@ export default function ObserverWaitingRoom() {
                               </div>
 
                               {(() => {
-                                const filteredModerators = moderators
-                                  .filter((m) => {
-                                    const name = (m.name || "").trim();
-                                    const email = (m.email || "").toLowerCase();
-                                    const myEmail = meEmail.toLowerCase();
-                                    const shouldInclude =
-                                      name !== "Moderator" && email !== myEmail;
-
-                                    return shouldInclude;
-                                  })
-                                  .map((m) => ({
-                                    name: m.name || m.email || "Moderator",
-                                    email: m.email,
-                                  }));
-
-                                const allPeople = [
-                                  ...observerList,
-                                  ...filteredModerators,
-                                ].filter(
-                                  (o) =>
-                                    (o.email || "").toLowerCase() !==
-                                      meEmail.toLowerCase() &&
-                                    (o.name || "").toLowerCase() !== "observer"
-                                );
+                                const allPeople = combinedPeople;
 
                                 if (allPeople.length === 0) {
                                   return (
@@ -752,23 +809,27 @@ export default function ObserverWaitingRoom() {
                                   const emailLower = (
                                     o.email || ""
                                   ).toLowerCase();
-                                  const unread =
-                                    dmUnreadByEmail[emailLower] || 0;
+                                  const unread = emailLower
+                                    ? dmUnreadByEmail[emailLower] || 0
+                                    : 0;
 
                                   return (
                                     <div
                                       key={`${label}-${idx}`}
                                       className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
                                       onClick={() => {
+                                        if (!o.email) return;
                                         setSelectedObserver({
                                           name: o.name,
                                           email: o.email,
                                         });
                                         setShowGroupChat(false);
-                                        setDmUnreadByEmail((prev) => ({
-                                          ...prev,
-                                          [emailLower]: 0,
-                                        }));
+                                        if (emailLower) {
+                                          setDmUnreadByEmail((prev) => ({
+                                            ...prev,
+                                            [emailLower]: 0,
+                                          }));
+                                        }
                                       }}
                                     >
                                       <div className="flex items-center gap-2 min-w-0 ">

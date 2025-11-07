@@ -98,7 +98,10 @@ const ObservationRoom = () => {
     // Chat message handling
     const onChatNew = (payload: unknown) => {
       const data = payload as ChatPayload;
-      if (data.scope === "observer_project_group" || data.scope === "observer_wait_group") {
+      if (
+        data.scope === "observer_project_group" ||
+        data.scope === "observer_wait_group"
+      ) {
         // Group chat message (support both old and new scope for backward compatibility)
         const groupMessage = data.message as GroupMessage;
         if (showGroupChat) {
@@ -263,7 +266,10 @@ const ObservationRoom = () => {
       return;
     }
 
-    const w = window as Window & { __meetingSocket?: unknown };
+    const w = window as Window & {
+      __meetingSocket?: unknown;
+      currentMeetingSessionId?: string;
+    };
     const maybe = w.__meetingSocket as unknown;
     const s =
       maybe &&
@@ -273,12 +279,16 @@ const ObservationRoom = () => {
         : undefined;
     if (!s) return;
 
+    // Clear messages first to prevent showing stale data
+    setMessages([]);
+
     const loadChatHistory = async () => {
       try {
         // Load messages from both scopes to see the complete conversation
         const scopes = ["observer_wait_dm", "stream_dm_obs_mod"];
         let allMessages: ChatMessage[] = [];
         let loadedScopes = 0;
+        const currentSessionId = w.currentMeetingSessionId; // Capture current sessionId to verify responses
 
         scopes.forEach((scope) => {
           s.emit(
@@ -289,6 +299,14 @@ const ObservationRoom = () => {
               limit: 50,
             },
             (response?: unknown) => {
+              // Only process if we're still on the same session (prevent race conditions)
+              if (
+                currentSessionId &&
+                w.currentMeetingSessionId !== currentSessionId
+              ) {
+                return; // Session changed, ignore this response
+              }
+
               const data = response as ChatHistoryResponse;
               if (data?.items) {
                 allMessages = [...allMessages, ...data.items];
@@ -297,12 +315,18 @@ const ObservationRoom = () => {
 
               // When both scopes are loaded, sort by timestamp and set messages
               if (loadedScopes === scopes.length) {
-                allMessages.sort(
-                  (a, b) =>
-                    new Date(a.timestamp).getTime() -
-                    new Date(b.timestamp).getTime()
-                );
-                setMessages(allMessages);
+                // Double-check we're still on the same session before setting messages
+                if (
+                  !currentSessionId ||
+                  w.currentMeetingSessionId === currentSessionId
+                ) {
+                  allMessages.sort(
+                    (a, b) =>
+                      new Date(a.timestamp).getTime() -
+                      new Date(b.timestamp).getTime()
+                  );
+                  setMessages(allMessages);
+                }
               }
             }
           );
@@ -322,7 +346,10 @@ const ObservationRoom = () => {
       return;
     }
 
-    const w = window as Window & { __meetingSocket?: unknown };
+    const w = window as Window & {
+      __meetingSocket?: unknown;
+      currentMeetingSessionId?: string;
+    };
     const maybe = w.__meetingSocket as unknown;
     const s =
       maybe &&
@@ -332,10 +359,15 @@ const ObservationRoom = () => {
         : undefined;
     if (!s) return;
 
+    // Clear messages first to prevent showing stale data from previous sessions
+    setGroupMessages([]);
+
     const loadGroupChatHistory = async () => {
       try {
         setGroupLoading(true);
-        // Use project-level scope for unified chat
+        const currentSessionId = w.currentMeetingSessionId; // Capture current sessionId to verify responses
+
+        // Use project-level scope for unified chat (only today's messages)
         s.emit(
           "chat:history:get",
           {
@@ -343,6 +375,15 @@ const ObservationRoom = () => {
             limit: 50,
           },
           (response?: unknown) => {
+            // Only process if we're still on the same session (prevent race conditions)
+            if (
+              currentSessionId &&
+              w.currentMeetingSessionId !== currentSessionId
+            ) {
+              setGroupLoading(false);
+              return; // Session changed, ignore this response
+            }
+
             const data = response as { items: GroupMessage[] };
             if (data?.items) {
               setGroupMessages(data.items);
@@ -453,11 +494,33 @@ const ObservationRoom = () => {
           ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
           : {};
 
+      // Try to get name from socket query params (set during connection)
+      const socketQuery = (
+        window as Window & {
+          __meetingSocket?: {
+            io?: {
+              opts?: {
+                query?: { role?: string; email?: string; name?: string };
+              };
+            };
+          };
+        }
+      ).__meetingSocket?.io?.opts?.query;
+
+      // Get name from multiple sources: socket query > localStorage > email fallback
+      const senderName =
+        socketQuery?.name ||
+        saved?.name ||
+        (saved?.email ? saved.email.split("@")[0] : "") ||
+        "";
+
+      const senderEmail = socketQuery?.email || saved?.email || "";
+
       const payload = {
         scope: "observer_project_group",
         content: groupText.trim(),
-        email: saved?.email || "",
-        name: saved?.name || "",
+        email: senderEmail,
+        name: senderName,
       };
 
       s.emit("chat:send", payload, (response?: unknown) => {
