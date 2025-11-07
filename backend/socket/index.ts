@@ -1570,6 +1570,18 @@ export function attachSocket(server: HTTPServer) {
                     return ack?.({ ok: true });
                   }
                   live.participantHistory = live.participantHistory || [];
+
+                  // Fix existing invalid entries that might have 'history' instead of 'reason'
+                  for (const h of live.participantHistory) {
+                    if (h && !h.reason && (h as any).history) {
+                      (h as any).reason = (h as any).history;
+                      delete (h as any).history;
+                    } else if (h && !h.reason) {
+                      // If no reason and no history, default to "Left"
+                      (h as any).reason = "Left";
+                    }
+                  }
+
                   live.participantHistory.push({
                     id: (user && (user._id || (user as any).id)) || undefined,
                     name: user?.name || user?.email || "",
@@ -1951,6 +1963,18 @@ export function attachSocket(server: HTTPServer) {
               // record transfer to waiting room in participantHistory
               try {
                 live.participantHistory = live.participantHistory || [];
+
+                // Fix existing invalid entries that might have 'history' instead of 'reason'
+                for (const h of live.participantHistory) {
+                  if (h && !h.reason && (h as any).history) {
+                    (h as any).reason = (h as any).history;
+                    delete (h as any).history;
+                  } else if (h && !h.reason) {
+                    // If no reason and no history, default to "Left"
+                    (h as any).reason = "Left";
+                  }
+                }
+
                 live.participantHistory.push({
                   id:
                     (user && ((user as any)._id || (user as any).id)) ||
@@ -2047,6 +2071,18 @@ export function attachSocket(server: HTTPServer) {
                 // append history entry for removal
                 try {
                   live.participantHistory = live.participantHistory || [];
+
+                  // Fix existing invalid entries that might have 'history' instead of 'reason'
+                  for (const h of live.participantHistory) {
+                    if (h && !h.reason && (h as any).history) {
+                      (h as any).reason = (h as any).history;
+                      delete (h as any).history;
+                    } else if (h && !h.reason) {
+                      // If no reason and no history, default to "Left"
+                      (h as any).reason = "Left";
+                    }
+                  }
+
                   live.participantHistory.push({
                     id:
                       (user && ((user as any)._id || (user as any).id)) ||
@@ -2640,6 +2676,18 @@ export function attachSocket(server: HTTPServer) {
                 if (idx >= 0) {
                   const user = (live.participantsList as any).splice(idx, 1)[0];
                   live.participantHistory = live.participantHistory || [];
+
+                  // Fix existing invalid entries that might have 'history' instead of 'reason'
+                  for (const h of live.participantHistory) {
+                    if (h && !h.reason && (h as any).history) {
+                      (h as any).reason = (h as any).history;
+                      delete (h as any).history;
+                    } else if (h && !h.reason) {
+                      // If no reason and no history, default to "Left"
+                      (h as any).reason = "Left";
+                    }
+                  }
+
                   live.participantHistory.push({
                     id: (user && (user._id || (user as any).id)) || undefined,
                     name: user?.name || user?.email || "",
