@@ -76,9 +76,9 @@
   position: relative;
 }
 
-/* Ensure name overlays are not clipped by overflow and appear above video on mobile */
+/* Ensure name overlays are not clipped by overflow and appear above video on mobile and desktop */
 .lk-scope .participant-name-overlay {
-  z-index: 30 !important;
+  z-index: 50 !important;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   will-change: transform;

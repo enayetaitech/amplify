@@ -29,6 +29,28 @@ const errorMiddleware = (
     err = new ErrorHandler(message, 400);
   }
 
+  // Handle Mongoose Connection Buffering Timeout
+  if (
+    err.name === "MongooseError" &&
+    err.message?.includes("buffering timed out")
+  ) {
+    const message =
+      "Database connection is not ready. Please try again in a moment. If the problem persists, contact support.";
+    err = new ErrorHandler(message, 503); // 503 Service Unavailable
+  }
+
+  // Handle Mongoose Connection Errors
+  if (
+    err.name === "MongooseError" &&
+    (err.message?.includes("connection") ||
+      err.message?.includes("disconnected") ||
+      err.message?.includes("not connected"))
+  ) {
+    const message =
+      "Database connection error. The service is temporarily unavailable. Please try again shortly.";
+    err = new ErrorHandler(message, 503);
+  }
+
   // Handle invalid JWT token
   if (err.name === "JsonWebTokenError") {
     const message = "Json Web Token is invalid, try again";
