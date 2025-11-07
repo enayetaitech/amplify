@@ -1,4 +1,4 @@
-export type ChatScope = "waiting_dm" | "meeting_group" | "meeting_dm" | "meeting_mod_dm" | "observer_wait_group" | "observer_wait_dm" | "observer_project_group" | "stream_group" | "stream_dm_obs_obs" | "stream_dm_obs_mod";
+export type ChatScope = "waiting_dm" | "meeting_group" | "meeting_dm" | "meeting_mod_dm" | "observer_wait_group" | "observer_wait_dm" | "observer_project_group" | "stream_group" | "stream_dm_obs_obs" | "stream_dm_obs_mod" | "backroom_dm";
 export interface IWaitingRoomChat {
     _id: string;
     sessionId: string;
