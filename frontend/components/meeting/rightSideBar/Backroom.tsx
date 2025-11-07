@@ -38,7 +38,13 @@ const Backroom = ({
   const [showGroupChatObs, setShowGroupChatObs] = useState(false);
 
   // Group chat state (stream_group)
-  type GroupMessage = { senderEmail?: string; name?: string; content: string };
+  type GroupMessage = {
+    senderEmail?: string;
+    name?: string;
+    content: string;
+    timestamp?: string | Date;
+    _id?: string;
+  };
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState("");
   const [groupLoading, setGroupLoading] = useState(false);
@@ -72,7 +78,37 @@ const Backroom = ({
       "chat:history:get",
       { scope: "observer_project_group", limit: 100 },
       (resp?: { items?: GroupMessage[] }) => {
-        setGroupMessages(Array.isArray(resp?.items) ? resp!.items! : []);
+        const historyItems = Array.isArray(resp?.items) ? resp!.items! : [];
+        // Merge with existing messages, deduplicating by _id or timestamp + content + senderEmail
+        setGroupMessages((prev) => {
+          const merged = [...prev];
+          for (const msg of historyItems) {
+            const messageWithId = msg as GroupMessage & { _id?: string };
+            const messageId =
+              messageWithId._id ||
+              `${msg.timestamp || ""}${msg.content}${msg.senderEmail || ""}`;
+            const exists = merged.some((m) => {
+              const mWithId = m as GroupMessage & { _id?: string };
+              const mId =
+                mWithId._id ||
+                `${m.timestamp || ""}${m.content}${m.senderEmail || ""}`;
+              return mId === messageId;
+            });
+            if (!exists) {
+              merged.push(msg);
+            }
+          }
+          // Sort by timestamp if available
+          return merged.sort((a, b) => {
+            const aTime = a.timestamp
+              ? new Date(a.timestamp).getTime()
+              : 0;
+            const bTime = b.timestamp
+              ? new Date(b.timestamp).getTime()
+              : 0;
+            return aTime - bTime;
+          });
+        });
         setGroupLoading(false);
         setGroupUnread(0);
       }
@@ -84,8 +120,27 @@ const Backroom = ({
     if (!socket) return;
     const onNew = (p: { scope?: string; message?: GroupMessage }) => {
       if (p?.scope !== "observer_project_group" || !p?.message) return;
+      // Always add message to state, regardless of whether chat window is open
+      // This ensures messages are available when the chat window is opened
+      setGroupMessages((prev) => {
+        // Check if message already exists (deduplicate by _id or timestamp + content + senderEmail)
+        const messageWithId = p.message as GroupMessage & { _id?: string };
+        const messageId =
+          messageWithId._id ||
+          `${messageWithId.timestamp || ""}${messageWithId.content}${
+            messageWithId.senderEmail || ""
+          }`;
+        const exists = prev.some((m) => {
+          const mWithId = m as GroupMessage & { _id?: string };
+          const mId =
+            mWithId._id ||
+            `${m.timestamp || ""}${m.content}${m.senderEmail || ""}`;
+          return mId === messageId;
+        });
+        if (exists) return prev; // Don't add duplicate
+        return [...prev, p.message as GroupMessage];
+      });
       if (showGroupChatObs) {
-        setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
         setGroupUnread(0);
       } else {
         setGroupUnread((x) => x + 1);
@@ -121,8 +176,37 @@ const Backroom = ({
         limit: 100,
       },
       (resp?: { items?: DmMessage[] }) => {
-        const items = Array.isArray(resp?.items) ? resp!.items! : [];
-        setDmMessages(items);
+        const historyItems = Array.isArray(resp?.items) ? resp!.items! : [];
+        // Merge with existing messages, deduplicating by _id or timestamp + content + email
+        setDmMessages((prev) => {
+          const merged = [...prev];
+          for (const msg of historyItems) {
+            const messageWithId = msg as DmMessage & { _id?: string };
+            const messageId =
+              messageWithId._id ||
+              `${msg.timestamp || ""}${msg.content}${msg.email || ""}`;
+            const exists = merged.some((m) => {
+              const mWithId = m as DmMessage & { _id?: string };
+              const mId =
+                mWithId._id ||
+                `${m.timestamp || ""}${m.content}${m.email || ""}`;
+              return mId === messageId;
+            });
+            if (!exists) {
+              merged.push(msg);
+            }
+          }
+          // Sort by timestamp if available
+          return merged.sort((a, b) => {
+            const aTime = a.timestamp
+              ? new Date(a.timestamp).getTime()
+              : 0;
+            const bTime = b.timestamp
+              ? new Date(b.timestamp).getTime()
+              : 0;
+            return aTime - bTime;
+          });
+        });
         setLoadingHistory(false);
       }
     );
@@ -134,13 +218,37 @@ const Backroom = ({
     const onNew = (p: { scope?: string; message?: DmMessage }) => {
       if (!p?.scope || p.scope !== "stream_dm_obs_mod" || !p?.message) return;
       if (!selectedObserver) return;
-      const from = (p.message.email || "").toLowerCase();
-      const to = (p.message.toEmail || "").toLowerCase();
-      const peer = (selectedObserver.email || "").toLowerCase();
-      const match =
-        (from === meLower && to === peer) || (from === peer && to === meLower);
-      if (!match) return;
-      setDmMessages((prev) => [...prev, p.message as DmMessage]);
+      const message = p.message;
+      const selectedEmail = (selectedObserver.email || "").toLowerCase();
+      const messageFrom = (message.email || "").toLowerCase();
+      const messageTo = (message.toEmail || "").toLowerCase();
+      const myEmail = meLower;
+
+      // Message is relevant if:
+      // 1. It's from the selected person TO me, OR
+      // 2. It's from me TO the selected person
+      const isRelevantMessage =
+        (messageFrom === selectedEmail && messageTo === myEmail) ||
+        (messageFrom === myEmail && messageTo === selectedEmail);
+
+      if (isRelevantMessage) {
+        setDmMessages((prev) => {
+          // Check if message already exists (deduplicate by _id or timestamp + content + email)
+          const messageWithId = message as DmMessage & { _id?: string };
+          const messageId =
+            messageWithId._id ||
+            `${message.timestamp || ""}${message.content}${message.email || ""}`;
+          const exists = prev.some((m) => {
+            const mWithId = m as DmMessage & { _id?: string };
+            const mId =
+              mWithId._id ||
+              `${m.timestamp || ""}${m.content}${m.email || ""}`;
+            return mId === messageId;
+          });
+          if (exists) return prev; // Don't add duplicate
+          return [...prev, message];
+        });
+      }
     };
     socket.on("chat:new", onNew);
     return () => {
@@ -274,7 +382,9 @@ const Backroom = ({
             {!selectedObserver && !showGroupChatObs && (
               <div className="col-span-12 rounded bg-white overflow-y-auto">
                 <div className="space-y-1 p-2">
-                  {observerList.length === 0 ? (
+                  {observerList.filter(
+                    (o) => (o.email || "").toLowerCase() !== me.email.toLowerCase()
+                  ).length === 0 ? (
                     <div className="text-sm text-gray-500">
                       No observers yet.
                     </div>
@@ -307,55 +417,59 @@ const Backroom = ({
                           )}
                         </div>
                       </div>
-                      {observerList.map((o) => {
-                        const label = o.name
-                          ? formatDisplayName(o.name)
-                          : o.email || "Observer";
-                        return (
-                          <div
-                            key={`${o.email}`}
-                            className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                            onClick={() => {
-                              setSelectedObserver({
-                                email: o.email,
-                                name: o.name,
-                              });
-                              setShowGroupChatObs(false);
-                              setDmMessages([]);
-                              const k = (o.email || "").toLowerCase();
-                              setDmUnreadByEmail((prev) => ({
-                                ...prev,
-                                [k]: 0,
-                              }));
-                            }}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-sm font-medium truncate">
-                                {label}
-                              </span>
-                            </div>
-                            <div className="relative inline-flex items-center justify-center h-6 w-6">
-                              <MessageSquare className="h-4 w-4 text-gray-400" />
-                              {(dmUnreadByEmail[
-                                (o.email || "").toLowerCase()
-                              ] || 0) > 0 && (
-                                <span className="absolute -top-1 -right-1">
-                                  <Badge
-                                    variant="destructive"
-                                    className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
-                                  >
-                                    {
-                                      dmUnreadByEmail[
-                                        (o.email || "").toLowerCase()
-                                      ]
-                                    }
-                                  </Badge>
+                      {observerList
+                        .filter(
+                          (o) => (o.email || "").toLowerCase() !== me.email.toLowerCase()
+                        )
+                        .map((o) => {
+                          const label = o.name
+                            ? formatDisplayName(o.name)
+                            : o.email || "Observer";
+                          return (
+                            <div
+                              key={`${o.email}`}
+                              className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                              onClick={() => {
+                                setSelectedObserver({
+                                  email: o.email,
+                                  name: o.name,
+                                });
+                                setShowGroupChatObs(false);
+                                setDmMessages([]);
+                                const k = (o.email || "").toLowerCase();
+                                setDmUnreadByEmail((prev) => ({
+                                  ...prev,
+                                  [k]: 0,
+                                }));
+                              }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-medium truncate">
+                                  {label}
                                 </span>
-                              )}
+                              </div>
+                              <div className="relative inline-flex items-center justify-center h-6 w-6">
+                                <MessageSquare className="h-4 w-4 text-gray-400" />
+                                {(dmUnreadByEmail[
+                                  (o.email || "").toLowerCase()
+                                ] || 0) > 0 && (
+                                  <span className="absolute -top-1 -right-1">
+                                    <Badge
+                                      variant="destructive"
+                                      className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                    >
+                                      {
+                                        dmUnreadByEmail[
+                                          (o.email || "").toLowerCase()
+                                        ]
+                                      }
+                                    </Badge>
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
                     </>
                   )}
                 </div>
@@ -370,11 +484,13 @@ const Backroom = ({
                 {(() => {
                   const mapped: ChatWindowMessage[] = groupMessages.map(
                     (m, i) => ({
-                      id: i,
+                      id: m._id || i,
                       senderEmail: m.senderEmail,
                       senderName: m.name,
                       content: m.content,
-                      timestamp: new Date(),
+                      timestamp: m.timestamp
+                        ? new Date(m.timestamp)
+                        : new Date(),
                     })
                   );
                   const sendGroup = () => {

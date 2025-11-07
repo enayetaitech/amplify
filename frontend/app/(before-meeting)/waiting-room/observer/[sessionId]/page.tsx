@@ -96,68 +96,6 @@ export default function ObserverWaitingRoom() {
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
 
-  const formatDisplayName = React.useCallback(
-    (rawName?: string, email?: string | null, role?: string) => {
-      const trimmed = (rawName || "").trim();
-      const lowered = trimmed.toLowerCase();
-      // Filter out "mod", "moderator", "observer" as display names
-      if (
-        trimmed &&
-        lowered !== "moderator" &&
-        lowered !== "observer" &&
-        lowered !== "mod"
-      ) {
-        return trimmed;
-      }
-
-      if (email) {
-        const local = email.split("@")[0] || "";
-        if (local) {
-          return local
-            .split(/[._-]+/)
-            .filter(Boolean)
-            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(" ");
-        }
-      }
-
-      if (role && role !== "Observer") return role;
-
-      return trimmed || email || "Moderator";
-    },
-    []
-  );
-
-  const combinedPeople = React.useMemo(() => {
-    const lowerMeEmail = meEmail.toLowerCase();
-    const seen = new Map<string, { name: string; email?: string }>();
-
-    const addPerson = (rawName?: string, email?: string, role?: string) => {
-      if (!email) return; // require email to avoid duplicate placeholder entries
-      const formatted = formatDisplayName(rawName, email, role);
-      const key = (email || formatted || "").toLowerCase();
-      if (!key) return;
-      // Skip the current observer entry, but keep moderators/admins even if emails match
-      if (
-        email &&
-        email.toLowerCase() === lowerMeEmail &&
-        (!role || role.toLowerCase() === "observer")
-      )
-        return;
-      if (!seen.has(key)) {
-        seen.set(key, { name: formatted, email });
-      }
-    };
-
-    observerList.forEach((o) => addPerson(o.name, o.email, "Observer"));
-    moderators.forEach((m) => addPerson(m.name, m.email, m.role));
-
-    // Filter out entries with "Mod" as the name (case-insensitive)
-    return Array.from(seen.values()).filter(
-      (p) => p.name.toLowerCase() !== "mod"
-    );
-  }, [observerList, moderators, meEmail, formatDisplayName]);
-
   useEffect(() => {
     // Effect: establish socket connection for this observer session
     // - Connects to the socket server with role=Observer and saved user info
@@ -217,7 +155,26 @@ export default function ObserverWaitingRoom() {
         // Group chat message (support both old and new scope for backward compatibility)
         const groupMessage = payload.message as GroupMessage;
         if (showGroupChat) {
-          setGroupMessages((prev) => [...prev, groupMessage]);
+          setGroupMessages((prev) => {
+            // Check if message already exists (deduplicate by _id or timestamp + content + senderEmail)
+            const messageWithId = groupMessage as GroupMessage & {
+              _id?: string;
+            };
+            const messageId =
+              messageWithId._id ||
+              `${groupMessage.timestamp}${groupMessage.content}${
+                groupMessage.senderEmail || groupMessage.email
+              }`;
+            const exists = prev.some((m) => {
+              const mWithId = m as GroupMessage & { _id?: string };
+              const mId =
+                mWithId._id ||
+                `${m.timestamp}${m.content}${m.senderEmail || m.email}`;
+              return mId === messageId;
+            });
+            if (exists) return prev; // Don't add duplicate
+            return [...prev, groupMessage];
+          });
           setGroupUnread(0);
         } else {
           setGroupUnread((prev) => prev + 1);
@@ -228,20 +185,33 @@ export default function ObserverWaitingRoom() {
           payload.scope === "stream_dm_obs_mod")
       ) {
         const message = payload.message;
-        // Get current observer's email from saved (from socket connection) or state
-        const currentObserverEmail = (saved?.email || "").toLowerCase();
-        const peerLower = (selectedObserver.email || "").toLowerCase();
-        const fromLower = (message.email || "").toLowerCase();
-        const toLower = (message.toEmail || "").toLowerCase();
+        const selectedEmail = (selectedObserver.email || "").toLowerCase();
+        const messageFrom = (message.email || "").toLowerCase();
+        const messageTo = (message.toEmail || "").toLowerCase();
+        const myEmail = (meEmail || "").toLowerCase();
 
-        // Message is relevant if it's between me (current observer) and the selected peer
-        // (either I sent it to them, or they sent it to me)
+        // Message is relevant if:
+        // 1. It's from the selected person TO me, OR
+        // 2. It's from me TO the selected person
         const isRelevantMessage =
-          (fromLower === currentObserverEmail && toLower === peerLower) ||
-          (fromLower === peerLower && toLower === currentObserverEmail);
+          (messageFrom === selectedEmail && messageTo === myEmail) ||
+          (messageFrom === myEmail && messageTo === selectedEmail);
 
         if (isRelevantMessage) {
-          setMessages((prev) => [...prev, message]);
+          setMessages((prev) => {
+            // Check if message already exists (deduplicate by _id or timestamp + content + email)
+            const messageWithId = message as ChatMessage & { _id?: string };
+            const messageId =
+              messageWithId._id ||
+              `${message.timestamp}${message.content}${message.email}`;
+            const exists = prev.some((m) => {
+              const mWithId = m as ChatMessage & { _id?: string };
+              const mId = mWithId._id || `${m.timestamp}${m.content}${m.email}`;
+              return mId === messageId;
+            });
+            if (exists) return prev; // Don't add duplicate
+            return [...prev, message];
+          });
         }
       }
     };
@@ -254,7 +224,7 @@ export default function ObserverWaitingRoom() {
       s.off("chat:new", onChatNew);
       s.disconnect();
     };
-  }, [router, sessionId, selectedObserver, showGroupChat]);
+  }, [router, sessionId, selectedObserver, showGroupChat, meEmail]);
 
   // DM unread count across all observers
   useEffect(() => {
@@ -376,17 +346,36 @@ export default function ObserverWaitingRoom() {
   useEffect(() => {
     if (!socket) return;
     const onList = (p: { observers?: { name: string; email: string }[] }) => {
-      const list = Array.isArray(p?.observers) ? p.observers : [];
-      setObserverList(list);
+      const rawList = Array.isArray(p?.observers) ? p.observers : [];
+
+      // Deduplicate by email to prevent duplicate entries
+      const uniqueList = Array.from(
+        new Map(
+          rawList
+            .filter((o) => o.email) // Only include entries with email
+            .map((o) => [o.email!.toLowerCase(), o])
+        ).values()
+      );
+
+      setObserverList(uniqueList);
     };
     socket.on("observer:list", onList);
     socket.emit(
       "observer:list:get",
       {},
       (resp?: { observers?: { name: string; email: string }[] }) => {
-        const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
+        const rawList = Array.isArray(resp?.observers) ? resp!.observers! : [];
 
-        setObserverList(list);
+        // Deduplicate by email to prevent duplicate entries
+        const uniqueList = Array.from(
+          new Map(
+            rawList
+              .filter((o) => o.email) // Only include entries with email
+              .map((o) => [o.email!.toLowerCase(), o])
+          ).values()
+        );
+
+        setObserverList(uniqueList);
       }
     );
     // Moderators/Admins
@@ -415,22 +404,12 @@ export default function ObserverWaitingRoom() {
     };
   }, [socket]);
 
-  // Effect: clear messages when sessionId changes to prevent stale chat references
-  useEffect(() => {
-    setMessages([]);
-    setGroupMessages([]);
-    setSelectedObserver(null);
-  }, [sessionId]);
-
   // Effect: load chat history when observer is selected
   useEffect(() => {
-    if (!socket || !selectedObserver || !sessionId) {
+    if (!socket || !selectedObserver) {
       setMessages([]);
       return;
     }
-
-    // Clear messages first to prevent showing stale data
-    setMessages([]);
 
     const loadChatHistory = async () => {
       try {
@@ -438,7 +417,6 @@ export default function ObserverWaitingRoom() {
         const scopes = ["observer_wait_dm", "stream_dm_obs_mod"];
         let allMessages: ChatMessage[] = [];
         let loadedScopes = 0;
-        const currentSessionId = sessionId; // Capture current sessionId to verify responses
 
         scopes.forEach((scope) => {
           socket.emit(
@@ -449,11 +427,6 @@ export default function ObserverWaitingRoom() {
               limit: 50,
             },
             (response?: ChatHistoryResponse) => {
-              // Only process if we're still on the same session (prevent race conditions)
-              if (currentSessionId !== sessionId) {
-                return; // Session changed, ignore this response
-              }
-
               if (response?.items) {
                 allMessages = [...allMessages, ...response.items];
               }
@@ -461,15 +434,12 @@ export default function ObserverWaitingRoom() {
 
               // When both scopes are loaded, sort by timestamp and set messages
               if (loadedScopes === scopes.length) {
-                // Double-check we're still on the same session before setting messages
-                if (currentSessionId === sessionId) {
-                  allMessages.sort(
-                    (a, b) =>
-                      new Date(a.timestamp).getTime() -
-                      new Date(b.timestamp).getTime()
-                  );
-                  setMessages(allMessages);
-                }
+                allMessages.sort(
+                  (a, b) =>
+                    new Date(a.timestamp).getTime() -
+                    new Date(b.timestamp).getTime()
+                );
+                setMessages(allMessages);
               }
             }
           );
@@ -480,24 +450,19 @@ export default function ObserverWaitingRoom() {
     };
 
     loadChatHistory();
-  }, [socket, selectedObserver, sessionId]);
+  }, [socket, selectedObserver]);
 
   // Effect: load group chat history when group chat is opened
   useEffect(() => {
-    if (!socket || !showGroupChat || !sessionId) {
+    if (!socket || !showGroupChat) {
       setGroupMessages([]);
       return;
     }
 
-    // Clear messages first to prevent showing stale data from previous sessions
-    setGroupMessages([]);
-
     const loadGroupChatHistory = async () => {
       try {
         setGroupLoading(true);
-        const currentSessionId = sessionId; // Capture current sessionId to verify responses
-
-        // Use project-level scope for unified chat (only today's messages)
+        // Use project-level scope for unified chat
         socket.emit(
           "chat:history:get",
           {
@@ -505,12 +470,6 @@ export default function ObserverWaitingRoom() {
             limit: 50,
           },
           (response?: { items: GroupMessage[] }) => {
-            // Only process if we're still on the same session (prevent race conditions)
-            if (currentSessionId !== sessionId) {
-              setGroupLoading(false);
-              return; // Session changed, ignore this response
-            }
-
             if (response?.items) {
               setGroupMessages(response.items);
             }
@@ -525,7 +484,7 @@ export default function ObserverWaitingRoom() {
     };
 
     loadGroupChatHistory();
-  }, [socket, showGroupChat, sessionId]);
+  }, [socket, showGroupChat]);
 
   // Auto-scroll group chat when opened or messages appended
   useEffect(() => {
@@ -725,7 +684,40 @@ export default function ObserverWaitingRoom() {
                       >
                         <div className="space-y-2">
                           {(() => {
-                            const allPeople = combinedPeople;
+                            const filteredModerators = moderators
+                              .filter((m) => {
+                                const name = (m.name || "").trim();
+                                const email = (m.email || "").toLowerCase();
+                                const myEmail = meEmail.toLowerCase();
+                                const shouldInclude =
+                                  name !== "Moderator" &&
+                                  name !== "Admin" &&
+                                  name.toLowerCase() !== "moderator" &&
+                                  name.toLowerCase() !== "admin" &&
+                                  email &&
+                                  email !== myEmail;
+
+                                return shouldInclude;
+                              })
+                              .map((m) => ({
+                                name: m.name || m.email || "Moderator",
+                                email: m.email,
+                              }))
+                              .filter((m) => m.email && m.name); // Must have both
+
+                            const allPeople = [
+                              ...observerList,
+                              ...filteredModerators,
+                            ].filter(
+                              (o) =>
+                                o.email && // Must have email
+                                o.name && // Must have name
+                                (o.email || "").toLowerCase() !==
+                                  meEmail.toLowerCase() &&
+                                (o.name || "").toLowerCase() !== "observer" &&
+                                (o.name || "").toLowerCase() !== "moderator" &&
+                                (o.name || "").toLowerCase() !== "admin"
+                            );
 
                             if (allPeople.length === 0) {
                               return (
@@ -794,7 +786,42 @@ export default function ObserverWaitingRoom() {
                               </div>
 
                               {(() => {
-                                const allPeople = combinedPeople;
+                                const filteredModerators = moderators
+                                  .filter((m) => {
+                                    const name = (m.name || "").trim();
+                                    const email = (m.email || "").toLowerCase();
+                                    const myEmail = meEmail.toLowerCase();
+                                    const shouldInclude =
+                                      name !== "Moderator" &&
+                                      name !== "Admin" &&
+                                      name.toLowerCase() !== "moderator" &&
+                                      name.toLowerCase() !== "admin" &&
+                                      email &&
+                                      email !== myEmail;
+
+                                    return shouldInclude;
+                                  })
+                                  .map((m) => ({
+                                    name: m.name || m.email || "Moderator",
+                                    email: m.email,
+                                  }))
+                                  .filter((m) => m.email && m.name); // Must have both
+
+                                const allPeople = [
+                                  ...observerList,
+                                  ...filteredModerators,
+                                ].filter(
+                                  (o) =>
+                                    o.email && // Must have email
+                                    o.name && // Must have name
+                                    (o.email || "").toLowerCase() !==
+                                      meEmail.toLowerCase() &&
+                                    (o.name || "").toLowerCase() !==
+                                      "observer" &&
+                                    (o.name || "").toLowerCase() !==
+                                      "moderator" &&
+                                    (o.name || "").toLowerCase() !== "admin"
+                                );
 
                                 if (allPeople.length === 0) {
                                   return (
@@ -809,27 +836,23 @@ export default function ObserverWaitingRoom() {
                                   const emailLower = (
                                     o.email || ""
                                   ).toLowerCase();
-                                  const unread = emailLower
-                                    ? dmUnreadByEmail[emailLower] || 0
-                                    : 0;
+                                  const unread =
+                                    dmUnreadByEmail[emailLower] || 0;
 
                                   return (
                                     <div
                                       key={`${label}-${idx}`}
                                       className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
                                       onClick={() => {
-                                        if (!o.email) return;
                                         setSelectedObserver({
                                           name: o.name,
                                           email: o.email,
                                         });
                                         setShowGroupChat(false);
-                                        if (emailLower) {
-                                          setDmUnreadByEmail((prev) => ({
-                                            ...prev,
-                                            [emailLower]: 0,
-                                          }));
-                                        }
+                                        setDmUnreadByEmail((prev) => ({
+                                          ...prev,
+                                          [emailLower]: 0,
+                                        }));
                                       }}
                                     >
                                       <div className="flex items-center gap-2 min-w-0 ">

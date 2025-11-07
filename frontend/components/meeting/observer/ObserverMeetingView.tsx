@@ -83,7 +83,7 @@ export default function ObserverMeetingView({
   const [dmScope, setDmScope] = useState<DmScope | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   // Group chat state (stream_group)
-  type GroupMessage = { senderEmail?: string; name?: string; content: string };
+  type GroupMessage = { senderEmail?: string; name?: string; content: string; timestamp?: Date | string | number; email?: string };
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState("");
   const [groupLoading, setGroupLoading] = useState(false);
@@ -383,7 +383,18 @@ export default function ObserverMeetingView({
       const matches =
         (from === me && to === peer) || (from === peer && to === me);
       if (!matches) return;
-      setDmMessages((prev) => [...prev, p.message as DmMessage]);
+      setDmMessages((prev) => {
+        // Check if message already exists (deduplicate by _id or timestamp + content + email)
+        const messageWithId = p.message as DmMessage & { _id?: string };
+        const messageId = messageWithId._id || `${messageWithId.timestamp}${messageWithId.content}${messageWithId.email}`;
+        const exists = prev.some((m) => {
+          const mWithId = m as DmMessage & { _id?: string };
+          const mId = mWithId._id || `${m.timestamp}${m.content}${m.email}`;
+          return mId === messageId;
+        });
+        if (exists) return prev; // Don't add duplicate
+        return [...prev, p.message as DmMessage];
+      });
     };
     s.on("chat:new", onChatNew);
     return () => {
@@ -475,7 +486,18 @@ export default function ObserverMeetingView({
     const onNew = (p: { scope?: string; message?: GroupMessage }) => {
       if (p?.scope !== "observer_project_group" || !p?.message) return;
       if (showGroupChatObs) {
-        setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+        setGroupMessages((prev) => {
+          // Check if message already exists (deduplicate by _id or timestamp + content + senderEmail)
+          const messageWithId = p.message as GroupMessage & { _id?: string };
+          const messageId = messageWithId._id || `${messageWithId.timestamp}${messageWithId.content}${messageWithId.senderEmail || messageWithId.email}`;
+          const exists = prev.some((m) => {
+            const mWithId = m as GroupMessage & { _id?: string };
+            const mId = mWithId._id || `${m.timestamp}${m.content}${m.senderEmail || m.email}`;
+            return mId === messageId;
+          });
+          if (exists) return prev; // Don't add duplicate
+          return [...prev, p.message as GroupMessage];
+        });
         setGroupUnread(0);
       } else {
         setGroupUnread((x) => x + 1);
