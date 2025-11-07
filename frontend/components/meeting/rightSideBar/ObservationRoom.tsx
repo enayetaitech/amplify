@@ -145,6 +145,8 @@ const ObservationRoom = () => {
         (data.scope === "observer_wait_dm" ||
           data.scope === "stream_dm_obs_mod")
       ) {
+        // CRITICAL: Only process observation room messages
+        // Backroom messages (backroom_dm) are explicitly excluded by the condition above
         const message = data.message;
         const selectedEmail = (selectedObserver.email || "").toLowerCase();
         const messageFrom = (message.email || "").toLowerCase();
@@ -328,7 +330,9 @@ const ObservationRoom = () => {
       setMessages([]);
       return;
     }
-
+    // Clear messages when selecting an observer to ensure no stale backroom_dm messages
+    // This ensures a clean state when switching from backroom to observation room
+    setMessages([]);
     const w = window as Window & { __meetingSocket?: unknown };
     const maybe = w.__meetingSocket as unknown;
     const s =
@@ -357,6 +361,7 @@ const ObservationRoom = () => {
             (response?: unknown) => {
               const data = response as ChatHistoryResponse;
               if (data?.items) {
+                // Backend already filters by scope, so all items should be from the correct scope
                 allMessages = [...allMessages, ...data.items];
               }
               loadedScopes++;
