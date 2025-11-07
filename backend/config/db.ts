@@ -18,7 +18,6 @@ const connectDB = async (): Promise<void> => {
       retryWrites: true,
       retryReads: true,
       bufferCommands: false, // Fail fast instead of buffering when disconnected
-      bufferMaxEntries: 0, // Disable command buffering
     };
 
     const conn = await mongoose.connect(

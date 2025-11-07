@@ -1572,14 +1572,20 @@ export function attachSocket(server: HTTPServer) {
                   live.participantHistory = live.participantHistory || [];
 
                   // Fix existing invalid entries that might have 'history' instead of 'reason'
+                  let historyChanged = false;
                   for (const h of live.participantHistory) {
                     if (h && !h.reason && (h as any).history) {
                       (h as any).reason = (h as any).history;
                       delete (h as any).history;
+                      historyChanged = true;
                     } else if (h && !h.reason) {
                       // If no reason and no history, default to "Left"
                       (h as any).reason = "Left";
+                      historyChanged = true;
                     }
+                  }
+                  if (historyChanged) {
+                    live.markModified("participantHistory");
                   }
 
                   live.participantHistory.push({
@@ -1965,14 +1971,20 @@ export function attachSocket(server: HTTPServer) {
                 live.participantHistory = live.participantHistory || [];
 
                 // Fix existing invalid entries that might have 'history' instead of 'reason'
+                let historyChanged = false;
                 for (const h of live.participantHistory) {
                   if (h && !h.reason && (h as any).history) {
                     (h as any).reason = (h as any).history;
                     delete (h as any).history;
+                    historyChanged = true;
                   } else if (h && !h.reason) {
                     // If no reason and no history, default to "Left"
                     (h as any).reason = "Left";
+                    historyChanged = true;
                   }
+                }
+                if (historyChanged) {
+                  live.markModified("participantHistory");
                 }
 
                 live.participantHistory.push({
@@ -2073,14 +2085,20 @@ export function attachSocket(server: HTTPServer) {
                   live.participantHistory = live.participantHistory || [];
 
                   // Fix existing invalid entries that might have 'history' instead of 'reason'
+                  let historyChanged = false;
                   for (const h of live.participantHistory) {
                     if (h && !h.reason && (h as any).history) {
                       (h as any).reason = (h as any).history;
                       delete (h as any).history;
+                      historyChanged = true;
                     } else if (h && !h.reason) {
                       // If no reason and no history, default to "Left"
                       (h as any).reason = "Left";
+                      historyChanged = true;
                     }
+                  }
+                  if (historyChanged) {
+                    live.markModified("participantHistory");
                   }
 
                   live.participantHistory.push({
@@ -2678,14 +2696,20 @@ export function attachSocket(server: HTTPServer) {
                   live.participantHistory = live.participantHistory || [];
 
                   // Fix existing invalid entries that might have 'history' instead of 'reason'
+                  let historyChanged = false;
                   for (const h of live.participantHistory) {
                     if (h && !h.reason && (h as any).history) {
                       (h as any).reason = (h as any).history;
                       delete (h as any).history;
+                      historyChanged = true;
                     } else if (h && !h.reason) {
                       // If no reason and no history, default to "Left"
                       (h as any).reason = "Left";
+                      historyChanged = true;
                     }
+                  }
+                  if (historyChanged) {
+                    live.markModified("participantHistory");
                   }
 
                   live.participantHistory.push({
