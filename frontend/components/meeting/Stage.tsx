@@ -34,7 +34,7 @@ export default function Stage({ role }: StageProps) {
   // Track each tile DOM element by identity for fallback overlay positioning
   const tileElByIdentityRef = useRef<Record<string, HTMLElement | null>>({});
   const [tileLabelPos, setTileLabelPos] = useState<
-    Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number }>
+    Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number; nameMaxWidth: number }>
   >({});
   const isMobileUA = useMemo(() => {
     try {
@@ -302,16 +302,20 @@ export default function Stage({ role }: StageProps) {
     const measure = () => {
       try {
         const containerRect = el.getBoundingClientRect();
-        const next: Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number }> = {};
+        const next: Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number; nameMaxWidth: number }> = {};
         for (const [id, node] of Object.entries(tileElByIdentityRef.current)) {
           if (!node) continue;
           const r = node.getBoundingClientRect();
           const tileLeft = Math.round(r.left - containerRect.left);
           const tileRight = Math.round(r.right - containerRect.left);
+          const tileWidth = tileRight - tileLeft;
           const nameLeft = Math.max(0, tileLeft + 8);
           const roleRight = Math.max(0, tileRight - 8);
           const bottom = Math.max(0, Math.round(r.bottom - containerRect.top - 8));
-          next[id] = { nameLeft, roleRight, bottom, tileLeft, tileRight };
+          // Calculate max width for name to leave space for role badge (estimate ~80px for role badge + padding)
+          const roleBadgeWidth = 80; // Estimated width for role badge
+          const nameMaxWidth = Math.max(100, tileWidth - roleBadgeWidth - 16); // Leave 16px total padding
+          next[id] = { nameLeft, roleRight, bottom, tileLeft, tileRight, nameMaxWidth };
         }
         setTileLabelPos(next);
       } catch {}
@@ -447,7 +451,7 @@ export default function Stage({ role }: StageProps) {
         )}
 
         {/* Bottom-left: participant name (always visible, mobile-friendly) */}
-        <div className="absolute left-2 bottom-2 max-w-[75%] z-50 participant-name-overlay">
+        <div className="absolute left-2 bottom-2 max-w-[calc(100%-100px)] z-50 participant-name-overlay">
           <span
             className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
             title={name}
@@ -459,7 +463,15 @@ export default function Stage({ role }: StageProps) {
         {/* Bottom-right: role badge only */}
         <div className="absolute right-2 bottom-2 z-50 participant-name-overlay">
           {(() => {
-            const tileRole = identityToUiRole[identity];
+            // Try to get role from identityToUiRole first, then fallback to metadata parsing
+            let tileRole = identityToUiRole[identity];
+            if (!tileRole) {
+              // Fallback: try to parse from participant metadata
+              const participant = participants.find((p) => p.identity === identity);
+              if (participant) {
+                tileRole = parseUiRoleFromMetadata(participant.metadata);
+              }
+            }
             if (!tileRole) return null;
             const label =
               tileRole === "moderator"
@@ -644,38 +656,49 @@ export default function Stage({ role }: StageProps) {
           </div>
           {isMobileUA && (
             <div className="pointer-events-none absolute inset-0 z-[100]">
-              {Object.entries(tileLabelPos).map(([id, pos]) => (
-                <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
-                  {/* Name at bottom-left */}
-                  <span
-                    className="absolute inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                    style={{ left: `${pos.nameLeft}px`, bottom: `${8}px` }}
-                  >
-                    {identityToName[id] || id}
-                  </span>
-                  {/* Role at bottom-right */}
-                  {(() => {
-                    const tileRole = identityToUiRole[id];
-                    if (!tileRole) return null;
-                    const label =
-                      tileRole === "moderator"
-                        ? "Host"
-                        : tileRole === "admin"
-                        ? "Admin"
-                        : tileRole === "participant"
-                        ? "Participant"
-                        : "Observer";
-                    return (
+              {Object.entries(tileLabelPos).map(([id, pos]) => {
+                // Try to get role from identityToUiRole first, then fallback to metadata parsing
+                let tileRole = identityToUiRole[id];
+                if (!tileRole) {
+                  const participant = participants.find((p) => p.identity === id);
+                  if (participant) {
+                    tileRole = parseUiRoleFromMetadata(participant.metadata);
+                  }
+                }
+                const label = tileRole
+                  ? tileRole === "moderator"
+                    ? "Host"
+                    : tileRole === "admin"
+                    ? "Admin"
+                    : tileRole === "participant"
+                    ? "Participant"
+                    : "Observer"
+                  : null;
+                return (
+                  <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+                    {/* Name at bottom-left - ensure it doesn't overlap with role */}
+                    <span
+                      className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                      style={{ 
+                        left: `${pos.nameLeft}px`, 
+                        bottom: `${8}px`,
+                        maxWidth: `${pos.nameMaxWidth}px`
+                      }}
+                    >
+                      {identityToName[id] || id}
+                    </span>
+                    {/* Role at bottom-right */}
+                    {label && (
                       <span
-                        className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white"
-                        style={{ left: `${pos.roleRight}px`, bottom: `${8}px`, transform: 'translateX(-100%)' }}
+                        className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
+                        style={{ right: `${8}px`, bottom: `${8}px` }}
                       >
                         {label}
                       </span>
-                    );
-                  })()}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -775,38 +798,49 @@ export default function Stage({ role }: StageProps) {
         )}
         {isMobileUA && (
           <div className="pointer-events-none absolute inset-0 z-[100]">
-            {Object.entries(tileLabelPos).map(([id, pos]) => (
-              <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
-                {/* Name at bottom-left */}
-                <span
-                  className="absolute inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                  style={{ left: `${pos.nameLeft}px`, bottom: `${8}px` }}
-                >
-                  {identityToName[id] || id}
-                </span>
-                {/* Role at bottom-right */}
-                {(() => {
-                  const tileRole = identityToUiRole[id];
-                  if (!tileRole) return null;
-                  const label =
-                    tileRole === "moderator"
-                      ? "Host"
-                      : tileRole === "admin"
-                      ? "Admin"
-                      : tileRole === "participant"
-                      ? "Participant"
-                      : "Observer";
-                  return (
+            {Object.entries(tileLabelPos).map(([id, pos]) => {
+              // Try to get role from identityToUiRole first, then fallback to metadata parsing
+              let tileRole = identityToUiRole[id];
+              if (!tileRole) {
+                const participant = participants.find((p) => p.identity === id);
+                if (participant) {
+                  tileRole = parseUiRoleFromMetadata(participant.metadata);
+                }
+              }
+              const label = tileRole
+                ? tileRole === "moderator"
+                  ? "Host"
+                  : tileRole === "admin"
+                  ? "Admin"
+                  : tileRole === "participant"
+                  ? "Participant"
+                  : "Observer"
+                : null;
+              return (
+                <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+                  {/* Name at bottom-left - ensure it doesn't overlap with role */}
+                  <span
+                    className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                    style={{ 
+                      left: `${pos.nameLeft}px`, 
+                      bottom: `${8}px`,
+                      maxWidth: `${pos.nameMaxWidth}px`
+                    }}
+                  >
+                    {identityToName[id] || id}
+                  </span>
+                  {/* Role at bottom-right */}
+                  {label && (
                     <span
-                      className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white"
+                      className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
                       style={{ right: `${8}px`, bottom: `${8}px` }}
                     >
                       {label}
                     </span>
-                  );
-                })()}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -836,38 +870,49 @@ export default function Stage({ role }: StageProps) {
       </div>
       {isMobileUA && (
         <div className="pointer-events-none absolute inset-0 z-[100]">
-          {Object.entries(tileLabelPos).map(([id, pos]) => (
-            <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
-              {/* Name at bottom-left */}
-              <span
-                className="absolute inline-block max-w-[75%] truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                style={{ left: `${pos.nameLeft}px`, bottom: `${8}px` }}
-              >
-                {identityToName[id] || id}
-              </span>
-              {/* Role at bottom-right */}
-              {(() => {
-                const tileRole = identityToUiRole[id];
-                if (!tileRole) return null;
-                const label =
-                  tileRole === "moderator"
-                    ? "Host"
-                    : tileRole === "admin"
-                    ? "Admin"
-                    : tileRole === "participant"
-                    ? "Participant"
-                    : "Observer";
-                return (
+          {Object.entries(tileLabelPos).map(([id, pos]) => {
+            // Try to get role from identityToUiRole first, then fallback to metadata parsing
+            let tileRole = identityToUiRole[id];
+            if (!tileRole) {
+              const participant = participants.find((p) => p.identity === id);
+              if (participant) {
+                tileRole = parseUiRoleFromMetadata(participant.metadata);
+              }
+            }
+            const label = tileRole
+              ? tileRole === "moderator"
+                ? "Host"
+                : tileRole === "admin"
+                ? "Admin"
+                : tileRole === "participant"
+                ? "Participant"
+                : "Observer"
+              : null;
+            return (
+              <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+                {/* Name at bottom-left - ensure it doesn't overlap with role */}
+                <span
+                  className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                  style={{ 
+                    left: `${pos.nameLeft}px`, 
+                    bottom: `${8}px`,
+                    maxWidth: `${pos.nameMaxWidth}px`
+                  }}
+                >
+                  {identityToName[id] || id}
+                </span>
+                {/* Role at bottom-right */}
+                {label && (
                   <span
-                    className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white"
+                    className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
                     style={{ right: `${8}px`, bottom: `${8}px` }}
                   >
                     {label}
                   </span>
-                );
-              })()}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
