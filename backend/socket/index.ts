@@ -452,6 +452,60 @@ export function attachSocket(server: HTTPServer) {
         : [];
       io.to(sessionId).emit("moderator:list", { moderators });
 
+      // Also emit to project-level observer room so observers across all sessions see moderators
+      (async () => {
+        try {
+          const session = await SessionModel.findById(sessionId).lean();
+          if (session) {
+            const pid = (session.projectId as any)?._id || session.projectId;
+            const projectId = String(pid);
+            const projectObserverRoom = `project_observer::${projectId}`;
+
+            // Get all moderators from all sessions in this project
+            const sessions = await SessionModel.find({
+              projectId: new Types.ObjectId(projectId),
+            }).lean();
+            const allModerators: {
+              name: string;
+              email: string;
+              role: "Moderator" | "Admin";
+            }[] = [];
+            for (const sess of sessions) {
+              const modInfo = moderatorInfo.get(String(sess._id));
+              if (modInfo) {
+                const mods = Array.from(modInfo.values())
+                  .map((v) => ({
+                    name: v.name,
+                    email: v.email,
+                    role: v.role,
+                  }))
+                  .filter(
+                    (v) =>
+                      v.email && // Must have email
+                      v.name && // Must have name
+                      v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                      v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                  );
+                allModerators.push(...mods);
+              }
+            }
+
+            // Deduplicate by email
+            const uniqueModerators = Array.from(
+              new Map(
+                allModerators.map((item) => [item.email.toLowerCase(), item])
+              ).values()
+            );
+
+            io.to(projectObserverRoom).emit("moderator:list", {
+              moderators: uniqueModerators,
+            });
+          }
+        } catch (err) {
+          console.error("Failed to emit project-level moderator list:", err);
+        }
+      })();
+
       // Also update observer list to include moderators for chat
       emitObserverList();
     };
