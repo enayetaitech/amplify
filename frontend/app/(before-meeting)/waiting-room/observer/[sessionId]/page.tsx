@@ -705,18 +705,26 @@ export default function ObserverWaitingRoom() {
                               }))
                               .filter((m) => m.email && m.name); // Must have both
 
-                            const allPeople = [
-                              ...observerList,
-                              ...filteredModerators,
-                            ].filter(
-                              (o) =>
-                                o.email && // Must have email
-                                o.name && // Must have name
-                                (o.email || "").toLowerCase() !==
-                                  meEmail.toLowerCase() &&
-                                (o.name || "").toLowerCase() !== "observer" &&
-                                (o.name || "").toLowerCase() !== "moderator" &&
-                                (o.name || "").toLowerCase() !== "admin"
+                            const allPeople = Array.from(
+                              new Map(
+                                [...observerList, ...filteredModerators]
+                                  .filter(
+                                    (o) =>
+                                      o.email && // Must have email
+                                      o.name && // Must have name
+                                      (o.email || "").toLowerCase() !==
+                                        meEmail.toLowerCase() &&
+                                      (o.name || "").toLowerCase() !==
+                                        "observer" &&
+                                      (o.name || "").toLowerCase() !==
+                                        "moderator" &&
+                                      (o.name || "").toLowerCase() !== "admin"
+                                  )
+                                  .map((o) => [
+                                    (o.email || "").toLowerCase(),
+                                    o,
+                                  ])
+                              ).values()
                             );
 
                             if (allPeople.length === 0) {
@@ -807,20 +815,27 @@ export default function ObserverWaitingRoom() {
                                   }))
                                   .filter((m) => m.email && m.name); // Must have both
 
-                                const allPeople = [
-                                  ...observerList,
-                                  ...filteredModerators,
-                                ].filter(
-                                  (o) =>
-                                    o.email && // Must have email
-                                    o.name && // Must have name
-                                    (o.email || "").toLowerCase() !==
-                                      meEmail.toLowerCase() &&
-                                    (o.name || "").toLowerCase() !==
-                                      "observer" &&
-                                    (o.name || "").toLowerCase() !==
-                                      "moderator" &&
-                                    (o.name || "").toLowerCase() !== "admin"
+                                const allPeople = Array.from(
+                                  new Map(
+                                    [...observerList, ...filteredModerators]
+                                      .filter(
+                                        (o) =>
+                                          o.email && // Must have email
+                                          o.name && // Must have name
+                                          (o.email || "").toLowerCase() !==
+                                            meEmail.toLowerCase() &&
+                                          (o.name || "").toLowerCase() !==
+                                            "observer" &&
+                                          (o.name || "").toLowerCase() !==
+                                            "moderator" &&
+                                          (o.name || "").toLowerCase() !==
+                                            "admin"
+                                      )
+                                      .map((o) => [
+                                        (o.email || "").toLowerCase(),
+                                        o,
+                                      ])
+                                  ).values()
                                 );
 
                                 if (allPeople.length === 0) {
@@ -1017,14 +1032,17 @@ export default function ObserverWaitingRoom() {
                         email: m.email,
                       }));
 
-                    const allPeople = [
-                      ...observerList,
-                      ...filteredModerators,
-                    ].filter(
-                      (o) =>
-                        (o.email || "").toLowerCase() !==
-                          meEmail.toLowerCase() &&
-                        (o.name || "").toLowerCase() !== "observer"
+                    const allPeople = Array.from(
+                      new Map(
+                        [...observerList, ...filteredModerators]
+                          .filter(
+                            (o) =>
+                              (o.email || "").toLowerCase() !==
+                                meEmail.toLowerCase() &&
+                              (o.name || "").toLowerCase() !== "observer"
+                          )
+                          .map((o) => [(o.email || "").toLowerCase(), o])
+                      ).values()
                     );
 
                     return allPeople.map((o, idx) => {
