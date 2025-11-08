@@ -69,7 +69,7 @@ export default function ObserverMeetingView({
     name?: string;
   } | null>(null);
   const [showGroupChatObs, setShowGroupChatObs] = useState(false);
-  type DmScope = "stream_dm_obs_mod" | "stream_dm_obs_obs";
+  type DmScope = "stream_dm_obs_mod" | "stream_dm_obs_obs" | "backroom_dm";
   type DmMessage = {
     email: string;
     senderName?: string;
@@ -83,7 +83,7 @@ export default function ObserverMeetingView({
   const [dmScope, setDmScope] = useState<DmScope | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   // Group chat state (stream_group)
-  type GroupMessage = { senderEmail?: string; name?: string; content: string };
+  type GroupMessage = { senderEmail?: string; name?: string; content: string; timestamp?: Date | string | number; email?: string };
   const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
   const [groupText, setGroupText] = useState("");
   const [groupLoading, setGroupLoading] = useState(false);
@@ -343,8 +343,11 @@ export default function ObserverMeetingView({
       setDmScope(null);
       return;
     }
+    // When in backroom (streaming), use backroom_dm for moderators/admins
+    // Otherwise use stream_dm_obs_mod for observation room
+    // For observer-to-observer, always use stream_dm_obs_obs
     const scope: DmScope = selectedIsModerator
-      ? "stream_dm_obs_mod"
+      ? "backroom_dm"  // Use backroom_dm when chatting with moderators/admins in backroom
       : "stream_dm_obs_obs";
     setDmScope(scope);
     setLoadingHistory(true);
@@ -383,7 +386,18 @@ export default function ObserverMeetingView({
       const matches =
         (from === me && to === peer) || (from === peer && to === me);
       if (!matches) return;
-      setDmMessages((prev) => [...prev, p.message as DmMessage]);
+      setDmMessages((prev) => {
+        // Check if message already exists (deduplicate by _id or timestamp + content + email)
+        const messageWithId = p.message as DmMessage & { _id?: string };
+        const messageId = messageWithId._id || `${messageWithId.timestamp}${messageWithId.content}${messageWithId.email}`;
+        const exists = prev.some((m) => {
+          const mWithId = m as DmMessage & { _id?: string };
+          const mId = mWithId._id || `${m.timestamp}${m.content}${m.email}`;
+          return mId === messageId;
+        });
+        if (exists) return prev; // Don't add duplicate
+        return [...prev, p.message as DmMessage];
+      });
     };
     s.on("chat:new", onChatNew);
     return () => {
@@ -405,7 +419,8 @@ export default function ObserverMeetingView({
     if (!s) return;
     const onNew = (p: { scope?: string; message?: DmMessage }) => {
       if (!p?.scope || !p?.message) return;
-      if (!(p.scope === "stream_dm_obs_mod" || p.scope === "stream_dm_obs_obs"))
+      // Listen for backroom_dm (when chatting with moderators) and stream_dm_obs_obs (when chatting with observers)
+      if (!(p.scope === "backroom_dm" || p.scope === "stream_dm_obs_obs"))
         return;
       const me = myEmailLower;
       const from = (p.message.email || "").toLowerCase();
@@ -475,7 +490,18 @@ export default function ObserverMeetingView({
     const onNew = (p: { scope?: string; message?: GroupMessage }) => {
       if (p?.scope !== "observer_project_group" || !p?.message) return;
       if (showGroupChatObs) {
-        setGroupMessages((prev) => [...prev, p.message as GroupMessage]);
+        setGroupMessages((prev) => {
+          // Check if message already exists (deduplicate by _id or timestamp + content + senderEmail)
+          const messageWithId = p.message as GroupMessage & { _id?: string };
+          const messageId = messageWithId._id || `${messageWithId.timestamp}${messageWithId.content}${messageWithId.senderEmail || messageWithId.email}`;
+          const exists = prev.some((m) => {
+            const mWithId = m as GroupMessage & { _id?: string };
+            const mId = mWithId._id || `${m.timestamp}${m.content}${m.senderEmail || m.email}`;
+            return mId === messageId;
+          });
+          if (exists) return prev; // Don't add duplicate
+          return [...prev, p.message as GroupMessage];
+        });
         setGroupUnread(0);
       } else {
         setGroupUnread((x) => x + 1);

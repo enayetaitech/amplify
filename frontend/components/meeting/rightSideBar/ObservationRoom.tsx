@@ -90,7 +90,18 @@ const ObservationRoom = () => {
 
     const onObserverList = (payload: unknown) => {
       const data = payload as { observers?: WaitingObserver[] };
-      setObservers(Array.isArray(data?.observers) ? data.observers : []);
+      const rawObservers = Array.isArray(data?.observers) ? data.observers : [];
+
+      // Deduplicate by email to prevent duplicate entries
+      const uniqueObservers = Array.from(
+        new Map(
+          rawObservers
+            .filter((o) => o.email) // Only include entries with email
+            .map((o) => [o.email!.toLowerCase(), o])
+        ).values()
+      );
+
+      setObservers(uniqueObservers);
     };
 
     s.on("observer:list", onObserverList);
@@ -98,11 +109,33 @@ const ObservationRoom = () => {
     // Chat message handling
     const onChatNew = (payload: unknown) => {
       const data = payload as ChatPayload;
-      if (data.scope === "observer_project_group" || data.scope === "observer_wait_group") {
+      if (
+        data.scope === "observer_project_group" ||
+        data.scope === "observer_wait_group"
+      ) {
         // Group chat message (support both old and new scope for backward compatibility)
         const groupMessage = data.message as GroupMessage;
         if (showGroupChat) {
-          setGroupMessages((prev) => [...prev, groupMessage]);
+          setGroupMessages((prev) => {
+            // Check if message already exists (deduplicate by _id or timestamp + content + senderEmail)
+            const messageWithId = groupMessage as GroupMessage & {
+              _id?: string;
+            };
+            const messageId =
+              messageWithId._id ||
+              `${groupMessage.timestamp}${groupMessage.content}${
+                groupMessage.senderEmail || groupMessage.email
+              }`;
+            const exists = prev.some((m) => {
+              const mWithId = m as GroupMessage & { _id?: string };
+              const mId =
+                mWithId._id ||
+                `${m.timestamp}${m.content}${m.senderEmail || m.email}`;
+              return mId === messageId;
+            });
+            if (exists) return prev; // Don't add duplicate
+            return [...prev, groupMessage];
+          });
           setGroupUnread(0);
         } else {
           setGroupUnread((prev) => prev + 1);
@@ -112,15 +145,37 @@ const ObservationRoom = () => {
         (data.scope === "observer_wait_dm" ||
           data.scope === "stream_dm_obs_mod")
       ) {
+        // CRITICAL: Only process observation room messages
+        // Backroom messages (backroom_dm) are explicitly excluded by the condition above
         const message = data.message;
-        const isFromSelectedObserver =
-          message.email?.toLowerCase() ===
-            selectedObserver.email?.toLowerCase() ||
-          message.toEmail?.toLowerCase() ===
-            selectedObserver.email?.toLowerCase();
+        const selectedEmail = (selectedObserver.email || "").toLowerCase();
+        const messageFrom = (message.email || "").toLowerCase();
+        const messageTo = (message.toEmail || "").toLowerCase();
+        const myEmail = (meEmail || "").toLowerCase();
 
-        if (isFromSelectedObserver) {
-          setMessages((prev) => [...prev, message]);
+        // Message is relevant if:
+        // 1. It's from the selected person TO me, OR
+        // 2. It's from me TO the selected person, OR
+        // 3. It's from the selected person TO the selected person (shouldn't happen but handle it)
+        const isRelevantMessage =
+          (messageFrom === selectedEmail && messageTo === myEmail) ||
+          (messageFrom === myEmail && messageTo === selectedEmail);
+
+        if (isRelevantMessage) {
+          setMessages((prev) => {
+            // Check if message already exists (deduplicate by _id or timestamp + content + email)
+            const messageWithId = message as ChatMessage & { _id?: string };
+            const messageId =
+              messageWithId._id ||
+              `${message.timestamp}${message.content}${message.email}`;
+            const exists = prev.some((m) => {
+              const mWithId = m as ChatMessage & { _id?: string };
+              const mId = mWithId._id || `${m.timestamp}${m.content}${m.email}`;
+              return mId === messageId;
+            });
+            if (exists) return prev; // Don't add duplicate
+            return [...prev, message];
+          });
         }
       }
     };
@@ -130,8 +185,21 @@ const ObservationRoom = () => {
     try {
       s.emit("observer:list:get", {}, (resp?: unknown) => {
         const data = resp as { observers?: WaitingObserver[] };
-        console.log("observer list", data?.observers);
-        setObservers(Array.isArray(data?.observers) ? data.observers! : []);
+        const rawObservers = Array.isArray(data?.observers)
+          ? data.observers!
+          : [];
+
+        // Deduplicate by email to prevent duplicate entries
+        const uniqueObservers = Array.from(
+          new Map(
+            rawObservers
+              .filter((o) => o.email) // Only include entries with email
+              .map((o) => [o.email!.toLowerCase(), o])
+          ).values()
+        );
+
+        console.log("observer list", uniqueObservers);
+        setObservers(uniqueObservers);
       });
     } catch {}
 
@@ -139,7 +207,7 @@ const ObservationRoom = () => {
       s.off("observer:list", onObserverList);
       s.off("chat:new", onChatNew);
     };
-  }, [selectedObserver, showGroupChat]);
+  }, [selectedObserver, showGroupChat, meEmail]);
 
   // DM unread count across all observers
   React.useEffect(() => {
@@ -262,7 +330,9 @@ const ObservationRoom = () => {
       setMessages([]);
       return;
     }
-
+    // Clear messages when selecting an observer to ensure no stale backroom_dm messages
+    // This ensures a clean state when switching from backroom to observation room
+    setMessages([]);
     const w = window as Window & { __meetingSocket?: unknown };
     const maybe = w.__meetingSocket as unknown;
     const s =
@@ -291,6 +361,7 @@ const ObservationRoom = () => {
             (response?: unknown) => {
               const data = response as ChatHistoryResponse;
               if (data?.items) {
+                // Backend already filters by scope, so all items should be from the correct scope
                 allMessages = [...allMessages, ...data.items];
               }
               loadedScopes++;
@@ -527,12 +598,26 @@ const ObservationRoom = () => {
         <TabsContent value="list">
           <div className="space-y-2">
             {observers.filter(
-              (o) => (o.name || "").toLowerCase() !== "observer"
+              (o) =>
+                o.email && // Must have email
+                o.name && // Must have name
+                (o.name || "").toLowerCase() !== "observer" &&
+                (o.name || "").toLowerCase() !== "moderator" &&
+                (o.name || "").toLowerCase() !== "admin" &&
+                (o.email || "").toLowerCase() !== meEmail.toLowerCase()
             ).length === 0 ? (
               <div className="text-sm text-gray-500">No observers yet.</div>
             ) : (
               observers
-                .filter((o) => (o.name || "").toLowerCase() !== "observer")
+                .filter(
+                  (o) =>
+                    o.email && // Must have email
+                    o.name && // Must have name
+                    (o.name || "").toLowerCase() !== "observer" &&
+                    (o.name || "").toLowerCase() !== "moderator" &&
+                    (o.name || "").toLowerCase() !== "admin" &&
+                    (o.email || "").toLowerCase() !== meEmail.toLowerCase()
+                )
                 .map((o, idx) => {
                   const label = o.name || o.email || "Observer";
                   return (
@@ -587,7 +672,13 @@ const ObservationRoom = () => {
                   </div>
 
                   {observers.filter(
-                    (o) => (o.name || "").toLowerCase() !== "observer"
+                    (o) =>
+                      o.email && // Must have email
+                      o.name && // Must have name
+                      (o.name || "").toLowerCase() !== "observer" &&
+                      (o.name || "").toLowerCase() !== "moderator" &&
+                      (o.name || "").toLowerCase() !== "admin" &&
+                      (o.email || "").toLowerCase() !== meEmail.toLowerCase()
                   ).length === 0 ? (
                     <div className="text-sm text-gray-500">
                       No observers yet.
@@ -595,7 +686,14 @@ const ObservationRoom = () => {
                   ) : (
                     observers
                       .filter(
-                        (o) => (o.name || "").toLowerCase() !== "observer"
+                        (o) =>
+                          o.email && // Must have email
+                          o.name && // Must have name
+                          (o.name || "").toLowerCase() !== "observer" &&
+                          (o.name || "").toLowerCase() !== "moderator" &&
+                          (o.name || "").toLowerCase() !== "admin" &&
+                          (o.email || "").toLowerCase() !==
+                            meEmail.toLowerCase()
                       )
                       .map((o, idx) => {
                         const label = o.name || o.email || "Observer";

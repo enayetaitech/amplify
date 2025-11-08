@@ -173,18 +173,61 @@ export function attachSocket(server: HTTPServer) {
               });
 
               // Emit project-level observer list to all moderators/admins in the project
+              // Include moderators/admins for chat purposes
               (async () => {
                 try {
                   const projectObserverRoom = `project_observer::${projectId}`;
                   const m = projectObserverInfo.get(projectId);
                   const observers = m
-                    ? Array.from(m.values()).map((v) => ({
-                        name: v.name,
-                        email: v.email,
-                      }))
+                    ? Array.from(m.values())
+                        .map((v) => ({
+                          name: v.name,
+                          email: v.email,
+                        }))
+                        .filter(
+                          (v) =>
+                            v.email && // Must have email
+                            v.name && // Must have name
+                            v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                            v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                            v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                        )
                     : [];
+
+                  // Also include moderators/admins from all sessions in this project
+                  const sessions = await SessionModel.find({
+                    projectId: new Types.ObjectId(projectId),
+                  }).lean();
+                  const allModerators: { name: string; email: string }[] = [];
+                  for (const sess of sessions) {
+                    const modInfo = moderatorInfo.get(String(sess._id));
+                    if (modInfo) {
+                      const mods = Array.from(modInfo.values())
+                        .map((v) => ({
+                          name: v.name,
+                          email: v.email,
+                        }))
+                        .filter(
+                          (v) =>
+                            v.email && // Must have email
+                            v.name && // Must have name
+                            v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                            v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                        );
+                      allModerators.push(...mods);
+                    }
+                  }
+
+                  // Combine and deduplicate by email
+                  const combined = [...observers, ...allModerators];
+                  const uniqueByEmail = Array.from(
+                    new Map(
+                      combined.map((item) => [item.email.toLowerCase(), item])
+                    ).values()
+                  );
+
                   io.to(projectObserverRoom).emit("observer:list", {
-                    observers,
+                    observers: uniqueByEmail,
                   });
                 } catch (err) {
                   console.error(
@@ -216,14 +259,68 @@ export function attachSocket(server: HTTPServer) {
             socket.join(projectObserverRoom);
 
             // Immediately emit current project-level observer list to this moderator
-            const m = projectObserverInfo.get(projectId);
-            const observers = m
-              ? Array.from(m.values()).map((v) => ({
-                  name: v.name,
-                  email: v.email,
-                }))
-              : [];
-            socket.emit("observer:list", { observers });
+            // Include moderators/admins for chat purposes
+            (async () => {
+              try {
+                const m = projectObserverInfo.get(projectId);
+                const observers = m
+                  ? Array.from(m.values())
+                      .map((v) => ({
+                        name: v.name,
+                        email: v.email,
+                      }))
+                      .filter(
+                        (v) =>
+                          v.email && // Must have email
+                          v.name && // Must have name
+                          v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                          v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                          v.name.toLowerCase() !== "admin" && // Not generic "Admin"
+                          v.email.toLowerCase() !== (email || "").toLowerCase() // Not self
+                      )
+                  : [];
+
+                // Also include moderators/admins from all sessions in this project
+                const sessions = await SessionModel.find({
+                  projectId: new Types.ObjectId(projectId),
+                }).lean();
+                const allModerators: { name: string; email: string }[] = [];
+                for (const sess of sessions) {
+                  const modInfo = moderatorInfo.get(String(sess._id));
+                  if (modInfo) {
+                    const mods = Array.from(modInfo.values())
+                      .map((v) => ({
+                        name: v.name,
+                        email: v.email,
+                      }))
+                      .filter(
+                        (v) =>
+                          v.email && // Must have email
+                          v.name && // Must have name
+                          v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                          v.name.toLowerCase() !== "admin" && // Not generic "Admin"
+                          v.email.toLowerCase() !== (email || "").toLowerCase() // Not self
+                      );
+                    allModerators.push(...mods);
+                  }
+                }
+
+                // Combine and deduplicate by email
+                const combined = [...observers, ...allModerators];
+                const uniqueByEmail = Array.from(
+                  new Map(
+                    combined.map((item) => [item.email.toLowerCase(), item])
+                  ).values()
+                );
+
+                socket.emit("observer:list", { observers: uniqueByEmail });
+              } catch (err) {
+                console.error(
+                  "Failed to emit initial observer list to moderator:",
+                  err
+                );
+              }
+            })();
           }
         } catch (err) {
           console.error(
@@ -240,14 +337,45 @@ export function attachSocket(server: HTTPServer) {
       io.to(sessionId).emit("observer:count", { count });
     };
     // Helper to emit observer list (names/emails) to the session
+    // Includes moderators/admins for chat purposes, but filters out generic names and invalid entries
     const emitObserverList = () => {
       const m = observerInfo.get(sessionId);
       const observers = m
-        ? Array.from(m.values()).map((v) => ({ name: v.name, email: v.email }))
+        ? Array.from(m.values())
+            .map((v) => ({ name: v.name, email: v.email }))
+            .filter(
+              (v) =>
+                v.email && // Must have email
+                v.name && // Must have name
+                v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                v.name.toLowerCase() !== "admin" // Not generic "Admin"
+            )
         : [];
-      io.to(sessionId).emit("observer:list", { observers });
+
+      // Include moderators/admins in the list for chat purposes
+      const modInfo = moderatorInfo.get(sessionId);
+      const moderators = modInfo
+        ? Array.from(modInfo.values())
+            .map((v) => ({
+              name: v.name,
+              email: v.email,
+            }))
+            .filter(
+              (v) =>
+                v.email && // Must have email
+                v.name && // Must have name
+                v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                v.name.toLowerCase() !== "admin" // Not generic "Admin"
+            )
+        : [];
+
+      // Combine observers and moderators for chat list
+      const allForChat = [...observers, ...moderators];
+      io.to(sessionId).emit("observer:list", { observers: allForChat });
     };
     // Helper to emit project-level observer list to moderators/admins
+    // Includes moderators/admins for chat purposes, but filters out generic names
     const emitProjectObserverList = async () => {
       try {
         const session = await SessionModel.findById(sessionId).lean();
@@ -257,12 +385,56 @@ export function attachSocket(server: HTTPServer) {
           const projectObserverRoom = `project_observer::${projectId}`;
           const m = projectObserverInfo.get(projectId);
           const observers = m
-            ? Array.from(m.values()).map((v) => ({
-                name: v.name,
-                email: v.email,
-              }))
+            ? Array.from(m.values())
+                .map((v) => ({
+                  name: v.name,
+                  email: v.email,
+                }))
+                .filter(
+                  (v) =>
+                    v.email && // Must have email
+                    v.name && // Must have name
+                    v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                    v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                    v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                )
             : [];
-          io.to(projectObserverRoom).emit("observer:list", { observers });
+
+          // Also include moderators/admins from all sessions in this project
+          const sessions = await SessionModel.find({
+            projectId: new Types.ObjectId(projectId),
+          }).lean();
+          const allModerators: { name: string; email: string }[] = [];
+          for (const sess of sessions) {
+            const modInfo = moderatorInfo.get(String(sess._id));
+            if (modInfo) {
+              const mods = Array.from(modInfo.values())
+                .map((v) => ({
+                  name: v.name,
+                  email: v.email,
+                }))
+                .filter(
+                  (v) =>
+                    v.email && // Must have email
+                    v.name && // Must have name
+                    v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                    v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                );
+              allModerators.push(...mods);
+            }
+          }
+
+          // Combine and deduplicate by email
+          const combined = [...observers, ...allModerators];
+          const uniqueByEmail = Array.from(
+            new Map(
+              combined.map((item) => [item.email.toLowerCase(), item])
+            ).values()
+          );
+
+          io.to(projectObserverRoom).emit("observer:list", {
+            observers: uniqueByEmail,
+          });
         }
       } catch (err) {
         console.error("Failed to emit project observer list:", err);
@@ -279,6 +451,63 @@ export function attachSocket(server: HTTPServer) {
           }))
         : [];
       io.to(sessionId).emit("moderator:list", { moderators });
+
+      // Also emit to project-level observer room so observers across all sessions see moderators
+      (async () => {
+        try {
+          const session = await SessionModel.findById(sessionId).lean();
+          if (session) {
+            const pid = (session.projectId as any)?._id || session.projectId;
+            const projectId = String(pid);
+            const projectObserverRoom = `project_observer::${projectId}`;
+
+            // Get all moderators from all sessions in this project
+            const sessions = await SessionModel.find({
+              projectId: new Types.ObjectId(projectId),
+            }).lean();
+            const allModerators: {
+              name: string;
+              email: string;
+              role: "Moderator" | "Admin";
+            }[] = [];
+            for (const sess of sessions) {
+              const modInfo = moderatorInfo.get(String(sess._id));
+              if (modInfo) {
+                const mods = Array.from(modInfo.values())
+                  .map((v) => ({
+                    name: v.name,
+                    email: v.email,
+                    role: v.role,
+                  }))
+                  .filter(
+                    (v) =>
+                      v.email && // Must have email
+                      v.name && // Must have name
+                      v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                      v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                  );
+                allModerators.push(...mods);
+              }
+            }
+
+            // Deduplicate by email
+            const uniqueModerators = Array.from(
+              new Map(
+                allModerators.map((item) => [item.email.toLowerCase(), item])
+              ).values()
+            );
+
+            io.to(projectObserverRoom).emit("moderator:list", {
+              moderators: uniqueModerators,
+            });
+          }
+        } catch (err) {
+          console.error("Failed to emit project-level moderator list:", err);
+        }
+      })();
+
+      // Also update observer list to include moderators for chat
+      emitObserverList();
     };
 
     // Maintain observer count map only for Observer role
@@ -1137,9 +1366,53 @@ export function attachSocket(server: HTTPServer) {
                 scope,
                 toEmail: target,
               });
-              emitNew(socket.id, saved.toObject());
-              const targetId = emailIndex.get(sessionId)?.get(target);
-              if (targetId) emitNew(targetId, saved.toObject());
+
+              const messageObj = saved.toObject();
+
+              // Track emitted sockets to avoid duplicate emissions
+              const emittedSockets = new Set<string>();
+
+              // Emit to sender (if not already emitted)
+              if (!emittedSockets.has(socket.id)) {
+                emitNew(socket.id, messageObj);
+                emittedSockets.add(socket.id);
+              }
+
+              // Also broadcast to project-level observer room for cross-session visibility
+              // This will cover both current session and other sessions
+              (async () => {
+                try {
+                  const session = await SessionModel.findById(sessionId).lean();
+                  if (session) {
+                    const pid =
+                      (session.projectId as any)?._id || session.projectId;
+                    const projectId = String(pid);
+
+                    // Find target socket in project-level rooms
+                    // Check all sessions in the project for the target email
+                    const sessions = await SessionModel.find({
+                      projectId: new Types.ObjectId(projectId),
+                    }).lean();
+
+                    for (const sess of sessions) {
+                      const sessId = String(sess._id);
+                      const targetSocketId = emailIndex
+                        .get(sessId)
+                        ?.get(target);
+                      if (
+                        targetSocketId &&
+                        !emittedSockets.has(targetSocketId)
+                      ) {
+                        emitNew(targetSocketId, messageObj);
+                        emittedSockets.add(targetSocketId);
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.error("Failed to broadcast DM to project room:", err);
+                }
+              })();
+
               return ack?.({ ok: true });
             }
             case "stream_group": {
@@ -1252,9 +1525,136 @@ export function attachSocket(server: HTTPServer) {
                 scope,
                 toEmail: target,
               });
-              emitNew(socket.id, saved.toObject());
+
+              const messageObj = saved.toObject();
+
+              // Track emitted sockets to avoid duplicate emissions
+              const emittedSockets = new Set<string>();
+
+              // Emit to sender (if not already emitted)
+              if (!emittedSockets.has(socket.id)) {
+                emitNew(socket.id, messageObj);
+                emittedSockets.add(socket.id);
+              }
+
+              // Emit to target by email (session-level)
               const targetId = emailIndex.get(sessionId)?.get(target);
-              if (targetId) emitNew(targetId, saved.toObject());
+              if (targetId && !emittedSockets.has(targetId)) {
+                emitNew(targetId, messageObj);
+                emittedSockets.add(targetId);
+              }
+
+              // Also broadcast to project-level observer room for cross-session visibility
+              (async () => {
+                try {
+                  const session = await SessionModel.findById(sessionId).lean();
+                  if (session) {
+                    const pid =
+                      (session.projectId as any)?._id || session.projectId;
+                    const projectId = String(pid);
+
+                    // Find target socket in project-level rooms
+                    // Check all sessions in the project for the target email
+                    const sessions = await SessionModel.find({
+                      projectId: new Types.ObjectId(projectId),
+                    }).lean();
+
+                    for (const sess of sessions) {
+                      const sessId = String(sess._id);
+                      const targetSocketId = emailIndex
+                        .get(sessId)
+                        ?.get(target);
+                      if (
+                        targetSocketId &&
+                        !emittedSockets.has(targetSocketId)
+                      ) {
+                        emitNew(targetSocketId, messageObj);
+                        emittedSockets.add(targetSocketId);
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.error("Failed to broadcast DM to project room:", err);
+                }
+              })();
+
+              return ack?.({ ok: true });
+            }
+            case "backroom_dm": {
+              if (
+                !(
+                  role === "Observer" ||
+                  role === "Moderator" ||
+                  role === "Admin"
+                )
+              )
+                return ack?.({ ok: false, error: "forbidden" });
+              const target = (payload.toEmail || "").toLowerCase();
+              if (!target)
+                return ack?.({ ok: false, error: "toEmail_required" });
+              const saved = await ObserverWaitingRoomChatModel.create({
+                sessionId: liveId,
+                email: senderEmail,
+                senderName: senderName || senderEmail,
+                role: role === "Observer" ? "Observer" : "Moderator",
+                content,
+                timestamp: now,
+                scope,
+                toEmail: target,
+              });
+
+              const messageObj = saved.toObject();
+
+              // Track emitted sockets to avoid duplicate emissions
+              const emittedSockets = new Set<string>();
+
+              // Emit to sender (if not already emitted)
+              if (!emittedSockets.has(socket.id)) {
+                emitNew(socket.id, messageObj);
+                emittedSockets.add(socket.id);
+              }
+
+              // Emit to target by email (session-level)
+              const targetId = emailIndex.get(sessionId)?.get(target);
+              if (targetId && !emittedSockets.has(targetId)) {
+                emitNew(targetId, messageObj);
+                emittedSockets.add(targetId);
+              }
+
+              // Also broadcast to project-level observer room for cross-session visibility
+              (async () => {
+                try {
+                  const session = await SessionModel.findById(sessionId).lean();
+                  if (session) {
+                    const pid =
+                      (session.projectId as any)?._id || session.projectId;
+                    const projectId = String(pid);
+
+                    // Find target socket in project-level rooms
+                    // Check all sessions in the project for the target email
+                    const sessions = await SessionModel.find({
+                      projectId: new Types.ObjectId(projectId),
+                    }).lean();
+
+                    for (const sess of sessions) {
+                      const sessId = String(sess._id);
+                      const targetSocketId = emailIndex
+                        .get(sessId)
+                        ?.get(target);
+                      if (
+                        targetSocketId &&
+                        !emittedSockets.has(targetSocketId)
+                      ) {
+                        emitNew(targetSocketId, messageObj);
+                        emittedSockets.add(targetSocketId);
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.error("Failed to broadcast DM to project room:", err);
+                }
+              })();
+
               return ack?.({ ok: true });
             }
             default:
@@ -1396,7 +1796,8 @@ export function attachSocket(server: HTTPServer) {
             }
             case "observer_wait_dm":
             case "stream_dm_obs_obs":
-            case "stream_dm_obs_mod": {
+            case "stream_dm_obs_mod":
+            case "backroom_dm": {
               const peer = (thread?.withEmail || "").toLowerCase();
               if (!peer) return ack?.({ items: [] });
               const me = (email || "").toLowerCase();
@@ -1637,8 +2038,8 @@ export function attachSocket(server: HTTPServer) {
         ack?: (resp: { observers: { name: string; email: string }[] }) => void
       ) => {
         try {
-          // For moderators/admins, return project-level observers (all sessions)
-          // For observers, return session-level observers only
+          // For moderators/admins, return project-level observers (all sessions) + moderators
+          // For observers, return session-level observers + moderators for chat
           if (["Moderator", "Admin"].includes(role)) {
             try {
               const session = await SessionModel.findById(sessionId).lean();
@@ -1648,27 +2049,105 @@ export function attachSocket(server: HTTPServer) {
                 const projectId = String(pid);
                 const m = projectObserverInfo.get(projectId);
                 const observers = m
-                  ? Array.from(m.values()).map((v) => ({
-                      name: v.name,
-                      email: v.email,
-                    }))
+                  ? Array.from(m.values())
+                      .map((v) => ({
+                        name: v.name,
+                        email: v.email,
+                      }))
+                      .filter(
+                        (v) =>
+                          v.email && // Must have email
+                          v.name && // Must have name
+                          v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                          v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                          v.name.toLowerCase() !== "admin" && // Not generic "Admin"
+                          v.email.toLowerCase() !== (email || "").toLowerCase() // Not self
+                      )
                   : [];
-                return ack?.({ observers });
+
+                // Also include moderators/admins from all sessions in this project
+                const sessions = await SessionModel.find({
+                  projectId: new Types.ObjectId(projectId),
+                }).lean();
+                const allModerators: { name: string; email: string }[] = [];
+                for (const sess of sessions) {
+                  const modInfo = moderatorInfo.get(String(sess._id));
+                  if (modInfo) {
+                    const mods = Array.from(modInfo.values())
+                      .map((v) => ({
+                        name: v.name,
+                        email: v.email,
+                      }))
+                      .filter(
+                        (v) =>
+                          v.email && // Must have email
+                          v.name && // Must have name
+                          v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                          v.name.toLowerCase() !== "admin" && // Not generic "Admin"
+                          v.email.toLowerCase() !== (email || "").toLowerCase() // Not self
+                      );
+                    allModerators.push(...mods);
+                  }
+                }
+
+                // Combine and deduplicate by email
+                const combined = [...observers, ...allModerators];
+                const uniqueByEmail = Array.from(
+                  new Map(
+                    combined.map((item) => [item.email.toLowerCase(), item])
+                  ).values()
+                );
+
+                return ack?.({ observers: uniqueByEmail });
               }
             } catch (err) {
               console.error("Failed to get project-level observer list:", err);
             }
           }
 
-          // Fallback to session-level observers
+          // For observers: return session-level observers + moderators for chat
           const m = observerInfo.get(sessionId);
-          const observers = m
-            ? Array.from(m.values()).map((v) => ({
-                name: v.name,
-                email: v.email,
-              }))
+          const sessionObservers = m
+            ? Array.from(m.values())
+                .map((v) => ({
+                  name: v.name,
+                  email: v.email,
+                }))
+                .filter(
+                  (v) =>
+                    v.email && // Must have email
+                    v.name && // Must have name
+                    v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                    v.email.toLowerCase() !== (email || "").toLowerCase() // Not self
+                )
             : [];
-          ack?.({ observers });
+
+          // Include moderators/admins from this session for chat
+          const modInfo = moderatorInfo.get(sessionId);
+          const sessionModerators = modInfo
+            ? Array.from(modInfo.values())
+                .map((v) => ({
+                  name: v.name,
+                  email: v.email,
+                }))
+                .filter(
+                  (v) =>
+                    v.email && // Must have email
+                    v.name && // Must have name
+                    v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                    v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                )
+            : [];
+
+          // Combine and deduplicate
+          const combined = [...sessionObservers, ...sessionModerators];
+          const uniqueByEmail = Array.from(
+            new Map(
+              combined.map((item) => [item.email.toLowerCase(), item])
+            ).values()
+          );
+
+          ack?.({ observers: uniqueByEmail });
         } catch {
           ack?.({ observers: [] });
         }
@@ -2778,6 +3257,61 @@ export function attachSocket(server: HTTPServer) {
                 if (projectInfoMap.size === 0)
                   projectObserverInfo.delete(projectId);
               }
+
+              // Emit updated project-level observer list (including moderators)
+              const projectObserverRoom = `project_observer::${projectId}`;
+              const m = projectObserverInfo.get(projectId);
+              const observers = m
+                ? Array.from(m.values())
+                    .map((v) => ({
+                      name: v.name,
+                      email: v.email,
+                    }))
+                    .filter(
+                      (v) =>
+                        v.email && // Must have email
+                        v.name && // Must have name
+                        v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                        v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                        v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                    )
+                : [];
+
+              // Also include moderators/admins from all sessions in this project
+              const sessions = await SessionModel.find({
+                projectId: new Types.ObjectId(projectId),
+              }).lean();
+              const allModerators: { name: string; email: string }[] = [];
+              for (const sess of sessions) {
+                const modInfo = moderatorInfo.get(String(sess._id));
+                if (modInfo) {
+                  const mods = Array.from(modInfo.values())
+                    .map((v) => ({
+                      name: v.name,
+                      email: v.email,
+                    }))
+                    .filter(
+                      (v) =>
+                        v.email && // Must have email
+                        v.name && // Must have name
+                        v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                        v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                    );
+                  allModerators.push(...mods);
+                }
+              }
+
+              // Combine and deduplicate by email
+              const combined = [...observers, ...allModerators];
+              const uniqueByEmail = Array.from(
+                new Map(
+                  combined.map((item) => [item.email.toLowerCase(), item])
+                ).values()
+              );
+
+              io.to(projectObserverRoom).emit("observer:list", {
+                observers: uniqueByEmail,
+              });
             }
           } catch (err) {
             console.error(
@@ -2861,6 +3395,23 @@ export function attachSocket(server: HTTPServer) {
           infoMap.delete(socket.id);
           if (infoMap.size === 0) moderatorInfo.delete(sessionId);
         }
+        emitModeratorList(); // This will also call emitObserverList to update observer list with moderators
+        // Also update project-level observer list if this moderator was in a project
+        (async () => {
+          try {
+            const session = await SessionModel.findById(sessionId).lean();
+            if (session) {
+              const pid = (session.projectId as any)?._id || session.projectId;
+              const projectId = String(pid);
+              await emitProjectObserverList();
+            }
+          } catch (err) {
+            console.error(
+              "Failed to update project observer list on moderator disconnect:",
+              err
+            );
+          }
+        })();
         try {
           const m = moderatorInfo.get(sessionId);
           const moderators = m

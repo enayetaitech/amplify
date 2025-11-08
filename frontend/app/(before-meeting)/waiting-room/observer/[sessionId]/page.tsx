@@ -18,7 +18,6 @@ import {
 import {
   MessageSquare,
   MoveLeftIcon,
-  
   MoveRightIcon,
   Video,
   X,
@@ -121,7 +120,10 @@ export default function ObserverWaitingRoom() {
       },
     });
 
-    const onStarted = (payload?: { sessionId?: string; playbackUrl?: string | null }) => {
+    const onStarted = (payload?: {
+      sessionId?: string;
+      playbackUrl?: string | null;
+    }) => {
       const targetSessionId = payload?.sessionId || sessionId;
       toast.success(
         "Streaming started. You are being taken to the streaming page."
@@ -146,11 +148,33 @@ export default function ObserverWaitingRoom() {
 
     // Chat message handling
     const onChatNew = (payload: ChatPayload) => {
-      if (payload.scope === "observer_project_group" || payload.scope === "observer_wait_group") {
+      if (
+        payload.scope === "observer_project_group" ||
+        payload.scope === "observer_wait_group"
+      ) {
         // Group chat message (support both old and new scope for backward compatibility)
         const groupMessage = payload.message as GroupMessage;
         if (showGroupChat) {
-          setGroupMessages((prev) => [...prev, groupMessage]);
+          setGroupMessages((prev) => {
+            // Check if message already exists (deduplicate by _id or timestamp + content + senderEmail)
+            const messageWithId = groupMessage as GroupMessage & {
+              _id?: string;
+            };
+            const messageId =
+              messageWithId._id ||
+              `${groupMessage.timestamp}${groupMessage.content}${
+                groupMessage.senderEmail || groupMessage.email
+              }`;
+            const exists = prev.some((m) => {
+              const mWithId = m as GroupMessage & { _id?: string };
+              const mId =
+                mWithId._id ||
+                `${m.timestamp}${m.content}${m.senderEmail || m.email}`;
+              return mId === messageId;
+            });
+            if (exists) return prev; // Don't add duplicate
+            return [...prev, groupMessage];
+          });
           setGroupUnread(0);
         } else {
           setGroupUnread((prev) => prev + 1);
@@ -161,14 +185,33 @@ export default function ObserverWaitingRoom() {
           payload.scope === "stream_dm_obs_mod")
       ) {
         const message = payload.message;
-        const isFromSelectedObserver =
-          message.email?.toLowerCase() ===
-            selectedObserver.email?.toLowerCase() ||
-          message.toEmail?.toLowerCase() ===
-            selectedObserver.email?.toLowerCase();
+        const selectedEmail = (selectedObserver.email || "").toLowerCase();
+        const messageFrom = (message.email || "").toLowerCase();
+        const messageTo = (message.toEmail || "").toLowerCase();
+        const myEmail = (meEmail || "").toLowerCase();
 
-        if (isFromSelectedObserver) {
-          setMessages((prev) => [...prev, message]);
+        // Message is relevant if:
+        // 1. It's from the selected person TO me, OR
+        // 2. It's from me TO the selected person
+        const isRelevantMessage =
+          (messageFrom === selectedEmail && messageTo === myEmail) ||
+          (messageFrom === myEmail && messageTo === selectedEmail);
+
+        if (isRelevantMessage) {
+          setMessages((prev) => {
+            // Check if message already exists (deduplicate by _id or timestamp + content + email)
+            const messageWithId = message as ChatMessage & { _id?: string };
+            const messageId =
+              messageWithId._id ||
+              `${message.timestamp}${message.content}${message.email}`;
+            const exists = prev.some((m) => {
+              const mWithId = m as ChatMessage & { _id?: string };
+              const mId = mWithId._id || `${m.timestamp}${m.content}${m.email}`;
+              return mId === messageId;
+            });
+            if (exists) return prev; // Don't add duplicate
+            return [...prev, message];
+          });
         }
       }
     };
@@ -181,7 +224,7 @@ export default function ObserverWaitingRoom() {
       s.off("chat:new", onChatNew);
       s.disconnect();
     };
-  }, [router, sessionId, selectedObserver, showGroupChat]);
+  }, [router, sessionId, selectedObserver, showGroupChat, meEmail]);
 
   // DM unread count across all observers
   useEffect(() => {
@@ -196,11 +239,11 @@ export default function ObserverWaitingRoom() {
         !payload?.message
       )
         return;
-      
+
       // Handle project-level group chat unread
       if (payload.scope === "observer_project_group") {
         const groupMessage = payload.message as GroupMessage;
-        void groupMessage
+        void groupMessage;
         if (showGroupChat) {
           // Already visible, don't count as unread
           return;
@@ -248,7 +291,7 @@ export default function ObserverWaitingRoom() {
         ? JSON.parse(String(window.localStorage.getItem("liveSessionUser")))
         : {};
       setMeEmail(saved?.email || "");
-      
+
       // Get projectId from localStorage (stored during join)
       const storedProjectId = window.localStorage.getItem("observerProjectId");
       if (storedProjectId) {
@@ -303,17 +346,36 @@ export default function ObserverWaitingRoom() {
   useEffect(() => {
     if (!socket) return;
     const onList = (p: { observers?: { name: string; email: string }[] }) => {
-      const list = Array.isArray(p?.observers) ? p.observers : [];
-      setObserverList(list);
+      const rawList = Array.isArray(p?.observers) ? p.observers : [];
+
+      // Deduplicate by email to prevent duplicate entries
+      const uniqueList = Array.from(
+        new Map(
+          rawList
+            .filter((o) => o.email) // Only include entries with email
+            .map((o) => [o.email!.toLowerCase(), o])
+        ).values()
+      );
+
+      setObserverList(uniqueList);
     };
     socket.on("observer:list", onList);
     socket.emit(
       "observer:list:get",
       {},
       (resp?: { observers?: { name: string; email: string }[] }) => {
-        const list = Array.isArray(resp?.observers) ? resp!.observers! : [];
+        const rawList = Array.isArray(resp?.observers) ? resp!.observers! : [];
 
-        setObserverList(list);
+        // Deduplicate by email to prevent duplicate entries
+        const uniqueList = Array.from(
+          new Map(
+            rawList
+              .filter((o) => o.email) // Only include entries with email
+              .map((o) => [o.email!.toLowerCase(), o])
+          ).values()
+        );
+
+        setObserverList(uniqueList);
       }
     );
     // Moderators/Admins
@@ -538,7 +600,7 @@ export default function ObserverWaitingRoom() {
           <div className=" rounded-xl bg-white p-4 lg:p-6">
             <div className="h-[60vh] lg:h-[70vh] flex items-center justify-center">
               <p className="text-center text-slate-700">
-              Feel free to chat, the meeting stream will start soon.
+                Feel free to chat, the meeting stream will start soon.
               </p>
             </div>
           </div>
@@ -628,23 +690,41 @@ export default function ObserverWaitingRoom() {
                                 const email = (m.email || "").toLowerCase();
                                 const myEmail = meEmail.toLowerCase();
                                 const shouldInclude =
-                                  name !== "Moderator" && email !== myEmail;
+                                  name !== "Moderator" &&
+                                  name !== "Admin" &&
+                                  name.toLowerCase() !== "moderator" &&
+                                  name.toLowerCase() !== "admin" &&
+                                  email &&
+                                  email !== myEmail;
 
                                 return shouldInclude;
                               })
                               .map((m) => ({
                                 name: m.name || m.email || "Moderator",
                                 email: m.email,
-                              }));
+                              }))
+                              .filter((m) => m.email && m.name); // Must have both
 
-                            const allPeople = [
-                              ...observerList,
-                              ...filteredModerators,
-                            ].filter(
-                              (o) =>
-                                (o.email || "").toLowerCase() !==
-                                  meEmail.toLowerCase() &&
-                                (o.name || "").toLowerCase() !== "observer"
+                            const allPeople = Array.from(
+                              new Map(
+                                [...observerList, ...filteredModerators]
+                                  .filter(
+                                    (o) =>
+                                      o.email && // Must have email
+                                      o.name && // Must have name
+                                      (o.email || "").toLowerCase() !==
+                                        meEmail.toLowerCase() &&
+                                      (o.name || "").toLowerCase() !==
+                                        "observer" &&
+                                      (o.name || "").toLowerCase() !==
+                                        "moderator" &&
+                                      (o.name || "").toLowerCase() !== "admin"
+                                  )
+                                  .map((o) => [
+                                    (o.email || "").toLowerCase(),
+                                    o,
+                                  ])
+                              ).values()
                             );
 
                             if (allPeople.length === 0) {
@@ -720,23 +800,42 @@ export default function ObserverWaitingRoom() {
                                     const email = (m.email || "").toLowerCase();
                                     const myEmail = meEmail.toLowerCase();
                                     const shouldInclude =
-                                      name !== "Moderator" && email !== myEmail;
+                                      name !== "Moderator" &&
+                                      name !== "Admin" &&
+                                      name.toLowerCase() !== "moderator" &&
+                                      name.toLowerCase() !== "admin" &&
+                                      email &&
+                                      email !== myEmail;
 
                                     return shouldInclude;
                                   })
                                   .map((m) => ({
                                     name: m.name || m.email || "Moderator",
                                     email: m.email,
-                                  }));
+                                  }))
+                                  .filter((m) => m.email && m.name); // Must have both
 
-                                const allPeople = [
-                                  ...observerList,
-                                  ...filteredModerators,
-                                ].filter(
-                                  (o) =>
-                                    (o.email || "").toLowerCase() !==
-                                      meEmail.toLowerCase() &&
-                                    (o.name || "").toLowerCase() !== "observer"
+                                const allPeople = Array.from(
+                                  new Map(
+                                    [...observerList, ...filteredModerators]
+                                      .filter(
+                                        (o) =>
+                                          o.email && // Must have email
+                                          o.name && // Must have name
+                                          (o.email || "").toLowerCase() !==
+                                            meEmail.toLowerCase() &&
+                                          (o.name || "").toLowerCase() !==
+                                            "observer" &&
+                                          (o.name || "").toLowerCase() !==
+                                            "moderator" &&
+                                          (o.name || "").toLowerCase() !==
+                                            "admin"
+                                      )
+                                      .map((o) => [
+                                        (o.email || "").toLowerCase(),
+                                        o,
+                                      ])
+                                  ).values()
                                 );
 
                                 if (allPeople.length === 0) {
@@ -933,14 +1032,17 @@ export default function ObserverWaitingRoom() {
                         email: m.email,
                       }));
 
-                    const allPeople = [
-                      ...observerList,
-                      ...filteredModerators,
-                    ].filter(
-                      (o) =>
-                        (o.email || "").toLowerCase() !==
-                          meEmail.toLowerCase() &&
-                        (o.name || "").toLowerCase() !== "observer"
+                    const allPeople = Array.from(
+                      new Map(
+                        [...observerList, ...filteredModerators]
+                          .filter(
+                            (o) =>
+                              (o.email || "").toLowerCase() !==
+                                meEmail.toLowerCase() &&
+                              (o.name || "").toLowerCase() !== "observer"
+                          )
+                          .map((o) => [(o.email || "").toLowerCase(), o])
+                      ).values()
                     );
 
                     return allPeople.map((o, idx) => {
