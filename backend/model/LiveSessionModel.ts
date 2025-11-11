@@ -139,5 +139,8 @@ const LiveSessionSchema = new Schema<ILiveSessionDocument>(
   }
 );
 
+// Ensure one LiveSession per scheduled Session
+LiveSessionSchema.index({ sessionId: 1 }, { unique: true });
+
 export const LiveSessionModel: Model<ILiveSessionDocument> =
   mongoose.model<ILiveSessionDocument>("LiveSession", LiveSessionSchema);

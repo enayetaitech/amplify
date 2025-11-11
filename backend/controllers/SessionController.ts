@@ -67,8 +67,10 @@ export const createSessions = async (
     return next(new ErrorHandler("One or more moderators not found", 404));
   }
 
-  // 4. Pull all existing sessions for this project
-  const existing = await SessionModel.find({ projectId });
+  // 4. Pull all existing sessions for this project (lean + select only needed fields)
+  const existing = await SessionModel.find({ projectId })
+    .select("title startAtEpoch endAtEpoch")
+    .lean();
 
   // 5. Validate no overlaps
 
@@ -86,11 +88,14 @@ export const createSessions = async (
     newSessions.push({ ...s, startAtEpoch, endAtEpoch });
   }
 
-  // Intra-batch overlap check
+  // Intra-batch overlap check (optimized: sort then check neighbors)
+  newSessions.sort((a, b) => a.startAtEpoch - b.startAtEpoch);
   for (let i = 0; i < newSessions.length; i++) {
     for (let j = i + 1; j < newSessions.length; j++) {
       const a = newSessions[i];
       const b = newSessions[j];
+      // Early exit: if b starts after a ends, no overlap and all subsequent j's will also not overlap
+      if (b.startAtEpoch >= a.endAtEpoch) break;
       if (a.startAtEpoch < b.endAtEpoch && b.startAtEpoch < a.endAtEpoch) {
         return next(
           new ErrorHandler(
@@ -102,12 +107,12 @@ export const createSessions = async (
     }
   }
 
-  // Check against existing sessions (by epoch)
+  // Check against existing sessions (optimized: use stored epochs directly)
   for (const s of newSessions) {
     for (const ex of existing) {
-      const exIana = resolveToIana(ex.timeZone) ?? ianaTimeZone;
-      const startEx = toTimestampStrict(ex.date, ex.startTime, exIana);
-      const endEx = startEx + ex.duration * 60_000;
+      // Use stored epochs directly (timezone is locked at project level, so stored epochs are correct)
+      const startEx = ex.startAtEpoch;
+      const endEx = ex.endAtEpoch;
       if (s.startAtEpoch < endEx && startEx < s.endAtEpoch) {
         return next(
           new ErrorHandler(
@@ -142,10 +147,21 @@ export const createSessions = async (
   try {
     created = await SessionModel.insertMany(docs, { session: mongoSession });
 
-    for (const sess of created) {
-      await sessionService.createLiveSession(sess._id.toString(), {
-        session: mongoSession,
-      });
+    // Bulk upsert LiveSessions for all created sessions within the same transaction
+    if (created.length > 0) {
+      const ops = created.map((sess) => ({
+        updateOne: {
+          filter: { sessionId: sess._id },
+          update: {
+            $setOnInsert: {
+              sessionId: sess._id,
+              ongoing: false,
+            },
+          },
+          upsert: true,
+        },
+      }));
+      await LiveSessionModel.bulkWrite(ops as any, { session: mongoSession });
     }
 
     project.meetings.push(...created.map((s) => s._id));
