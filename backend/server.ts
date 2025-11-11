@@ -143,9 +143,10 @@ server.listen(PORT, async () => {
     }
   });
 
-  // daily at 00:00 (midnight) export project chat to deliverables and start fresh
+  // Daily at 00:00 (midnight) export project chat to deliverables and start fresh
   cron.schedule("0 0 * * *", async () => {
     try {
+      baseLogger.info("Starting daily project chat export (midnight)");
       const { exportDailyProjectChat } = await import(
         "./services/dailyChatExport"
       );

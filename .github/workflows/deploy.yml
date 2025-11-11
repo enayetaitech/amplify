@@ -36,21 +36,102 @@ jobs:
           ssh-keyscan -H ${{ secrets.HOSTINGER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
           chmod 600 ~/.ssh/known_hosts || true
 
+      - name: Detect changed files
+        id: changes
+        run: |
+          # For manual triggers, build everything
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "BUILD_FRONTEND=true" >> $GITHUB_ENV
+            echo "BUILD_BACKEND=true" >> $GITHUB_ENV
+            echo "Manual trigger: building both frontend and backend"
+            exit 0
+          fi
+
+          # Fetch more history for comparison
+          git fetch --depth=10 origin main || true
+
+          # Determine base commit for comparison
+          # Use github.event.before if available (push event), otherwise use HEAD^
+          if [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.event.after }}"
+            echo "Comparing ${BASE_SHA}..${HEAD_SHA}"
+          else
+            # Fallback: compare with previous commit
+            BASE_SHA=$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD)
+            HEAD_SHA=$(git rev-parse HEAD)
+            echo "Comparing ${BASE_SHA}..${HEAD_SHA} (fallback)"
+          fi
+
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only ${BASE_SHA} ${HEAD_SHA} 2>/dev/null || echo "")
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files detected, building both for safety"
+            echo "BUILD_FRONTEND=true" >> $GITHUB_ENV
+            echo "BUILD_BACKEND=true" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          # Check what changed
+          FRONTEND_CHANGED=false
+          BACKEND_CHANGED=false
+
+          if echo "$CHANGED_FILES" | grep -qE '^(frontend/|shared/)'; then
+            FRONTEND_CHANGED=true
+            echo "Frontend changes detected"
+          fi
+
+          if echo "$CHANGED_FILES" | grep -qE '^(backend/|shared/)'; then
+            BACKEND_CHANGED=true
+            echo "Backend changes detected"
+          fi
+
+          # Set build flags
+          if [ "$FRONTEND_CHANGED" = "true" ]; then
+            echo "BUILD_FRONTEND=true" >> $GITHUB_ENV
+            echo "BUILD_FRONTEND=true"
+          else
+            echo "BUILD_FRONTEND=false" >> $GITHUB_ENV
+            echo "BUILD_FRONTEND=false"
+            echo "No frontend changes detected"
+          fi
+
+          if [ "$BACKEND_CHANGED" = "true" ]; then
+            echo "BUILD_BACKEND=true" >> $GITHUB_ENV
+            echo "BUILD_BACKEND=true"
+          else
+            echo "BUILD_BACKEND=false" >> $GITHUB_ENV
+            echo "BUILD_BACKEND=false"
+            echo "No backend changes detected"
+          fi
+
+          echo ""
+          echo "Changed files:"
+          echo "$CHANGED_FILES" | head -20
+          echo ""
+          echo "Build flags:"
+          echo "  BUILD_FRONTEND=${FRONTEND_CHANGED}"
+          echo "  BUILD_BACKEND=${BACKEND_CHANGED}"
+
       - name: Deploy to Hostinger server
         env:
           SERVER_USER: ${{ secrets.HOSTINGER_USER }}
           SERVER_HOST: ${{ secrets.HOSTINGER_HOST }}
           SERVER_PATH: ${{ secrets.HOSTINGER_DEPLOY_PATH || '/var/www/amplify' }}
+          BUILD_FRONTEND: ${{ env.BUILD_FRONTEND }}
+          BUILD_BACKEND: ${{ env.BUILD_BACKEND }}
         timeout-minutes: 90
         run: |
           echo "Connecting to ${SERVER_USER}@${SERVER_HOST}..."
+          echo "Build flags: BUILD_FRONTEND=${BUILD_FRONTEND}, BUILD_BACKEND=${BUILD_BACKEND}"
           ssh -o StrictHostKeyChecking=no \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=150 \
             -o TCPKeepAlive=yes \
             -o ConnectTimeout=90 \
             ${SERVER_USER}@${SERVER_HOST} \
-            "cd ${SERVER_PATH} && bash deploy.sh 2>&1 | tee /tmp/deploy.log || (cat /tmp/deploy.log && exit 1)"
+            "cd ${SERVER_PATH} && BUILD_FRONTEND=${BUILD_FRONTEND} BUILD_BACKEND=${BUILD_BACKEND} bash deploy.sh 2>&1 | tee /tmp/deploy.log || (cat /tmp/deploy.log && exit 1)"
 
       - name: Deployment status
         run: |

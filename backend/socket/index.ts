@@ -41,6 +41,7 @@ import ObserverGroupMessageModel, {
 } from "../model/ObserverGroupMessage";
 import { ObserverWaitingRoomChatModel } from "../model/ObserverWaitingRoomChatModel";
 import { ObserverProjectChatModel } from "../model/ObserverProjectChatModel";
+import { baseLogger } from "../utils/logger";
 import WhiteboardStroke from "../model/WhiteboardStroke";
 import {
   WhiteboardJoinSchema,
@@ -370,9 +371,88 @@ export function attachSocket(server: HTTPServer) {
             )
         : [];
 
-      // Combine observers and moderators for chat list
-      const allForChat = [...observers, ...moderators];
-      io.to(sessionId).emit("observer:list", { observers: allForChat });
+      // Check if there are moderators/admins in this session
+      // If yes, emit project-level observer list; otherwise emit session-level list
+      const hasModeratorsOrAdmins = modInfo && modInfo.size > 0;
+      
+      if (hasModeratorsOrAdmins) {
+        // For sessions with moderators/admins, emit project-level observer list
+        // This ensures admins/moderators in the meeting room see all observers across the project
+        (async () => {
+          try {
+            const session = await SessionModel.findById(sessionId).lean();
+            if (session) {
+              const pid = (session.projectId as any)?._id || session.projectId;
+              const projectId = String(pid);
+              const projectM = projectObserverInfo.get(projectId);
+              const projectObservers = projectM
+                ? Array.from(projectM.values())
+                    .map((v) => ({
+                      name: v.name,
+                      email: v.email,
+                    }))
+                    .filter(
+                      (v) =>
+                        v.email && // Must have email
+                        v.name && // Must have name
+                        v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                        v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                        v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                    )
+                : [];
+
+              // Also include moderators/admins from all sessions in this project
+              const sessions = await SessionModel.find({
+                projectId: new Types.ObjectId(projectId),
+              }).lean();
+              const allModerators: { name: string; email: string }[] = [];
+              for (const sess of sessions) {
+                const sessModInfo = moderatorInfo.get(String(sess._id));
+                if (sessModInfo) {
+                  const mods = Array.from(sessModInfo.values())
+                    .map((v) => ({
+                      name: v.name,
+                      email: v.email,
+                    }))
+                    .filter(
+                      (v) =>
+                        v.email && // Must have email
+                        v.name && // Must have name
+                        v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                        v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                    );
+                  allModerators.push(...mods);
+                }
+              }
+
+              // Combine and deduplicate by email
+              const combined = [...projectObservers, ...allModerators];
+              const uniqueByEmail = Array.from(
+                new Map(
+                  combined.map((item) => [item.email.toLowerCase(), item])
+                ).values()
+              );
+
+              // Emit project-level observer list to session room for admins/moderators
+              io.to(sessionId).emit("observer:list", {
+                observers: uniqueByEmail,
+              });
+            }
+          } catch (err) {
+            console.error(
+              "Failed to emit project-level observer list to session room:",
+              err
+            );
+            // Fallback to session-level list on error
+            const allForChat = [...observers, ...moderators];
+            io.to(sessionId).emit("observer:list", { observers: allForChat });
+          }
+        })();
+      } else {
+        // For sessions without moderators/admins, emit session-level observer list
+        const allForChat = [...observers, ...moderators];
+        io.to(sessionId).emit("observer:list", { observers: allForChat });
+      }
     };
     // Helper to emit project-level observer list to moderators/admins
     // Includes moderators/admins for chat purposes, but filters out generic names
@@ -1440,47 +1520,110 @@ export function attachSocket(server: HTTPServer) {
               return ack?.({ ok: true });
             }
             case "observer_project_group": {
+              baseLogger.debug(
+                {
+                  sessionId,
+                  senderEmail,
+                  senderName,
+                  contentLength: content?.length || 0,
+                  role,
+                },
+                "Observer project group chat: received message"
+              );
               if (
                 !(
                   role === "Observer" ||
                   role === "Moderator" ||
                   role === "Admin"
                 )
-              )
+              ) {
+                baseLogger.warn(
+                  { sessionId, role, senderEmail },
+                  "Observer project group chat: forbidden - invalid role"
+                );
                 return ack?.({ ok: false, error: "forbidden" });
+              }
               // Extract projectId from sessionId
               const session = await SessionModel.findById(sessionId).lean();
               if (!session) {
+                baseLogger.error(
+                  { sessionId, senderEmail },
+                  "Observer project group chat: session not found"
+                );
                 return ack?.({ ok: false, error: "session_not_found" });
               }
               const pid = (session.projectId as any)?._id || session.projectId;
               const projectId = new Types.ObjectId(String(pid));
 
-              // Save message (will be archived to deliverables and deleted at midnight daily)
-              const saved = await ObserverProjectChatModel.create({
-                projectId,
-                senderEmail: senderEmail,
-                name: senderName || senderEmail,
-                content,
-                scope,
-              });
-
-              // Broadcast to project-level observer room with correct format
-              const projectObserverRoom = `project_observer::${String(pid)}`;
-              const messageObj = saved.toObject();
-              // Transform to match frontend GroupMessage format
-              io.to(projectObserverRoom).emit("chat:new", {
-                scope,
-                message: {
-                  senderEmail: messageObj.senderEmail,
-                  name: messageObj.name,
-                  content: messageObj.content,
-                  timestamp: messageObj.timestamp,
-                  _id: messageObj._id,
+              baseLogger.debug(
+                {
+                  sessionId,
+                  projectId: String(projectId),
+                  senderEmail,
+                  senderName,
                 },
-              });
+                "Observer project group chat: saving message to database"
+              );
 
-              return ack?.({ ok: true });
+              try {
+                // Save message (will be archived to deliverables and deleted at midnight daily)
+                const saved = await ObserverProjectChatModel.create({
+                  projectId,
+                  senderEmail: senderEmail,
+                  name: senderName || senderEmail,
+                  content,
+                  scope,
+                });
+
+                baseLogger.info(
+                  {
+                    messageId: String(saved._id),
+                    sessionId,
+                    projectId: String(projectId),
+                    senderEmail,
+                    timestamp: saved.timestamp,
+                  },
+                  "Observer project group chat: message saved successfully"
+                );
+
+                // Broadcast to project-level observer room with correct format
+                const projectObserverRoom = `project_observer::${String(pid)}`;
+                const messageObj = saved.toObject();
+                // Transform to match frontend GroupMessage format
+                io.to(projectObserverRoom).emit("chat:new", {
+                  scope,
+                  message: {
+                    senderEmail: messageObj.senderEmail,
+                    name: messageObj.name,
+                    content: messageObj.content,
+                    timestamp: messageObj.timestamp,
+                    _id: messageObj._id,
+                  },
+                });
+
+                baseLogger.debug(
+                  {
+                    messageId: String(saved._id),
+                    projectObserverRoom,
+                    sessionId,
+                  },
+                  "Observer project group chat: message broadcasted"
+                );
+
+                return ack?.({ ok: true });
+              } catch (saveError) {
+                baseLogger.error(
+                  {
+                    err: saveError,
+                    sessionId,
+                    projectId: String(projectId),
+                    senderEmail,
+                    contentLength: content?.length || 0,
+                  },
+                  "Observer project group chat: failed to save message"
+                );
+                return ack?.({ ok: false, error: "save_failed" });
+              }
             }
             case "stream_dm_obs_obs": {
               if (role !== "Observer")
