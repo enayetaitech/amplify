@@ -229,10 +229,16 @@ export default function ObserverMessageComponent({
                           </div>
                         </div>
                         {observerList
-                          .filter(
-                            (o) =>
-                              (o?.email || "").toLowerCase() !== myEmailLower
-                          )
+                          .filter((o) => {
+                            const oEmailLower = (o?.email || "").toLowerCase();
+                            if (oEmailLower === myEmailLower) return false;
+                            // Exclude observers that are already in the moderator list
+                            const isModerator = moderatorList.some(
+                              (m) =>
+                                (m?.email || "").toLowerCase() === oEmailLower
+                            );
+                            return !isModerator;
+                          })
                           .map((o) => {
                             const label = o.name
                               ? formatDisplayName(o.name)
