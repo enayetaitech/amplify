@@ -81,14 +81,33 @@ export default function ObserverMessageComponent({
   void groupLoading;
   void dmRef;
   void loadingHistory;
+  void observerCount; // Not used - we calculate actualObserverCount instead
   const totalDmUnread = Object.values(dmUnreadByEmail || {}).reduce(
     (s, v) => s + (v || 0),
     0
   );
   const totalObserverUnread = totalDmUnread + (groupUnread || 0);
+
+  // Filter out moderators/admins from observer list to get accurate count
+  // Only count users with role = Observer, not Admin or Moderator
+  const moderatorEmails = new Set(
+    moderatorList
+      .filter((m) => m.email)
+      .map((m) => (m.email || "").toLowerCase())
+  );
+  const filteredObserverList = observerList.filter((o) => {
+    const oEmailLower = (o?.email || "").toLowerCase();
+    // Exclude moderators/admins from observer count
+    return !moderatorEmails.has(oEmailLower);
+  });
+  const actualObserverCount = filteredObserverList.length;
+
   return (
     <>
-      <RightSidebarHeading title="Backroom" observerCount={observerCount} />
+      <RightSidebarHeading
+        title="Backroom"
+        observerCount={actualObserverCount}
+      />
       <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
         <Tabs
           defaultValue="list"
@@ -125,10 +144,10 @@ export default function ObserverMessageComponent({
           </TabsList>
           <TabsContent value="list">
             <div className="space-y-2">
-              {observerList.length === 0 && (
+              {filteredObserverList.length === 0 && (
                 <div className="text-sm text-gray-500">No observers yet.</div>
               )}
-              {observerList.map((o) => {
+              {filteredObserverList.map((o) => {
                 const label = o.name || o.email || "Observer";
                 return (
                   <div

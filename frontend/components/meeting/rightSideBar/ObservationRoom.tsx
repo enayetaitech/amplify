@@ -67,6 +67,11 @@ const ObservationRoom = () => {
   const [groupLoading, setGroupLoading] = useState<boolean>(false);
   const [groupUnread, setGroupUnread] = useState<number>(0);
 
+  // Track moderator/admin emails to exclude from observer count
+  const [moderatorEmails, setModeratorEmails] = useState<Set<string>>(
+    new Set()
+  );
+
   // Refs for auto-scroll functionality
   const groupRef = useRef<HTMLDivElement | null>(null);
   const dmRef = useRef<HTMLDivElement | null>(null);
@@ -105,6 +110,36 @@ const ObservationRoom = () => {
     };
 
     s.on("observer:list", onObserverList);
+
+    // Track moderators/admins to exclude from observer count
+    const onModeratorList = (payload: unknown) => {
+      const data = payload as {
+        moderators?: { name: string; email: string; role: string }[];
+      };
+      const moderators = Array.isArray(data?.moderators) ? data.moderators : [];
+      const moderatorEmailSet = new Set(
+        moderators.filter((m) => m.email).map((m) => m.email!.toLowerCase())
+      );
+      setModeratorEmails(moderatorEmailSet);
+    };
+
+    s.on("moderator:list", onModeratorList);
+
+    // Request initial moderator list
+    try {
+      s.emit("moderator:list:get", {}, (resp?: unknown) => {
+        const data = resp as {
+          moderators?: { name: string; email: string; role: string }[];
+        };
+        const moderators = Array.isArray(data?.moderators)
+          ? data.moderators
+          : [];
+        const moderatorEmailSet = new Set(
+          moderators.filter((m) => m.email).map((m) => m.email!.toLowerCase())
+        );
+        setModeratorEmails(moderatorEmailSet);
+      });
+    } catch {}
 
     // Chat message handling
     const onChatNew = (payload: unknown) => {
@@ -205,6 +240,7 @@ const ObservationRoom = () => {
 
     return () => {
       s.off("observer:list", onObserverList);
+      s.off("moderator:list", onModeratorList);
       s.off("chat:new", onChatNew);
     };
   }, [selectedObserver, showGroupChat, meEmail]);
@@ -549,12 +585,12 @@ const ObservationRoom = () => {
       <RightSidebarHeading
         title="Observation Room"
         observerCount={
-          // Count from observers array to match what's shown in the list
-          // Filter out moderators/admins and generic names
+          // Count only actual observers (role = Observer), exclude moderators/admins
           observers.filter(
             (o) =>
               o.email && // Must have email
               o.name && // Must have name
+              !moderatorEmails.has((o.email || "").toLowerCase()) && // Exclude moderators/admins
               (o.name || "").toLowerCase() !== "observer" &&
               (o.name || "").toLowerCase() !== "moderator" &&
               (o.name || "").toLowerCase() !== "admin"
@@ -609,6 +645,7 @@ const ObservationRoom = () => {
               (o) =>
                 o.email && // Must have email
                 o.name && // Must have name
+                !moderatorEmails.has((o.email || "").toLowerCase()) && // Exclude moderators/admins
                 (o.name || "").toLowerCase() !== "observer" &&
                 (o.name || "").toLowerCase() !== "moderator" &&
                 (o.name || "").toLowerCase() !== "admin" &&
@@ -621,6 +658,7 @@ const ObservationRoom = () => {
                   (o) =>
                     o.email && // Must have email
                     o.name && // Must have name
+                    !moderatorEmails.has((o.email || "").toLowerCase()) && // Exclude moderators/admins
                     (o.name || "").toLowerCase() !== "observer" &&
                     (o.name || "").toLowerCase() !== "moderator" &&
                     (o.name || "").toLowerCase() !== "admin" &&
@@ -683,6 +721,7 @@ const ObservationRoom = () => {
                     (o) =>
                       o.email && // Must have email
                       o.name && // Must have name
+                      !moderatorEmails.has((o.email || "").toLowerCase()) && // Exclude moderators/admins
                       (o.name || "").toLowerCase() !== "observer" &&
                       (o.name || "").toLowerCase() !== "moderator" &&
                       (o.name || "").toLowerCase() !== "admin" &&
@@ -697,6 +736,7 @@ const ObservationRoom = () => {
                         (o) =>
                           o.email && // Must have email
                           o.name && // Must have name
+                          !moderatorEmails.has((o.email || "").toLowerCase()) && // Exclude moderators/admins
                           (o.name || "").toLowerCase() !== "observer" &&
                           (o.name || "").toLowerCase() !== "moderator" &&
                           (o.name || "").toLowerCase() !== "admin" &&
