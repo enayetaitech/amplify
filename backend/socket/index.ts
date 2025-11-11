@@ -371,9 +371,88 @@ export function attachSocket(server: HTTPServer) {
             )
         : [];
 
-      // Combine observers and moderators for chat list
-      const allForChat = [...observers, ...moderators];
-      io.to(sessionId).emit("observer:list", { observers: allForChat });
+      // Check if there are moderators/admins in this session
+      // If yes, emit project-level observer list; otherwise emit session-level list
+      const hasModeratorsOrAdmins = modInfo && modInfo.size > 0;
+      
+      if (hasModeratorsOrAdmins) {
+        // For sessions with moderators/admins, emit project-level observer list
+        // This ensures admins/moderators in the meeting room see all observers across the project
+        (async () => {
+          try {
+            const session = await SessionModel.findById(sessionId).lean();
+            if (session) {
+              const pid = (session.projectId as any)?._id || session.projectId;
+              const projectId = String(pid);
+              const projectM = projectObserverInfo.get(projectId);
+              const projectObservers = projectM
+                ? Array.from(projectM.values())
+                    .map((v) => ({
+                      name: v.name,
+                      email: v.email,
+                    }))
+                    .filter(
+                      (v) =>
+                        v.email && // Must have email
+                        v.name && // Must have name
+                        v.name.toLowerCase() !== "observer" && // Not generic "Observer"
+                        v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                        v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                    )
+                : [];
+
+              // Also include moderators/admins from all sessions in this project
+              const sessions = await SessionModel.find({
+                projectId: new Types.ObjectId(projectId),
+              }).lean();
+              const allModerators: { name: string; email: string }[] = [];
+              for (const sess of sessions) {
+                const sessModInfo = moderatorInfo.get(String(sess._id));
+                if (sessModInfo) {
+                  const mods = Array.from(sessModInfo.values())
+                    .map((v) => ({
+                      name: v.name,
+                      email: v.email,
+                    }))
+                    .filter(
+                      (v) =>
+                        v.email && // Must have email
+                        v.name && // Must have name
+                        v.name.toLowerCase() !== "moderator" && // Not generic "Moderator"
+                        v.name.toLowerCase() !== "admin" // Not generic "Admin"
+                    );
+                  allModerators.push(...mods);
+                }
+              }
+
+              // Combine and deduplicate by email
+              const combined = [...projectObservers, ...allModerators];
+              const uniqueByEmail = Array.from(
+                new Map(
+                  combined.map((item) => [item.email.toLowerCase(), item])
+                ).values()
+              );
+
+              // Emit project-level observer list to session room for admins/moderators
+              io.to(sessionId).emit("observer:list", {
+                observers: uniqueByEmail,
+              });
+            }
+          } catch (err) {
+            console.error(
+              "Failed to emit project-level observer list to session room:",
+              err
+            );
+            // Fallback to session-level list on error
+            const allForChat = [...observers, ...moderators];
+            io.to(sessionId).emit("observer:list", { observers: allForChat });
+          }
+        })();
+      } else {
+        // For sessions without moderators/admins, emit session-level observer list
+        const allForChat = [...observers, ...moderators];
+        io.to(sessionId).emit("observer:list", { observers: allForChat });
+      }
     };
     // Helper to emit project-level observer list to moderators/admins
     // Includes moderators/admins for chat purposes, but filters out generic names

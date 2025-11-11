@@ -549,8 +549,16 @@ const ObservationRoom = () => {
       <RightSidebarHeading
         title="Observation Room"
         observerCount={
-          observers.filter((o) => (o.name || "").toLowerCase() !== "observer")
-            .length
+          // Count from observers array to match what's shown in the list
+          // Filter out moderators/admins and generic names
+          observers.filter(
+            (o) =>
+              o.email && // Must have email
+              o.name && // Must have name
+              (o.name || "").toLowerCase() !== "observer" &&
+              (o.name || "").toLowerCase() !== "moderator" &&
+              (o.name || "").toLowerCase() !== "admin"
+          ).length
         }
       />
 
