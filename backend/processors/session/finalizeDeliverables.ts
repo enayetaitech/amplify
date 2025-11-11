@@ -17,6 +17,7 @@ import {
 import { findLatestObjectByPrefix } from "../../utils/uploadToS3";
 import { packageHlsToMp4AndUpload } from "../video/packFromHls";
 import { extractAudioFromVideoAndUpload } from "../video/extractAudio";
+import { baseLogger } from "../../utils/logger";
 import https from "https";
 import http from "http";
 import { URL } from "url";
@@ -347,11 +348,19 @@ export async function finalizeSessionDeliverables(
       .lean();
 
     // Get project-level observer chat messages (unified chat)
-    // Include messages from the session start time to now (or end time if ended)
-    const sessionStartTime = session.startAtEpoch
+    // Use LiveSession's actual start/end times if available, otherwise fall back to scheduled times
+    // This is important because sessions may start/end at different times than scheduled
+    const sessionStartTime = live?.startTime
+      ? new Date(live.startTime)
+      : session.startAtEpoch
       ? new Date(session.startAtEpoch)
       : new Date(Date.now() - 24 * 60 * 60 * 1000); // Fallback to last 24h if no start time
-    const sessionEndTime = session.endAtEpoch
+    
+    const sessionEndTime = live?.endTime
+      ? new Date(live.endTime)
+      : live?.ongoing === false && live?.hlsStoppedAt
+      ? new Date(live.hlsStoppedAt)
+      : session.endAtEpoch
       ? new Date(session.endAtEpoch)
       : new Date(); // Use current time if session hasn't ended yet
     
@@ -361,6 +370,22 @@ export async function finalizeSessionDeliverables(
       : new Types.ObjectId(String(session.projectId));
     
     // Get project-level observer chat messages within session timeframe
+    baseLogger.debug(
+      {
+        sessionId,
+        projectId: String(projectIdObj),
+        sessionStartTime: sessionStartTime.toISOString(),
+        sessionEndTime: sessionEndTime.toISOString(),
+        usingLiveStartTime: !!live?.startTime,
+        usingLiveEndTime: !!live?.endTime,
+        scheduledStartEpoch: session.startAtEpoch,
+        scheduledEndEpoch: session.endAtEpoch,
+        liveStartTime: live?.startTime ? new Date(live.startTime).toISOString() : null,
+        liveEndTime: live?.endTime ? new Date(live.endTime).toISOString() : null,
+      },
+      "Finalize deliverables: fetching project-level observer chat messages"
+    );
+
     const projectObserverChats = await ObserverProjectChatModel.find({
       projectId: projectIdObj,
       timestamp: {
@@ -371,6 +396,16 @@ export async function finalizeSessionDeliverables(
     })
       .sort({ timestamp: 1 })
       .lean();
+
+    baseLogger.info(
+      {
+        sessionId,
+        projectId: String(projectIdObj),
+        sessionScopedCount: sessionBackroomChats.length,
+        projectLevelCount: projectObserverChats.length,
+      },
+      "Finalize deliverables: found backroom chat messages"
+    );
 
     // Combine session-scoped and project-level chats
     const backroomChats = [
@@ -430,6 +465,15 @@ export async function finalizeSessionDeliverables(
     }
 
     if (backroomChats.length) {
+      baseLogger.debug(
+        {
+          sessionId,
+          sessionTitle,
+          messageCount: backroomChats.length,
+        },
+        "Finalize deliverables: creating backroom chat deliverable"
+      );
+
       const lines: string[] = [
         `Backroom Chat — ${sessionTitle}`,
         `Total messages: ${backroomChats.length}`,
@@ -453,12 +497,23 @@ export async function finalizeSessionDeliverables(
         storageKey: key,
       });
       if (!existing) {
+        baseLogger.debug(
+          {
+            sessionId,
+            filename,
+            s3Key: key,
+            messageCount: backroomChats.length,
+          },
+          "Finalize deliverables: uploading backroom chat to S3"
+        );
+
         const { key: s3Key, size } = await uploadBufferToS3WithKey(
           toText(lines),
           "text/plain",
           key
         );
-        await SessionDeliverableModel.create({
+
+        const deliverable = await SessionDeliverableModel.create({
           sessionId: session._id,
           projectId,
           type: "BACKROOM_CHAT",
@@ -467,7 +522,37 @@ export async function finalizeSessionDeliverables(
           storageKey: s3Key,
           uploadedBy: (endedBy as any) || session.moderators?.[0],
         });
+
+        baseLogger.info(
+          {
+            deliverableId: String(deliverable._id),
+            sessionId,
+            sessionTitle,
+            filename,
+            s3Key,
+            size,
+            messageCount: backroomChats.length,
+          },
+          "Finalize deliverables: backroom chat deliverable created successfully"
+        );
+      } else {
+        baseLogger.debug(
+          {
+            sessionId,
+            filename,
+            s3Key: key,
+          },
+          "Finalize deliverables: backroom chat deliverable already exists, skipping"
+        );
       }
+    } else {
+      baseLogger.debug(
+        {
+          sessionId,
+          sessionTitle,
+        },
+        "Finalize deliverables: no backroom chat messages to export"
+      );
     }
   })();
 

@@ -41,6 +41,7 @@ import ObserverGroupMessageModel, {
 } from "../model/ObserverGroupMessage";
 import { ObserverWaitingRoomChatModel } from "../model/ObserverWaitingRoomChatModel";
 import { ObserverProjectChatModel } from "../model/ObserverProjectChatModel";
+import { baseLogger } from "../utils/logger";
 import WhiteboardStroke from "../model/WhiteboardStroke";
 import {
   WhiteboardJoinSchema,
@@ -1440,47 +1441,110 @@ export function attachSocket(server: HTTPServer) {
               return ack?.({ ok: true });
             }
             case "observer_project_group": {
+              baseLogger.debug(
+                {
+                  sessionId,
+                  senderEmail,
+                  senderName,
+                  contentLength: content?.length || 0,
+                  role,
+                },
+                "Observer project group chat: received message"
+              );
               if (
                 !(
                   role === "Observer" ||
                   role === "Moderator" ||
                   role === "Admin"
                 )
-              )
+              ) {
+                baseLogger.warn(
+                  { sessionId, role, senderEmail },
+                  "Observer project group chat: forbidden - invalid role"
+                );
                 return ack?.({ ok: false, error: "forbidden" });
+              }
               // Extract projectId from sessionId
               const session = await SessionModel.findById(sessionId).lean();
               if (!session) {
+                baseLogger.error(
+                  { sessionId, senderEmail },
+                  "Observer project group chat: session not found"
+                );
                 return ack?.({ ok: false, error: "session_not_found" });
               }
               const pid = (session.projectId as any)?._id || session.projectId;
               const projectId = new Types.ObjectId(String(pid));
 
-              // Save message (will be archived to deliverables and deleted at midnight daily)
-              const saved = await ObserverProjectChatModel.create({
-                projectId,
-                senderEmail: senderEmail,
-                name: senderName || senderEmail,
-                content,
-                scope,
-              });
-
-              // Broadcast to project-level observer room with correct format
-              const projectObserverRoom = `project_observer::${String(pid)}`;
-              const messageObj = saved.toObject();
-              // Transform to match frontend GroupMessage format
-              io.to(projectObserverRoom).emit("chat:new", {
-                scope,
-                message: {
-                  senderEmail: messageObj.senderEmail,
-                  name: messageObj.name,
-                  content: messageObj.content,
-                  timestamp: messageObj.timestamp,
-                  _id: messageObj._id,
+              baseLogger.debug(
+                {
+                  sessionId,
+                  projectId: String(projectId),
+                  senderEmail,
+                  senderName,
                 },
-              });
+                "Observer project group chat: saving message to database"
+              );
 
-              return ack?.({ ok: true });
+              try {
+                // Save message (will be archived to deliverables and deleted at midnight daily)
+                const saved = await ObserverProjectChatModel.create({
+                  projectId,
+                  senderEmail: senderEmail,
+                  name: senderName || senderEmail,
+                  content,
+                  scope,
+                });
+
+                baseLogger.info(
+                  {
+                    messageId: String(saved._id),
+                    sessionId,
+                    projectId: String(projectId),
+                    senderEmail,
+                    timestamp: saved.timestamp,
+                  },
+                  "Observer project group chat: message saved successfully"
+                );
+
+                // Broadcast to project-level observer room with correct format
+                const projectObserverRoom = `project_observer::${String(pid)}`;
+                const messageObj = saved.toObject();
+                // Transform to match frontend GroupMessage format
+                io.to(projectObserverRoom).emit("chat:new", {
+                  scope,
+                  message: {
+                    senderEmail: messageObj.senderEmail,
+                    name: messageObj.name,
+                    content: messageObj.content,
+                    timestamp: messageObj.timestamp,
+                    _id: messageObj._id,
+                  },
+                });
+
+                baseLogger.debug(
+                  {
+                    messageId: String(saved._id),
+                    projectObserverRoom,
+                    sessionId,
+                  },
+                  "Observer project group chat: message broadcasted"
+                );
+
+                return ack?.({ ok: true });
+              } catch (saveError) {
+                baseLogger.error(
+                  {
+                    err: saveError,
+                    sessionId,
+                    projectId: String(projectId),
+                    senderEmail,
+                    contentLength: content?.length || 0,
+                  },
+                  "Observer project group chat: failed to save message"
+                );
+                return ack?.({ ok: false, error: "save_failed" });
+              }
             }
             case "stream_dm_obs_obs": {
               if (role !== "Observer")
