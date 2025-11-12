@@ -3,6 +3,8 @@ export interface IWaitingRoomChat {
     _id: string;
     sessionId: string;
     email: string;
+    firstName?: string;
+    lastName?: string;
     senderName: string;
     role: "Participant" | "Observer" | "Moderator";
     content: string;
