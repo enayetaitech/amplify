@@ -33,6 +33,7 @@ import {
 } from "components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatDisplayName } from "lib/utils";
+import { formatParticipantName } from "utils/formatParticipantName";
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 
@@ -106,6 +107,47 @@ function getRoleFromMetadata(meta?: string | null): string | null {
   }
 }
 
+function getFirstNameLastNameFromParticipant(p: {
+  metadata?: string | null;
+  name?: string | null;
+}): { firstName: string; lastName: string } | null {
+  // Try to extract from metadata first
+  if (p.metadata) {
+    try {
+      const meta = JSON.parse(p.metadata);
+      // Check direct fields
+      if (meta?.firstName && meta?.lastName) {
+        return {
+          firstName: String(meta.firstName).trim(),
+          lastName: String(meta.lastName).trim(),
+        };
+      }
+      // Check nested user object
+      if (meta?.user?.firstName && meta?.user?.lastName) {
+        return {
+          firstName: String(meta.user.firstName).trim(),
+          lastName: String(meta.user.lastName).trim(),
+        };
+      }
+    } catch {
+      // Fallback to parsing name
+    }
+  }
+
+  // Fallback: parse from name if available
+  if (p.name) {
+    const parts = String(p.name).trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return {
+        firstName: parts[0],
+        lastName: parts.slice(1).join(" "),
+      };
+    }
+  }
+
+  return null;
+}
+
 export default function ParticipantsPanel({
   role,
   socket,
@@ -163,9 +205,21 @@ export default function ParticipantsPanel({
       const e = emailFromParticipant(p) || "";
       return e.toLowerCase() === selectedParticipant;
     });
-    const nm = match?.name || "";
-    const formatted = nm ? formatDisplayName(nm) : "";
-    return formatted || selectedParticipant;
+    if (match) {
+      const nameParts = getFirstNameLastNameFromParticipant(match);
+      if (nameParts) {
+        const formatted = formatParticipantName(
+          nameParts.firstName,
+          nameParts.lastName
+        );
+        if (formatted) return formatted;
+      }
+      // Fallback to name if firstName/lastName not available
+      const nm = match?.name || "";
+      const formatted = nm ? formatDisplayName(nm) : "";
+      if (formatted) return formatted;
+    }
+    return selectedParticipant;
   }, [selectedParticipant, remotes]);
 
   const { send, getHistory, messagesByScope } = useChat({
@@ -414,7 +468,17 @@ export default function ParticipantsPanel({
               const identity: string = p.identity || "";
               const name: string = p.name || "";
               const email = emailFromParticipant(p);
-              const label = name ? formatDisplayName(name) : email || identity;
+              const nameParts = getFirstNameLastNameFromParticipant(p);
+              const label = nameParts
+                ? formatParticipantName(
+                    nameParts.firstName,
+                    nameParts.lastName
+                  ) ||
+                  email ||
+                  identity
+                : name
+                ? formatDisplayName(name)
+                : email || identity;
 
               const micPub = p.getTrackPublication
                 ? p.getTrackPublication(Track.Source.Microphone)
@@ -744,7 +808,17 @@ export default function ParticipantsPanel({
                       </div>
                       {remotes.map((p) => {
                         const email = participantEmail(p);
-                        const name = p.name
+                        const nameParts =
+                          getFirstNameLastNameFromParticipant(p);
+                        const name = nameParts
+                          ? formatParticipantName(
+                              nameParts.firstName,
+                              nameParts.lastName
+                            ) ||
+                            email ||
+                            p.identity ||
+                            "Unknown"
+                          : p.name
                           ? formatDisplayName(p.name)
                           : email || p.identity || "Unknown";
                         const unread = email
@@ -795,15 +869,62 @@ export default function ParticipantsPanel({
                 {(() => {
                   const mapped: ChatWindowMessage[] = (
                     messagesByScope["meeting_group"] || []
-                  ).map((m, i) => ({
-                    id: i,
-                    senderEmail: (m.email || m.senderEmail) as
-                      | string
-                      | undefined,
-                    senderName: (m.senderName || m.name) as string | undefined,
-                    content: m.content,
-                    timestamp: m.timestamp || new Date(),
-                  }));
+                  ).map((m, i) => {
+                    // Format sender name using firstName/lastName if available
+                    const messageWithNames = m as {
+                      firstName?: string;
+                      lastName?: string;
+                      senderName?: string;
+                      name?: string;
+                      email?: string;
+                      senderEmail?: string;
+                    };
+                    let formattedSenderName: string | undefined;
+                    if (
+                      messageWithNames.firstName &&
+                      messageWithNames.lastName
+                    ) {
+                      // Message has firstName/lastName from backend
+                      formattedSenderName = formatParticipantName(
+                        messageWithNames.firstName,
+                        messageWithNames.lastName
+                      );
+                    } else {
+                      // Try to find participant from remotes list to get firstName/lastName
+                      const senderEmail = (
+                        messageWithNames.email ||
+                        messageWithNames.senderEmail ||
+                        ""
+                      ).toLowerCase();
+                      const participant = remotes.find((p) => {
+                        const pEmail = emailFromParticipant(p);
+                        return pEmail && pEmail.toLowerCase() === senderEmail;
+                      });
+                      if (participant) {
+                        const nameParts =
+                          getFirstNameLastNameFromParticipant(participant);
+                        if (nameParts) {
+                          formattedSenderName = formatParticipantName(
+                            nameParts.firstName,
+                            nameParts.lastName
+                          );
+                        }
+                      }
+                      // Final fallback: use senderName/name as-is if we couldn't format it
+                      if (!formattedSenderName) {
+                        formattedSenderName = (messageWithNames.senderName ||
+                          messageWithNames.name) as string | undefined;
+                      }
+                    }
+                    return {
+                      id: i,
+                      senderEmail: (messageWithNames.email ||
+                        messageWithNames.senderEmail) as string | undefined,
+                      senderName: formattedSenderName,
+                      content: m.content,
+                      timestamp: m.timestamp || new Date(),
+                    };
+                  });
                   const sendMsg = () => {
                     const text = groupChatText.trim();
                     if (!text) return;
@@ -839,15 +960,62 @@ export default function ParticipantsPanel({
                         (myEmail || "").toLowerCase() &&
                         m.toEmail?.toLowerCase?.() === selectedParticipant)
                   );
-                  const mapped: ChatWindowMessage[] = filtered.map((m, i) => ({
-                    id: i,
-                    senderEmail: (m.email || m.senderEmail) as
-                      | string
-                      | undefined,
-                    senderName: (m.senderName || m.name) as string | undefined,
-                    content: m.content,
-                    timestamp: m.timestamp || new Date(),
-                  }));
+                  const mapped: ChatWindowMessage[] = filtered.map((m, i) => {
+                    // Format sender name using firstName/lastName if available
+                    const messageWithNames = m as {
+                      firstName?: string;
+                      lastName?: string;
+                      senderName?: string;
+                      name?: string;
+                      email?: string;
+                      senderEmail?: string;
+                    };
+                    let formattedSenderName: string | undefined;
+                    if (
+                      messageWithNames.firstName &&
+                      messageWithNames.lastName
+                    ) {
+                      // Message has firstName/lastName from backend
+                      formattedSenderName = formatParticipantName(
+                        messageWithNames.firstName,
+                        messageWithNames.lastName
+                      );
+                    } else {
+                      // Try to find participant from remotes list to get firstName/lastName
+                      const senderEmail = (
+                        messageWithNames.email ||
+                        messageWithNames.senderEmail ||
+                        ""
+                      ).toLowerCase();
+                      const participant = remotes.find((p) => {
+                        const pEmail = emailFromParticipant(p);
+                        return pEmail && pEmail.toLowerCase() === senderEmail;
+                      });
+                      if (participant) {
+                        const nameParts =
+                          getFirstNameLastNameFromParticipant(participant);
+                        if (nameParts) {
+                          formattedSenderName = formatParticipantName(
+                            nameParts.firstName,
+                            nameParts.lastName
+                          );
+                        }
+                      }
+                      // Final fallback: use senderName/name as-is if we couldn't format it
+                      if (!formattedSenderName) {
+                        formattedSenderName = (messageWithNames.senderName ||
+                          messageWithNames.name) as string | undefined;
+                      }
+                    }
+                    return {
+                      id: i,
+                      senderEmail: (messageWithNames.email ||
+                        messageWithNames.senderEmail) as string | undefined,
+                      senderName: formattedSenderName,
+                      content: m.content,
+                      timestamp: m.timestamp || new Date(),
+                    };
+                  });
                   return (
                     <ChatWindow
                       title={`Chat with ${selectedParticipantDisplayName}`}
