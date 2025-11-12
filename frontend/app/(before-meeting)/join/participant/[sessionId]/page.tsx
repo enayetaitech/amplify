@@ -61,6 +61,8 @@ export default function ParticipantJoinMeeting() {
       localStorage.setItem(
         "liveSessionUser",
         JSON.stringify({
+          firstName: firstNameTrimmed,
+          lastName: lastNameTrimmed,
           name: nameTrimmed,
           email: emailNormalized,
           role: "Participant",

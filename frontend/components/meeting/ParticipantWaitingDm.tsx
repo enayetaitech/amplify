@@ -6,6 +6,7 @@ import ChatWindow, {
   ChatWindowMessage,
 } from "components/meeting/chat/ChatWindow";
 import useChat, { ChatMessage, ChatScope } from "hooks/useChat";
+import { formatParticipantName } from "utils/formatParticipantName";
 
 export default function ParticipantWaitingDm({
   socket,
@@ -15,7 +16,7 @@ export default function ParticipantWaitingDm({
 }: {
   socket: Socket | null;
   sessionId: string;
-  me: { email: string; name: string; role: "Participant" };
+  me: { email: string; name: string; firstName?: string; lastName?: string; role: "Participant" };
   chatProps?: {
     send: (
       scope: ChatScope,
@@ -64,13 +65,53 @@ export default function ParticipantWaitingDm({
   return (
     <div className="flex flex-col h-full min-h-0">
       {(() => {
-        const msgs = (messagesByScope["waiting_dm"] || []).map((m, i) => ({
-          id: i,
-          senderEmail: (m.email || m.senderEmail) as string | undefined,
-          senderName: (m.senderName || m.name) as string | undefined,
-          content: m.content,
-          timestamp: m.timestamp || new Date(),
-        })) as ChatWindowMessage[];
+        const msgs = (messagesByScope["waiting_dm"] || []).map((m, i) => {
+          // Format sender name using firstName/lastName if available
+          const messageWithNames = m as {
+            firstName?: string;
+            lastName?: string;
+            senderName?: string;
+            name?: string;
+            email?: string;
+            senderEmail?: string;
+          };
+          
+          let formattedSenderName = "";
+          const senderEmail = (messageWithNames.email || messageWithNames.senderEmail || "").toLowerCase();
+          const isFromMe = senderEmail === (me.email || "").toLowerCase();
+          
+          if (messageWithNames.firstName && messageWithNames.lastName) {
+            // Message has firstName/lastName from backend
+            formattedSenderName = formatParticipantName(
+              messageWithNames.firstName,
+              messageWithNames.lastName
+            );
+          } else if (isFromMe && me.firstName && me.lastName) {
+            // If message is from me, use my firstName/lastName from localStorage
+            formattedSenderName = formatParticipantName(me.firstName, me.lastName);
+          } else {
+            // Fallback: parse senderName/name if firstName/lastName not available
+            const nameToParse = messageWithNames.senderName || messageWithNames.name || "";
+            if (nameToParse) {
+              const parts = nameToParse.trim().split(/\s+/).filter(Boolean);
+              if (parts.length >= 2) {
+                const first = parts[0];
+                const last = parts.slice(1).join(" ");
+                formattedSenderName = formatParticipantName(first, last);
+              } else {
+                formattedSenderName = parts[0] || "";
+              }
+            }
+          }
+          
+          return {
+            id: i,
+            senderEmail: (m.email || m.senderEmail) as string | undefined,
+            senderName: formattedSenderName || undefined,
+            content: m.content,
+            timestamp: m.timestamp || new Date(),
+          } as ChatWindowMessage;
+        });
         const send = () => onSend();
         return (
           <ChatWindow
