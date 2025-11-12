@@ -8,12 +8,14 @@ import { SOCKET_URL } from "constant/socket";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "components/ui/tabs";
 import { MessageSquare } from "lucide-react";
 import useChat from "hooks/useChat";
-import { formatDisplayName } from "lib/utils";
+import { formatParticipantName } from "utils/formatParticipantName";
 import ChatWindow, {
   ChatWindowMessage,
 } from "components/meeting/chat/ChatWindow";
 
 type WaitingUser = {
+  firstName?: string;
+  lastName?: string;
   name: string;
   email: string;
   joinedAt: string;
@@ -214,7 +216,33 @@ export default function ModeratorWaitingPanel() {
                 >
                   <div className="min-w-0">
                     <div className="font-medium truncate">
-                      {u.name ? formatDisplayName(u.name) : ""}
+                      {(() => {
+                        // Use firstName/lastName if available and not empty
+                        const firstName = (u.firstName || "").trim();
+                        const lastName = (u.lastName || "").trim();
+                        if (firstName && lastName) {
+                          return (
+                            formatParticipantName(firstName, lastName) ||
+                            u.email
+                          );
+                        }
+                        // Fallback: parse name if firstName/lastName not available (for old data)
+                        if (u.name) {
+                          const parts = u.name
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean);
+                          if (parts.length >= 2) {
+                            const first = parts[0];
+                            const last = parts.slice(1).join(" ");
+                            return (
+                              formatParticipantName(first, last) || u.email
+                            );
+                          }
+                          return parts[0] || u.email;
+                        }
+                        return u.email;
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -247,7 +275,30 @@ export default function ModeratorWaitingPanel() {
                   </div>
                 ) : (
                   waiting.map((u) => {
-                    const label = u.name ? formatDisplayName(u.name) : "";
+                    // Use firstName/lastName if available and not empty
+                    const firstName = (u.firstName || "").trim();
+                    const lastName = (u.lastName || "").trim();
+                    const label = (() => {
+                      if (firstName && lastName) {
+                        return (
+                          formatParticipantName(firstName, lastName) || u.email
+                        );
+                      }
+                      // Fallback: parse name if firstName/lastName not available (for old data)
+                      if (u.name) {
+                        const parts = u.name
+                          .trim()
+                          .split(/\s+/)
+                          .filter(Boolean);
+                        if (parts.length >= 2) {
+                          const first = parts[0];
+                          const last = parts.slice(1).join(" ");
+                          return formatParticipantName(first, last) || u.email;
+                        }
+                        return parts[0] || u.email;
+                      }
+                      return u.email;
+                    })();
                     const isActive =
                       selectedEmail &&
                       selectedEmail.toLowerCase() === u.email.toLowerCase();
@@ -292,15 +343,99 @@ export default function ModeratorWaitingPanel() {
                           (m.email || "").toLowerCase() === selectedEmail
                         : true
                   );
-                  const mapped: ChatWindowMessage[] = filtered.map((m, i) => ({
-                    id: i,
-                    senderEmail: (m.email || m.senderEmail) as
-                      | string
-                      | undefined,
-                    senderName: (m.senderName || m.name) as string | undefined,
-                    content: m.content,
-                    timestamp: m.timestamp || new Date(),
-                  }));
+                  const mapped: ChatWindowMessage[] = filtered.map((m, i) => {
+                    // Use firstName/lastName from message if available, otherwise try to find sender in waiting list
+                    let formattedSenderName = "";
+                    const messageWithNames = m as {
+                      firstName?: string;
+                      lastName?: string;
+                      email?: string;
+                      senderEmail?: string;
+                      senderName?: string;
+                      name?: string;
+                    };
+                    if (
+                      messageWithNames.firstName &&
+                      messageWithNames.lastName
+                    ) {
+                      // Message has firstName/lastName from backend
+                      formattedSenderName = formatParticipantName(
+                        messageWithNames.firstName,
+                        messageWithNames.lastName
+                      );
+                    } else {
+                      // Fallback: Try to find the sender in waiting list
+                      const sender = waiting.find(
+                        (w) =>
+                          (w.email || "").toLowerCase() ===
+                          (
+                            messageWithNames.email ||
+                            messageWithNames.senderEmail ||
+                            ""
+                          ).toLowerCase()
+                      );
+                      if (sender) {
+                        // Use firstName/lastName from waiting list if available and not empty
+                        const senderFirstName = (sender.firstName || "").trim();
+                        const senderLastName = (sender.lastName || "").trim();
+                        if (senderFirstName && senderLastName) {
+                          formattedSenderName = formatParticipantName(
+                            senderFirstName,
+                            senderLastName
+                          );
+                        } else if (sender.name) {
+                          // Parse name if firstName/lastName not available
+                          const parts = sender.name
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean);
+                          if (parts.length >= 2) {
+                            const first = parts[0];
+                            const last = parts.slice(1).join(" ");
+                            formattedSenderName = formatParticipantName(
+                              first,
+                              last
+                            );
+                          } else {
+                            formattedSenderName = parts[0] || "";
+                          }
+                        }
+                      }
+                      // Final fallback: parse senderName/name from message
+                      if (!formattedSenderName) {
+                        const nameToParse =
+                          messageWithNames.senderName ||
+                          messageWithNames.name ||
+                          "";
+                        if (nameToParse) {
+                          const parts = nameToParse
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean);
+                          if (parts.length >= 2) {
+                            const first = parts[0];
+                            const last = parts.slice(1).join(" ");
+                            formattedSenderName = formatParticipantName(
+                              first,
+                              last
+                            );
+                          } else {
+                            formattedSenderName = parts[0] || "";
+                          }
+                        }
+                      }
+                    }
+
+                    return {
+                      id: i,
+                      senderEmail: (m.email || m.senderEmail) as
+                        | string
+                        | undefined,
+                      senderName: formattedSenderName || undefined,
+                      content: m.content,
+                      timestamp: m.timestamp || new Date(),
+                    };
+                  });
                   const send = () => onSendChat();
                   const user = waiting.find(
                     (w) =>
@@ -309,15 +444,32 @@ export default function ModeratorWaitingPanel() {
                   );
                   const titleName = user
                     ? (() => {
-                        const parts = (user.name || "")
-                          .trim()
-                          .split(/\s+/)
-                          .filter(Boolean);
-                        if (parts.length === 0) return selectedEmail;
-                        if (parts.length === 1) return parts[0];
-                        return `${parts[0]} ${parts[parts.length - 1].charAt(
-                          0
-                        )}`;
+                        // Use firstName/lastName if available and not empty
+                        const firstName = (user.firstName || "").trim();
+                        const lastName = (user.lastName || "").trim();
+                        if (firstName && lastName) {
+                          return (
+                            formatParticipantName(firstName, lastName) ||
+                            selectedEmail
+                          );
+                        }
+                        // Fallback: parse name if firstName/lastName not available (for old data)
+                        if (user.name) {
+                          const parts = user.name
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean);
+                          if (parts.length >= 2) {
+                            const first = parts[0];
+                            const last = parts.slice(1).join(" ");
+                            return (
+                              formatParticipantName(first, last) ||
+                              selectedEmail
+                            );
+                          }
+                          return parts[0] || selectedEmail;
+                        }
+                        return selectedEmail;
                       })()
                     : selectedEmail;
 

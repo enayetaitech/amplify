@@ -1266,9 +1266,42 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
+              
+              // Look up firstName and lastName from LiveSession
+              let firstName: string | undefined;
+              let lastName: string | undefined;
+              try {
+                const live = await LiveSessionModel.findOne({ sessionId: liveId }).lean();
+                if (live) {
+                  const lowerSender = (senderEmail || "").toLowerCase();
+                  // Check participantWaitingRoom first
+                  const waitingUser = live.participantWaitingRoom?.find(
+                    (u) => (u.email || "").toLowerCase() === lowerSender
+                  );
+                  if (waitingUser) {
+                    firstName = waitingUser.firstName;
+                    lastName = waitingUser.lastName;
+                  } else {
+                    // Check participantsList
+                    const participant = live.participantsList?.find(
+                      (u) => (u.email || "").toLowerCase() === lowerSender
+                    );
+                    if (participant) {
+                      firstName = participant.firstName;
+                      lastName = participant.lastName;
+                    }
+                  }
+                }
+              } catch (err) {
+                // Non-critical: continue without firstName/lastName
+                console.error("Failed to lookup firstName/lastName for chat message", err);
+              }
+              
               const doc = {
                 sessionId: liveId,
                 email: senderEmail,
+                firstName,
+                lastName,
                 senderName: senderName || senderEmail,
                 role: role === "Admin" ? "Moderator" : (role as any),
                 content,
