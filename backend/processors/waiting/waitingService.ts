@@ -29,6 +29,8 @@ export async function admitByEmail(sessionId: string, email: string) {
     live.participantWaitingRoom.splice(i, 1);
     // add to active list - preserve waiting room joinedAt
     live.participantsList.push({
+      firstName: user.firstName,
+      lastName: user.lastName,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -74,6 +76,8 @@ export async function admitAll(sessionId: string) {
   live.participantWaitingRoom = [];
   for (const user of toAdmit) {
     live.participantsList.push({
+      firstName: user.firstName,
+      lastName: user.lastName,
       name: user.name,
       email: user.email,
       role: user.role,

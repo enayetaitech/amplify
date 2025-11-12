@@ -22,20 +22,30 @@ export const enqueue = async (
   next: NextFunction
 ) => {
   try {
-    const { sessionId, name, email, role, passcode } = req.body as {
-      sessionId?: string;
-      name?: string;
-      email?: string;
-      role?: JoinRole;
-      passcode?: string;
-    };
+    const { sessionId, firstName, lastName, email, role, passcode } =
+      req.body as {
+        sessionId?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        role?: JoinRole;
+        passcode?: string;
+      };
 
     // Validate required fields
-    if (!sessionId || !name || !email || !role) {
+    if (!sessionId || !firstName || !lastName || !email || !role) {
       return next(
-        new ErrorHandler("sessionId, name, email, and role are required", 400)
+        new ErrorHandler(
+          "sessionId, firstName, lastName, email, and role are required",
+          400
+        )
       );
     }
+
+    // Combine firstName and lastName for name field
+    const firstNameTrimmed = firstName.trim();
+    const lastNameTrimmed = lastName.trim();
+    const name = `${firstNameTrimmed} ${lastNameTrimmed}`;
 
     const allowedRoles: JoinRole[] = [
       "Participant",
@@ -117,7 +127,17 @@ export const enqueue = async (
       : undefined;
 
     // Enqueue user appropriately (also persists activity with device info)
-    await enqueueUser(sessionId, { name, email, role }, deviceInfo);
+    await enqueueUser(
+      sessionId,
+      {
+        firstName: firstNameTrimmed,
+        lastName: lastNameTrimmed,
+        name,
+        email,
+        role,
+      },
+      deviceInfo
+    );
 
     // Auto-add Observer to project team if not already present
     if (role === "Observer") {
@@ -127,9 +147,6 @@ export const enqueue = async (
       });
 
       if (!existingMember) {
-        const [firstName, ...rest] = name.trim().split(/\s+/);
-        const lastName = rest.join(" ");
-
         const existingUser = await User.findOne({
           email: emailNormalized(email),
         });
@@ -141,8 +158,8 @@ export const enqueue = async (
         } catch {}
 
         const created = await ModeratorModel.create({
-          firstName: firstName || name,
-          lastName: lastName || "",
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           email: emailNormalized(email),
           companyName: existingUser?.companyName || fallbackCompany,
           roles: ["Observer"],
@@ -162,7 +179,7 @@ export const enqueue = async (
             config.frontend_base_url
           }/create-user?email=${encodeURIComponent(emailNormalized(email))}`;
           const inviteHtml = invitationToRegisterEmailTemplate({
-            inviteeFirstName: firstName || name,
+            inviteeFirstName: firstName.trim(),
             projectName: project.name,
             registerUrl,
             roles: ["Observer"],

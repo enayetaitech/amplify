@@ -616,9 +616,26 @@ export function attachSocket(server: HTTPServer) {
                   String((h.email || "").toLowerCase()) === lower && !h.leaveAt
               );
               if (!hasOpen) {
+                // Try to find firstName and lastName from observerWaitingRoom or observerList
+                let firstName = "";
+                let lastName = "";
+                const observer = 
+                  live.observerWaitingRoom.find((o) => o.email.toLowerCase() === lower) ||
+                  live.observerList.find((o) => o.email.toLowerCase() === lower);
+                if (observer) {
+                  firstName = observer.firstName || "";
+                  lastName = observer.lastName || "";
+                } else if (name) {
+                  // Fallback: parse name if observer not found
+                  const parts = name.trim().split(/\s+/);
+                  firstName = parts[0] || "";
+                  lastName = parts.slice(1).join(" ") || "";
+                }
                 live.observerHistory = live.observerHistory || ([] as any);
                 live.observerHistory.push({
                   id: undefined,
+                  firstName,
+                  lastName,
                   name: name || email || "Observer",
                   email: email || "",
                   role: "Observer",
@@ -2134,6 +2151,8 @@ export function attachSocket(server: HTTPServer) {
 
                   live.participantHistory.push({
                     id: (user && (user._id || (user as any).id)) || undefined,
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
                     name: user?.name || user?.email || "",
                     email: user?.email || "",
                     joinedAt: (user && (user.joinedAt || null)) || null,
@@ -2583,6 +2602,8 @@ export function attachSocket(server: HTTPServer) {
               // push into waiting room - preserve original waiting room joinedAt
               live.participantWaitingRoom = live.participantWaitingRoom || [];
               live.participantWaitingRoom.push({
+                firstName: user.firstName || "",
+                lastName: user.lastName || "",
                 name: user.name || user.email,
                 email: user.email,
                 role: user.role || "Participant",
@@ -2613,6 +2634,8 @@ export function attachSocket(server: HTTPServer) {
                   id:
                     (user && ((user as any)._id || (user as any).id)) ||
                     undefined,
+                  firstName: user?.firstName || "",
+                  lastName: user?.lastName || "",
                   name: user?.name || user?.email || "",
                   email: user?.email || "",
                   joinedAt: (user && (user.joinedAt || null)) || null,
@@ -2727,6 +2750,8 @@ export function attachSocket(server: HTTPServer) {
                     id:
                       (user && ((user as any)._id || (user as any).id)) ||
                       undefined,
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
                     name: user?.name || user?.email || "",
                     email: user?.email || "",
                     joinedAt: (user && (user.joinedAt || null)) || null,
@@ -3336,6 +3361,8 @@ export function attachSocket(server: HTTPServer) {
 
                   live.participantHistory.push({
                     id: (user && (user._id || (user as any).id)) || undefined,
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
                     name: user?.name || user?.email || "",
                     email: user?.email || "",
                     joinedAt: (user && (user.joinedAt || null)) || null,

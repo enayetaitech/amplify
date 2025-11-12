@@ -10,7 +10,9 @@ import { ParticipantWaitingRoomChatModel } from "../../model/ParticipantWaitingR
 
 export interface EnqueueUserData {
   userId?: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed from firstName + lastName
   email: string;
   role: "Participant" | "Observer" | "Moderator" | "Admin";
 }
@@ -79,6 +81,8 @@ export async function enqueueUser(
   // Add to waiting room
   if (userData.role === "Participant") {
     live.participantWaitingRoom.push({
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       name: userData.name,
       email: userData.email,
       role: userData.role,
@@ -87,6 +91,8 @@ export async function enqueueUser(
   } else if (userData.role === "Observer") {
     live.observerWaitingRoom.push({
       userId: userData.userId || undefined,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       name: userData.name,
       email: userData.email,
       role: userData.role,
@@ -108,11 +114,15 @@ export async function enqueueUser(
 
     live.observerList.push({
       userId: userData.userId || undefined,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       name: userData.name,
       email: userData.email,
       role: userData.role,
     });
     live.participantsList.push({
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       name: userData.name,
       email: userData.email,
       role: userData.role,

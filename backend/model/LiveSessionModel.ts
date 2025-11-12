@@ -13,7 +13,9 @@ export interface ILiveSessionDocument
 const WaitingRoomParticipantSchema = new Schema<
   ILiveSessionDocument["participantWaitingRoom"][0]
 >({
-  name: { type: String, required: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  name: { type: String, required: true }, // Computed from firstName + lastName
   email: { type: String, required: true },
   role: {
     type: String,
@@ -26,7 +28,9 @@ const WaitingRoomObserverSchema = new Schema<
   ILiveSessionDocument["observerWaitingRoom"][0]
 >({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: false },
-  name: { type: String, required: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  name: { type: String, required: true }, // Computed from firstName + lastName
   email: { type: String, required: true },
   role: {
     type: String,
@@ -40,7 +44,9 @@ const ParticipantSchema = new Schema<
   ILiveSessionDocument["participantsList"][0]
 >({
   email: { type: String, required: true },
-  name: { type: String, required: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  name: { type: String, required: true }, // Computed from firstName + lastName
   role: {
     type: String,
     enum: ["Participant", "Moderator", "Admin"],
@@ -51,7 +57,9 @@ const ParticipantSchema = new Schema<
 
 const ObserverSchema = new Schema<ILiveSessionDocument["observerList"][0]>({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: false },
-  name: { type: String, required: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  name: { type: String, required: true }, // Computed from firstName + lastName
   email: { type: String, required: true },
   role: {
     type: String,
@@ -81,7 +89,9 @@ const LiveSessionSchema = new Schema<ILiveSessionDocument>(
         new Schema(
           {
             id: { type: Schema.Types.ObjectId },
-            name: { type: String, required: true },
+            firstName: { type: String, required: true },
+            lastName: { type: String, required: true },
+            name: { type: String, required: true }, // Computed from firstName + lastName
             email: { type: String, required: true },
             joinedAt: { type: Date, required: false, default: null },
             leaveAt: { type: Date, required: false, default: null },
@@ -106,7 +116,9 @@ const LiveSessionSchema = new Schema<ILiveSessionDocument>(
         new Schema(
           {
             id: { type: Schema.Types.ObjectId, ref: "User" },
-            name: { type: String, required: true },
+            firstName: { type: String, required: true },
+            lastName: { type: String, required: true },
+            name: { type: String, required: true }, // Computed from firstName + lastName
             email: { type: String, required: true },
             role: {
               type: String,

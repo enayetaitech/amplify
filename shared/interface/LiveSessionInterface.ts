@@ -3,7 +3,9 @@
 export type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 
 export interface IWaitingUser {
-  name: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed from firstName + lastName for backward compatibility
   email: string;
   role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
   joinedAt: Date;
@@ -11,14 +13,18 @@ export interface IWaitingUser {
 
 export interface IObserverWaitingUser {
   userId?: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed from firstName + lastName for backward compatibility
   email: string;
   role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
   joinedAt: Date;
 }
 
 export interface IParticipant {
-  name: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed from firstName + lastName for backward compatibility
   email: string;
   role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
   joinedAt?: Date | null;
@@ -26,7 +32,9 @@ export interface IParticipant {
 
 export interface IObserver {
   userId?: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed from firstName + lastName for backward compatibility
   email: string;
   role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
   joinedAt?: Date | null;
@@ -34,7 +42,9 @@ export interface IObserver {
 
 export interface IParticipantHistoryItem {
   id: string; // ref to participant entry
-  name: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed from firstName + lastName for backward compatibility
   email: string;
   joinedAt?: Date | null;
   leaveAt?: Date | null;
@@ -48,7 +58,9 @@ export interface IParticipantHistoryItem {
 
 export interface IObserverHistoryItem {
   id: string; // ref to User
-  name: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed from firstName + lastName for backward compatibility
   email: string;
   role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
   joinedAt?: Date | null;

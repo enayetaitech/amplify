@@ -6,7 +6,8 @@ import api from "lib/api";
 
 export interface EnqueuePayload {
   sessionId: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: "Participant" | "Moderator" | "Observer";
   device?: string;
