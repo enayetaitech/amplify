@@ -1,5 +1,7 @@
 export type UserRole = "Participant" | "Observer" | "Moderator" | "Admin";
 export interface IWaitingUser {
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
@@ -7,12 +9,16 @@ export interface IWaitingUser {
 }
 export interface IObserverWaitingUser {
     userId?: string;
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
     joinedAt: Date;
 }
 export interface IParticipant {
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     role: Extract<UserRole, "Participant" | "Moderator" | "Admin">;
@@ -20,6 +26,8 @@ export interface IParticipant {
 }
 export interface IObserver {
     userId?: string;
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
@@ -27,6 +35,8 @@ export interface IObserver {
 }
 export interface IParticipantHistoryItem {
     id: string;
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     joinedAt?: Date | null;
@@ -35,6 +45,8 @@ export interface IParticipantHistoryItem {
 }
 export interface IObserverHistoryItem {
     id: string;
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     role: Extract<UserRole, "Observer" | "Moderator" | "Admin">;
