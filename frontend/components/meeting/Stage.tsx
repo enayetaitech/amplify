@@ -632,13 +632,14 @@ export default function Stage({ role }: StageProps) {
       >
         {facesCount > 0 && containerWidth > 0 ? (
           <div
-            className="grid"
+            className="grid w-full"
             style={{
               gridTemplateColumns: `repeat(${sbBest.cols}, ${sbBest.w}px)`,
               gridAutoRows: `${sbBest.h}px`,
-              gap,
+              gap: `${gap}px`,
               justifyContent: "center",
-              alignContent: "center",
+              alignContent: "start",
+              padding: `${gap}px`,
             }}
           >
             <TrackLoop tracks={tracks}>
