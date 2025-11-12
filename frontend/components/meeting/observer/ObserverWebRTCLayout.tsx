@@ -14,6 +14,115 @@ import { DisconnectReason } from "livekit-client";
 import "@livekit/components-styles";
 import Logo from "components/shared/LogoComponent";
 
+// Component for video tiles in observer screen share layout (20% width)
+// Maintains 16:9 aspect ratio like admin view
+function ObserverVideoTilesColumn({
+  tracks,
+  containerHeight,
+}: {
+  tracks: ReturnType<typeof useTracks>;
+  containerHeight: number;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const gap = 8; // Match admin view gap
+  const minTileW = 240; // Match admin view minimum tile width
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr) return;
+      setContainerWidth(Math.floor(cr.width));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const count = tracks.length;
+  if (count === 0) return null;
+
+  // Use a fallback width if containerWidth hasn't been measured yet
+  const effectiveWidth = containerWidth > 0 ? containerWidth : 220; // min-w-[220px] fallback
+
+  // Calculate optimal layout with 16:9 aspect ratio (similar to admin view)
+  let cols = 1;
+
+  if (count <= 5) {
+    // 1-5 people: single column
+    cols = 1;
+  } else if (count === 6) {
+    // 6 people: 2 columns, 3 rows per column
+    cols = 2;
+  } else if (count === 7) {
+    // 7 people: 2 columns, 4 in first, 3 in second
+    cols = 2;
+  } else if (count <= 9) {
+    // 8-9 people: 2 columns
+    cols = 2;
+  } else {
+    // 10+ people: 3 columns
+    cols = 3;
+  }
+
+  // Distribute tracks across columns
+  const tracksPerCol = Math.ceil(count / cols);
+  const columns: (typeof tracks)[] = [];
+  for (let c = 0; c < cols; c++) {
+    columns.push(tracks.slice(c * tracksPerCol, (c + 1) * tracksPerCol));
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-[1] min-w-[220px] min-h-0 overflow-y-auto"
+    >
+      <div className="w-full h-full flex gap-1" style={{ gap: `${gap}px` }}>
+        {columns.map((colTracks, colIdx) => {
+          // For columns with different row counts (e.g., 7 people), recalculate per column
+          const actualRows = colTracks.length;
+          const colEffectiveWidth =
+            containerWidth > 0 ? containerWidth : effectiveWidth;
+          const availableW = Math.floor(
+            (colEffectiveWidth - gap * (cols - 1)) / cols
+          );
+          const availableH = containerHeight - gap * (actualRows - 1);
+          const rawTileH = Math.floor(availableH / actualRows);
+          const fitW = Math.min(availableW, Math.floor((rawTileH * 16) / 9));
+          const colTileW = Math.max(minTileW, fitW);
+          const colTileH = Math.floor((colTileW * 9) / 16);
+
+          return (
+            <div
+              key={colIdx}
+              className="flex-1 flex flex-col items-center"
+              style={{ gap: `${gap}px` }}
+            >
+              {colTracks.map((tr) => (
+                <div
+                  key={`${tr.participant?.identity}-${tr.publication?.trackSid}`}
+                  className="relative overflow-hidden rounded bg-black flex-shrink-0 w-full"
+                  style={{
+                    width: `${colTileW}px`,
+                    height: `${colTileH}px`,
+                  }}
+                >
+                  <div className="w-full h-full">
+                    <GridLayout tracks={[tr]}>
+                      <ParticipantTile />
+                    </GridLayout>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Component that subscribes to all video tracks (inside LiveKitRoom context)
 function ObserverVideoGrid() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -21,6 +130,7 @@ function ObserverVideoGrid() {
     w: 0,
     h: 0,
   });
+  const gap = 8; // Match admin view gap
   const room = useRoomContext();
 
   useEffect(() => {
@@ -78,10 +188,12 @@ function ObserverVideoGrid() {
     { source: Track.Source.ScreenShare, withPlaceholder: true },
   ]);
 
-  // Filter to only subscribed, non-muted tracks
+  // Filter to only subscribed tracks (include muted tracks with placeholders)
+  // This matches the admin view behavior - show tracks even if muted
   const activeTracks = trackRefs.filter((ref) => {
     const pub = ref.publication;
-    return !!(pub && pub.isSubscribed && !pub.isMuted && pub.track);
+    // Include if subscribed (track may be null if muted, but placeholder will show)
+    return !!(pub && pub.isSubscribed);
   });
 
   // Helper: parse role from participant metadata
@@ -116,13 +228,13 @@ function ObserverVideoGrid() {
       r.publication?.source === Track.Source.ScreenShare && shouldInclude(r)
   );
 
-  // If someone is screen sharing, prioritize that share and show it at 60% width.
+  // If someone is screen sharing, prioritize that share and show it at 80% width.
   const hasScreenShare = screenshareRefs.length > 0;
 
   // Include all cameras in the right-side list, including the sharer's camera
   const cameraRefsForGrid = cameraRefs;
 
-  // Decide auto grid size (snap up to 2/4/8/16)
+  // Decide auto grid size (snap up to 2/4/8/16) for non-screenshare view
   const desired = cameraRefsForGrid.length;
   const gridSteps = [2, 4, 8, 16];
   const gridSize = gridSteps.find((n) => desired <= n) || 16;
@@ -136,7 +248,7 @@ function ObserverVideoGrid() {
   };
   const { cols, rows } = gridToColsRows[gridSize];
 
-  // Calculate video dimensions to match HLS layout (16:9 aspect ratio)
+  // Calculate video dimensions to match HLS layout (16:9 aspect ratio) for non-screenshare view
   const W = containerSize.w;
   const H = containerSize.h;
   const wByH = Math.floor((H * 16) / 9);
@@ -150,54 +262,24 @@ function ObserverVideoGrid() {
     >
       {activeTracks.length > 0 ? (
         hasScreenShare ? (
-          // Split layout: 60% screen share on the left, 40% participant grid on the right
-          <div
-            style={{ width: viewW, height: viewH }}
-            className="relative rounded-lg overflow-hidden bg-black flex"
-          >
-            <div
-              className="h-full"
-              style={{ width: `${Math.floor(viewW * 0.6)}px` }}
-            >
-              <GridLayout tracks={[screenshareRefs[0]]}>
-                <ParticipantTile />
-              </GridLayout>
-            </div>
-            <div
-              className="h-full overflow-y-auto"
-              style={{ width: `${viewW - Math.floor(viewW * 0.6)}px` }}
-            >
-              <div className="w-full flex flex-col gap-1 p-1">
-                {cameraRefsForGrid.map((tr) => {
-                  // Calculate tile height to ensure at least 4 tiles are visible by default
-                  // Account for gaps (gap-1 = 4px) and padding (p-1 = 4px top/bottom = 8px total)
-                  const gapHeight = 4; // gap-1 = 4px between tiles
-                  const paddingHeight = 8; // p-1 = 4px top + 4px bottom
-                  const targetVisibleTiles = 4;
-                  const availableHeight = viewH - paddingHeight;
-                  const tileHeight = Math.floor(
-                    (availableHeight - gapHeight * (targetVisibleTiles - 1)) /
-                      targetVisibleTiles
-                  );
-
-                  return (
-                    <div
-                      key={`${tr.participant?.identity}-${tr.publication?.trackSid}`}
-                      className="relative overflow-hidden rounded bg-black flex-shrink-0"
-                      style={{
-                        width: "100%",
-                        height: `${tileHeight}px`,
-                        minHeight: `${tileHeight}px`,
-                      }}
-                    >
-                      <GridLayout tracks={[tr]}>
-                        <ParticipantTile />
-                      </GridLayout>
-                    </div>
-                  );
-                })}
+          // Split layout: 80% screen share on the left, 20% participant grid on the right
+          // Use flexbox for fluid responsive design (no aspect ratio constraint)
+          <div className="w-full h-full flex" style={{ gap: `${gap}px` }}>
+            {/* Screen share: 80% width - fills available space */}
+            <div className="flex-[4] min-w-0 min-h-0">
+              <div className="w-full h-full relative rounded-lg overflow-hidden bg-black">
+                <GridLayout tracks={[screenshareRefs[0]]}>
+                  <ParticipantTile />
+                </GridLayout>
               </div>
             </div>
+            {/* Video tiles: 20% width - maximize height usage */}
+            {cameraRefsForGrid.length > 0 && (
+              <ObserverVideoTilesColumn
+                tracks={cameraRefsForGrid}
+                containerHeight={containerSize.h}
+              />
+            )}
           </div>
         ) : (
           // No screenshare: centered grid that snaps to 2/4/8/16

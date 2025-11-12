@@ -34,7 +34,17 @@ export default function Stage({ role }: StageProps) {
   // Track each tile DOM element by identity for fallback overlay positioning
   const tileElByIdentityRef = useRef<Record<string, HTMLElement | null>>({});
   const [tileLabelPos, setTileLabelPos] = useState<
-    Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number; nameMaxWidth: number }>
+    Record<
+      string,
+      {
+        nameLeft: number;
+        roleRight: number;
+        bottom: number;
+        tileLeft: number;
+        tileRight: number;
+        nameMaxWidth: number;
+      }
+    >
   >({});
   const isMobileUA = useMemo(() => {
     try {
@@ -112,8 +122,19 @@ export default function Stage({ role }: StageProps) {
   useEffect(() => {
     const sock =
       typeof window !== "undefined"
-        ? (window as unknown as { __meetingSocket?: { on?: (ev: string, cb: (p?: unknown) => void) => void; off?: (ev: string, cb: (p?: unknown) => void) => void; emit?: (ev: string, payload: unknown, ack?: (resp: unknown) => void) => void } })
-            .__meetingSocket || null
+        ? (
+            window as unknown as {
+              __meetingSocket?: {
+                on?: (ev: string, cb: (p?: unknown) => void) => void;
+                off?: (ev: string, cb: (p?: unknown) => void) => void;
+                emit?: (
+                  ev: string,
+                  payload: unknown,
+                  ack?: (resp: unknown) => void
+                ) => void;
+              };
+            }
+          ).__meetingSocket || null
         : null;
     if (!sock) return;
 
@@ -121,9 +142,19 @@ export default function Stage({ role }: StageProps) {
     if (sock.emit && typeof sock.emit === "function") {
       sock.emit("meeting:get-participants-info", (resp?: unknown) => {
         try {
-          const r = resp as { participants?: Array<{ identity: string; name: string; email: string; role: string }> };
+          const r = resp as {
+            participants?: Array<{
+              identity: string;
+              name: string;
+              email: string;
+              role: string;
+            }>;
+          };
           if (r?.participants && Array.isArray(r.participants)) {
-            const infoMap: Record<string, { name: string; email: string; role: string }> = {};
+            const infoMap: Record<
+              string,
+              { name: string; email: string; role: string }
+            > = {};
             for (const p of r.participants) {
               infoMap[p.identity.toLowerCase()] = {
                 name: p.name,
@@ -140,7 +171,12 @@ export default function Stage({ role }: StageProps) {
     // Listen for participant info updates
     const onParticipantInfo = (payload?: unknown) => {
       try {
-        const p = payload as { identity?: string; name?: string; email?: string; role?: string };
+        const p = payload as {
+          identity?: string;
+          name?: string;
+          email?: string;
+          role?: string;
+        };
         if (p?.identity && p.name) {
           setSocketParticipantInfo((prev) => ({
             ...prev,
@@ -188,7 +224,8 @@ export default function Stage({ role }: StageProps) {
         identity: p.identity,
         p_name: p.name,
         meta: p.metadata,
-        socket_name: socketParticipantInfo[p.identity?.toLowerCase() || ""]?.name,
+        socket_name:
+          socketParticipantInfo[p.identity?.toLowerCase() || ""]?.name,
         resolved: identityToName[p.identity || ""],
       }));
       console.table(rows);
@@ -302,7 +339,17 @@ export default function Stage({ role }: StageProps) {
     const measure = () => {
       try {
         const containerRect = el.getBoundingClientRect();
-        const next: Record<string, { nameLeft: number; roleRight: number; bottom: number; tileLeft: number; tileRight: number; nameMaxWidth: number }> = {};
+        const next: Record<
+          string,
+          {
+            nameLeft: number;
+            roleRight: number;
+            bottom: number;
+            tileLeft: number;
+            tileRight: number;
+            nameMaxWidth: number;
+          }
+        > = {};
         for (const [id, node] of Object.entries(tileElByIdentityRef.current)) {
           if (!node) continue;
           const r = node.getBoundingClientRect();
@@ -311,11 +358,21 @@ export default function Stage({ role }: StageProps) {
           const tileWidth = tileRight - tileLeft;
           const nameLeft = Math.max(0, tileLeft + 8);
           const roleRight = Math.max(0, tileRight - 8);
-          const bottom = Math.max(0, Math.round(r.bottom - containerRect.top - 8));
+          const bottom = Math.max(
+            0,
+            Math.round(r.bottom - containerRect.top - 8)
+          );
           // Calculate max width for name to leave space for role badge (estimate ~80px for role badge + padding)
           const roleBadgeWidth = 80; // Estimated width for role badge
           const nameMaxWidth = Math.max(100, tileWidth - roleBadgeWidth - 16); // Leave 16px total padding
-          next[id] = { nameLeft, roleRight, bottom, tileLeft, tileRight, nameMaxWidth };
+          next[id] = {
+            nameLeft,
+            roleRight,
+            bottom,
+            tileLeft,
+            tileRight,
+            nameMaxWidth,
+          };
         }
         setTileLabelPos(next);
       } catch {}
@@ -467,7 +524,9 @@ export default function Stage({ role }: StageProps) {
             let tileRole = identityToUiRole[identity];
             if (!tileRole) {
               // Fallback: try to parse from participant metadata
-              const participant = participants.find((p) => p.identity === identity);
+              const participant = participants.find(
+                (p) => p.identity === identity
+              );
               if (participant) {
                 tileRole = parseUiRoleFromMetadata(participant.metadata);
               }
@@ -517,6 +576,83 @@ export default function Stage({ role }: StageProps) {
   const maxCols = 5;
   const N = orderedTracks.length || 1;
 
+  // Component for video tiles grid in screen share layout (20% width)
+  function ScreenShareVideoGrid({
+    tracks,
+    containerHeight,
+  }: {
+    tracks: typeof orderedTracks;
+    containerHeight: number;
+  }) {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [containerWidth, setContainerWidth] = useState(0);
+
+    useEffect(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const ro = new ResizeObserver((entries) => {
+        const cr = entries[0]?.contentRect;
+        if (!cr) return;
+        setContainerWidth(Math.floor(cr.width));
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
+
+    const facesCount = tracks.length;
+    let sbBest = {
+      cols: 1,
+      rows: Math.max(1, facesCount),
+      w: minTileW,
+      h: Math.floor((minTileW * 9) / 16),
+      area: 0,
+    };
+
+    if (facesCount > 0 && containerWidth > 0) {
+      for (let cols = 1; cols <= Math.min(facesCount, maxCols); cols++) {
+        const rows = Math.ceil(facesCount / cols);
+        const availW = Math.max(0, containerWidth - (cols - 1) * gap);
+        const availH = Math.max(0, containerHeight - (rows - 1) * gap);
+        if (availW === 0 || availH === 0) continue;
+        const rawTileW = Math.floor(availW / cols);
+        const rawTileH = Math.floor(availH / rows);
+        const fitW = Math.min(rawTileW, Math.floor((rawTileH * 16) / 9));
+        const tileW = Math.max(minTileW, fitW);
+        const tileH = Math.floor((tileW * 9) / 16);
+        const area = tileW * tileH;
+        if (area > sbBest.area)
+          sbBest = { cols, rows, w: tileW, h: tileH, area };
+      }
+    }
+
+    return (
+      <div
+        ref={containerRef}
+        className="flex-[1] min-w-[220px] min-h-0 overflow-y-auto"
+      >
+        {facesCount > 0 && containerWidth > 0 ? (
+          <div
+            className="grid w-full"
+            style={{
+              gridTemplateColumns: `repeat(${sbBest.cols}, ${sbBest.w}px)`,
+              gridAutoRows: `${sbBest.h}px`,
+              gap: `${gap}px`,
+              justifyContent: "center",
+              alignContent: "start",
+              padding: `${gap}px`,
+            }}
+          >
+            <TrackLoop tracks={tracks}>
+              <div className="relative rounded-lg overflow-hidden bg-black">
+                <Tile />
+              </div>
+            </TrackLoop>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   let best = {
     cols: 1,
     rows: N,
@@ -556,246 +692,53 @@ export default function Stage({ role }: StageProps) {
             ],
           ]
         : [];
-    const useSideBySide = containerSize.w >= 1100; // heuristic: wide viewports prefer side-by-side
-
-    if (useSideBySide) {
-      // Side-by-side: left share (~65% width), right faces smart grid
-      const sharePaneMaxW = Math.floor(containerSize.w * 0.65);
-      const sharePaneH = containerSize.h;
-      const shareWByH = Math.floor((sharePaneH * 16) / 9);
-      const shareW = Math.min(sharePaneMaxW, shareWByH);
-      const shareH = Math.floor((shareW * 9) / 16);
-      const rightW = Math.max(0, containerSize.w - shareW - gap);
-
-      // Smart grid for faces in right pane
-      let sbBest = {
-        cols: 1,
-        rows: Math.max(1, facesCount),
-        w: minTileW,
-        h: Math.floor((minTileW * 9) / 16),
-        area: 0,
-      };
-      if (facesCount > 0 && rightW > 0) {
-        for (let cols = 1; cols <= Math.min(facesCount, maxCols); cols++) {
-          const rows = Math.ceil(facesCount / cols);
-          const availW = Math.max(0, rightW - (cols - 1) * gap);
-          const availH = Math.max(0, containerSize.h - (rows - 1) * gap);
-          if (availW === 0 || availH === 0) continue;
-          const rawTileW = Math.floor(availW / cols);
-          const rawTileH = Math.floor(availH / rows);
-          const fitW = Math.min(rawTileW, Math.floor((rawTileH * 16) / 9));
-          const tileW = Math.max(minTileW, fitW);
-          const tileH = Math.floor((tileW * 9) / 16);
-          const area = tileW * tileH;
-          if (area > sbBest.area)
-            sbBest = { cols, rows, w: tileW, h: tileH, area };
-        }
-      }
-
-      return (
-        <div ref={stageRef} className="relative flex-1 min-h-0">
-          <div className="flex" style={{ gap }}>
-            <div
-              className="flex items-center justify-center"
-              style={{ width: shareW, height: containerSize.h }}
-            >
-              <TrackLoop tracks={sharePrimary}>
-                <div
-                  style={{ width: shareW, height: shareH }}
-                  className="relative rounded-lg overflow-hidden bg-black"
-                >
-                  <Tile />
-                  {activeShares.length > 1 && (
-                    <div className="absolute top-2 right-2 flex gap-1">
-                      {activeShares.map((s, idx) => {
-                        const label =
-                          s.participant?.name ||
-                          s.participant?.identity ||
-                          `Share ${idx + 1}`;
-                        return (
-                          <button
-                            key={s.publication?.trackSid || `${label}-${idx}`}
-                            type="button"
-                            onClick={() => setFocusedShareIdx(idx)}
-                            className={`text-xs px-2 py-1 rounded-md border ${
-                              idx === focusedShareIdx
-                                ? "bg-black/60 text-white border-white/50"
-                                : "bg-black/30 text-white/80 border-white/30"
-                            }`}
-                            title={label}
-                            aria-label={`Focus ${label}`}
-                          >
-                            {idx + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </TrackLoop>
-            </div>
-            {facesCount > 0 && rightW > 0 && (
-              <div
-                className="grid"
-                style={{
-                  width: rightW,
-                  gridTemplateColumns: `repeat(${sbBest.cols}, ${sbBest.w}px)`,
-                  gridAutoRows: `${sbBest.h}px`,
-                  gap,
-                  justifyContent: "center",
-                  alignContent: "center",
-                }}
-              >
-                <TrackLoop tracks={orderedTracks}>
-                  <div className="relative rounded-lg overflow-hidden bg-black">
-                    <Tile />
-                  </div>
-                </TrackLoop>
-              </div>
-            )}
-          </div>
-          {isMobileUA && (
-            <div className="pointer-events-none absolute inset-0 z-[100]">
-              {Object.entries(tileLabelPos).map(([id, pos]) => {
-                // Try to get role from identityToUiRole first, then fallback to metadata parsing
-                let tileRole = identityToUiRole[id];
-                if (!tileRole) {
-                  const participant = participants.find((p) => p.identity === id);
-                  if (participant) {
-                    tileRole = parseUiRoleFromMetadata(participant.metadata);
-                  }
-                }
-                const label = tileRole
-                  ? tileRole === "moderator"
-                    ? "Host"
-                    : tileRole === "admin"
-                    ? "Admin"
-                    : tileRole === "participant"
-                    ? "Participant"
-                    : "Observer"
-                  : null;
-                return (
-                  <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
-                    {/* Name at bottom-left - ensure it doesn't overlap with role */}
-                    <span
-                      className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                      style={{ 
-                        left: `${pos.nameLeft}px`, 
-                        bottom: `${8}px`,
-                        maxWidth: `${pos.nameMaxWidth}px`
-                      }}
-                    >
-                      {identityToName[id] || id}
-                    </span>
-                    {/* Role at bottom-right */}
-                    {label && (
-                      <span
-                        className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
-                        style={{ right: `${8}px`, bottom: `${8}px` }}
-                      >
-                        {label}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Presenter Large layout: share big + bottom filmstrip
-    const filmstripGap = facesCount > 0 ? gap : 0;
-
-    // compute filmstrip one-row best sizing
-    let stripCols = Math.min(facesCount, maxCols);
-    let stripW = minTileW;
-    let stripH = Math.floor((stripW * 9) / 16);
-    if (facesCount > 0) {
-      for (let cols = Math.min(facesCount, maxCols); cols >= 1; cols--) {
-        const availW = Math.max(0, containerSize.w - (cols - 1) * gap);
-        const rawTileW = Math.floor(availW / cols);
-        const tileW = Math.max(minTileW, rawTileW);
-        const tileH = Math.floor((tileW * 9) / 16);
-        stripCols = cols;
-        stripW = tileW;
-        stripH = tileH;
-        break;
-      }
-    }
-
-    const availableForShareH = Math.max(
-      0,
-      containerSize.h - (facesCount > 0 ? stripH + filmstripGap : 0)
-    );
-    const shareWByH = Math.floor((availableForShareH * 16) / 9);
-    const shareW = Math.min(containerSize.w, shareWByH);
-    const shareH = Math.min(availableForShareH, Math.floor((shareW * 9) / 16));
-
+    // Always use side-by-side flex layout for screen share (80/20 split)
+    // This ensures consistent layout regardless of sidebar state or container width
     return (
-      <div
-        ref={stageRef}
-        className="relative flex-1 min-h-0 flex flex-col"
-        style={{ gap }}
-      >
-        <div
-          className="flex items-center justify-center"
-          style={{ height: shareH }}
-        >
-          <TrackLoop tracks={sharePrimary}>
-            <div
-              style={{ width: shareW, height: shareH }}
-              className="relative rounded-lg overflow-hidden bg-black"
-            >
-              <Tile />
-              {activeShares.length > 1 && (
-                <div className="absolute top-2 right-2 flex gap-1">
-                  {activeShares.map((s, idx) => {
-                    const label =
-                      s.participant?.name ||
-                      s.participant?.identity ||
-                      `Share ${idx + 1}`;
-                    return (
-                      <button
-                        key={s.publication?.trackSid || `${label}-${idx}`}
-                        type="button"
-                        onClick={() => setFocusedShareIdx(idx)}
-                        className={`text-xs px-2 py-1 rounded-md border ${
-                          idx === focusedShareIdx
-                            ? "bg-black/60 text-white border-white/50"
-                            : "bg-black/30 text-white/80 border-white/30"
-                        }`}
-                        title={label}
-                        aria-label={`Focus ${label}`}
-                      >
-                        {idx + 1}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </TrackLoop>
-        </div>
-        {facesCount > 0 && (
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: `repeat(${stripCols}, ${stripW}px)`,
-              gridAutoRows: `${stripH}px`,
-              gap,
-              justifyContent: "center",
-              alignContent: "center",
-            }}
-          >
-            <TrackLoop tracks={orderedTracks}>
-              <div className="relative rounded-lg overflow-hidden bg-black">
+      <div ref={stageRef} className="relative flex-1 min-h-0 w-full">
+        <div className="flex gap-3 h-full w-full">
+          {/* Screen share: 80% width - fluid layout */}
+          <div className="flex-[4] min-w-0 min-h-0 flex items-center justify-center">
+            <TrackLoop tracks={sharePrimary}>
+              <div className="relative rounded-lg overflow-hidden bg-black w-full h-full">
                 <Tile />
+                {activeShares.length > 1 && (
+                  <div className="absolute top-2 right-2 flex gap-1 z-10">
+                    {activeShares.map((s, idx) => {
+                      const label =
+                        s.participant?.name ||
+                        s.participant?.identity ||
+                        `Share ${idx + 1}`;
+                      return (
+                        <button
+                          key={s.publication?.trackSid || `${label}-${idx}`}
+                          type="button"
+                          onClick={() => setFocusedShareIdx(idx)}
+                          className={`text-xs px-2 py-1 rounded-md border ${
+                            idx === focusedShareIdx
+                              ? "bg-black/60 text-white border-white/50"
+                              : "bg-black/30 text-white/80 border-white/30"
+                          }`}
+                          title={label}
+                          aria-label={`Focus ${label}`}
+                        >
+                          {idx + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </TrackLoop>
           </div>
-        )}
+          {/* Video tiles: 20% width - fluid layout */}
+          {facesCount > 0 && (
+            <ScreenShareVideoGrid
+              tracks={orderedTracks}
+              containerHeight={containerSize.h}
+            />
+          )}
+        </div>
         {isMobileUA && (
           <div className="pointer-events-none absolute inset-0 z-[100]">
             {Object.entries(tileLabelPos).map(([id, pos]) => {
@@ -817,14 +760,18 @@ export default function Stage({ role }: StageProps) {
                   : "Observer"
                 : null;
               return (
-                <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+                <div
+                  key={`fallback-${id}`}
+                  className="absolute"
+                  style={{ bottom: 0, left: 0, right: 0, top: 0 }}
+                >
                   {/* Name at bottom-left - ensure it doesn't overlap with role */}
                   <span
                     className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                    style={{ 
-                      left: `${pos.nameLeft}px`, 
+                    style={{
+                      left: `${pos.nameLeft}px`,
                       bottom: `${8}px`,
-                      maxWidth: `${pos.nameMaxWidth}px`
+                      maxWidth: `${pos.nameMaxWidth}px`,
                     }}
                   >
                     {identityToName[id] || id}
@@ -850,7 +797,9 @@ export default function Stage({ role }: StageProps) {
   return (
     <div
       ref={stageRef}
-      className={`relative flex-1 min-h-0 ${isMobileUA ? "mobile-fallback" : ""}`}
+      className={`relative flex-1 min-h-0 ${
+        isMobileUA ? "mobile-fallback" : ""
+      }`}
     >
       <div
         className="grid"
@@ -889,14 +838,18 @@ export default function Stage({ role }: StageProps) {
                 : "Observer"
               : null;
             return (
-              <div key={`fallback-${id}`} className="absolute" style={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+              <div
+                key={`fallback-${id}`}
+                className="absolute"
+                style={{ bottom: 0, left: 0, right: 0, top: 0 }}
+              >
                 {/* Name at bottom-left - ensure it doesn't overlap with role */}
                 <span
                   className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                  style={{ 
-                    left: `${pos.nameLeft}px`, 
+                  style={{
+                    left: `${pos.nameLeft}px`,
                     bottom: `${8}px`,
-                    maxWidth: `${pos.nameMaxWidth}px`
+                    maxWidth: `${pos.nameMaxWidth}px`,
                   }}
                 >
                   {identityToName[id] || id}
