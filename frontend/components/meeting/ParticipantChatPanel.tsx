@@ -19,6 +19,8 @@ export default function ParticipantChatPanel({
   me: {
     email: string;
     name: string;
+    firstName?: string;
+    lastName?: string;
     role: "Participant" | "Observer" | "Moderator" | "Admin";
   };
 }) {

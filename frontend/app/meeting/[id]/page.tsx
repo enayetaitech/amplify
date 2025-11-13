@@ -74,6 +74,8 @@ import VideoFilmstrip from "components/meeting/VideoFilmstrip";
 
 type LocalJoinUser = {
   name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   role?: ServerRole | string;
 };
@@ -266,6 +268,8 @@ export default function Meeting() {
     const u = safeLocalGet<LocalJoinUser>("liveSessionUser") || {};
     return {
       name: u?.name || "",
+      firstName: u?.firstName || "",
+      lastName: u?.lastName || "",
       email: (u?.email as string) || "",
       role: (u?.role as ServerRole) || "Participant",
     };
@@ -952,6 +956,8 @@ export default function Meeting() {
                       me={{
                         email: my.email,
                         name: my.name,
+                        firstName: my.firstName,
+                        lastName: my.lastName,
                         role: "Participant",
                       }}
                     />
