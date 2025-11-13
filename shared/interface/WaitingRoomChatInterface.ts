@@ -16,7 +16,9 @@ export interface IWaitingRoomChat {
   _id: string;
   sessionId: string;
   email: string;
-  senderName: string;
+  firstName?: string;
+  lastName?: string;
+  senderName: string; // Computed from firstName + lastName for backward compatibility
   role: "Participant" | "Observer" | "Moderator";
   content: string;
   timestamp: Date;

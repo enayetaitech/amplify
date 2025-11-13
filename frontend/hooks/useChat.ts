@@ -27,6 +27,8 @@ export type ChatMessage = {
   // group models shape
   senderEmail?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 type ThreadKey = string; // e.g. participant email for moderator pool DM thread, or peer email for 1:1
@@ -50,7 +52,7 @@ export function useChat(params: {
     role: "Participant" | "Observer" | "Moderator" | "Admin";
   };
 }) {
-  const { socket, sessionId, my } = params;
+  const { socket, my } = params;
   const [byScope, setByScope] = useState<Record<string, ChatMessage[]>>({});
   const [byThread, setByThread] = useState<Record<ThreadKey, ChatMessage[]>>(
     {}
@@ -65,6 +67,9 @@ export function useChat(params: {
 
     const onNew = (payload: { scope: ChatScope; message: ChatMessage }) => {
       const { scope, message } = payload || ({} as any);
+      console.log('payload', payload);
+      console.log('scope', scope);
+      console.log('message', message);
       if (!scope || !message) return;
       const idKey = String(
         (message as any)._id ||

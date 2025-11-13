@@ -59,10 +59,19 @@ const emailIndex = new Map<string, Map<string, string>>();
 // Track sockets by userId for force-logout
 const userIdIndex = new Map<string, Set<string>>();
 const identityIndex = new Map<string, Map<string, string>>();
-// Track participant info by identity: sessionId -> (identity -> { name, email, role })
+// Track participant info by identity: sessionId -> (identity -> { name, email, role, firstName, lastName })
 const identityInfo = new Map<
   string,
-  Map<string, { name: string; email: string; role: Role }>
+  Map<
+    string,
+    {
+      name: string;
+      email: string;
+      role: Role;
+      firstName: string;
+      lastName: string;
+    }
+  >
 >();
 // Track moderator sockets per session (Moderators/Admins only)
 const moderatorSockets = new Map<string, Set<string>>();
@@ -123,9 +132,12 @@ export function attachSocket(server: HTTPServer) {
   io.on("connection", (socket: Socket) => {
     // Expect query: ?sessionId=...&role=...&name=...&email=...
     const q = socket.handshake.query;
+    
     const sessionId = String(q.sessionId || "");
     const role = String(q.role || "Participant") as Role;
     const name = (q.name as string) || "";
+    const firstName = (q.firstName as string) || "";
+    const lastName = (q.lastName as string) || "";
     const email = (q.email as string) || "";
     const userId = (q.userId as string) || "";
 
@@ -374,7 +386,7 @@ export function attachSocket(server: HTTPServer) {
       // Check if there are moderators/admins in this session
       // If yes, emit project-level observer list; otherwise emit session-level list
       const hasModeratorsOrAdmins = modInfo && modInfo.size > 0;
-      
+
       if (hasModeratorsOrAdmins) {
         // For sessions with moderators/admins, emit project-level observer list
         // This ensures admins/moderators in the meeting room see all observers across the project
@@ -616,9 +628,30 @@ export function attachSocket(server: HTTPServer) {
                   String((h.email || "").toLowerCase()) === lower && !h.leaveAt
               );
               if (!hasOpen) {
+                // Try to find firstName and lastName from observerWaitingRoom or observerList
+                let firstName = "";
+                let lastName = "";
+                const observer =
+                  live.observerWaitingRoom.find(
+                    (o) => o.email.toLowerCase() === lower
+                  ) ||
+                  live.observerList.find(
+                    (o) => o.email.toLowerCase() === lower
+                  );
+                if (observer) {
+                  firstName = observer.firstName || "";
+                  lastName = observer.lastName || "";
+                } else if (name) {
+                  // Fallback: parse name if observer not found
+                  const parts = name.trim().split(/\s+/);
+                  firstName = parts[0] || "";
+                  lastName = parts.slice(1).join(" ") || "";
+                }
                 live.observerHistory = live.observerHistory || ([] as any);
                 live.observerHistory.push({
                   id: undefined,
+                  firstName,
+                  lastName,
                   name: name || email || "Observer",
                   email: email || "",
                   role: "Observer",
@@ -1175,6 +1208,8 @@ export function attachSocket(server: HTTPServer) {
       toEmail?: string;
       email?: string;
       name?: string;
+      firstName?: string;
+      lastName?: string;
     };
     type ChatHistoryPayload = {
       scope: string;
@@ -1188,12 +1223,7 @@ export function attachSocket(server: HTTPServer) {
         payload: ChatSendPayload,
         ack?: (r: { ok: boolean; error?: string }) => void
       ) => {
-        console.log("=== Backend chat:send received ===");
-        console.log("sessionId:", sessionId);
-        console.log("role:", role);
-        console.log("email (from socket):", email);
-        console.log("name (from socket):", name);
-        console.log("payload:", payload);
+  
 
         try {
           const {
@@ -1201,34 +1231,27 @@ export function attachSocket(server: HTTPServer) {
             content,
             email: payloadEmail,
             name: payloadName,
+            firstName: payloadFirstName,
+            lastName: payloadLastName,
           } = payload || {};
 
-          console.log("=== Parsed payload ===");
-          console.log("scope:", scope);
-          console.log("content:", content);
-          console.log("payloadEmail:", payloadEmail);
-          console.log("payloadName:", payloadName);
+        
 
           if (!scope || !content || !content.trim()) {
-            console.log("❌ Bad request: missing scope or content");
             return ack?.({ ok: false, error: "bad_request" });
           }
 
           const liveId = await ensureLiveIdFor(sessionId);
-          console.log("liveId:", liveId);
 
           // Use payload email/name if provided, otherwise fall back to socket connection
           const senderEmail = payloadEmail || email;
           const senderName = payloadName || name;
+          const senderFirstName = payloadFirstName || firstName;
+          const senderLastName = payloadLastName || lastName;
           const lowerSender = (senderEmail || "").toLowerCase();
           const now = new Date();
 
-          console.log("=== Final sender info ===");
-          console.log("senderEmail:", senderEmail);
-          console.log("senderName:", senderName);
-          console.log("lowerSender:", lowerSender);
-
-          const emitNew = (target: string | string[] | null, message: any) => {
+                   const emitNew = (target: string | string[] | null, message: any) => {
             if (!target) return;
             const evt = "chat:new";
             if (Array.isArray(target)) {
@@ -1249,9 +1272,47 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
+
+              // Look up firstName and lastName from LiveSession
+              let firstName: string | undefined;
+              let lastName: string | undefined;
+              try {
+                const live = await LiveSessionModel.findOne({
+                  sessionId: liveId,
+                }).lean();
+                if (live) {
+                  const lowerSender = (senderEmail || "").toLowerCase();
+                  // Check participantWaitingRoom first
+                  const waitingUser = live.participantWaitingRoom?.find(
+                    (u) => (u.email || "").toLowerCase() === lowerSender
+                  );
+                  if (waitingUser) {
+                    firstName = waitingUser.firstName;
+                    lastName = waitingUser.lastName;
+                  } else {
+                    // Check participantsList
+                    const participant = live.participantsList?.find(
+                      (u) => (u.email || "").toLowerCase() === lowerSender
+                    );
+                    if (participant) {
+                      firstName = participant.firstName;
+                      lastName = participant.lastName;
+                    }
+                  }
+                }
+              } catch (err) {
+                // Non-critical: continue without firstName/lastName
+                console.error(
+                  "Failed to lookup firstName/lastName for chat message",
+                  err
+                );
+              }
+
               const doc = {
                 sessionId: liveId,
                 email: senderEmail,
+                firstName,
+                lastName,
                 senderName: senderName || senderEmail,
                 role: role === "Admin" ? "Moderator" : (role as any),
                 content,
@@ -1297,13 +1358,24 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
-              const saved = await (GroupMsgNamed || GroupMessageModel).create({
+              const docToSave: any = {
                 sessionId: liveId,
                 senderEmail: senderEmail,
                 name: senderName || senderEmail,
                 content,
                 scope,
-              });
+              };
+              // Only include firstName/lastName if they have values
+              if (senderFirstName && senderFirstName.trim()) {
+                docToSave.firstName = senderFirstName;
+              }
+              if (senderLastName && senderLastName.trim()) {
+                docToSave.lastName = senderLastName;
+              }
+              const saved = await (GroupMsgNamed || GroupMessageModel).create(
+                docToSave
+              );
+              
               io.to(rooms.meeting).emit("chat:new", {
                 scope,
                 message: saved.toObject(),
@@ -1325,7 +1397,7 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
-              const doc = {
+              const doc: any = {
                 sessionId: liveId,
                 email: senderEmail,
                 senderName: senderName || senderEmail,
@@ -1335,6 +1407,13 @@ export function attachSocket(server: HTTPServer) {
                 scope,
                 toEmail: undefined as string | undefined,
               };
+              // Only include firstName/lastName if they have values
+              if (senderFirstName && senderFirstName.trim()) {
+                doc.firstName = senderFirstName;
+              }
+              if (senderLastName && senderLastName.trim()) {
+                doc.lastName = senderLastName;
+              }
               if (role === "Participant") {
                 doc.toEmail = "__moderators__";
                 const saved = await ParticipantMeetingChatModel.create(doc);
@@ -1366,7 +1445,7 @@ export function attachSocket(server: HTTPServer) {
               const target = (payload.toEmail || "").toLowerCase();
               if (!target)
                 return ack?.({ ok: false, error: "toEmail_required" });
-              const saved = await ParticipantMeetingChatModel.create({
+              const doc: any = {
                 sessionId: liveId,
                 email: senderEmail,
                 senderName: senderName || senderEmail,
@@ -1375,39 +1454,30 @@ export function attachSocket(server: HTTPServer) {
                 timestamp: now,
                 scope,
                 toEmail: target,
-              });
+              };
+              // Only include firstName/lastName if they have values
+              if (senderFirstName && senderFirstName.trim()) {
+                doc.firstName = senderFirstName;
+              }
+              if (senderLastName && senderLastName.trim()) {
+                doc.lastName = senderLastName;
+              }
+              const saved = await ParticipantMeetingChatModel.create(doc);
               emitNew(socket.id, saved.toObject());
               const targetId = emailIndex.get(sessionId)?.get(target);
               if (targetId) emitNew(targetId, saved.toObject());
               return ack?.({ ok: true });
             }
             case "observer_wait_group": {
-              console.log("=== Processing observer_wait_group ===");
-              console.log("role:", role);
-              console.log(
-                "role check:",
-                ["Observer", "Moderator", "Admin"].includes(role)
-              );
+            
 
               if (!["Observer", "Moderator", "Admin"].includes(role)) {
-                console.log(
-                  "❌ Forbidden: role not allowed for observer_wait_group"
-                );
+              
                 return ack?.({ ok: false, error: "forbidden" });
               }
 
-              console.log("✅ Role check passed, creating message");
               const dbRole = role === "Admin" ? "Moderator" : role;
-              console.log("Role conversion:", role, "->", dbRole);
-              console.log("Creating message with:", {
-                sessionId: liveId,
-                email: senderEmail,
-                senderName: senderName || senderEmail,
-                role: dbRole,
-                content,
-                timestamp: now,
-                scope,
-              });
+        
 
               const saved = await ObserverWaitingRoomChatModel.create({
                 sessionId: liveId,
@@ -1419,15 +1489,11 @@ export function attachSocket(server: HTTPServer) {
                 scope,
               });
 
-              console.log("✅ Message created successfully:", saved.toObject());
-              console.log("Emitting to rooms.observer:", rooms.observer);
-
               io.to(rooms.observer).emit("chat:new", {
                 scope,
                 message: saved.toObject(),
               });
 
-              console.log("✅ Message emitted successfully");
               return ack?.({ ok: true });
             }
             case "observer_wait_dm": {
@@ -2003,6 +2069,8 @@ export function attachSocket(server: HTTPServer) {
             name: name || payload.email || payload.identity,
             email: payload.email || email || "",
             role,
+            firstName: firstName || "",
+            lastName: lastName || "",
           });
 
           // Emit participant info update to all clients in the session
@@ -2011,6 +2079,8 @@ export function attachSocket(server: HTTPServer) {
             name: name || payload.email || payload.identity,
             email: payload.email || email || "",
             role,
+            firstName: firstName || "",
+            lastName: lastName || "",
           };
           io.to(sessionId).emit("meeting:participant-info", participantInfo);
 
@@ -2030,6 +2100,8 @@ export function attachSocket(server: HTTPServer) {
             name: string;
             email: string;
             role: Role;
+            firstName: string;
+            lastName: string;
           }>;
         }) => void
       ) => {
@@ -2050,22 +2122,14 @@ export function attachSocket(server: HTTPServer) {
     socket.on(
       "participant:left",
       async (_payload: unknown, ack?: (resp: { ok: boolean }) => void) => {
-        console.debug("socket participant:left received", {
-          sessionId,
-          email,
-          role,
-          socketId: socket.id,
-          leftHandled: Boolean((socket as any).__leftHandled),
-        });
+     
         try {
           if ((socket as any).__leftHandled) return ack?.({ ok: true });
           (socket as any).__leftHandled = true;
           if (email && role === "Participant") {
             try {
               const live = await LiveSessionModel.findOne({ sessionId });
-              console.debug("participant:left - found live", {
-                found: Boolean(live),
-              });
+           
               if (live) {
                 const targetEmail = String(email || "")
                   .trim()
@@ -2074,10 +2138,7 @@ export function attachSocket(server: HTTPServer) {
                   (p: any) =>
                     String((p.email || "").trim()).toLowerCase() === targetEmail
                 );
-                console.debug("participant:left - match idx", {
-                  idx,
-                  targetEmail,
-                });
+               
                 if (idx >= 0) {
                   const user = (live.participantsList as any).splice(idx, 1)[0];
                   // ignore if recently admitted
@@ -2088,10 +2149,7 @@ export function attachSocket(server: HTTPServer) {
                     if (map) {
                       const exp = map.get(eml) || 0;
                       if (exp > Date.now()) {
-                        console.debug(
-                          "participant:left - skipping because recently admitted",
-                          { eml }
-                        );
+                        
                         skipHistory = true;
                         map.delete(eml);
                       } else {
@@ -2134,6 +2192,8 @@ export function attachSocket(server: HTTPServer) {
 
                   live.participantHistory.push({
                     id: (user && (user._id || (user as any).id)) || undefined,
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
                     name: user?.name || user?.email || "",
                     email: user?.email || "",
                     joinedAt: (user && (user.joinedAt || null)) || null,
@@ -2583,6 +2643,8 @@ export function attachSocket(server: HTTPServer) {
               // push into waiting room - preserve original waiting room joinedAt
               live.participantWaitingRoom = live.participantWaitingRoom || [];
               live.participantWaitingRoom.push({
+                firstName: user.firstName || "",
+                lastName: user.lastName || "",
                 name: user.name || user.email,
                 email: user.email,
                 role: user.role || "Participant",
@@ -2613,6 +2675,8 @@ export function attachSocket(server: HTTPServer) {
                   id:
                     (user && ((user as any)._id || (user as any).id)) ||
                     undefined,
+                  firstName: user?.firstName || "",
+                  lastName: user?.lastName || "",
                   name: user?.name || user?.email || "",
                   email: user?.email || "",
                   joinedAt: (user && (user.joinedAt || null)) || null,
@@ -2727,6 +2791,8 @@ export function attachSocket(server: HTTPServer) {
                     id:
                       (user && ((user as any)._id || (user as any).id)) ||
                       undefined,
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
                     name: user?.name || user?.email || "",
                     email: user?.email || "",
                     joinedAt: (user && (user.joinedAt || null)) || null,
@@ -2818,7 +2884,6 @@ export function attachSocket(server: HTTPServer) {
     socket.on(
       "meeting:stream:start",
       async (_payload, ack?: (r: { ok?: boolean; error?: string }) => void) => {
-        console.log("start stream", role);
         if (!["Moderator", "Admin"].includes(role)) {
           return ack?.({ ok: false, error: "Forbidden" });
         }
@@ -2888,8 +2953,7 @@ export function attachSocket(server: HTTPServer) {
               await live.save();
             }
           } catch {}
-          console.log("Playback URL", live);
-          console.log("hls", hls);
+        
           // tell all observers in this session that streaming is live
           io.to(rooms.observer).emit("observer:stream:started", {
             sessionId: sessionId,
@@ -2951,7 +3015,6 @@ export function attachSocket(server: HTTPServer) {
     socket.on(
       "meeting:stream:stop",
       async (_payload, ack?: (r: { ok?: boolean; error?: string }) => void) => {
-        console.log("stop stream", role);
         if (!["Moderator", "Admin"].includes(role)) {
           return ack?.({ ok: false, error: "Forbidden" });
         }
@@ -3008,7 +3071,6 @@ export function attachSocket(server: HTTPServer) {
             streamStoppingWindow.set(sessionId, Date.now() + 5000);
           } catch {}
 
-          console.log("stopped stream", live);
           // notify observers to switch back to waiting UI in a later step
           io.to(rooms.observer).emit("observer:stream:stopped", {
             sessionId: sessionId,
@@ -3336,6 +3398,8 @@ export function attachSocket(server: HTTPServer) {
 
                   live.participantHistory.push({
                     id: (user && (user._id || (user as any).id)) || undefined,
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
                     name: user?.name || user?.email || "",
                     email: user?.email || "",
                     joinedAt: (user && (user.joinedAt || null)) || null,

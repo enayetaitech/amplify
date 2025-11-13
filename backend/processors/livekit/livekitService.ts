@@ -36,8 +36,10 @@ export async function issueRoomToken(params: {
   role: LivekitRole;
   roomName: string;
   email?: string; // include for frontend extraction (not used as identity)
+  firstName?: string; // participant first name
+  lastName?: string; // participant last name
 }) {
-  const { identity, name, role, roomName, email } = params;
+  const { identity, name, role, roomName, email, firstName, lastName } = params;
 
   // Include role as metadata so sockets can authorize easily.
   const at = new AccessToken(apiKey, apiSecret, {
@@ -49,9 +51,16 @@ export async function issueRoomToken(params: {
       email: email ?? null,
       name: name || null,
       displayName: name || null,
+      firstName: firstName || null,
+      lastName: lastName || null,
       user:
         name || email
-          ? { name: name || undefined, email: email || undefined }
+          ? {
+              name: name || undefined,
+              email: email || undefined,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+            }
           : undefined,
     }),
   });

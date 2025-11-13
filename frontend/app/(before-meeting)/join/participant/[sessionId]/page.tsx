@@ -40,7 +40,9 @@ export default function ParticipantJoinMeeting() {
   };
 
   const onSubmit = form.handleSubmit(async (values) => {
-    const nameTrimmed = `${values.firstName.trim()} ${values.lastName.trim()}`;
+    const firstNameTrimmed = values.firstName.trim();
+    const lastNameTrimmed = values.lastName.trim();
+    const nameTrimmed = `${firstNameTrimmed} ${lastNameTrimmed}`;
     const emailNormalized = values.email.trim().toLowerCase();
 
     try {
@@ -48,7 +50,8 @@ export default function ParticipantJoinMeeting() {
 
       await enqueue({
         sessionId,
-        name: nameTrimmed,
+        firstName: firstNameTrimmed,
+        lastName: lastNameTrimmed,
         email: emailNormalized,
         role: "Participant",
         device:
@@ -58,6 +61,8 @@ export default function ParticipantJoinMeeting() {
       localStorage.setItem(
         "liveSessionUser",
         JSON.stringify({
+          firstName: firstNameTrimmed,
+          lastName: lastNameTrimmed,
           name: nameTrimmed,
           email: emailNormalized,
           role: "Participant",

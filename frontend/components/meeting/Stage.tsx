@@ -17,6 +17,7 @@ import {
   toUiRole,
   type UiRole as UiRoleType,
 } from "constant/roles";
+import { formatParticipantName } from "utils/formatParticipantName";
 
 type StageProps = {
   role: "participant" | "moderator" | "admin" | "observer";
@@ -55,9 +56,18 @@ export default function Stage({ role }: StageProps) {
       return false;
     }
   }, []);
-  // Socket-based participant info: identity -> { name, email, role }
+  // Socket-based participant info: identity -> { name, email, role, firstName, lastName }
   const [socketParticipantInfo, setSocketParticipantInfo] = useState<
-    Record<string, { name: string; email: string; role: string }>
+    Record<
+      string,
+      {
+        name: string;
+        email: string;
+        role: string;
+        firstName: string;
+        lastName: string;
+      }
+    >
   >({});
 
   const participants = useParticipants();
@@ -108,8 +118,14 @@ export default function Stage({ role }: StageProps) {
       if (!id) continue;
       // Prefer socket-based name, fallback to LiveKit metadata/name
       const socketInfo = socketParticipantInfo[id.toLowerCase()];
-      if (socketInfo?.name) {
-        map[id] = socketInfo.name;
+      if (socketInfo) {
+        // Try to format from firstName/lastName first
+        const formattedName = formatParticipantName(
+          socketInfo.firstName,
+          socketInfo.lastName
+        );
+        // If formatted name exists, use it; otherwise fall back to socketInfo.name
+        map[id] = formattedName || socketInfo.name;
       } else {
         const metaName = parseDisplayNameFromMetadata(p.metadata);
         map[id] = metaName || p.name || id;
@@ -148,18 +164,28 @@ export default function Stage({ role }: StageProps) {
               name: string;
               email: string;
               role: string;
+              firstName: string;
+              lastName: string;
             }>;
           };
           if (r?.participants && Array.isArray(r.participants)) {
             const infoMap: Record<
               string,
-              { name: string; email: string; role: string }
+              {
+                name: string;
+                email: string;
+                role: string;
+                firstName: string;
+                lastName: string;
+              }
             > = {};
             for (const p of r.participants) {
               infoMap[p.identity.toLowerCase()] = {
                 name: p.name,
                 email: p.email,
                 role: p.role,
+                firstName: p.firstName || "",
+                lastName: p.lastName || "",
               };
             }
             setSocketParticipantInfo((prev) => ({ ...prev, ...infoMap }));
@@ -176,6 +202,8 @@ export default function Stage({ role }: StageProps) {
           name?: string;
           email?: string;
           role?: string;
+          firstName?: string;
+          lastName?: string;
         };
         if (p?.identity && p.name) {
           setSocketParticipantInfo((prev) => ({
@@ -184,6 +212,8 @@ export default function Stage({ role }: StageProps) {
               name: p.name!,
               email: p.email || "",
               role: p.role || "",
+              firstName: p.firstName || "",
+              lastName: p.lastName || "",
             },
           }));
         }
@@ -217,20 +247,7 @@ export default function Stage({ role }: StageProps) {
     };
   }, []);
 
-  // Debug: log participant identities and resolved names whenever list changes
-  useEffect(() => {
-    try {
-      const rows = participants.map((p) => ({
-        identity: p.identity,
-        p_name: p.name,
-        meta: p.metadata,
-        socket_name:
-          socketParticipantInfo[p.identity?.toLowerCase() || ""]?.name,
-        resolved: identityToName[p.identity || ""],
-      }));
-      console.table(rows);
-    } catch {}
-  }, [participants, identityToName, socketParticipantInfo]);
+
 
   const identityToCamOn: Record<string, boolean> = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -483,17 +500,6 @@ export default function Stage({ role }: StageProps) {
         }}
         aria-label={`${name}${speaking ? ", speaking" : ""}`}
       >
-        {(() => {
-          try {
-            console.debug("[Stage] Tile render", {
-              identity,
-              resolvedName: name,
-              camOn,
-              speaking,
-            });
-          } catch {}
-          return null;
-        })()}
         <ParticipantTile trackRef={trackRef} />
 
         {/* Bottom-left: placeholder avatar when camera off */}

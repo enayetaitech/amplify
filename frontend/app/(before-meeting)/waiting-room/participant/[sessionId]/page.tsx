@@ -61,9 +61,28 @@ export default function ParticipantWaitingRoom() {
     if (!raw) {
       // If missing, bounce back to join
       router.replace(`/join/participant/${sessionId}`);
-      return { name: "", email: "", role: "Participant" as UserRole };
+      return {
+        name: "",
+        email: "",
+        firstName: "",
+        lastName: "",
+        role: "Participant" as UserRole,
+      };
     }
-    return JSON.parse(raw) as { name: string; email: string; role: UserRole };
+    const parsed = JSON.parse(raw) as {
+      name: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      role: UserRole;
+    };
+    return {
+      name: parsed.name,
+      email: parsed.email,
+      firstName: parsed.firstName,
+      lastName: parsed.lastName,
+      role: parsed.role,
+    };
   }, [router, sessionId]);
 
   const [waiting, setWaiting] = useState<WaitingUser[]>([]);
@@ -121,6 +140,8 @@ export default function ParticipantWaitingRoom() {
         role: me.role,
         name: me.name,
         email: me.email,
+        firstName: me.firstName,
+        lastName: me.lastName,
       },
     });
 
@@ -214,7 +235,6 @@ export default function ParticipantWaitingRoom() {
                   WAITING ROOM CHAT
                 </h3>
                 <Button
-                  
                   size="icon"
                   onClick={() => setIsChatOpen(false)}
                   aria-label="Close chat"
@@ -227,7 +247,13 @@ export default function ParticipantWaitingRoom() {
                 <ParticipantWaitingDm
                   socket={socketRef.current}
                   sessionId={sessionId}
-                  me={{ email: me.email, name: me.name, role: "Participant" }}
+                  me={{
+                    email: me.email,
+                    name: me.name,
+                    firstName: me.firstName,
+                    lastName: me.lastName,
+                    role: "Participant",
+                  }}
                   chatProps={{ send, getHistory, messagesByScope }}
                 />
               </div>

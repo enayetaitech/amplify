@@ -74,6 +74,8 @@ import VideoFilmstrip from "components/meeting/VideoFilmstrip";
 
 type LocalJoinUser = {
   name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   role?: ServerRole | string;
 };
@@ -266,6 +268,8 @@ export default function Meeting() {
     const u = safeLocalGet<LocalJoinUser>("liveSessionUser") || {};
     return {
       name: u?.name || "",
+      firstName: u?.firstName || "",
+      lastName: u?.lastName || "",
       email: (u?.email as string) || "",
       role: (u?.role as ServerRole) || "Participant",
     };
@@ -445,6 +449,12 @@ export default function Meeting() {
         role: serverRole,
         name: my?.name || saved?.name || "",
         email: my?.email || saved?.email || "",
+        firstName:
+          ("firstName" in my ? my.firstName : undefined) ||
+          saved?.firstName ||
+          "",
+        lastName:
+          ("lastName" in my ? my.lastName : undefined) || saved?.lastName || "",
       },
     });
     socketRef.current = s;
@@ -584,7 +594,7 @@ export default function Meeting() {
       s.off("meeting:stream:status:changed", onStreamStatusChanged);
       s.disconnect();
     };
-  }, [sessionId, my?.email, my?.name, serverRole, role, router]);
+  }, [sessionId, my, serverRole, role, router]);
 
   // Clear localStorage/cookies on browser/tab close and end meeting if host closes tab
   useEffect(() => {
@@ -952,6 +962,8 @@ export default function Meeting() {
                       me={{
                         email: my.email,
                         name: my.name,
+                        firstName: my.firstName,
+                        lastName: my.lastName,
                         role: "Participant",
                       }}
                     />

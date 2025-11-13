@@ -112,9 +112,10 @@ export default function ChatWindow({
             messages.map((m, idx) => {
               const senderLower = (m.senderEmail || "").toLowerCase();
               const isFromMe = senderLower === meLower;
-              const displayName = formatNameFirstInitial(
-                m.senderName || m.senderEmail
-              );
+              // Use senderName directly if provided (already formatted), otherwise format from email
+              const displayName = m.senderName
+                ? m.senderName
+                : formatNameFirstInitial(m.senderEmail);
               const when = formatClock(m.timestamp);
               return (
                 <div key={m.id ?? idx} className="w-full">

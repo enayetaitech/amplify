@@ -41,14 +41,17 @@ const ObserverJoinMeeting: React.FC = () => {
   };
 
   const onSubmit = form.handleSubmit(async (values) => {
-    const nameTrimmed = `${values.firstName.trim()} ${values.lastName.trim()}`;
+    const firstNameTrimmed = values.firstName.trim();
+    const lastNameTrimmed = values.lastName.trim();
+    const nameTrimmed = `${firstNameTrimmed} ${lastNameTrimmed}`;
     const emailNormalized = values.email.trim().toLowerCase();
     try {
       const { latest, projectId } = await resolve(idParam);
 
       const res = await enqueue({
         sessionId: latest.sessionId,
-        name: nameTrimmed,
+        firstName: firstNameTrimmed,
+        lastName: lastNameTrimmed,
         email: emailNormalized,
         role: "Observer",
         passcode: values.passcode,
@@ -58,6 +61,8 @@ const ObserverJoinMeeting: React.FC = () => {
 
       // Persist for socket handshakes (waiting room and meeting page)
       safeLocalSet("liveSessionUser", {
+        firstName: firstNameTrimmed,
+        lastName: lastNameTrimmed,
         name: nameTrimmed,
         email: emailNormalized,
         role: "Observer",

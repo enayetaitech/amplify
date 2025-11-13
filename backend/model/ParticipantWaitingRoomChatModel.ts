@@ -20,7 +20,9 @@ const ParticipantWaitingRoomChatSchema =
         required: true,
       },
       email: { type: String, required: true },
-      senderName: { type: String, required: true },
+      firstName: { type: String, required: false },
+      lastName: { type: String, required: false },
+      senderName: { type: String, required: true }, // Computed from firstName + lastName for backward compatibility
       role: {
         type: String,
         enum: ["Participant", "Observer", "Moderator"],

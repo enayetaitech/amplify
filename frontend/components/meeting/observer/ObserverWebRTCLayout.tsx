@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   LiveKitRoom,
   GridLayout,
@@ -8,20 +8,58 @@ import {
   useTracks,
   RoomAudioRenderer,
   useRoomContext,
+  useTrackRefContext,
+  useParticipants,
 } from "@livekit/components-react";
 import { Track, RoomEvent, ConnectionQuality } from "livekit-client";
 import { DisconnectReason } from "livekit-client";
 import "@livekit/components-styles";
 import Logo from "components/shared/LogoComponent";
+import { formatParticipantName } from "utils/formatParticipantName";
+
+// Custom tile component that shows formatted names from socket
+function CustomParticipantTile({
+  identityToName,
+}: {
+  identityToName: Record<string, string>;
+}) {
+  const trackRef = useTrackRefContext();
+  const identity = trackRef.participant?.identity || "";
+  const name = identityToName[identity] || identity;
+
+  return (
+    <>
+      <style>{`
+        .observer-tile-wrapper .lk-participant-metadata {
+          display: none !important;
+        }
+      `}</style>
+      <div className="relative w-full h-full observer-tile-wrapper">
+        <ParticipantTile trackRef={trackRef} />
+        {/* Name overlay */}
+        <div className="absolute left-2 bottom-2 max-w-[calc(100%-16px)] z-50">
+          <span
+            className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
+            title={name}
+          >
+            {name}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}
 
 // Component for video tiles in observer screen share layout (20% width)
 // Maintains 16:9 aspect ratio like admin view
 function ObserverVideoTilesColumn({
   tracks,
   containerHeight,
+  identityToName,
 }: {
   tracks: ReturnType<typeof useTracks>;
   containerHeight: number;
+  identityToName: Record<string, string>;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -110,7 +148,7 @@ function ObserverVideoTilesColumn({
                 >
                   <div className="w-full h-full">
                     <GridLayout tracks={[tr]}>
-                      <ParticipantTile />
+                      <CustomParticipantTile identityToName={identityToName} />
                     </GridLayout>
                   </div>
                 </div>
@@ -132,6 +170,19 @@ function ObserverVideoGrid() {
   });
   const gap = 8; // Match admin view gap
   const room = useRoomContext();
+  const participants = useParticipants();
+  const [socketParticipantInfo, setSocketParticipantInfo] = useState<
+    Record<
+      string,
+      {
+        name: string;
+        email: string;
+        role: string;
+        firstName: string;
+        lastName: string;
+      }
+    >
+  >({});
 
   useEffect(() => {
     const el = containerRef.current;
@@ -144,6 +195,145 @@ function ObserverVideoGrid() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Listen for socket-based participant info updates
+  useEffect(() => {
+    const sock =
+      typeof window !== "undefined"
+        ? (
+            window as unknown as {
+              __meetingSocket?: {
+                on?: (ev: string, cb: (p?: unknown) => void) => void;
+                off?: (ev: string, cb: (p?: unknown) => void) => void;
+                emit?: (
+                  ev: string,
+                  payload: unknown,
+                  ack?: (resp: unknown) => void
+                ) => void;
+              };
+            }
+          ).__meetingSocket || null
+        : null;
+    if (!sock) return;
+
+    // Request initial participant list
+    if (sock.emit && typeof sock.emit === "function") {
+      sock.emit("meeting:get-participants-info", (resp?: unknown) => {
+        try {
+          const r = resp as {
+            participants?: Array<{
+              identity: string;
+              name: string;
+              email: string;
+              role: string;
+              firstName: string;
+              lastName: string;
+            }>;
+          };
+          if (r?.participants && Array.isArray(r.participants)) {
+            const infoMap: Record<
+              string,
+              {
+                name: string;
+                email: string;
+                role: string;
+                firstName: string;
+                lastName: string;
+              }
+            > = {};
+            for (const p of r.participants) {
+              infoMap[p.identity.toLowerCase()] = {
+                name: p.name,
+                email: p.email,
+                role: p.role,
+                firstName: p.firstName || "",
+                lastName: p.lastName || "",
+              };
+            }
+            setSocketParticipantInfo((prev) => ({ ...prev, ...infoMap }));
+          }
+        } catch {}
+      });
+    }
+
+    // Listen for participant info updates
+    const onParticipantInfo = (payload?: unknown) => {
+      try {
+        const p = payload as {
+          identity?: string;
+          name?: string;
+          email?: string;
+          role?: string;
+          firstName?: string;
+          lastName?: string;
+        };
+        if (p?.identity && p.name) {
+          setSocketParticipantInfo((prev) => ({
+            ...prev,
+            [p.identity!.toLowerCase()]: {
+              name: p.name!,
+              email: p.email || "",
+              role: p.role || "",
+              firstName: p.firstName || "",
+              lastName: p.lastName || "",
+            },
+          }));
+        }
+      } catch {}
+    };
+
+    // Listen for participant removal
+    const onParticipantRemoved = (payload?: unknown) => {
+      try {
+        const p = payload as { identity?: string };
+        if (p?.identity) {
+          setSocketParticipantInfo((prev) => {
+            const next = { ...prev };
+            delete next[p.identity!.toLowerCase()];
+            return next;
+          });
+        }
+      } catch {}
+    };
+
+    if (sock.on && typeof sock.on === "function") {
+      sock.on("meeting:participant-info", onParticipantInfo);
+      sock.on("meeting:participant-removed", onParticipantRemoved);
+    }
+
+    return () => {
+      if (sock.off && typeof sock.off === "function") {
+        sock.off("meeting:participant-info", onParticipantInfo);
+        sock.off("meeting:participant-removed", onParticipantRemoved);
+      }
+    };
+  }, []);
+
+  // Map identity to formatted name from socket info
+  const identityToName: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const participant of participants) {
+      const identity = participant.identity || "";
+      if (!identity) continue;
+
+      // Prefer socket-based name, fallback to LiveKit name
+      const socketInfo = socketParticipantInfo[identity.toLowerCase()];
+      if (socketInfo) {
+        // Format from firstName/lastName first
+        const formattedName = formatParticipantName(
+          socketInfo.firstName,
+          socketInfo.lastName
+        );
+        // If formatted name exists, use it; otherwise fall back to socketInfo.name
+        map[identity] = formattedName || socketInfo.name || identity;
+      } else {
+        // Fallback to LiveKit participant name
+        map[identity] = participant.name || identity;
+      }
+    }
+
+    return map;
+  }, [participants, socketParticipantInfo]);
 
   // Ensure we subscribe to all published tracks when participants join
   useEffect(() => {
@@ -278,6 +468,7 @@ function ObserverVideoGrid() {
               <ObserverVideoTilesColumn
                 tracks={cameraRefsForGrid}
                 containerHeight={containerSize.h}
+                identityToName={identityToName}
               />
             )}
           </div>
@@ -300,7 +491,7 @@ function ObserverVideoGrid() {
                   className="relative overflow-hidden rounded bg-black"
                 >
                   <GridLayout tracks={[tr]}>
-                    <ParticipantTile />
+                    <CustomParticipantTile identityToName={identityToName} />
                   </GridLayout>
                 </div>
               ))}
@@ -385,57 +576,21 @@ export default function ObserverWebRTCLayout({
   }, [error, onError]);
 
   return (
-    <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col">
-      {error ? (
-        <>
-          <div className="flex items-center justify-between px-1 pb-2">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
-                <span>Disconnected</span>
-              </div>
-              <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
-                Observer View
-              </span>
-            </div>
-            <div className="flex items-center">
-              <Logo />
-            </div>
-          </div>
-          <div className="flex-1 flex items-center justify-center text-red-500">
-            Connection error: {error}
-          </div>
-        </>
-      ) : (
-        <LiveKitRoom
-          token={token}
-          serverUrl={serverUrl}
-          video={false}
-          audio={false}
-          connect={true}
-          options={{
-            adaptiveStream: true,
-            dynacast: true,
-          }}
-          onError={(err) => {
-            console.error("LiveKit connection error:", err);
-            // Ignore "Client initiated disconnect" errors (normal on unmount)
-            if (!err?.message?.includes("Client initiated disconnect")) {
-              setError(err?.message || "Connection failed");
-            }
-          }}
-          onDisconnected={(reason) => {
-            console.log("LiveKit disconnected:", reason);
-            // Only set error if it's not a normal, client-initiated disconnect
-            if (reason && reason !== DisconnectReason.CLIENT_INITIATED) {
-              setError(`Disconnected: ${String(reason)}`);
-            }
-          }}
-        >
-          <div className="w-full h-full flex flex-col">
+    <>
+      <style>{`
+        .observer-webrtc-layout .lk-participant-metadata {
+          display: none !important;
+        }
+      `}</style>
+      <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col observer-webrtc-layout">
+        {error ? (
+          <>
             <div className="flex items-center justify-between px-1 pb-2">
               <div className="flex items-center gap-3">
-                <ConnectionStatusInner />
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                  <span>Disconnected</span>
+                </div>
                 <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
                   Observer View
                 </span>
@@ -444,11 +599,54 @@ export default function ObserverWebRTCLayout({
                 <Logo />
               </div>
             </div>
-            <ObserverVideoGrid />
-            <RoomAudioRenderer />
-          </div>
-        </LiveKitRoom>
-      )}
-    </div>
+            <div className="flex-1 flex items-center justify-center text-red-500">
+              Connection error: {error}
+            </div>
+          </>
+        ) : (
+          <LiveKitRoom
+            token={token}
+            serverUrl={serverUrl}
+            video={false}
+            audio={false}
+            connect={true}
+            options={{
+              adaptiveStream: true,
+              dynacast: true,
+            }}
+            onError={(err) => {
+              console.error("LiveKit connection error:", err);
+              // Ignore "Client initiated disconnect" errors (normal on unmount)
+              if (!err?.message?.includes("Client initiated disconnect")) {
+                setError(err?.message || "Connection failed");
+              }
+            }}
+            onDisconnected={(reason) => {
+              console.log("LiveKit disconnected:", reason);
+              // Only set error if it's not a normal, client-initiated disconnect
+              if (reason && reason !== DisconnectReason.CLIENT_INITIATED) {
+                setError(`Disconnected: ${String(reason)}`);
+              }
+            }}
+          >
+            <div className="w-full h-full flex flex-col">
+              <div className="flex items-center justify-between px-1 pb-2">
+                <div className="flex items-center gap-3">
+                  <ConnectionStatusInner />
+                  <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+                    Observer View
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Logo />
+                </div>
+              </div>
+              <ObserverVideoGrid />
+              <RoomAudioRenderer />
+            </div>
+          </LiveKitRoom>
+        )}
+      </div>
+    </>
   );
 }

@@ -102,6 +102,8 @@ export async function endMeeting(
       for (const user of live.participantsList) {
         live.participantHistory.push({
           id: (user && ((user as any)._id || (user as any).id)) || undefined,
+          firstName: user?.firstName || "",
+          lastName: user?.lastName || "",
           name: user?.name || user?.email || "",
           email: user?.email || "",
           joinedAt: (user && (user.joinedAt || null)) || null,

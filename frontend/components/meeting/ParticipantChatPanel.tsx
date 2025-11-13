@@ -8,7 +8,7 @@ import ChatWindow, {
   ChatWindowMessage,
 } from "components/meeting/chat/ChatWindow";
 import useChat, { ChatScope } from "hooks/useChat";
-
+import { formatParticipantName } from "utils/formatParticipantName";
 
 export default function ParticipantChatPanel({
   socket,
@@ -20,6 +20,8 @@ export default function ParticipantChatPanel({
   me: {
     email: string;
     name: string;
+    firstName?: string;
+    lastName?: string;
     role: "Participant" | "Observer" | "Moderator" | "Admin";
   };
 }) {
@@ -28,6 +30,9 @@ export default function ParticipantChatPanel({
     sessionId,
     my: me,
   });
+
+  console.log("Messages by scope", messagesByScope);
+
   const [groupText, setGroupText] = useState("");
   const [dmText, setDmText] = useState("");
   const groupRef = useRef<HTMLDivElement | null>(null);
@@ -37,7 +42,6 @@ export default function ParticipantChatPanel({
   const [lastReadDmIncoming, setLastReadDmIncoming] = useState(0);
 
   useEffect(() => {
-    // seed history
     getHistory("meeting_group");
     getHistory("meeting_dm");
   }, [getHistory]);
@@ -75,19 +79,6 @@ export default function ParticipantChatPanel({
     if (tab === "dm") setLastReadDmIncoming(dmIncomingCount);
   }, [dmIncomingCount, tab]);
 
-  // const onGroupScroll = () => {
-  //   const el = groupRef.current;
-  //   if (!el) return;
-  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
-  //   if (nearBottom) setLastReadGroup(meetingGroupLength);
-  // };
-  // const onDmScroll = () => {
-  //   const el = dmRef.current;
-  //   if (!el) return;
-  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
-  //   if (nearBottom) setLastReadDmIncoming(dmIncomingCount);
-  // };
-
   const onSend = async (scope: ChatScope) => {
     const text = scope === "meeting_group" ? groupText : dmText;
     const trimmed = text.trim();
@@ -98,13 +89,6 @@ export default function ParticipantChatPanel({
       else setDmText("");
     }
   };
-
-  // const groupItems = (messagesByScope["meeting_group"] || []).map((m, i) =>
-  //   renderItem(m, i)
-  // );
-  // const dmItems = (messagesByScope["meeting_dm"] || []).map((m, i) =>
-  //   renderItem(m, i)
-  // );
 
   return (
     <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[80vh] min-h-[80vh] overflow-hidden overflow-x-hidden w-full max-w-full flex flex-col">
@@ -149,13 +133,20 @@ export default function ParticipantChatPanel({
           {(() => {
             const mapped: ChatWindowMessage[] = (
               messagesByScope["meeting_group"] || []
-            ).map((m, i) => ({
-              id: i,
-              senderEmail: (m.email || m.senderEmail) as string | undefined,
-              senderName: (m.senderName || m.name) as string | undefined,
-              content: m.content,
-              timestamp: m.timestamp || new Date(),
-            }));
+            ).map((m, i) => {
+              const formattedName = formatParticipantName(
+                m.firstName,
+                m.lastName
+              );
+              return {
+                id: i,
+                senderEmail: (m.email || m.senderEmail) as string | undefined,
+                senderName:
+                  formattedName || m.senderName || m.name || undefined,
+                content: m.content,
+                timestamp: m.timestamp || new Date(),
+              };
+            });
             const send = () => onSend("meeting_group");
             return (
               <ChatWindow
@@ -178,13 +169,20 @@ export default function ParticipantChatPanel({
           {(() => {
             const mapped: ChatWindowMessage[] = (
               messagesByScope["meeting_dm"] || []
-            ).map((m, i) => ({
-              id: i,
-              senderEmail: (m.email || m.senderEmail) as string | undefined,
-              senderName: (m.senderName || m.name) as string | undefined,
-              content: m.content,
-              timestamp: m.timestamp || new Date(),
-            }));
+            ).map((m, i) => {
+              const formattedName = formatParticipantName(
+                m.firstName,
+                m.lastName
+              );
+              return {
+                id: i,
+                senderEmail: (m.email || m.senderEmail) as string | undefined,
+                senderName:
+                  formattedName || m.senderName || m.name || undefined,
+                content: m.content,
+                timestamp: m.timestamp || new Date(),
+              };
+            });
             const send = () => onSend("meeting_dm");
             return (
               <ChatWindow
@@ -205,24 +203,3 @@ export default function ParticipantChatPanel({
     </div>
   );
 }
-
-// function renderItem(m: ChatMessage, i: number) {
-//   const raw = m.senderName || m.name || m.email || m.senderEmail || "";
-//   const label = raw.includes("@") ? raw : formatDisplayName(raw);
-//   const when = new Date(String(m.timestamp)).toLocaleTimeString();
-//   const content = m.content;
-//   const role = m.role || "Moderator";
-//   return (
-//     <div key={`${label}-${i}`} className="flex items-start gap-2">
-//       <div className="shrink-0 mt-[2px] h-2 w-2 rounded-full bg-custom-dark-blue-1" />
-//       <div className="min-w-0">
-//         <div className="text-[12px] text-gray-600">
-//           <span className="font-medium text-gray-900">{label}</span>
-//           <span className="ml-1 text-[11px] text-gray-500">{role}</span>
-//           <span className="ml-2 text-[11px] text-gray-400">{when}</span>
-//         </div>
-//         <div className="whitespace-pre-wrap text-sm">{content}</div>
-//       </div>
-//     </div>
-//   );
-// }

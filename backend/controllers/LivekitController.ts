@@ -40,6 +40,8 @@ export const getLivekitToken = async (
     role,
     roomName,
     email: me?.email || undefined,
+    firstName: me?.firstName || undefined,
+    lastName: me?.lastName || undefined,
   });
 
   sendResponse(res, { token }, "LiveKit token issued");
@@ -85,12 +87,44 @@ export const exchangeAdmitForLivekitToken = async (
   try {
     const { sessionId, email, name } = verifyAdmitToken(admitToken);
 
+    // Look up participant from database to get firstName/lastName
+    let firstName: string | undefined;
+    let lastName: string | undefined;
+    try {
+      const { LiveSessionModel } = await import("../model/LiveSessionModel");
+      const live = await LiveSessionModel.findOne({ sessionId }).lean();
+      if (live) {
+        // Check participantsList first (already admitted)
+        const participant = live.participantsList?.find(
+          (p) => (p.email || "").toLowerCase() === email.toLowerCase()
+        );
+        if (participant) {
+          firstName = participant.firstName;
+          lastName = participant.lastName;
+        } else {
+          // Check participantWaitingRoom (still waiting)
+          const waiting = live.participantWaitingRoom?.find(
+            (p) => (p.email || "").toLowerCase() === email.toLowerCase()
+          );
+          if (waiting) {
+            firstName = waiting.firstName;
+            lastName = waiting.lastName;
+          }
+        }
+      }
+    } catch (err) {
+      // Non-critical: continue without firstName/lastName
+      console.error("Failed to lookup firstName/lastName for LiveKit token", err);
+    }
+
     const token = await issueRoomToken({
       identity: participantIdentity(sessionId, email),
       name,
       role: "Participant",
       roomName: sessionId,
       email,
+      firstName,
+      lastName,
     });
 
     sendResponse(res, { token }, "LiveKit token issued");
