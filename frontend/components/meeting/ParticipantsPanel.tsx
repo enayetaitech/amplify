@@ -910,10 +910,28 @@ export default function ParticipantsPanel({
                           );
                         }
                       }
-                      // Final fallback: use senderName/name as-is if we couldn't format it
+                      // Final fallback: parse senderName/name if firstName/lastName not available
                       if (!formattedSenderName) {
-                        formattedSenderName = (messageWithNames.senderName ||
-                          messageWithNames.name) as string | undefined;
+                        const nameToParse =
+                          messageWithNames.senderName ||
+                          messageWithNames.name ||
+                          "";
+                        if (nameToParse) {
+                          const parts = nameToParse
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean);
+                          if (parts.length >= 2) {
+                            const first = parts[0];
+                            const last = parts.slice(1).join(" ");
+                            formattedSenderName = formatParticipantName(
+                              first,
+                              last
+                            );
+                          } else {
+                            formattedSenderName = parts[0] || undefined;
+                          }
+                        }
                       }
                     }
                     return {
@@ -1001,10 +1019,28 @@ export default function ParticipantsPanel({
                           );
                         }
                       }
-                      // Final fallback: use senderName/name as-is if we couldn't format it
+                      // Final fallback: parse senderName/name if firstName/lastName not available
                       if (!formattedSenderName) {
-                        formattedSenderName = (messageWithNames.senderName ||
-                          messageWithNames.name) as string | undefined;
+                        const nameToParse =
+                          messageWithNames.senderName ||
+                          messageWithNames.name ||
+                          "";
+                        if (nameToParse) {
+                          const parts = nameToParse
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean);
+                          if (parts.length >= 2) {
+                            const first = parts[0];
+                            const last = parts.slice(1).join(" ");
+                            formattedSenderName = formatParticipantName(
+                              first,
+                              last
+                            );
+                          } else {
+                            formattedSenderName = parts[0] || undefined;
+                          }
+                        }
                       }
                     }
                     return {

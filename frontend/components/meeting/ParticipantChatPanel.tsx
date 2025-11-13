@@ -9,7 +9,6 @@ import ChatWindow, {
 } from "components/meeting/chat/ChatWindow";
 import useChat, { ChatScope } from "hooks/useChat";
 
-
 export default function ParticipantChatPanel({
   socket,
   sessionId,
@@ -205,7 +204,6 @@ export default function ParticipantChatPanel({
     </div>
   );
 }
-
 // function renderItem(m: ChatMessage, i: number) {
 //   const raw = m.senderName || m.name || m.email || m.senderEmail || "";
 //   const label = raw.includes("@") ? raw : formatDisplayName(raw);
