@@ -140,6 +140,8 @@ export default function ParticipantWaitingRoom() {
         role: me.role,
         name: me.name,
         email: me.email,
+        firstName: me.firstName,
+        lastName: me.lastName,
       },
     });
 

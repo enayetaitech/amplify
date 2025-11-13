@@ -5,6 +5,8 @@ export interface IGroupMessageDoc extends Document {
   sessionId: Types.ObjectId;
   senderEmail: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   content: string;
   scope: string;
   timestamp: Date;
@@ -19,6 +21,8 @@ const GroupMessageSchema = new Schema<IGroupMessageDoc>(
     },
     senderEmail: { type: String, required: true },
     name: { type: String, required: true },
+    firstName: { type: String, required: false },
+    lastName: { type: String, required: false },
     content: { type: String, required: true },
     scope: { type: String, required: true },
   },

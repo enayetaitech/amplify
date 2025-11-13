@@ -449,6 +449,12 @@ export default function Meeting() {
         role: serverRole,
         name: my?.name || saved?.name || "",
         email: my?.email || saved?.email || "",
+        firstName:
+          ("firstName" in my ? my.firstName : undefined) ||
+          saved?.firstName ||
+          "",
+        lastName:
+          ("lastName" in my ? my.lastName : undefined) || saved?.lastName || "",
       },
     });
     socketRef.current = s;
@@ -588,7 +594,7 @@ export default function Meeting() {
       s.off("meeting:stream:status:changed", onStreamStatusChanged);
       s.disconnect();
     };
-  }, [sessionId, my?.email, my?.name, serverRole, role, router]);
+  }, [sessionId, my, serverRole, role, router]);
 
   // Clear localStorage/cookies on browser/tab close and end meeting if host closes tab
   useEffect(() => {

@@ -61,6 +61,8 @@ const ObserverJoinMeeting: React.FC = () => {
 
       // Persist for socket handshakes (waiting room and meeting page)
       safeLocalSet("liveSessionUser", {
+        firstName: firstNameTrimmed,
+        lastName: lastNameTrimmed,
         name: nameTrimmed,
         email: emailNormalized,
         role: "Observer",

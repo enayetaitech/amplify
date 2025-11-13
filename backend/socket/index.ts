@@ -123,9 +123,12 @@ export function attachSocket(server: HTTPServer) {
   io.on("connection", (socket: Socket) => {
     // Expect query: ?sessionId=...&role=...&name=...&email=...
     const q = socket.handshake.query;
+    console.log("q", q);
     const sessionId = String(q.sessionId || "");
     const role = String(q.role || "Participant") as Role;
     const name = (q.name as string) || "";
+    const firstName = (q.firstName as string) || "";
+    const lastName = (q.lastName as string) || "";
     const email = (q.email as string) || "";
     const userId = (q.userId as string) || "";
 
@@ -374,7 +377,7 @@ export function attachSocket(server: HTTPServer) {
       // Check if there are moderators/admins in this session
       // If yes, emit project-level observer list; otherwise emit session-level list
       const hasModeratorsOrAdmins = modInfo && modInfo.size > 0;
-      
+
       if (hasModeratorsOrAdmins) {
         // For sessions with moderators/admins, emit project-level observer list
         // This ensures admins/moderators in the meeting room see all observers across the project
@@ -619,9 +622,13 @@ export function attachSocket(server: HTTPServer) {
                 // Try to find firstName and lastName from observerWaitingRoom or observerList
                 let firstName = "";
                 let lastName = "";
-                const observer = 
-                  live.observerWaitingRoom.find((o) => o.email.toLowerCase() === lower) ||
-                  live.observerList.find((o) => o.email.toLowerCase() === lower);
+                const observer =
+                  live.observerWaitingRoom.find(
+                    (o) => o.email.toLowerCase() === lower
+                  ) ||
+                  live.observerList.find(
+                    (o) => o.email.toLowerCase() === lower
+                  );
                 if (observer) {
                   firstName = observer.firstName || "";
                   lastName = observer.lastName || "";
@@ -1192,6 +1199,8 @@ export function attachSocket(server: HTTPServer) {
       toEmail?: string;
       email?: string;
       name?: string;
+      firstName?: string;
+      lastName?: string;
     };
     type ChatHistoryPayload = {
       scope: string;
@@ -1210,6 +1219,8 @@ export function attachSocket(server: HTTPServer) {
         console.log("role:", role);
         console.log("email (from socket):", email);
         console.log("name (from socket):", name);
+        console.log("firstName (from socket):", firstName);
+        console.log("lastName (from socket):", lastName);
         console.log("payload:", payload);
 
         try {
@@ -1218,6 +1229,8 @@ export function attachSocket(server: HTTPServer) {
             content,
             email: payloadEmail,
             name: payloadName,
+            firstName: payloadFirstName,
+            lastName: payloadLastName,
           } = payload || {};
 
           console.log("=== Parsed payload ===");
@@ -1237,12 +1250,16 @@ export function attachSocket(server: HTTPServer) {
           // Use payload email/name if provided, otherwise fall back to socket connection
           const senderEmail = payloadEmail || email;
           const senderName = payloadName || name;
+          const senderFirstName = payloadFirstName || firstName;
+          const senderLastName = payloadLastName || lastName;
           const lowerSender = (senderEmail || "").toLowerCase();
           const now = new Date();
 
           console.log("=== Final sender info ===");
           console.log("senderEmail:", senderEmail);
           console.log("senderName:", senderName);
+          console.log("senderFirstName:", senderFirstName);
+          console.log("senderLastName:", senderLastName);
           console.log("lowerSender:", lowerSender);
 
           const emitNew = (target: string | string[] | null, message: any) => {
@@ -1266,12 +1283,14 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
-              
+
               // Look up firstName and lastName from LiveSession
               let firstName: string | undefined;
               let lastName: string | undefined;
               try {
-                const live = await LiveSessionModel.findOne({ sessionId: liveId }).lean();
+                const live = await LiveSessionModel.findOne({
+                  sessionId: liveId,
+                }).lean();
                 if (live) {
                   const lowerSender = (senderEmail || "").toLowerCase();
                   // Check participantWaitingRoom first
@@ -1294,9 +1313,12 @@ export function attachSocket(server: HTTPServer) {
                 }
               } catch (err) {
                 // Non-critical: continue without firstName/lastName
-                console.error("Failed to lookup firstName/lastName for chat message", err);
+                console.error(
+                  "Failed to lookup firstName/lastName for chat message",
+                  err
+                );
               }
-              
+
               const doc = {
                 sessionId: liveId,
                 email: senderEmail,
@@ -1347,13 +1369,28 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
-              const saved = await (GroupMsgNamed || GroupMessageModel).create({
+              console.log("New meeting_group");
+              const docToSave: any = {
                 sessionId: liveId,
                 senderEmail: senderEmail,
                 name: senderName || senderEmail,
                 content,
                 scope,
-              });
+              };
+              // Only include firstName/lastName if they have values
+              if (senderFirstName && senderFirstName.trim()) {
+                docToSave.firstName = senderFirstName;
+              }
+              if (senderLastName && senderLastName.trim()) {
+                docToSave.lastName = senderLastName;
+              }
+              const saved = await (GroupMsgNamed || GroupMessageModel).create(
+                docToSave
+              );
+              console.log("chat:new", saved);
+              console.log("chat:new firstName:", saved.firstName);
+              console.log("chat:new lastName:", saved.lastName);
+              console.log("chat:new toObject():", saved.toObject());
               io.to(rooms.meeting).emit("chat:new", {
                 scope,
                 message: saved.toObject(),
@@ -1375,7 +1412,7 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
-              const doc = {
+              const doc: any = {
                 sessionId: liveId,
                 email: senderEmail,
                 senderName: senderName || senderEmail,
@@ -1385,6 +1422,13 @@ export function attachSocket(server: HTTPServer) {
                 scope,
                 toEmail: undefined as string | undefined,
               };
+              // Only include firstName/lastName if they have values
+              if (senderFirstName && senderFirstName.trim()) {
+                doc.firstName = senderFirstName;
+              }
+              if (senderLastName && senderLastName.trim()) {
+                doc.lastName = senderLastName;
+              }
               if (role === "Participant") {
                 doc.toEmail = "__moderators__";
                 const saved = await ParticipantMeetingChatModel.create(doc);
@@ -1416,7 +1460,7 @@ export function attachSocket(server: HTTPServer) {
               const target = (payload.toEmail || "").toLowerCase();
               if (!target)
                 return ack?.({ ok: false, error: "toEmail_required" });
-              const saved = await ParticipantMeetingChatModel.create({
+              const doc: any = {
                 sessionId: liveId,
                 email: senderEmail,
                 senderName: senderName || senderEmail,
@@ -1425,7 +1469,15 @@ export function attachSocket(server: HTTPServer) {
                 timestamp: now,
                 scope,
                 toEmail: target,
-              });
+              };
+              // Only include firstName/lastName if they have values
+              if (senderFirstName && senderFirstName.trim()) {
+                doc.firstName = senderFirstName;
+              }
+              if (senderLastName && senderLastName.trim()) {
+                doc.lastName = senderLastName;
+              }
+              const saved = await ParticipantMeetingChatModel.create(doc);
               emitNew(socket.id, saved.toObject());
               const targetId = emailIndex.get(sessionId)?.get(target);
               if (targetId) emitNew(targetId, saved.toObject());
