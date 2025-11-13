@@ -59,10 +59,19 @@ const emailIndex = new Map<string, Map<string, string>>();
 // Track sockets by userId for force-logout
 const userIdIndex = new Map<string, Set<string>>();
 const identityIndex = new Map<string, Map<string, string>>();
-// Track participant info by identity: sessionId -> (identity -> { name, email, role })
+// Track participant info by identity: sessionId -> (identity -> { name, email, role, firstName, lastName })
 const identityInfo = new Map<
   string,
-  Map<string, { name: string; email: string; role: Role }>
+  Map<
+    string,
+    {
+      name: string;
+      email: string;
+      role: Role;
+      firstName: string;
+      lastName: string;
+    }
+  >
 >();
 // Track moderator sockets per session (Moderators/Admins only)
 const moderatorSockets = new Map<string, Set<string>>();
@@ -123,7 +132,7 @@ export function attachSocket(server: HTTPServer) {
   io.on("connection", (socket: Socket) => {
     // Expect query: ?sessionId=...&role=...&name=...&email=...
     const q = socket.handshake.query;
-    console.log("q", q);
+    
     const sessionId = String(q.sessionId || "");
     const role = String(q.role || "Participant") as Role;
     const name = (q.name as string) || "";
@@ -1214,14 +1223,7 @@ export function attachSocket(server: HTTPServer) {
         payload: ChatSendPayload,
         ack?: (r: { ok: boolean; error?: string }) => void
       ) => {
-        console.log("=== Backend chat:send received ===");
-        console.log("sessionId:", sessionId);
-        console.log("role:", role);
-        console.log("email (from socket):", email);
-        console.log("name (from socket):", name);
-        console.log("firstName (from socket):", firstName);
-        console.log("lastName (from socket):", lastName);
-        console.log("payload:", payload);
+  
 
         try {
           const {
@@ -1233,19 +1235,13 @@ export function attachSocket(server: HTTPServer) {
             lastName: payloadLastName,
           } = payload || {};
 
-          console.log("=== Parsed payload ===");
-          console.log("scope:", scope);
-          console.log("content:", content);
-          console.log("payloadEmail:", payloadEmail);
-          console.log("payloadName:", payloadName);
+        
 
           if (!scope || !content || !content.trim()) {
-            console.log("❌ Bad request: missing scope or content");
             return ack?.({ ok: false, error: "bad_request" });
           }
 
           const liveId = await ensureLiveIdFor(sessionId);
-          console.log("liveId:", liveId);
 
           // Use payload email/name if provided, otherwise fall back to socket connection
           const senderEmail = payloadEmail || email;
@@ -1255,14 +1251,7 @@ export function attachSocket(server: HTTPServer) {
           const lowerSender = (senderEmail || "").toLowerCase();
           const now = new Date();
 
-          console.log("=== Final sender info ===");
-          console.log("senderEmail:", senderEmail);
-          console.log("senderName:", senderName);
-          console.log("senderFirstName:", senderFirstName);
-          console.log("senderLastName:", senderLastName);
-          console.log("lowerSender:", lowerSender);
-
-          const emitNew = (target: string | string[] | null, message: any) => {
+                   const emitNew = (target: string | string[] | null, message: any) => {
             if (!target) return;
             const evt = "chat:new";
             if (Array.isArray(target)) {
@@ -1369,7 +1358,6 @@ export function attachSocket(server: HTTPServer) {
                 )
               )
                 return ack?.({ ok: false, error: "forbidden" });
-              console.log("New meeting_group");
               const docToSave: any = {
                 sessionId: liveId,
                 senderEmail: senderEmail,
@@ -1387,10 +1375,7 @@ export function attachSocket(server: HTTPServer) {
               const saved = await (GroupMsgNamed || GroupMessageModel).create(
                 docToSave
               );
-              console.log("chat:new", saved);
-              console.log("chat:new firstName:", saved.firstName);
-              console.log("chat:new lastName:", saved.lastName);
-              console.log("chat:new toObject():", saved.toObject());
+              
               io.to(rooms.meeting).emit("chat:new", {
                 scope,
                 message: saved.toObject(),
@@ -1484,32 +1469,15 @@ export function attachSocket(server: HTTPServer) {
               return ack?.({ ok: true });
             }
             case "observer_wait_group": {
-              console.log("=== Processing observer_wait_group ===");
-              console.log("role:", role);
-              console.log(
-                "role check:",
-                ["Observer", "Moderator", "Admin"].includes(role)
-              );
+            
 
               if (!["Observer", "Moderator", "Admin"].includes(role)) {
-                console.log(
-                  "❌ Forbidden: role not allowed for observer_wait_group"
-                );
+              
                 return ack?.({ ok: false, error: "forbidden" });
               }
 
-              console.log("✅ Role check passed, creating message");
               const dbRole = role === "Admin" ? "Moderator" : role;
-              console.log("Role conversion:", role, "->", dbRole);
-              console.log("Creating message with:", {
-                sessionId: liveId,
-                email: senderEmail,
-                senderName: senderName || senderEmail,
-                role: dbRole,
-                content,
-                timestamp: now,
-                scope,
-              });
+        
 
               const saved = await ObserverWaitingRoomChatModel.create({
                 sessionId: liveId,
@@ -1521,15 +1489,11 @@ export function attachSocket(server: HTTPServer) {
                 scope,
               });
 
-              console.log("✅ Message created successfully:", saved.toObject());
-              console.log("Emitting to rooms.observer:", rooms.observer);
-
               io.to(rooms.observer).emit("chat:new", {
                 scope,
                 message: saved.toObject(),
               });
 
-              console.log("✅ Message emitted successfully");
               return ack?.({ ok: true });
             }
             case "observer_wait_dm": {
@@ -2105,6 +2069,8 @@ export function attachSocket(server: HTTPServer) {
             name: name || payload.email || payload.identity,
             email: payload.email || email || "",
             role,
+            firstName: firstName || "",
+            lastName: lastName || "",
           });
 
           // Emit participant info update to all clients in the session
@@ -2113,6 +2079,8 @@ export function attachSocket(server: HTTPServer) {
             name: name || payload.email || payload.identity,
             email: payload.email || email || "",
             role,
+            firstName: firstName || "",
+            lastName: lastName || "",
           };
           io.to(sessionId).emit("meeting:participant-info", participantInfo);
 
@@ -2132,6 +2100,8 @@ export function attachSocket(server: HTTPServer) {
             name: string;
             email: string;
             role: Role;
+            firstName: string;
+            lastName: string;
           }>;
         }) => void
       ) => {
@@ -2152,22 +2122,14 @@ export function attachSocket(server: HTTPServer) {
     socket.on(
       "participant:left",
       async (_payload: unknown, ack?: (resp: { ok: boolean }) => void) => {
-        console.debug("socket participant:left received", {
-          sessionId,
-          email,
-          role,
-          socketId: socket.id,
-          leftHandled: Boolean((socket as any).__leftHandled),
-        });
+     
         try {
           if ((socket as any).__leftHandled) return ack?.({ ok: true });
           (socket as any).__leftHandled = true;
           if (email && role === "Participant") {
             try {
               const live = await LiveSessionModel.findOne({ sessionId });
-              console.debug("participant:left - found live", {
-                found: Boolean(live),
-              });
+           
               if (live) {
                 const targetEmail = String(email || "")
                   .trim()
@@ -2176,10 +2138,7 @@ export function attachSocket(server: HTTPServer) {
                   (p: any) =>
                     String((p.email || "").trim()).toLowerCase() === targetEmail
                 );
-                console.debug("participant:left - match idx", {
-                  idx,
-                  targetEmail,
-                });
+               
                 if (idx >= 0) {
                   const user = (live.participantsList as any).splice(idx, 1)[0];
                   // ignore if recently admitted
@@ -2190,10 +2149,7 @@ export function attachSocket(server: HTTPServer) {
                     if (map) {
                       const exp = map.get(eml) || 0;
                       if (exp > Date.now()) {
-                        console.debug(
-                          "participant:left - skipping because recently admitted",
-                          { eml }
-                        );
+                        
                         skipHistory = true;
                         map.delete(eml);
                       } else {
@@ -2928,7 +2884,6 @@ export function attachSocket(server: HTTPServer) {
     socket.on(
       "meeting:stream:start",
       async (_payload, ack?: (r: { ok?: boolean; error?: string }) => void) => {
-        console.log("start stream", role);
         if (!["Moderator", "Admin"].includes(role)) {
           return ack?.({ ok: false, error: "Forbidden" });
         }
@@ -2998,8 +2953,7 @@ export function attachSocket(server: HTTPServer) {
               await live.save();
             }
           } catch {}
-          console.log("Playback URL", live);
-          console.log("hls", hls);
+        
           // tell all observers in this session that streaming is live
           io.to(rooms.observer).emit("observer:stream:started", {
             sessionId: sessionId,
@@ -3061,7 +3015,6 @@ export function attachSocket(server: HTTPServer) {
     socket.on(
       "meeting:stream:stop",
       async (_payload, ack?: (r: { ok?: boolean; error?: string }) => void) => {
-        console.log("stop stream", role);
         if (!["Moderator", "Admin"].includes(role)) {
           return ack?.({ ok: false, error: "Forbidden" });
         }
@@ -3118,7 +3071,6 @@ export function attachSocket(server: HTTPServer) {
             streamStoppingWindow.set(sessionId, Date.now() + 5000);
           } catch {}
 
-          console.log("stopped stream", live);
           // notify observers to switch back to waiting UI in a later step
           io.to(rooms.observer).emit("observer:stream:stopped", {
             sessionId: sessionId,
