@@ -336,21 +336,7 @@ export default function ParticipantsPanel({
     if (ack.ok) setParticipantChatText("");
   };
 
-  // const onChatScroll = () => {
-  //   const el = chatListRef.current;
-  //   if (!el || !selectedParticipant) return;
-  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-  //   if (nearBottom) {
-  //     const current = countIncomingFrom(selectedParticipant);
-  //     setLastReadCount((prev) => ({ ...prev, [selectedParticipant]: current }));
-  //   }
-  // };
-  // const onGroupChatScroll = () => {
-  //   const el = chatListRef.current;
-  //   if (!el || !showGroupChat) return;
-  //   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-  //   if (nearBottom) setLastReadGroupCount(groupLen);
-  // };
+
 
   if (!(role === "admin" || role === "moderator")) return null;
 
