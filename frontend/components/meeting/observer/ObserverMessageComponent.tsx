@@ -146,7 +146,7 @@ export default function ObserverMessageComponent({
         title="Backroom"
         observerCount={actualObserverCount}
       />
-      <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
+      <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[50vh] min-h-[50vh] overflow-hidden">
         <Tabs
           defaultValue="list"
           onValueChange={(v) => {
@@ -224,7 +224,7 @@ export default function ObserverMessageComponent({
             </div>
           </TabsContent>
           <TabsContent value="chat">
-            <div className="grid grid-cols-12 gap-2 h-[32vh]">
+            <div className="grid grid-cols-12 gap-2 h-[40vh]">
               {!selectedObserver && !showGroupChatObs && (
                 <div className="col-span-12 rounded bg-white ">
                   <div className="space-y-1 p-2">
@@ -397,7 +397,7 @@ export default function ObserverMessageComponent({
                         onChange={setGroupText}
                         onSend={sendGroup}
                         onClose={() => setShowGroupChatObs(false)}
-                        height="32vh"
+                        height="40vh"
                       />
                     );
                   })()}
@@ -429,7 +429,8 @@ export default function ObserverMessageComponent({
                         onChange={setDmText}
                         onSend={sendDm}
                         onClose={() => setSelectedObserver(null)}
-                        height="32vh"
+                        height="40vh"
+                        warning="The message will not last more than one session."
                       />
                     );
                   })()}

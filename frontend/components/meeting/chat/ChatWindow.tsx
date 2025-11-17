@@ -25,6 +25,7 @@ type ChatWindowProps = {
   placeholder?: string;
   readOnly?: boolean;
   className?: string;
+  warning?: string;
 };
 
 function formatNameFirstInitial(raw: string | undefined): string {
@@ -73,6 +74,7 @@ export default function ChatWindow({
   placeholder = "Type a message...",
   readOnly,
   className,
+  warning,
 }: ChatWindowProps) {
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -148,22 +150,27 @@ export default function ChatWindow({
       </div>
 
       {!readOnly && (
-        <div className="flex-shrink-0 p-2 flex items-center gap-2 border-t bg-white">
-          <Input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                onSend();
-              }
-            }}
-            className="flex-1 min-w-0"
-          />
-          <Button onClick={onSend} size="sm" className="h-8 w-8 p-0">
-            <Send className="h-4 w-4" />
-          </Button>
+        <div className="flex-shrink-0 p-2 border-t bg-white flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSend();
+                }
+              }}
+              className="flex-1 min-w-0"
+            />
+            <Button onClick={onSend} size="sm" className="h-8 w-8 p-0">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+          {warning ? (
+            <p className="text-[11px] text-red-500">{warning}</p>
+          ) : null}
         </div>
       )}
     </div>
