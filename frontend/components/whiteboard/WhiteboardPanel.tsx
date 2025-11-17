@@ -12,10 +12,12 @@ export default function WhiteboardPanel({
   sessionId,
   socket,
   role,
+  hideToolbar = false,
 }: {
   sessionId: string;
   socket?: Socket | null;
   role: "Participant" | "Observer" | "Moderator" | "Admin";
+  hideToolbar?: boolean;
 }) {
   const canvasRef = useRef<WhiteboardCanvasHandle | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -111,8 +113,10 @@ export default function WhiteboardPanel({
         parseFloat(style.paddingTop || "0") +
         parseFloat(style.paddingBottom || "0");
 
-      const toolbar = el.querySelector<HTMLDivElement>("[data-wb-toolbar]");
-      const toolbarH = toolbar ? toolbar.getBoundingClientRect().height : 56;
+      const toolbar = hideToolbar
+        ? null
+        : el.querySelector<HTMLDivElement>("[data-wb-toolbar]");
+      const toolbarH = toolbar ? toolbar.getBoundingClientRect().height : 0;
       const tStyle = toolbar ? window.getComputedStyle(toolbar) : null;
       const toolbarMB = tStyle ? parseFloat(tStyle.marginBottom || "0") : 0;
 
@@ -131,7 +135,7 @@ export default function WhiteboardPanel({
     const onWin = () => measure();
     window.addEventListener("resize", onWin);
     return () => ro.disconnect();
-  }, []);
+  }, [hideToolbar]);
 
   const canLock = role === "Moderator" || role === "Admin";
 
@@ -295,83 +299,85 @@ export default function WhiteboardPanel({
       ref={containerRef}
       className="p-3 bg-gray-50 rounded flex flex-col min-h-0 h-full"
     >
-      <div className="mb-2" data-wb-toolbar>
-        <WhiteboardToolbar
-          tool={tool}
-          setTool={setTool}
-          color={color}
-          setColor={setColor}
-          size={size}
-          setSize={setSize}
-          onUndo={() => {
-            const s = canvasRef.current?.getUndoTarget?.();
-            if (s && s.seq && socket) {
-              socket.emit(
-                "whiteboard:stroke:revoke",
-                { sessionId, seqs: [s.seq] },
-                () => {}
-              );
-            } else {
-              canvasRef.current?.undo();
-            }
-          }}
-          onRedo={() => {
-            const redo = canvasRef.current?.popRedoTarget?.();
-            if (redo && socket) {
-              // add locally first so author filter on broadcast doesn't hide it
+      {!hideToolbar && (
+        <div className="mb-2" data-wb-toolbar>
+          <WhiteboardToolbar
+            tool={tool}
+            setTool={setTool}
+            color={color}
+            setColor={setColor}
+            size={size}
+            setSize={setSize}
+            onUndo={() => {
+              const s = canvasRef.current?.getUndoTarget?.();
+              if (s && s.seq && socket) {
+                socket.emit(
+                  "whiteboard:stroke:revoke",
+                  { sessionId, seqs: [s.seq] },
+                  () => {}
+                );
+              } else {
+                canvasRef.current?.undo();
+              }
+            }}
+            onRedo={() => {
+              const redo = canvasRef.current?.popRedoTarget?.();
+              if (redo && socket) {
+                // add locally first so author filter on broadcast doesn't hide it
+                try {
+                  canvasRef.current?.addRemoteStroke?.(redo);
+                } catch {}
+                const payload = {
+                  sessionId,
+                  tool: redo.tool,
+                  shape:
+                    redo.tool === "pencil" || redo.tool === "eraser"
+                      ? "free"
+                      : redo.tool,
+                  color: redo.color,
+                  size: redo.size,
+                  points: redo.points,
+                  from: redo.from,
+                  to: redo.to,
+                  text: redo.text,
+                };
+                socket.emit(
+                  "whiteboard:stroke:add",
+                  payload,
+                  (ack: { ok?: boolean; seq?: number } | undefined) => {
+                    try {
+                      if (ack?.ok && typeof ack.seq === "number") {
+                        canvasRef.current?.assignSeq?.(redo.id, ack.seq);
+                      }
+                    } catch {}
+                  }
+                );
+              } else {
+                canvasRef.current?.redo();
+              }
+            }}
+            onClear={() => {
+              if (socket && (role === "Moderator" || role === "Admin")) {
+                socket.emit("whiteboard:clear", { sessionId }, () => {});
+              } else {
+                canvasRef.current?.clear();
+              }
+            }}
+            onExport={() => {
               try {
-                canvasRef.current?.addRemoteStroke?.(redo);
+                canvasRef.current?.exportPNG();
               } catch {}
-              const payload = {
-                sessionId,
-                tool: redo.tool,
-                shape:
-                  redo.tool === "pencil" || redo.tool === "eraser"
-                    ? "free"
-                    : redo.tool,
-                color: redo.color,
-                size: redo.size,
-                points: redo.points,
-                from: redo.from,
-                to: redo.to,
-                text: redo.text,
-              };
-              socket.emit(
-                "whiteboard:stroke:add",
-                payload,
-                (ack: { ok?: boolean; seq?: number } | undefined) => {
-                  try {
-                    if (ack?.ok && typeof ack.seq === "number") {
-                      canvasRef.current?.assignSeq?.(redo.id, ack.seq);
-                    }
-                  } catch {}
-                }
-              );
-            } else {
-              canvasRef.current?.redo();
-            }
-          }}
-          onClear={() => {
-            if (socket && (role === "Moderator" || role === "Admin")) {
-              socket.emit("whiteboard:clear", { sessionId }, () => {});
-            } else {
-              canvasRef.current?.clear();
-            }
-          }}
-          onExport={() => {
-            try {
-              canvasRef.current?.exportPNG();
-            } catch {}
-          }}
-          locked={locked}
-          onToggleLock={(l: boolean) => {
-            if (!socket) return;
-            socket.emit("whiteboard:lock", { sessionId, locked: l }, () => {});
-            setLocked(l);
-          }}
-          canLock={canLock}
-        />
-      </div>
+            }}
+            locked={locked}
+            onToggleLock={(l: boolean) => {
+              if (!socket) return;
+              socket.emit("whiteboard:lock", { sessionId, locked: l }, () => {});
+              setLocked(l);
+            }}
+            canLock={canLock}
+          />
+        </div>
+      )}
 
       <div className="flex-1 min-h-0">
         <WhiteboardCanvas

@@ -172,7 +172,7 @@ export default function ObserverMessageComponent({
                 setSelectedObserver(null);
               }}
             >
-              Observer Text
+              Observer Chat
               {totalObserverUnread > 0 && (
                 <span className="absolute -top-1 -right-1 inline-flex items-center justify-center text-[10px] min-w-[16px] h-4 px-1 rounded-full bg-custom-orange-1 text-white">
                   {totalObserverUnread}

@@ -13,6 +13,30 @@ import {
   verifyAdmitToken,
 } from "../processors/livekit/admitTokenService";
 
+const formatDisplayName = (
+  firstName?: string | null,
+  lastName?: string | null,
+  fallback?: string | null
+): string | undefined => {
+  const first = (firstName || "").trim();
+  const last = (lastName || "").trim();
+
+  if (first) {
+    if (last) {
+      const lastInitial = last.charAt(0).toUpperCase();
+      return lastInitial ? `${first} ${lastInitial}` : first;
+    }
+    return first;
+  }
+
+  if (last && !first) {
+    return last;
+  }
+
+  const safeFallback = (fallback || "").trim();
+  return safeFallback || undefined;
+};
+
 export const getLivekitToken = async (
   req: AuthRequest,
   res: Response,
@@ -32,7 +56,13 @@ export const getLivekitToken = async (
   }
 
   const me = await User.findById(payload.userId);
-  const displayName = me ? `${me.firstName} ${me.lastName}`.trim() : undefined;
+  const displayName = me
+    ? formatDisplayName(
+        me.firstName,
+        me.lastName,
+        `${me.firstName || ""} ${me.lastName || ""}`.trim() || me.email || null
+      )
+    : undefined;
 
   const token = await issueRoomToken({
     identity: payload.userId,
@@ -117,9 +147,12 @@ export const exchangeAdmitForLivekitToken = async (
       console.error("Failed to lookup firstName/lastName for LiveKit token", err);
     }
 
+    const formattedName =
+      formatDisplayName(firstName, lastName, name) || name || email;
+
     const token = await issueRoomToken({
       identity: participantIdentity(sessionId, email),
-      name,
+      name: formattedName,
       role: "Participant",
       roomName: sessionId,
       email,

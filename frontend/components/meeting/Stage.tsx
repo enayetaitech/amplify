@@ -19,6 +19,7 @@ import {
 } from "constant/roles";
 import { formatParticipantName } from "utils/formatParticipantName";
 import { isWhiteboardTrackRef } from "utils/livekitTracks";
+import { useSocketParticipantInfo } from "hooks/useSocketParticipantInfo";
 
 type StageProps = {
   role: "participant" | "moderator" | "admin" | "observer";
@@ -57,19 +58,7 @@ export default function Stage({ role }: StageProps) {
       return false;
     }
   }, []);
-  // Socket-based participant info: identity -> { name, email, role, firstName, lastName }
-  const [socketParticipantInfo, setSocketParticipantInfo] = useState<
-    Record<
-      string,
-      {
-        name: string;
-        email: string;
-        role: string;
-        firstName: string;
-        lastName: string;
-      }
-    >
-  >({});
+  const socketParticipantInfo = useSocketParticipantInfo();
 
   const participants = useParticipants();
   const cameraTracks = useTracks([
@@ -138,121 +127,6 @@ export default function Stage({ role }: StageProps) {
     }
     return map;
   }, [participants, socketParticipantInfo]);
-
-  // Listen for socket-based participant info updates
-  useEffect(() => {
-    const sock =
-      typeof window !== "undefined"
-        ? (
-            window as unknown as {
-              __meetingSocket?: {
-                on?: (ev: string, cb: (p?: unknown) => void) => void;
-                off?: (ev: string, cb: (p?: unknown) => void) => void;
-                emit?: (
-                  ev: string,
-                  payload: unknown,
-                  ack?: (resp: unknown) => void
-                ) => void;
-              };
-            }
-          ).__meetingSocket || null
-        : null;
-    if (!sock) return;
-
-    // Request initial participant list
-    if (sock.emit && typeof sock.emit === "function") {
-      sock.emit("meeting:get-participants-info", (resp?: unknown) => {
-        try {
-          const r = resp as {
-            participants?: Array<{
-              identity: string;
-              name: string;
-              email: string;
-              role: string;
-              firstName: string;
-              lastName: string;
-            }>;
-          };
-          if (r?.participants && Array.isArray(r.participants)) {
-            const infoMap: Record<
-              string,
-              {
-                name: string;
-                email: string;
-                role: string;
-                firstName: string;
-                lastName: string;
-              }
-            > = {};
-            for (const p of r.participants) {
-              infoMap[p.identity.toLowerCase()] = {
-                name: p.name,
-                email: p.email,
-                role: p.role,
-                firstName: p.firstName || "",
-                lastName: p.lastName || "",
-              };
-            }
-            setSocketParticipantInfo((prev) => ({ ...prev, ...infoMap }));
-          }
-        } catch {}
-      });
-    }
-
-    // Listen for participant info updates
-    const onParticipantInfo = (payload?: unknown) => {
-      try {
-        const p = payload as {
-          identity?: string;
-          name?: string;
-          email?: string;
-          role?: string;
-          firstName?: string;
-          lastName?: string;
-        };
-        if (p?.identity && p.name) {
-          setSocketParticipantInfo((prev) => ({
-            ...prev,
-            [p.identity!.toLowerCase()]: {
-              name: p.name!,
-              email: p.email || "",
-              role: p.role || "",
-              firstName: p.firstName || "",
-              lastName: p.lastName || "",
-            },
-          }));
-        }
-      } catch {}
-    };
-
-    // Listen for participant removal
-    const onParticipantRemoved = (payload?: unknown) => {
-      try {
-        const p = payload as { identity?: string };
-        if (p?.identity) {
-          setSocketParticipantInfo((prev) => {
-            const next = { ...prev };
-            delete next[p.identity!.toLowerCase()];
-            return next;
-          });
-        }
-      } catch {}
-    };
-
-    if (sock.on && typeof sock.on === "function") {
-      sock.on("meeting:participant-info", onParticipantInfo);
-      sock.on("meeting:participant-removed", onParticipantRemoved);
-    }
-
-    return () => {
-      if (sock.off && typeof sock.off === "function") {
-        sock.off("meeting:participant-info", onParticipantInfo);
-        sock.off("meeting:participant-removed", onParticipantRemoved);
-      }
-    };
-  }, []);
-
-
 
   const identityToCamOn: Record<string, boolean> = useMemo(() => {
     const map: Record<string, boolean> = {};

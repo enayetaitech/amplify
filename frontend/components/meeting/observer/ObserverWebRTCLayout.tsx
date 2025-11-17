@@ -8,46 +8,27 @@ import {
   useTracks,
   RoomAudioRenderer,
   useRoomContext,
-  useTrackRefContext,
-  useParticipants,
 } from "@livekit/components-react";
 import { Track, RoomEvent, ConnectionQuality } from "livekit-client";
 import { DisconnectReason } from "livekit-client";
 import "@livekit/components-styles";
 import Logo from "components/shared/LogoComponent";
-import { formatParticipantName } from "utils/formatParticipantName";
-import { isWhiteboardTrackRef } from "utils/livekitTracks";
+import type { Socket } from "socket.io-client";
+import WhiteboardPanel from "components/whiteboard/WhiteboardPanel";
+import VideoFilmstrip from "../VideoFilmstrip";
 
 // Custom tile component that shows formatted names from socket
 function CustomParticipantTile({
-  identityToName,
+  trackRef,
 }: {
-  identityToName: Record<string, string>;
+  trackRef: ReturnType<typeof useTracks>[number];
 }) {
-  const trackRef = useTrackRefContext();
-  const identity = trackRef.participant?.identity || "";
-  const name = identityToName[identity] || identity;
-
   return (
-    <>
-      <style>{`
-        .observer-tile-wrapper .lk-participant-metadata {
-          display: none !important;
-        }
-      `}</style>
-      <div className="relative w-full h-full observer-tile-wrapper">
+    <div className="w-full h-full">
+      <div className="observer-tile-wrapper relative h-full w-full">
         <ParticipantTile trackRef={trackRef} />
-        {/* Name overlay */}
-        <div className="absolute left-2 bottom-2 max-w-[calc(100%-16px)] z-50">
-          <span
-            className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
-            title={name}
-          >
-            {name}
-          </span>
-        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -56,11 +37,9 @@ function CustomParticipantTile({
 function ObserverVideoTilesColumn({
   tracks,
   containerHeight,
-  identityToName,
 }: {
   tracks: ReturnType<typeof useTracks>;
   containerHeight: number;
-  identityToName: Record<string, string>;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -147,11 +126,7 @@ function ObserverVideoTilesColumn({
                     height: `${colTileH}px`,
                   }}
                 >
-                  <div className="w-full h-full">
-                    <GridLayout tracks={[tr]}>
-                      <CustomParticipantTile identityToName={identityToName} />
-                    </GridLayout>
-                  </div>
+                  <CustomParticipantTile trackRef={tr} />
                 </div>
               ))}
             </div>
@@ -165,26 +140,17 @@ function ObserverVideoTilesColumn({
 // Component that subscribes to all video tracks (inside LiveKitRoom context)
 function ObserverVideoGrid() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const shareContainerRef = useRef<HTMLDivElement | null>(null);
   const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({
     w: 0,
     h: 0,
   });
+  const [shareContainerSize, setShareContainerSize] = useState<{
+    w: number;
+    h: number;
+  }>({ w: 0, h: 0 });
   const gap = 8; // Match admin view gap
   const room = useRoomContext();
-  const participants = useParticipants();
-  const [socketParticipantInfo, setSocketParticipantInfo] = useState<
-    Record<
-      string,
-      {
-        name: string;
-        email: string;
-        role: string;
-        firstName: string;
-        lastName: string;
-      }
-    >
-  >({});
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -197,145 +163,22 @@ function ObserverVideoGrid() {
     return () => ro.disconnect();
   }, []);
 
-  // Listen for socket-based participant info updates
   useEffect(() => {
-    const sock =
-      typeof window !== "undefined"
-        ? (
-            window as unknown as {
-              __meetingSocket?: {
-                on?: (ev: string, cb: (p?: unknown) => void) => void;
-                off?: (ev: string, cb: (p?: unknown) => void) => void;
-                emit?: (
-                  ev: string,
-                  payload: unknown,
-                  ack?: (resp: unknown) => void
-                ) => void;
-              };
-            }
-          ).__meetingSocket || null
-        : null;
-    if (!sock) return;
-
-    // Request initial participant list
-    if (sock.emit && typeof sock.emit === "function") {
-      sock.emit("meeting:get-participants-info", (resp?: unknown) => {
-        try {
-          const r = resp as {
-            participants?: Array<{
-              identity: string;
-              name: string;
-              email: string;
-              role: string;
-              firstName: string;
-              lastName: string;
-            }>;
-          };
-          if (r?.participants && Array.isArray(r.participants)) {
-            const infoMap: Record<
-              string,
-              {
-                name: string;
-                email: string;
-                role: string;
-                firstName: string;
-                lastName: string;
-              }
-            > = {};
-            for (const p of r.participants) {
-              infoMap[p.identity.toLowerCase()] = {
-                name: p.name,
-                email: p.email,
-                role: p.role,
-                firstName: p.firstName || "",
-                lastName: p.lastName || "",
-              };
-            }
-            setSocketParticipantInfo((prev) => ({ ...prev, ...infoMap }));
-          }
-        } catch {}
+    const el = shareContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr) return;
+      setShareContainerSize({
+        w: Math.floor(cr.width),
+        h: Math.floor(cr.height),
       });
-    }
-
-    // Listen for participant info updates
-    const onParticipantInfo = (payload?: unknown) => {
-      try {
-        const p = payload as {
-          identity?: string;
-          name?: string;
-          email?: string;
-          role?: string;
-          firstName?: string;
-          lastName?: string;
-        };
-        if (p?.identity && p.name) {
-          setSocketParticipantInfo((prev) => ({
-            ...prev,
-            [p.identity!.toLowerCase()]: {
-              name: p.name!,
-              email: p.email || "",
-              role: p.role || "",
-              firstName: p.firstName || "",
-              lastName: p.lastName || "",
-            },
-          }));
-        }
-      } catch {}
-    };
-
-    // Listen for participant removal
-    const onParticipantRemoved = (payload?: unknown) => {
-      try {
-        const p = payload as { identity?: string };
-        if (p?.identity) {
-          setSocketParticipantInfo((prev) => {
-            const next = { ...prev };
-            delete next[p.identity!.toLowerCase()];
-            return next;
-          });
-        }
-      } catch {}
-    };
-
-    if (sock.on && typeof sock.on === "function") {
-      sock.on("meeting:participant-info", onParticipantInfo);
-      sock.on("meeting:participant-removed", onParticipantRemoved);
-    }
-
-    return () => {
-      if (sock.off && typeof sock.off === "function") {
-        sock.off("meeting:participant-info", onParticipantInfo);
-        sock.off("meeting:participant-removed", onParticipantRemoved);
-      }
-    };
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // Map identity to formatted name from socket info
-  const identityToName: Record<string, string> = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const participant of participants) {
-      const identity = participant.identity || "";
-      if (!identity) continue;
-
-      // Prefer socket-based name, fallback to LiveKit name
-      const socketInfo = socketParticipantInfo[identity.toLowerCase()];
-      if (socketInfo) {
-        // Format from firstName/lastName first
-        const formattedName = formatParticipantName(
-          socketInfo.firstName,
-          socketInfo.lastName
-        );
-        // If formatted name exists, use it; otherwise fall back to socketInfo.name
-        map[identity] = formattedName || socketInfo.name || identity;
-      } else {
-        // Fallback to LiveKit participant name
-        map[identity] = participant.name || identity;
-      }
-    }
-
-    return map;
-  }, [participants, socketParticipantInfo]);
-
   // Ensure we subscribe to all published tracks when participants join
   useEffect(() => {
     if (!room) return;
@@ -379,18 +222,9 @@ function ObserverVideoGrid() {
     { source: Track.Source.ScreenShare, withPlaceholder: true },
   ]);
 
-  const filteredTrackRefs = useMemo(
-    () =>
-      trackRefs.filter((ref) => {
-        if (ref.publication?.source !== Track.Source.ScreenShare) return true;
-        return !isWhiteboardTrackRef(ref);
-      }),
-    [trackRefs]
-  );
-
   // Filter to only subscribed tracks (include muted tracks with placeholders)
   // This matches the admin view behavior - show tracks even if muted
-  const activeTracks = filteredTrackRefs.filter((ref) => {
+  const activeTracks = trackRefs.filter((ref) => {
     const pub = ref.publication;
     // Include if subscribed (track may be null if muted, but placeholder will show)
     return !!(pub && pub.isSubscribed);
@@ -420,9 +254,12 @@ function ObserverVideoGrid() {
     return role === "admin" || role === "moderator" || role === "participant";
   };
 
-  const cameraRefs = activeTracks.filter(
-    (r) => r.publication?.source === Track.Source.Camera && shouldInclude(r)
-  );
+  const cameraRefs = activeTracks.filter((r) => {
+    const pub = r.publication;
+    if (!pub || pub.source !== Track.Source.Camera) return false;
+    if (!shouldInclude(r)) return false;
+    return pub.isMuted === false && !!pub.track;
+  });
   const screenshareRefs = activeTracks.filter(
     (r) =>
       r.publication?.source === Track.Source.ScreenShare && shouldInclude(r)
@@ -455,6 +292,17 @@ function ObserverVideoGrid() {
   const viewW = Math.min(W, wByH);
   const viewH = Math.floor((viewW * 9) / 16);
 
+  const shareVideoSize = useMemo(() => {
+    const { w, h } = shareContainerSize;
+    if (!w || !h) {
+      return { w: 0, h: 0 };
+    }
+    const widthBoundByHeight = Math.floor((h * 16) / 9);
+    const finalWidth = Math.min(w, widthBoundByHeight);
+    const finalHeight = Math.floor((finalWidth * 9) / 16);
+    return { w: finalWidth, h: finalHeight };
+  }, [shareContainerSize]);
+
   return (
     <div
       ref={containerRef}
@@ -466,11 +314,26 @@ function ObserverVideoGrid() {
           // Use flexbox for fluid responsive design (no aspect ratio constraint)
           <div className="w-full h-full flex" style={{ gap: `${gap}px` }}>
             {/* Screen share: 80% width - fills available space */}
-            <div className="flex-[4] min-w-0 min-h-0">
-              <div className="w-full h-full relative rounded-lg overflow-hidden bg-black">
-                <GridLayout tracks={[screenshareRefs[0]]}>
-                  <ParticipantTile />
-                </GridLayout>
+            <div
+              className="flex-[4] min-w-0 min-h-0 flex items-center justify-center"
+              ref={shareContainerRef}
+            >
+              <div className="w-full h-full relative rounded-lg overflow-hidden bg-black flex items-center justify-center">
+                <div
+                  className="relative rounded-lg overflow-hidden"
+                  style={
+                    shareVideoSize.w && shareVideoSize.h
+                      ? {
+                          width: `${shareVideoSize.w}px`,
+                          height: `${shareVideoSize.h}px`,
+                        }
+                      : { width: "95%", height: "95%" }
+                  }
+                >
+                  <GridLayout tracks={[screenshareRefs[0]]}>
+                    <ParticipantTile />
+                  </GridLayout>
+                </div>
               </div>
             </div>
             {/* Video tiles: 20% width - maximize height usage */}
@@ -478,7 +341,6 @@ function ObserverVideoGrid() {
               <ObserverVideoTilesColumn
                 tracks={cameraRefsForGrid}
                 containerHeight={containerSize.h}
-                identityToName={identityToName}
               />
             )}
           </div>
@@ -500,9 +362,7 @@ function ObserverVideoGrid() {
                   key={`${tr.participant?.identity}-${tr.publication?.trackSid}`}
                   className="relative overflow-hidden rounded bg-black"
                 >
-                  <GridLayout tracks={[tr]}>
-                    <CustomParticipantTile identityToName={identityToName} />
-                  </GridLayout>
+                  <CustomParticipantTile trackRef={tr} />
                 </div>
               ))}
             </div>
@@ -570,12 +430,18 @@ interface ObserverWebRTCLayoutProps {
   token: string;
   serverUrl: string;
   onError?: (error: Error) => void;
+  socket?: Socket;
+  sessionId: string;
+  isWhiteboardOpen: boolean;
 }
 
 export default function ObserverWebRTCLayout({
   token,
   serverUrl,
   onError,
+  socket,
+  sessionId,
+  isWhiteboardOpen,
 }: ObserverWebRTCLayoutProps) {
   const [error, setError] = useState<string | null>(null);
 
@@ -589,7 +455,7 @@ export default function ObserverWebRTCLayout({
     <>
       <style>{`
         .observer-webrtc-layout .lk-participant-metadata {
-          display: none !important;
+          color: #fff !important;
         }
       `}</style>
       <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col observer-webrtc-layout">
@@ -651,7 +517,27 @@ export default function ObserverWebRTCLayout({
                   <Logo />
                 </div>
               </div>
-              <ObserverVideoGrid />
+              {isWhiteboardOpen ? (
+                <div className="flex-1 min-h-0 flex gap-3">
+                  <div className="flex-[4] min-w-0 min-h-0 rounded bg-white p-2 flex flex-col h-full">
+                    <div className="flex-1 min-h-0">
+                      <WhiteboardPanel
+                        sessionId={sessionId}
+                        socket={socket}
+                        role="Observer"
+                        hideToolbar
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
+                    <div className="h-full">
+                      <VideoFilmstrip />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ObserverVideoGrid />
+              )}
               <RoomAudioRenderer />
             </div>
           </LiveKitRoom>
