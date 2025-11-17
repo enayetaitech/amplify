@@ -78,6 +78,8 @@ export default function ObserverWaitingRoom() {
     Record<string, number>
   >({});
 
+  const meEmailLower = (meEmail || "").toLowerCase();
+
   // Group chat state
   type GroupMessage = {
     senderEmail?: string;
@@ -742,7 +744,8 @@ export default function ObserverWaitingRoom() {
                                 item.email || ""
                               ).toLowerCase();
                               const isCurrentUser =
-                                emailLower === meEmail.toLowerCase();
+                                meEmailLower !== "" &&
+                                emailLower === meEmailLower;
                               const roleLabel =
                                 item.role === "Admin"
                                   ? "Admin"
@@ -878,7 +881,17 @@ export default function ObserverWaitingRoom() {
                                   );
                                 }
 
-                                return combinedList.map((item) => {
+                                const filteredList =
+                                  meEmailLower === ""
+                                    ? combinedList
+                                    : combinedList.filter((entry) => {
+                                        const entryEmail = (
+                                          entry.email || ""
+                                        ).toLowerCase();
+                                        return entryEmail !== meEmailLower;
+                                      });
+
+                                return filteredList.map((item) => {
                                   const label =
                                     item.name || item.email || "Observer";
                                   const emailLower = (
@@ -1122,7 +1135,17 @@ export default function ObserverWaitingRoom() {
                       );
                     }
 
-                    return combinedList.map((item) => {
+                    const filteredList =
+                      meEmailLower === ""
+                        ? combinedList
+                        : combinedList.filter((entry) => {
+                            const entryEmail = (
+                              entry.email || ""
+                            ).toLowerCase();
+                            return entryEmail !== meEmailLower;
+                          });
+
+                    return filteredList.map((item) => {
                       const label = item.name || item.email || "Observer";
                       const emailLower = (item.email || "").toLowerCase();
                       const unread = dmUnreadByEmail[emailLower] || 0;
