@@ -74,6 +74,12 @@
   height: 100% !important;
 }
 
+/* Disable LiveKit's mirror transform when explicitly requested */
+.lk-scope .lk-participant-tile[mirror="false"]
+  .lk-participant-media-video[data-lk-local-participant="true"][data-lk-source="camera"] {
+  transform: none !important;
+}
+
 /* Force hardware acceleration and proper stacking for participant name overlays on mobile */
 .lk-scope [data-lk-source="camera"] {
   position: relative;
