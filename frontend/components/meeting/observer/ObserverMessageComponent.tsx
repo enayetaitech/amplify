@@ -102,6 +102,44 @@ export default function ObserverMessageComponent({
   });
   const actualObserverCount = filteredObserverList.length;
 
+  // Combined list for Observer List tab: all observers (including current user) + moderators + admins
+  // Use a Map to avoid duplicates by email
+  const combinedListMap = new Map<
+    string,
+    { name: string; email: string; role?: string }
+  >();
+
+  // Add all observers (including current user)
+  observerList.forEach((o) => {
+    const emailLower = (o.email || "").toLowerCase();
+    if (emailLower) {
+      combinedListMap.set(emailLower, {
+        name: o.name || o.email || "Observer",
+        email: o.email,
+      });
+    }
+  });
+
+  // Add all moderators/admins (will overwrite if already exists as observer)
+  moderatorList.forEach((m) => {
+    const emailLower = (m.email || "").toLowerCase();
+    const name = (m.name || "").trim();
+    if (emailLower && name && name.toLowerCase() !== "moderator") {
+      combinedListMap.set(emailLower, {
+        name: m.name || m.email || "",
+        email: m.email,
+        role: m.role,
+      });
+    }
+  });
+
+  // Convert to array and sort by name
+  const combinedList = Array.from(combinedListMap.values()).sort((a, b) => {
+    const nameA = (a.name || "").toLowerCase();
+    const nameB = (b.name || "").toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
   return (
     <>
       <RightSidebarHeading
@@ -144,20 +182,41 @@ export default function ObserverMessageComponent({
           </TabsList>
           <TabsContent value="list">
             <div className="space-y-2">
-              {filteredObserverList.length === 0 && (
+              {combinedList.length === 0 && (
                 <div className="text-sm text-gray-500">No observers yet.</div>
               )}
-              {filteredObserverList.map((o) => {
-                const label = o.name || o.email || "Observer";
+              {combinedList.map((item) => {
+                const label = item.name || item.email || "Observer";
+                const emailLower = (item.email || "").toLowerCase();
+                const isCurrentUser = emailLower === myEmailLower;
+                const roleLabel =
+                  item.role === "Admin"
+                    ? "Admin"
+                    : item.role === "Moderator"
+                    ? "Moderator"
+                    : null;
                 return (
                   <div
-                    key={`${label}-${o.email}`}
+                    key={`${label}-${item.email}`}
                     className="flex items-center justify-between gap-2 rounded px-2 py-1"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex items-center gap-2">
                       <div className="text-sm font-medium truncate">
                         {label}
+                        {isCurrentUser && (
+                          <span className="text-gray-500 ml-1">(You)</span>
+                        )}
                       </div>
+                      {roleLabel && (
+                        <Badge
+                          variant={
+                            item.role === "Admin" ? "default" : "secondary"
+                          }
+                          className="text-[10px] px-1.5 py-0 h-4"
+                        >
+                          {roleLabel}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 );

@@ -684,69 +684,98 @@ export default function ObserverWaitingRoom() {
                       >
                         <div className="space-y-2">
                           {(() => {
-                            const filteredModerators = moderators
-                              .filter((m) => {
-                                const name = (m.name || "").trim();
-                                const email = (m.email || "").toLowerCase();
-                                const myEmail = meEmail.toLowerCase();
-                                const shouldInclude =
-                                  name !== "Moderator" &&
-                                  name !== "Admin" &&
-                                  name.toLowerCase() !== "moderator" &&
-                                  name.toLowerCase() !== "admin" &&
-                                  email &&
-                                  email !== myEmail;
+                            // Combined list: all observers (including current user) + moderators + admins
+                            const combinedListMap = new Map<
+                              string,
+                              { name: string; email: string; role?: string }
+                            >();
 
-                                return shouldInclude;
-                              })
-                              .map((m) => ({
-                                name: m.name || m.email || "Moderator",
-                                email: m.email,
-                              }))
-                              .filter((m) => m.email && m.name); // Must have both
+                            // Add all observers (including current user)
+                            observerList.forEach((o) => {
+                              const emailLower = (o.email || "").toLowerCase();
+                              if (emailLower) {
+                                combinedListMap.set(emailLower, {
+                                  name: o.name || o.email || "Observer",
+                                  email: o.email,
+                                });
+                              }
+                            });
 
-                            const allPeople = Array.from(
-                              new Map(
-                                [...observerList, ...filteredModerators]
-                                  .filter(
-                                    (o) =>
-                                      o.email && // Must have email
-                                      o.name && // Must have name
-                                      (o.email || "").toLowerCase() !==
-                                        meEmail.toLowerCase() &&
-                                      (o.name || "").toLowerCase() !==
-                                        "observer" &&
-                                      (o.name || "").toLowerCase() !==
-                                        "moderator" &&
-                                      (o.name || "").toLowerCase() !== "admin"
-                                  )
-                                  .map((o) => [
-                                    (o.email || "").toLowerCase(),
-                                    o,
-                                  ])
-                              ).values()
-                            );
+                            // Add all moderators/admins (will overwrite if already exists as observer)
+                            moderators.forEach((m) => {
+                              const emailLower = (m.email || "").toLowerCase();
+                              const name = (m.name || "").trim();
+                              if (
+                                emailLower &&
+                                name &&
+                                name.toLowerCase() !== "moderator"
+                              ) {
+                                combinedListMap.set(emailLower, {
+                                  name: m.name || m.email || "",
+                                  email: m.email,
+                                  role: m.role,
+                                });
+                              }
+                            });
 
-                            if (allPeople.length === 0) {
+                            // Convert to array and sort by name
+                            const combinedList = Array.from(
+                              combinedListMap.values()
+                            ).sort((a, b) => {
+                              const nameA = (a.name || "").toLowerCase();
+                              const nameB = (b.name || "").toLowerCase();
+                              return nameA.localeCompare(nameB);
+                            });
+
+                            if (combinedList.length === 0) {
                               return (
                                 <div className="text-sm text-gray-500">
-                                  No observers or moderators yet.
+                                  No observers yet.
                                 </div>
                               );
                             }
 
-                            return allPeople.map((o, idx) => {
-                              const label = o.name || o.email || "Observer";
+                            return combinedList.map((item) => {
+                              const label =
+                                item.name || item.email || "Observer";
+                              const emailLower = (
+                                item.email || ""
+                              ).toLowerCase();
+                              const isCurrentUser =
+                                emailLower === meEmail.toLowerCase();
+                              const roleLabel =
+                                item.role === "Admin"
+                                  ? "Admin"
+                                  : item.role === "Moderator"
+                                  ? "Moderator"
+                                  : null;
 
                               return (
                                 <div
-                                  key={`${label}-${idx}`}
+                                  key={`${label}-${item.email}`}
                                   className="flex items-center justify-between gap-2 rounded px-2 py-1"
                                 >
-                                  <div className="min-w-0">
+                                  <div className="min-w-0 flex items-center gap-2">
                                     <div className="text-sm font-medium truncate">
                                       {label}
+                                      {isCurrentUser && (
+                                        <span className="text-gray-500 ml-1">
+                                          (You)
+                                        </span>
+                                      )}
                                     </div>
+                                    {roleLabel && (
+                                      <Badge
+                                        variant={
+                                          item.role === "Admin"
+                                            ? "default"
+                                            : "secondary"
+                                        }
+                                        className="text-[10px] px-1.5 py-0 h-4"
+                                      >
+                                        {roleLabel}
+                                      </Badge>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -794,74 +823,84 @@ export default function ObserverWaitingRoom() {
                               </div>
 
                               {(() => {
-                                const filteredModerators = moderators
-                                  .filter((m) => {
-                                    const name = (m.name || "").trim();
-                                    const email = (m.email || "").toLowerCase();
-                                    const myEmail = meEmail.toLowerCase();
-                                    const shouldInclude =
-                                      name !== "Moderator" &&
-                                      name !== "Admin" &&
-                                      name.toLowerCase() !== "moderator" &&
-                                      name.toLowerCase() !== "admin" &&
-                                      email &&
-                                      email !== myEmail;
+                                // Combined list: all observers (including current user) + moderators + admins
+                                const combinedListMap = new Map<
+                                  string,
+                                  { name: string; email: string; role?: string }
+                                >();
 
-                                    return shouldInclude;
-                                  })
-                                  .map((m) => ({
-                                    name: m.name || m.email || "Moderator",
-                                    email: m.email,
-                                  }))
-                                  .filter((m) => m.email && m.name); // Must have both
+                                // Add all observers (including current user)
+                                observerList.forEach((o) => {
+                                  const emailLower = (
+                                    o.email || ""
+                                  ).toLowerCase();
+                                  if (emailLower) {
+                                    combinedListMap.set(emailLower, {
+                                      name: o.name || o.email || "Observer",
+                                      email: o.email,
+                                    });
+                                  }
+                                });
 
-                                const allPeople = Array.from(
-                                  new Map(
-                                    [...observerList, ...filteredModerators]
-                                      .filter(
-                                        (o) =>
-                                          o.email && // Must have email
-                                          o.name && // Must have name
-                                          (o.email || "").toLowerCase() !==
-                                            meEmail.toLowerCase() &&
-                                          (o.name || "").toLowerCase() !==
-                                            "observer" &&
-                                          (o.name || "").toLowerCase() !==
-                                            "moderator" &&
-                                          (o.name || "").toLowerCase() !==
-                                            "admin"
-                                      )
-                                      .map((o) => [
-                                        (o.email || "").toLowerCase(),
-                                        o,
-                                      ])
-                                  ).values()
-                                );
+                                // Add all moderators/admins (will overwrite if already exists as observer)
+                                moderators.forEach((m) => {
+                                  const emailLower = (
+                                    m.email || ""
+                                  ).toLowerCase();
+                                  const name = (m.name || "").trim();
+                                  if (
+                                    emailLower &&
+                                    name &&
+                                    name.toLowerCase() !== "moderator"
+                                  ) {
+                                    combinedListMap.set(emailLower, {
+                                      name: m.name || m.email || "",
+                                      email: m.email,
+                                      role: m.role,
+                                    });
+                                  }
+                                });
 
-                                if (allPeople.length === 0) {
+                                // Convert to array and sort by name
+                                const combinedList = Array.from(
+                                  combinedListMap.values()
+                                ).sort((a, b) => {
+                                  const nameA = (a.name || "").toLowerCase();
+                                  const nameB = (b.name || "").toLowerCase();
+                                  return nameA.localeCompare(nameB);
+                                });
+
+                                if (combinedList.length === 0) {
                                   return (
                                     <div className="text-sm text-gray-500">
-                                      No observers or moderators yet.
+                                      No observers yet.
                                     </div>
                                   );
                                 }
 
-                                return allPeople.map((o, idx) => {
-                                  const label = o.name || o.email || "Observer";
+                                return combinedList.map((item) => {
+                                  const label =
+                                    item.name || item.email || "Observer";
                                   const emailLower = (
-                                    o.email || ""
+                                    item.email || ""
                                   ).toLowerCase();
                                   const unread =
                                     dmUnreadByEmail[emailLower] || 0;
+                                  const roleLabel =
+                                    item.role === "Admin"
+                                      ? "Admin"
+                                      : item.role === "Moderator"
+                                      ? "Moderator"
+                                      : null;
 
                                   return (
                                     <div
-                                      key={`${label}-${idx}`}
+                                      key={`${label}-${item.email}`}
                                       className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
                                       onClick={() => {
                                         setSelectedObserver({
-                                          name: o.name,
-                                          email: o.email,
+                                          name: item.name,
+                                          email: item.email,
                                         });
                                         setShowGroupChat(false);
                                         setDmUnreadByEmail((prev) => ({
@@ -870,10 +909,22 @@ export default function ObserverWaitingRoom() {
                                         }));
                                       }}
                                     >
-                                      <div className="flex items-center gap-2 min-w-0 ">
+                                      <div className="flex items-center gap-2 min-w-0">
                                         <span className="text-sm font-medium truncate">
                                           {label}
                                         </span>
+                                        {roleLabel && (
+                                          <Badge
+                                            variant={
+                                              item.role === "Admin"
+                                                ? "default"
+                                                : "secondary"
+                                            }
+                                            className="text-[10px] px-1.5 py-0 h-4"
+                                          >
+                                            {roleLabel}
+                                          </Badge>
+                                        )}
                                       </div>
                                       <div className="relative inline-flex items-center justify-center h-6 w-6">
                                         <MessageSquare className="h-4 w-4 text-gray-400" />
@@ -1020,43 +1071,76 @@ export default function ObserverWaitingRoom() {
                   </div>
 
                   {(() => {
-                    const filteredModerators = moderators
-                      .filter((m) => {
-                        const name = (m.name || "").trim();
-                        const email = (m.email || "").toLowerCase();
-                        const myEmail = meEmail.toLowerCase();
-                        return name !== "Moderator" && email !== myEmail;
-                      })
-                      .map((m) => ({
-                        name: m.name || m.email || "Moderator",
-                        email: m.email,
-                      }));
+                    // Combined list: all observers (including current user) + moderators + admins
+                    const combinedListMap = new Map<
+                      string,
+                      { name: string; email: string; role?: string }
+                    >();
 
-                    const allPeople = Array.from(
-                      new Map(
-                        [...observerList, ...filteredModerators]
-                          .filter(
-                            (o) =>
-                              (o.email || "").toLowerCase() !==
-                                meEmail.toLowerCase() &&
-                              (o.name || "").toLowerCase() !== "observer"
-                          )
-                          .map((o) => [(o.email || "").toLowerCase(), o])
-                      ).values()
-                    );
-
-                    return allPeople.map((o, idx) => {
-                      const label = o.name || o.email || "Observer";
+                    // Add all observers (including current user)
+                    observerList.forEach((o) => {
                       const emailLower = (o.email || "").toLowerCase();
+                      if (emailLower) {
+                        combinedListMap.set(emailLower, {
+                          name: o.name || o.email || "Observer",
+                          email: o.email,
+                        });
+                      }
+                    });
+
+                    // Add all moderators/admins (will overwrite if already exists as observer)
+                    moderators.forEach((m) => {
+                      const emailLower = (m.email || "").toLowerCase();
+                      const name = (m.name || "").trim();
+                      if (
+                        emailLower &&
+                        name &&
+                        name.toLowerCase() !== "moderator"
+                      ) {
+                        combinedListMap.set(emailLower, {
+                          name: m.name || m.email || "",
+                          email: m.email,
+                          role: m.role,
+                        });
+                      }
+                    });
+
+                    // Convert to array and sort by name
+                    const combinedList = Array.from(
+                      combinedListMap.values()
+                    ).sort((a, b) => {
+                      const nameA = (a.name || "").toLowerCase();
+                      const nameB = (b.name || "").toLowerCase();
+                      return nameA.localeCompare(nameB);
+                    });
+
+                    if (combinedList.length === 0) {
+                      return (
+                        <div className="text-sm text-gray-500">
+                          No observers yet.
+                        </div>
+                      );
+                    }
+
+                    return combinedList.map((item) => {
+                      const label = item.name || item.email || "Observer";
+                      const emailLower = (item.email || "").toLowerCase();
                       const unread = dmUnreadByEmail[emailLower] || 0;
+                      const roleLabel =
+                        item.role === "Admin"
+                          ? "Admin"
+                          : item.role === "Moderator"
+                          ? "Moderator"
+                          : null;
+
                       return (
                         <div
-                          key={`${label}-${idx}`}
+                          key={`${label}-${item.email}`}
                           className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
                           onClick={() => {
                             setSelectedObserver({
-                              name: o.name,
-                              email: o.email,
+                              name: item.name,
+                              email: item.email,
                             });
                             setShowGroupChat(false);
                             setDmUnreadByEmail((prev) => ({
@@ -1065,10 +1149,22 @@ export default function ObserverWaitingRoom() {
                             }));
                           }}
                         >
-                          <div className="flex items-center gap-2 min-w-0 ">
+                          <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm font-medium truncate">
                               {label}
                             </span>
+                            {roleLabel && (
+                              <Badge
+                                variant={
+                                  item.role === "Admin"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                                className="text-[10px] px-1.5 py-0 h-4"
+                              >
+                                {roleLabel}
+                              </Badge>
+                            )}
                           </div>
                           <div className="relative inline-flex items-center justify-center h-6 w-6">
                             <MessageSquare className="h-4 w-4 text-gray-400" />
