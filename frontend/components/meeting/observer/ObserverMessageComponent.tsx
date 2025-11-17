@@ -102,6 +102,44 @@ export default function ObserverMessageComponent({
   });
   const actualObserverCount = filteredObserverList.length;
 
+  // Combined list for Observer List tab: all observers (including current user) + moderators + admins
+  // Use a Map to avoid duplicates by email
+  const combinedListMap = new Map<
+    string,
+    { name: string; email: string; role?: string }
+  >();
+
+  // Add all observers (including current user)
+  observerList.forEach((o) => {
+    const emailLower = (o.email || "").toLowerCase();
+    if (emailLower) {
+      combinedListMap.set(emailLower, {
+        name: o.name || o.email || "Observer",
+        email: o.email,
+      });
+    }
+  });
+
+  // Add all moderators/admins (will overwrite if already exists as observer)
+  moderatorList.forEach((m) => {
+    const emailLower = (m.email || "").toLowerCase();
+    const name = (m.name || "").trim();
+    if (emailLower && name && name.toLowerCase() !== "moderator") {
+      combinedListMap.set(emailLower, {
+        name: m.name || m.email || "",
+        email: m.email,
+        role: m.role,
+      });
+    }
+  });
+
+  // Convert to array and sort by name
+  const combinedList = Array.from(combinedListMap.values()).sort((a, b) => {
+    const nameA = (a.name || "").toLowerCase();
+    const nameB = (b.name || "").toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
   return (
     <>
       <RightSidebarHeading
@@ -144,20 +182,41 @@ export default function ObserverMessageComponent({
           </TabsList>
           <TabsContent value="list">
             <div className="space-y-2">
-              {filteredObserverList.length === 0 && (
+              {combinedList.length === 0 && (
                 <div className="text-sm text-gray-500">No observers yet.</div>
               )}
-              {filteredObserverList.map((o) => {
-                const label = o.name || o.email || "Observer";
+              {combinedList.map((item) => {
+                const label = item.name || item.email || "Observer";
+                const emailLower = (item.email || "").toLowerCase();
+                const isCurrentUser = emailLower === myEmailLower;
+                const roleLabel =
+                  item.role === "Admin"
+                    ? "Admin"
+                    : item.role === "Moderator"
+                    ? "Moderator"
+                    : null;
                 return (
                   <div
-                    key={`${label}-${o.email}`}
+                    key={`${label}-${item.email}`}
                     className="flex items-center justify-between gap-2 rounded px-2 py-1"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex items-center gap-2">
                       <div className="text-sm font-medium truncate">
                         {label}
+                        {isCurrentUser && (
+                          <span className="text-gray-500 ml-1">(You)</span>
+                        )}
                       </div>
+                      {roleLabel && (
+                        <Badge
+                          variant={
+                            item.role === "Admin" ? "default" : "secondary"
+                          }
+                          className="text-[10px] px-1.5 py-0 h-4"
+                        >
+                          {roleLabel}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 );
@@ -169,145 +228,150 @@ export default function ObserverMessageComponent({
               {!selectedObserver && !showGroupChatObs && (
                 <div className="col-span-12 rounded bg-white ">
                   <div className="space-y-1 p-2">
-                    {observerList.length === 0 ? (
-                      <div className="text-sm text-gray-500">
-                        No observers yet.
+                    {/* Group Chat - Always at the top */}
+                    <div
+                      className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                      onClick={() => {
+                        setShowGroupChatObs(true);
+                        setSelectedObserver(null);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium truncate">
+                          Group Chat
+                        </span>
                       </div>
-                    ) : (
-                      <>
-                        {moderatorList
-                          .filter((m) => {
-                            const nm = (m?.name || "").trim().toLowerCase();
-                            if (nm === "moderator") return false;
-                            if ((m?.email || "").toLowerCase() === myEmailLower)
-                              return false;
-                            const lbl = (m?.name || m?.email || "").trim();
-                            return lbl.length > 0;
-                          })
-                          .map((m) => {
-                            const label = m.name
-                              ? formatDisplayName(m.name)
-                              : m.email || "";
-                            const mKey = (m.email || "").toLowerCase();
-                            const mUnread = dmUnreadByEmail[mKey] || 0;
-                            return (
-                              <div
-                                key={`${m.email}-${m.role}`}
-                                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                onClick={() => {
-                                  setSelectedObserver({
-                                    email: m.email,
-                                    name: m.name,
-                                  });
-                                  setShowGroupChatObs(false);
-                                  setDmUnreadByEmail((prev) => ({
-                                    ...prev,
-                                    [mKey]: 0,
-                                  }));
-                                }}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-sm font-medium truncate">
-                                    {label}
-                                  </span>
-                                </div>
-                                <div className="relative inline-flex items-center justify-center h-6 w-6">
-                                  <MessageSquare className="h-4 w-4 text-gray-400" />
-                                  {mUnread > 0 && (
-                                    <span className="absolute -top-1 -right-1">
-                                      <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
-                                        {mUnread}
-                                      </Badge>
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        <div
-                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                          onClick={() => {
-                            setShowGroupChatObs(true);
-                            setSelectedObserver(null);
-                          }}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium truncate">
-                              Group Chat
-                            </span>
-                          </div>
-                          <div className="relative inline-flex items-center justify-center h-6 w-6">
-                            <MessageSquare className="h-4 w-4 text-gray-400" />
-                            {groupUnread > 0 && (
-                              <span className="absolute -top-1 -right-1">
-                                <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
-                                  {groupUnread}
-                                </Badge>
+                      <div className="relative inline-flex items-center justify-center h-6 w-6">
+                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                        {groupUnread > 0 && (
+                          <span className="absolute -top-1 -right-1">
+                            <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
+                              {groupUnread}
+                            </Badge>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {moderatorList
+                      .filter((m) => {
+                        const nm = (m?.name || "").trim().toLowerCase();
+                        if (nm === "moderator") return false;
+                        if ((m?.email || "").toLowerCase() === myEmailLower)
+                          return false;
+                        const lbl = (m?.name || m?.email || "").trim();
+                        return lbl.length > 0;
+                      })
+                      .map((m) => {
+                        const label = m.name
+                          ? formatDisplayName(m.name)
+                          : m.email || "";
+                        const mKey = (m.email || "").toLowerCase();
+                        const mUnread = dmUnreadByEmail[mKey] || 0;
+                        return (
+                          <div
+                            key={`${m.email}-${m.role}`}
+                            className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                            onClick={() => {
+                              setSelectedObserver({
+                                email: m.email,
+                                name: m.name,
+                              });
+                              setShowGroupChatObs(false);
+                              setDmUnreadByEmail((prev) => ({
+                                ...prev,
+                                [mKey]: 0,
+                              }));
+                            }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-medium truncate">
+                                {label}
                               </span>
-                            )}
+                            </div>
+                            <div className="relative inline-flex items-center justify-center h-6 w-6">
+                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                              {mUnread > 0 && (
+                                <span className="absolute -top-1 -right-1">
+                                  <Badge className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center bg-custom-orange-1">
+                                    {mUnread}
+                                  </Badge>
+                                </span>
+                              )}
+                            </div>
                           </div>
+                        );
+                      })}
+                    {observerList
+                      .filter((o) => {
+                        const oEmailLower = (o?.email || "").toLowerCase();
+                        if (oEmailLower === myEmailLower) return false;
+                        // Exclude observers that are already in the moderator list
+                        const isModerator = moderatorList.some(
+                          (m) => (m?.email || "").toLowerCase() === oEmailLower
+                        );
+                        return !isModerator;
+                      })
+                      .map((o) => {
+                        const label = o.name
+                          ? formatDisplayName(o.name)
+                          : o.email || "Observer";
+                        const oKey = (o.email || "").toLowerCase();
+                        return (
+                          <div
+                            key={`${o.email}`}
+                            className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
+                            onClick={() => {
+                              setSelectedObserver({
+                                email: o.email,
+                                name: o.name,
+                              });
+                              setShowGroupChatObs(false);
+                              setDmUnreadByEmail((prev) => ({
+                                ...prev,
+                                [oKey]: 0,
+                              }));
+                            }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-medium truncate">
+                                {label}
+                              </span>
+                            </div>
+                            <div className="relative inline-flex items-center justify-center h-6 w-6">
+                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                              {(dmUnreadByEmail[
+                                (o.email || "").toLowerCase()
+                              ] || 0) > 0 && (
+                                <span className="absolute -top-1 -right-1">
+                                  <Badge
+                                    variant="destructive"
+                                    className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
+                                  >
+                                    {
+                                      dmUnreadByEmail[
+                                        (o.email || "").toLowerCase()
+                                      ]
+                                    }
+                                  </Badge>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {observerList.length === 0 &&
+                      moderatorList.filter((m) => {
+                        const nm = (m?.name || "").trim().toLowerCase();
+                        if (nm === "moderator") return false;
+                        if ((m?.email || "").toLowerCase() === myEmailLower)
+                          return false;
+                        const lbl = (m?.name || m?.email || "").trim();
+                        return lbl.length > 0;
+                      }).length === 0 && (
+                        <div className="text-sm text-gray-500">
+                          No observers yet.
                         </div>
-                        {observerList
-                          .filter((o) => {
-                            const oEmailLower = (o?.email || "").toLowerCase();
-                            if (oEmailLower === myEmailLower) return false;
-                            // Exclude observers that are already in the moderator list
-                            const isModerator = moderatorList.some(
-                              (m) =>
-                                (m?.email || "").toLowerCase() === oEmailLower
-                            );
-                            return !isModerator;
-                          })
-                          .map((o) => {
-                            const label = o.name
-                              ? formatDisplayName(o.name)
-                              : o.email || "Observer";
-                            const oKey = (o.email || "").toLowerCase();
-                            return (
-                              <div
-                                key={`${o.email}`}
-                                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                onClick={() => {
-                                  setSelectedObserver({
-                                    email: o.email,
-                                    name: o.name,
-                                  });
-                                  setShowGroupChatObs(false);
-                                  setDmUnreadByEmail((prev) => ({
-                                    ...prev,
-                                    [oKey]: 0,
-                                  }));
-                                }}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-sm font-medium truncate">
-                                    {label}
-                                  </span>
-                                </div>
-                                <div className="relative inline-flex items-center justify-center h-6 w-6">
-                                  <MessageSquare className="h-4 w-4 text-gray-400" />
-                                  {(dmUnreadByEmail[
-                                    (o.email || "").toLowerCase()
-                                  ] || 0) > 0 && (
-                                    <span className="absolute -top-1 -right-1">
-                                      <Badge
-                                        variant="destructive"
-                                        className="h-4 min-w-[1rem] leading-none p-0 text-[10px] inline-flex items-center justify-center"
-                                      >
-                                        {
-                                          dmUnreadByEmail[
-                                            (o.email || "").toLowerCase()
-                                          ]
-                                        }
-                                      </Badge>
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </>
-                    )}
+                      )}
                   </div>
                 </div>
               )}
