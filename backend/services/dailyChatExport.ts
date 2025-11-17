@@ -101,20 +101,29 @@ export async function exportDailyProjectChat(): Promise<{
     const sessionsToProcess: typeof sessionsByScheduled = [];
 
     // Add sessions from LiveSession query first (these are sessions that actually ran)
+    const liveSessionIdsToHydrate = new Set<string>();
     for (const live of liveSessionsLast24h) {
-      const session = live.sessionId as any;
-      if (session && session._id) {
-        const id = String(session._id);
-        if (!sessionIds.has(id)) {
-          sessionIds.add(id);
-          // Get full session with projectId populated
-          const fullSession = await SessionModel.findById(session._id)
-            .populate("projectId")
-            .lean();
-          if (fullSession) {
-            sessionsToProcess.push(fullSession);
-          }
-        }
+      const sessionDoc = live.sessionId as { _id?: Types.ObjectId };
+      if (!sessionDoc?._id) continue;
+
+      const idStr = String(sessionDoc._id);
+      if (sessionIds.has(idStr)) continue;
+      sessionIds.add(idStr);
+      liveSessionIdsToHydrate.add(idStr);
+    }
+
+    if (liveSessionIdsToHydrate.size > 0) {
+      const hydrateIds = Array.from(liveSessionIdsToHydrate).map(
+        (id) => new Types.ObjectId(id)
+      );
+      const hydratedSessions = await SessionModel.find({
+        _id: { $in: hydrateIds },
+      })
+        .populate("projectId")
+        .lean();
+
+      for (const hydrated of hydratedSessions) {
+        sessionsToProcess.push(hydrated);
       }
     }
 
@@ -257,11 +266,32 @@ export async function exportDailyProjectChat(): Promise<{
         ];
 
         // Group messages by session for better readability
-        for (const session of sessions) {
-          const live = await LiveSessionModel.findOne({
-            sessionId: session._id,
-          }).lean();
+        type LiveSessionLean = {
+          sessionId: Types.ObjectId;
+          startTime?: Date | null;
+          endTime?: Date | null;
+          ongoing?: boolean;
+          hlsStoppedAt?: Date | null;
+        };
 
+        const sessionIdsForProject = sessions.map(
+          (session) => new Types.ObjectId(String(session._id))
+        );
+        const liveSessionsById = new Map<string, LiveSessionLean>();
+        if (sessionIdsForProject.length > 0) {
+          const lives = await LiveSessionModel.find({
+            sessionId: { $in: sessionIdsForProject },
+          })
+            .lean()
+            .exec();
+          for (const live of lives) {
+            const typedLive = live as LiveSessionLean;
+            liveSessionsById.set(String(typedLive.sessionId), typedLive);
+          }
+        }
+
+        for (const session of sessions) {
+          const live = liveSessionsById.get(String(session._id));
           if (!live) continue;
 
           const sessionStartTime = live.startTime

@@ -9,7 +9,7 @@ import {
   toTimestampStrict,
 } from "../processors/session/sessionTimeConflictChecker";
 import * as sessionService from "../processors/liveSession/sessionService";
-import mongoose from "mongoose";
+import mongoose, { PipelineStage } from "mongoose";
 import { LiveSessionModel } from "../model/LiveSessionModel";
 
 // !  the fields you really need to keep the payload light
@@ -462,31 +462,51 @@ export const getLatestSessionForProject = async (
       return next(new ErrorHandler("Project not found", 404));
     }
 
+    const projectObjectId = new mongoose.Types.ObjectId(projectId);
+
     // 1) Prefer an actually ongoing LiveSession for this project's sessions
-    const liveWithSession = await LiveSessionModel.find({ ongoing: true })
-      .populate({
-        path: "sessionId",
-        select: "projectId startAtEpoch endAtEpoch",
-      })
-      .lean();
+    type LivePipelineResult = {
+      sessionId: mongoose.Types.ObjectId;
+      startAtEpoch: number;
+      endAtEpoch: number;
+    };
+    const livePipeline: PipelineStage[] = [
+      { $match: { ongoing: true } },
+      {
+        $lookup: {
+          from: "sessions",
+          localField: "sessionId",
+          foreignField: "_id",
+          as: "session",
+        },
+      },
+      { $unwind: "$session" },
+      {
+        $match: {
+          "session.projectId": projectObjectId,
+        },
+      },
+      {
+        $project: {
+          sessionId: "$session._id",
+          startAtEpoch: "$session.startAtEpoch",
+          endAtEpoch: "$session.endAtEpoch",
+        },
+      },
+      { $limit: 1 },
+    ];
 
-    const liveForProject = liveWithSession.find((ls: any) => {
-      const sess = ls.sessionId as any;
-      return sess && String(sess.projectId) === String(projectId);
-    });
+    const liveForProject = await LiveSessionModel.aggregate<LivePipelineResult>(
+      livePipeline
+    );
 
-    if (liveForProject && liveForProject.sessionId) {
-      const sess = liveForProject.sessionId as unknown as {
-        _id: string | mongoose.Types.ObjectId;
-        projectId: string | mongoose.Types.ObjectId;
-        startAtEpoch: number;
-        endAtEpoch: number;
-      };
+    if (liveForProject[0]) {
+      const active = liveForProject[0];
       const data = {
-        sessionId: String(sess._id),
+        sessionId: String(active.sessionId),
         status: "ongoing" as const,
-        startAtEpoch: sess.startAtEpoch,
-        endAtEpoch: sess.endAtEpoch,
+        startAtEpoch: active.startAtEpoch,
+        endAtEpoch: active.endAtEpoch,
       };
       sendResponse(res, data, "Resolved latest session (ongoing)", 200);
       return;
