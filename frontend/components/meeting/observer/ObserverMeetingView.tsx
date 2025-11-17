@@ -104,6 +104,7 @@ export default function ObserverMeetingView({
   const [dmUnreadByEmail, setDmUnreadByEmail] = useState<
     Record<string, number>
   >({});
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   // Shared poll results for observers
   const [resultsMapping, setResultsMapping] = useState<Record<
     string,
@@ -232,6 +233,28 @@ export default function ObserverMeetingView({
       cancelled = true;
     };
   }, [sessionId, selected, refreshTick, meetingSocket]);
+
+  useEffect(() => {
+    const s = meetingSocket;
+    if (!s) return;
+    const handleVisibility = (payload?: { sessionId?: string; open?: boolean }) => {
+      if (payload?.sessionId && payload.sessionId !== sessionId) return;
+      setIsWhiteboardOpen(Boolean(payload?.open));
+    };
+    try {
+      s.emit(
+        "whiteboard:visibility:get",
+        { sessionId },
+        (resp?: { open?: boolean }) => {
+          setIsWhiteboardOpen(Boolean(resp?.open));
+        }
+      );
+    } catch {}
+    s.on("whiteboard:visibility:changed", handleVisibility);
+    return () => {
+      s.off("whiteboard:visibility:changed", handleVisibility);
+    };
+  }, [meetingSocket, sessionId]);
 
   // Refresh participants on socket event
   useEffect(() => {
@@ -783,7 +806,15 @@ export default function ObserverMeetingView({
           // Debug logging
           if (lkToken && wsUrl) {
             console.log("[ObserverMeetingView] Using WebRTC streaming");
-            return <ObserverWebRTCLayout token={lkToken} serverUrl={wsUrl} />;
+            return (
+              <ObserverWebRTCLayout
+                token={lkToken}
+                serverUrl={wsUrl}
+                socket={meetingSocket}
+                sessionId={sessionId}
+                isWhiteboardOpen={isWhiteboardOpen}
+              />
+            );
           }
           if (url) {
             console.log("[ObserverMeetingView] WebRTC not available, using HLS fallback");

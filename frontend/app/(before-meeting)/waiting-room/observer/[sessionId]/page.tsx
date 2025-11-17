@@ -78,6 +78,8 @@ export default function ObserverWaitingRoom() {
     Record<string, number>
   >({});
 
+  const meEmailLower = (meEmail || "").toLowerCase();
+
   // Group chat state
   type GroupMessage = {
     senderEmail?: string;
@@ -742,7 +744,8 @@ export default function ObserverWaitingRoom() {
                                 item.email || ""
                               ).toLowerCase();
                               const isCurrentUser =
-                                emailLower === meEmail.toLowerCase();
+                                meEmailLower !== "" &&
+                                emailLower === meEmailLower;
                               const roleLabel =
                                 item.role === "Admin"
                                   ? "Admin"
@@ -878,7 +881,17 @@ export default function ObserverWaitingRoom() {
                                   );
                                 }
 
-                                return combinedList.map((item) => {
+                                const filteredList =
+                                  meEmailLower === ""
+                                    ? combinedList
+                                    : combinedList.filter((entry) => {
+                                        const entryEmail = (
+                                          entry.email || ""
+                                        ).toLowerCase();
+                                        return entryEmail !== meEmailLower;
+                                      });
+
+                                return filteredList.map((item) => {
                                   const label =
                                     item.name || item.email || "Observer";
                                   const emailLower = (
@@ -1011,6 +1024,7 @@ export default function ObserverWaitingRoom() {
                                       setShowGroupChat(false);
                                     }}
                                     height="70vh"
+                                    warning="The message will not last more than one session."
                                   />
                                 );
                               })()}
@@ -1122,7 +1136,17 @@ export default function ObserverWaitingRoom() {
                       );
                     }
 
-                    return combinedList.map((item) => {
+                    const filteredList =
+                      meEmailLower === ""
+                        ? combinedList
+                        : combinedList.filter((entry) => {
+                            const entryEmail = (
+                              entry.email || ""
+                            ).toLowerCase();
+                            return entryEmail !== meEmailLower;
+                          });
+
+                    return filteredList.map((item) => {
                       const label = item.name || item.email || "Observer";
                       const emailLower = (item.email || "").toLowerCase();
                       const unread = dmUnreadByEmail[emailLower] || 0;
@@ -1338,22 +1362,29 @@ export default function ObserverWaitingRoom() {
                     </div>
                   </div>
                   <div className="p-2 flex items-center gap-2 border-t">
-                    <Input
-                      placeholder="Type a message..."
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") sendMessage();
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={sendMessage}
-                      disabled={!messageInput.trim()}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Type a message..."
+                          value={messageInput}
+                          onChange={(e) => setMessageInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") sendMessage();
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={sendMessage}
+                          disabled={!messageInput.trim()}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-red-500">
+                        The message will not last more than one session.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

@@ -303,7 +303,7 @@ const Backroom = ({
   }, [socket, selectedObserver, showGroupChatObs, meLower]);
 
   return (
-    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
+    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[50vh] min-h-[50vh] overflow-hidden">
       <RightSidebarHeading
         title="Backroom"
         observerCount={isStreaming ? observerCount : 0}
@@ -392,7 +392,7 @@ const Backroom = ({
         </TabsContent>
 
         <TabsContent value="chat">
-          <div className="grid grid-cols-12 gap-2 h-[26vh]">
+          <div className="grid grid-cols-12 gap-2 h-[36vh]">
             {!selectedObserver && !showGroupChatObs && (
               <div className="col-span-12 rounded bg-white overflow-y-auto">
                 <div className="space-y-1 p-2">
@@ -530,7 +530,7 @@ const Backroom = ({
                       onChange={setGroupText}
                       onSend={sendGroup}
                       onClose={() => setShowGroupChatObs(false)}
-                      height="26vh"
+                      height="36vh"
                     />
                   );
                 })()}
@@ -595,7 +595,8 @@ const Backroom = ({
                       onChange={setDmText}
                       onSend={sendDm}
                       onClose={() => setSelectedObserver(null)}
-                      height="26vh"
+                      height="36vh"
+                      warning="The message will not last more than one session."
                     />
                   );
                 })()}

@@ -581,7 +581,7 @@ const ObservationRoom = () => {
   };
 
   return (
-    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[40vh] min-h-[40vh] overflow-hidden">
+    <div className="my-2 bg-custom-gray-2 rounded-lg p-1 max-h-[50vh] min-h-[50vh] overflow-hidden">
       <RightSidebarHeading
         title="Observation Room"
         observerCount={
@@ -684,7 +684,7 @@ const ObservationRoom = () => {
         </TabsContent>
 
         <TabsContent value="chat">
-          <div className="grid grid-cols-12 gap-2 h-[26vh]">
+          <div className="grid grid-cols-12 gap-2 h-[32vh]">
             {!selectedObserver && !showGroupChat && (
               <div className="col-span-12 rounded bg-white overflow-y-auto">
                 <div className="space-y-1 p-2">
@@ -815,7 +815,7 @@ const ObservationRoom = () => {
                       onChange={setGroupText}
                       onSend={send}
                       onClose={() => setShowGroupChat(false)}
-                      height="26vh"
+                      height="35vh"
                     />
                   );
                 })()}
@@ -859,7 +859,8 @@ const ObservationRoom = () => {
                         setSelectedObserver(null);
                         setShowGroupChat(false);
                       }}
-                      height="26vh"
+                      height="34vh"
+                      warning="The message will not last more than one session."
                     />
                   );
                 })()}

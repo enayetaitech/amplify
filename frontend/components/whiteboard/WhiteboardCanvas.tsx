@@ -94,11 +94,27 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
     useEffect(() => {
       const c = canvasRef.current;
       if (!c) return;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const baseDpr = Math.max(1, window.devicePixelRatio || 1);
       const cssW = Math.max(1, width);
       const cssH = Math.max(1, height);
-      const pxW = Math.floor(cssW * dpr);
-      const pxH = Math.floor(cssH * dpr);
+      const TARGET_WIDTH = 1920;
+      const TARGET_HEIGHT = 1080;
+      const MAX_RENDER_SCALE = 1;
+      const widthScale =
+        cssW >= TARGET_WIDTH
+          ? 1
+          : Math.min(MAX_RENDER_SCALE, TARGET_WIDTH / cssW);
+      const heightScale =
+        cssH >= TARGET_HEIGHT
+          ? 1
+          : Math.min(MAX_RENDER_SCALE, TARGET_HEIGHT / cssH);
+      const desiredScale = Math.max(widthScale, heightScale);
+      const effectiveDpr = Math.min(
+        MAX_RENDER_SCALE,
+        Math.max(baseDpr, desiredScale)
+      );
+      const pxW = Math.floor(cssW * effectiveDpr);
+      const pxH = Math.floor(cssH * effectiveDpr);
       if (c.width !== pxW) c.width = pxW;
       if (c.height !== pxH) c.height = pxH;
       c.style.width = `${cssW}px`;
@@ -106,7 +122,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, Props>(
       const ctx = c.getContext("2d");
       if (!ctx) return;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
+      ctx.scale(effectiveDpr, effectiveDpr);
       ctx.lineCap = "round";
       redraw();
       // eslint-disable-next-line react-hooks/exhaustive-deps
