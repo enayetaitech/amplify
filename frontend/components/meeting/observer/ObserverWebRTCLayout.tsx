@@ -16,6 +16,7 @@ import { DisconnectReason } from "livekit-client";
 import "@livekit/components-styles";
 import Logo from "components/shared/LogoComponent";
 import { formatParticipantName } from "utils/formatParticipantName";
+import { isWhiteboardTrackRef } from "utils/livekitTracks";
 
 // Custom tile component that shows formatted names from socket
 function CustomParticipantTile({
@@ -378,9 +379,18 @@ function ObserverVideoGrid() {
     { source: Track.Source.ScreenShare, withPlaceholder: true },
   ]);
 
+  const filteredTrackRefs = useMemo(
+    () =>
+      trackRefs.filter((ref) => {
+        if (ref.publication?.source !== Track.Source.ScreenShare) return true;
+        return !isWhiteboardTrackRef(ref);
+      }),
+    [trackRefs]
+  );
+
   // Filter to only subscribed tracks (include muted tracks with placeholders)
   // This matches the admin view behavior - show tracks even if muted
-  const activeTracks = trackRefs.filter((ref) => {
+  const activeTracks = filteredTrackRefs.filter((ref) => {
     const pub = ref.publication;
     // Include if subscribed (track may be null if muted, but placeholder will show)
     return !!(pub && pub.isSubscribed);

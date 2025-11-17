@@ -18,6 +18,7 @@ import {
   type UiRole as UiRoleType,
 } from "constant/roles";
 import { formatParticipantName } from "utils/formatParticipantName";
+import { isWhiteboardTrackRef } from "utils/livekitTracks";
 
 type StageProps = {
   role: "participant" | "moderator" | "admin" | "observer";
@@ -74,9 +75,13 @@ export default function Stage({ role }: StageProps) {
   const cameraTracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: true },
   ]);
-  const shareTracks = useTracks([
+  const shareTrackRefs = useTracks([
     { source: Track.Source.ScreenShare, withPlaceholder: true },
   ]);
+  const shareTracks = useMemo(
+    () => shareTrackRefs.filter((ref) => !isWhiteboardTrackRef(ref)),
+    [shareTrackRefs]
+  );
 
   const identityToSpeaking: Record<string, boolean> = useMemo(() => {
     const map: Record<string, boolean> = {};
