@@ -24,74 +24,28 @@ log_task() {
     echo ""
 }
 
-# Task 1: Git stash
-echo "Task 1: Stashing local changes..."
+# Task 1: Stop PM2 processes (only those that will be rebuilt)
+echo "Task 1: Stopping PM2 processes..."
+if [ "${BUILD_BACKEND:-true}" = "true" ]; then
+    pm2 stop amplify-backend-prod || true
+fi
+if [ "${BUILD_FRONTEND:-true}" = "true" ]; then
+    pm2 stop amplify-frontend || true
+fi
+log_task "Stopping PM2 processes" "success"
+
+# Task 2: Git stash
+echo "Task 2: Stashing local changes..."
 git stash
 log_task "Git stash" "success"
 
-# Task 2: Git pull
-echo "Task 2: Pulling latest changes from origin/main..."
+# Task 3: Git pull
+echo "Task 3: Pulling latest changes from origin/main..."
 git pull origin main
 log_task "Git pull" "success"
 
-# Task 3: Detect what changed
-echo "Task 3: Detecting changes..."
-PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo "")
-CURRENT_COMMIT=$(git rev-parse HEAD)
-
-if [ -z "$PREV_COMMIT" ]; then
-    # First commit or no previous commit, check all files
-    BACKEND_CHANGED=true
-    FRONTEND_CHANGED=true
-    echo "No previous commit found, will build both backend and frontend"
-else
-    # Check what files changed
-    CHANGED_FILES=$(git diff --name-only "$PREV_COMMIT" "$CURRENT_COMMIT" 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
-    
-    BACKEND_CHANGED=false
-    FRONTEND_CHANGED=false
-    
-    if echo "$CHANGED_FILES" | grep -qE "^backend/|^shared/"; then
-        BACKEND_CHANGED=true
-        echo "Backend or shared code changed"
-    fi
-    
-    if echo "$CHANGED_FILES" | grep -qE "^frontend/|^shared/"; then
-        FRONTEND_CHANGED=true
-        echo "Frontend or shared code changed"
-    fi
-    
-    # If shared changed, both need to be built
-    if echo "$CHANGED_FILES" | grep -qE "^shared/"; then
-        BACKEND_CHANGED=true
-        FRONTEND_CHANGED=true
-        echo "Shared code changed, will build both backend and frontend"
-    fi
-    
-    # Allow manual override via environment variables
-    if [ "${BUILD_BACKEND:-}" = "true" ]; then
-        BACKEND_CHANGED=true
-    elif [ "${BUILD_BACKEND:-}" = "false" ]; then
-        BACKEND_CHANGED=false
-    fi
-    
-    if [ "${BUILD_FRONTEND:-}" = "true" ]; then
-        FRONTEND_CHANGED=true
-    elif [ "${BUILD_FRONTEND:-}" = "false" ]; then
-        FRONTEND_CHANGED=false
-    fi
-fi
-
-if [ "$BACKEND_CHANGED" = "false" ] && [ "$FRONTEND_CHANGED" = "false" ]; then
-    echo "No backend or frontend changes detected. Nothing to build."
-    log_task "Change detection" "skipped"
-    exit 0
-fi
-
-log_task "Change detection" "success"
-
 # Task 4: Backend build (conditional)
-if [ "$BACKEND_CHANGED" = "true" ]; then
+if [ "${BUILD_BACKEND:-true}" = "true" ]; then
     echo "Task 4: Building backend..."
     cd backend
     npm ci
@@ -104,7 +58,7 @@ else
 fi
 
 # Task 5: Frontend build (conditional)
-if [ "$FRONTEND_CHANGED" = "true" ]; then
+if [ "${BUILD_FRONTEND:-true}" = "true" ]; then
     echo "Task 5: Building frontend..."
     cd frontend
     npm ci
@@ -116,47 +70,40 @@ else
     log_task "Frontend build" "skipped"
 fi
 
-# Task 6: Stop and delete old PM2 processes (after building, before starting new ones)
-echo "Task 6: Stopping and cleaning up old PM2 processes..."
-if [ "$BACKEND_CHANGED" = "true" ]; then
-    pm2 stop amplify-backend-prod || true
-    pm2 delete amplify-backend-prod || true
-fi
-if [ "$FRONTEND_CHANGED" = "true" ]; then
-    # Delete all amplify-frontend processes to ensure only one instance
-    pm2 stop amplify-frontend || true
-    pm2 delete amplify-frontend || true
-    # Clean up any remaining processes by iterating through PM2 list
-    pm2 list | grep -i "amplify-frontend" | awk '{print $2}' | while read -r id; do
-        [ -n "$id" ] && pm2 delete "$id" 2>/dev/null || true
-    done
-fi
-log_task "Stopping and cleaning up old PM2 processes" "success"
-
-# Task 7: Start backend PM2 process (only if backend was built)
-if [ "$BACKEND_CHANGED" = "true" ]; then
-    echo "Task 7: Starting backend PM2 process..."
-    NODE_ENV=production pm2 start dist/server.js --name amplify-backend-prod --cwd /var/www/amplify/backend --interpreter node
-    log_task "Start backend PM2 process" "success"
+# Task 6: Start/restart backend PM2 process (only if backend was built or needs restart)
+if [ "${BUILD_BACKEND:-true}" = "true" ]; then
+    echo "Task 6: Starting/restarting backend PM2 process..."
+    if pm2 describe amplify-backend-prod >/dev/null 2>&1; then
+        pm2 restart amplify-backend-prod
+        log_task "Restart backend PM2 process" "success"
+    else
+        pm2 start dist/server.js --name amplify-backend-prod --cwd /var/www/amplify/backend --interpreter node
+        log_task "Start backend PM2 process" "success"
+    fi
 else
-    echo "Task 7: Skipping backend PM2 restart (no backend changes)"
-    log_task "Start backend PM2 process" "skipped"
+    echo "Task 6: Skipping backend PM2 restart (no backend changes)"
+    log_task "Restart backend PM2 process" "skipped"
 fi
 
-# Task 8: Start frontend PM2 process (only if frontend was built)
-if [ "$FRONTEND_CHANGED" = "true" ]; then
-    echo "Task 8: Starting frontend PM2 process..."
-    pm2 start node --name amplify-frontend \
-      --cwd /var/www/amplify/frontend -- \
-      ./node_modules/next/dist/bin/next start -p 8979
-    log_task "Start frontend PM2 process" "success"
+# Task 7: Start frontend PM2 process (only if frontend was built or needs restart)
+if [ "${BUILD_FRONTEND:-true}" = "true" ]; then
+    echo "Task 7: Starting/restarting frontend PM2 process..."
+    if pm2 describe amplify-frontend >/dev/null 2>&1; then
+        pm2 restart amplify-frontend
+        log_task "Restart frontend PM2 process" "success"
+    else
+        pm2 start node --name amplify-frontend \
+          --cwd /var/www/amplify/frontend -- \
+          ./node_modules/next/dist/bin/next start -p 8979
+        log_task "Start frontend PM2 process" "success"
+    fi
 else
-    echo "Task 8: Skipping frontend PM2 restart (no frontend changes)"
+    echo "Task 7: Skipping frontend PM2 restart (no frontend changes)"
     log_task "Start frontend PM2 process" "skipped"
 fi
 
-# Task 9: Save PM2 configuration
-echo "Task 9: Saving PM2 configuration..."
+# Task 8: Save PM2 configuration
+echo "Task 8: Saving PM2 configuration..."
 pm2 save
 log_task "Save PM2 configuration" "success"
 

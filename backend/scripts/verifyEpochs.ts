@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import config from "../config/index";
 import { SessionModel } from "../model/SessionModel";
 
 dotenv.config();
 
 async function run() {
-  const mongoUri = config.database_url;
+  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
   if (!mongoUri) {
     console.error("MONGO_URI not set");
     process.exit(1);
