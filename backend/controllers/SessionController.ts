@@ -784,19 +784,7 @@ export const duplicateSession = async (
     // 4. Insert the new document
     const copy = await SessionModel.create(data);
 
-    // 5. Update project: add session to meetings array and activate if Draft
-    const updateOp: Record<string, unknown> = {
-      $addToSet: { meetings: copy._id },
-    };
-
-    // Auto-activate project when the first sessions are scheduled
-    if (project.status === "Draft") {
-      updateOp.$set = { status: "Active" };
-    }
-
-    await ProjectModel.updateOne({ _id: project._id }, updateOp);
-
-    // 6. Return the duplicated session
+    // 5. Return the duplicated session
     sendResponse(res, copy, "Session duplicated", 201);
   } catch (err) {
     next(err);
