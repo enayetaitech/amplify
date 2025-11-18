@@ -392,18 +392,16 @@ export default function Stage({ role }: StageProps) {
           </div>
         )}
 
-        {/* Bottom-left: participant name (always visible, mobile-friendly) */}
-        <div className="absolute left-2 bottom-2 max-w-[calc(100%-100px)] z-50 participant-name-overlay">
-          <span
-            className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
-            title={name}
-          >
-            {name}
-          </span>
-        </div>
-
-        {/* Bottom-right: role badge only */}
-        <div className="absolute right-2 bottom-2 z-50 participant-name-overlay">
+        {/* Bottom overlay: participant name and role badge */}
+        <div className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
+          <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
+            <span
+              className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
+              title={name}
+            >
+              {name}
+            </span>
+          </div>
           {(() => {
             // Try to get role from identityToUiRole first, then fallback to metadata parsing
             let tileRole = identityToUiRole[identity];
@@ -426,12 +424,14 @@ export default function Stage({ role }: StageProps) {
                 ? "Participant"
                 : "Observer";
             return (
-              <Badge
-                variant="outline"
-                className="bg-black/60 text-white border-white/30"
-              >
-                {label}
-              </Badge>
+              <div className="flex-shrink-0 pointer-events-auto">
+                <Badge
+                  variant="outline"
+                  className="bg-black/60 text-white border-white/30 whitespace-nowrap"
+                >
+                  {label}
+                </Badge>
+              </div>
             );
           })()}
         </div>
@@ -577,13 +577,13 @@ export default function Stage({ role }: StageProps) {
             ],
           ]
         : [];
-    // Always use side-by-side flex layout for screen share (80/20 split)
-    // This ensures consistent layout regardless of sidebar state or container width
+    // Mobile: full-width screen share, hide video tiles
+    // Desktop: side-by-side flex layout for screen share (80/20 split)
     return (
       <div ref={stageRef} className="relative flex-1 min-h-0 w-full">
         <div className="flex gap-3 h-full w-full">
-          {/* Screen share: 80% width - fluid layout */}
-          <div className="flex-[4] min-w-0 min-h-0 flex items-center justify-center">
+          {/* Screen share: full width on mobile, 80% width on desktop - fluid layout */}
+          <div className="flex-1 md:flex-[4] min-w-0 min-h-0 flex items-center justify-center">
             <TrackLoop tracks={sharePrimary}>
               <div className="relative rounded-lg overflow-hidden bg-black w-full h-full">
                 <Tile />
@@ -616,12 +616,14 @@ export default function Stage({ role }: StageProps) {
               </div>
             </TrackLoop>
           </div>
-          {/* Video tiles: 20% width - fluid layout */}
+          {/* Video tiles: hidden on mobile, 20% width on desktop - fluid layout */}
           {facesCount > 0 && (
-            <ScreenShareVideoGrid
-              tracks={orderedTracks}
-              containerHeight={containerSize.h}
-            />
+            <div className="hidden md:block min-w-[220px] min-h-0">
+              <ScreenShareVideoGrid
+                tracks={orderedTracks}
+                containerHeight={containerSize.h}
+              />
+            </div>
           )}
         </div>
         {isMobileUA && (
