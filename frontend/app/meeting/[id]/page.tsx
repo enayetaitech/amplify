@@ -1038,7 +1038,7 @@ export default function Meeting() {
             <RoomAudioRenderer />
             {isWhiteboardOpen ? (
               <div className="flex-1 min-h-0 flex gap-3">
-                <div className="flex-[4] min-w-0 min-h-0 rounded bg-white p-2 flex flex-col h-full">
+                <div className="flex-1 md:flex-[4] min-w-0 min-h-0 rounded bg-white p-2 flex flex-col h-full">
                   <div className="flex-1 min-h-0">
                     <WhiteboardPanel
                       sessionId={String(sessionId)}
@@ -1047,7 +1047,7 @@ export default function Meeting() {
                     />
                   </div>
                 </div>
-                <div className="flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
+                <div className="hidden md:flex md:flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
                   <div className="h-full">
                     <VideoFilmstrip />
                   </div>
