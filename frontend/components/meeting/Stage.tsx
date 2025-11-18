@@ -577,13 +577,13 @@ export default function Stage({ role }: StageProps) {
             ],
           ]
         : [];
-    // Always use side-by-side flex layout for screen share (80/20 split)
-    // This ensures consistent layout regardless of sidebar state or container width
+    // Mobile: full-width screen share, hide video tiles
+    // Desktop: side-by-side flex layout for screen share (80/20 split)
     return (
       <div ref={stageRef} className="relative flex-1 min-h-0 w-full">
         <div className="flex gap-3 h-full w-full">
-          {/* Screen share: 80% width - fluid layout */}
-          <div className="flex-[4] min-w-0 min-h-0 flex items-center justify-center">
+          {/* Screen share: full width on mobile, 80% width on desktop - fluid layout */}
+          <div className="flex-1 md:flex-[4] min-w-0 min-h-0 flex items-center justify-center">
             <TrackLoop tracks={sharePrimary}>
               <div className="relative rounded-lg overflow-hidden bg-black w-full h-full">
                 <Tile />
@@ -616,12 +616,14 @@ export default function Stage({ role }: StageProps) {
               </div>
             </TrackLoop>
           </div>
-          {/* Video tiles: 20% width - fluid layout */}
+          {/* Video tiles: hidden on mobile, 20% width on desktop - fluid layout */}
           {facesCount > 0 && (
-            <ScreenShareVideoGrid
-              tracks={orderedTracks}
-              containerHeight={containerSize.h}
-            />
+            <div className="hidden md:block min-w-[220px] min-h-0">
+              <ScreenShareVideoGrid
+                tracks={orderedTracks}
+                containerHeight={containerSize.h}
+              />
+            </div>
           )}
         </div>
         {isMobileUA && (
