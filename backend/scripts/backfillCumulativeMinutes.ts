@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-
+import config from "../config/index";
 dotenv.config();
 
 async function main() {
   const dbUrl =
-    process.env.MONGO_URI || process.env.DATABASE_URL || process.env.MONGOURL;
+    config .database_url;
   if (!dbUrl) {
     console.error("MONGO_URI (or DATABASE_URL) not set in environment");
     process.exit(1);

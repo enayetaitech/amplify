@@ -136,7 +136,7 @@ log_task "Stopping and cleaning up old PM2 processes" "success"
 # Task 7: Start backend PM2 process (only if backend was built)
 if [ "$BACKEND_CHANGED" = "true" ]; then
     echo "Task 7: Starting backend PM2 process..."
-    pm2 start dist/server.js --name amplify-backend-prod --cwd /var/www/amplify/backend --interpreter node
+    NODE_ENV=production pm2 start dist/server.js --name amplify-backend-prod --cwd /var/www/amplify/backend --interpreter node
     log_task "Start backend PM2 process" "success"
 else
     echo "Task 7: Skipping backend PM2 restart (no backend changes)"
