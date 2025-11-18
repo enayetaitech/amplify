@@ -26,7 +26,7 @@ function CustomParticipantTile({
   return (
     <div className="w-full h-full">
       <div className="observer-tile-wrapper relative h-full w-full">
-        <ParticipantTile trackRef={trackRef} />
+        <ParticipantTile trackRef={trackRef} mirror={false} />
       </div>
     </div>
   );

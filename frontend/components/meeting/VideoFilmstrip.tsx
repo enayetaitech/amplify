@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Track } from "livekit-client";
 import {
-  TrackLoop,
   useTracks,
   ParticipantTile,
   useParticipants,
-  useTrackRefContext,
 } from "@livekit/components-react";
+import type { TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Badge } from "components/ui/badge";
 import {
   normalizeServerRole,
@@ -74,12 +73,13 @@ function FilmstripTile({
   identityToName,
   identityToUiRole,
   tileSize,
+  trackRef,
 }: {
   identityToName: Record<string, string>;
   identityToUiRole: Record<string, UiRoleType | null>;
   tileSize: { w: number; h: number };
+  trackRef: TrackReferenceOrPlaceholder;
 }) {
-  const trackRef = useTrackRefContext();
   const identity = trackRef.participant?.identity || "";
   const fallbackName =
     identityToName[identity] ||
@@ -94,7 +94,7 @@ function FilmstripTile({
       className="relative rounded-lg overflow-hidden bg-black"
       style={{ width: tileSize.w, height: tileSize.h }}
     >
-      <ParticipantTile trackRef={trackRef} />
+      <ParticipantTile trackRef={trackRef} mirror={false} />
       <div className="absolute left-2 bottom-2 max-w-[calc(100%-100px)] z-10">
         <span
           className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
@@ -196,13 +196,15 @@ export default function VideoFilmstrip() {
   return (
     <div ref={containerRef} className="w-full h-full overflow-y-auto">
       <div className="flex flex-col items-stretch gap-2 pr-1">
-        <TrackLoop tracks={activeCameraTracks}>
+        {activeCameraTracks.map((trackRef) => (
           <FilmstripTile
+            key={`${trackRef.participant?.identity}-${trackRef.publication?.trackSid}`}
             identityToName={identityToName}
             identityToUiRole={identityToUiRole}
             tileSize={tile}
+            trackRef={trackRef}
           />
-        </TrackLoop>
+        ))}
       </div>
     </div>
   );
