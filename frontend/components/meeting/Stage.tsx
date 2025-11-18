@@ -392,18 +392,16 @@ export default function Stage({ role }: StageProps) {
           </div>
         )}
 
-        {/* Bottom-left: participant name (always visible, mobile-friendly) */}
-        <div className="absolute left-2 bottom-2 max-w-[calc(100%-100px)] z-50 participant-name-overlay">
-          <span
-            className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
-            title={name}
-          >
-            {name}
-          </span>
-        </div>
-
-        {/* Bottom-right: role badge only */}
-        <div className="absolute right-2 bottom-2 z-50 participant-name-overlay">
+        {/* Bottom overlay: participant name and role badge */}
+        <div className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
+          <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
+            <span
+              className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
+              title={name}
+            >
+              {name}
+            </span>
+          </div>
           {(() => {
             // Try to get role from identityToUiRole first, then fallback to metadata parsing
             let tileRole = identityToUiRole[identity];
@@ -426,12 +424,14 @@ export default function Stage({ role }: StageProps) {
                 ? "Participant"
                 : "Observer";
             return (
-              <Badge
-                variant="outline"
-                className="bg-black/60 text-white border-white/30"
-              >
-                {label}
-              </Badge>
+              <div className="flex-shrink-0 pointer-events-auto">
+                <Badge
+                  variant="outline"
+                  className="bg-black/60 text-white border-white/30 whitespace-nowrap"
+                >
+                  {label}
+                </Badge>
+              </div>
             );
           })()}
         </div>
