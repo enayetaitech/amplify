@@ -35,12 +35,25 @@ export const createSessions = async (
     );
   }
 
-  // 2. Project existence check
-  const project = await ProjectModel.findById(projectId);
+  // 2. Parallel validation: Project existence check + Moderator existence check
+  // These are independent operations and can run concurrently
+  const modIds = Array.from(new Set(sessions.flatMap((s) => s.moderators)));
+
+  const [project, allMods] = await Promise.all([
+    ProjectModel.findById(projectId),
+    ModeratorModel.find({
+      _id: { $in: modIds },
+    }),
+  ]);
 
   if (!project) {
     return next(new ErrorHandler("Project not found", 404));
   }
+
+  if (allMods.length !== modIds.length) {
+    return next(new ErrorHandler("One or more moderators not found", 404));
+  }
+
   // ✅ Display label from DB (keep storing this)
   const displayTimeZone = project.defaultTimeZone as string;
 
@@ -55,26 +68,7 @@ export const createSessions = async (
     );
   }
 
-  // 3. Moderator existence check
-
-  const modIds = Array.from(new Set(sessions.flatMap((s) => s.moderators)));
-
-  const allMods = await ModeratorModel.find({
-    _id: { $in: modIds },
-  });
-
-  if (allMods.length !== modIds.length) {
-    return next(new ErrorHandler("One or more moderators not found", 404));
-  }
-
-  // 4. Pull all existing sessions for this project (lean + select only needed fields)
-  const existing = await SessionModel.find({ projectId })
-    .select("title startAtEpoch endAtEpoch")
-    .lean();
-
-  // 5. Validate no overlaps
-
-  // Precompute epochs for new sessions and check intra-batch overlaps
+  // 4. Precompute epochs for new sessions and check intra-batch overlaps
   type NewSess = (typeof sessions)[number] & {
     startAtEpoch: number;
     endAtEpoch: number;
@@ -87,6 +81,8 @@ export const createSessions = async (
     const endAtEpoch = startAtEpoch + s.duration * 60_000;
     newSessions.push({ ...s, startAtEpoch, endAtEpoch });
   }
+
+  // 5. Validate no overlaps
 
   // Intra-batch overlap check (optimized: sort then check neighbors)
   newSessions.sort((a, b) => a.startAtEpoch - b.startAtEpoch);
@@ -107,20 +103,37 @@ export const createSessions = async (
     }
   }
 
-  // Check against existing sessions (optimized: use stored epochs directly)
-  for (const s of newSessions) {
-    for (const ex of existing) {
-      // Use stored epochs directly (timezone is locked at project level, so stored epochs are correct)
-      const startEx = ex.startAtEpoch;
-      const endEx = ex.endAtEpoch;
-      if (s.startAtEpoch < endEx && startEx < s.endAtEpoch) {
-        return next(
-          new ErrorHandler(
-            `Session "${s.title}" time conflicts with existing "${ex.title}"`,
-            409
-          )
-        );
-      }
+  // Check against existing sessions using batched MongoDB queries (much faster than loading all)
+  // Build $or conditions to check all new sessions in a single query
+  if (newSessions.length > 0) {
+    const conflictConditions = newSessions.map((s) => ({
+      startAtEpoch: { $lt: s.endAtEpoch },
+      endAtEpoch: { $gt: s.startAtEpoch },
+    }));
+
+    const conflicting = await SessionModel.findOne({
+      projectId,
+      $or: conflictConditions,
+    })
+      .select("title startAtEpoch endAtEpoch")
+      .lean();
+
+    if (conflicting) {
+      // Find which new session conflicts
+      const conflictingNewSession = newSessions.find(
+        (s) =>
+          s.startAtEpoch < conflicting.endAtEpoch &&
+          conflicting.startAtEpoch < s.endAtEpoch
+      );
+
+      return next(
+        new ErrorHandler(
+          `Session "${
+            conflictingNewSession?.title || "Unknown"
+          }" time conflicts with existing "${conflicting.title}"`,
+          409
+        )
+      );
     }
   }
 
@@ -164,12 +177,21 @@ export const createSessions = async (
       await LiveSessionModel.bulkWrite(ops as any, { session: mongoSession });
     }
 
-    project.meetings.push(...created.map((s) => s._id));
+    // Update project using atomic operations instead of loading/saving document
+    // This is much faster and reduces lock contention in transactions
+    const sessionIds = created.map((s) => s._id);
+    const updateOp: Record<string, unknown> = {
+      $addToSet: { meetings: { $each: sessionIds } },
+    };
+
     // Auto-activate project when the first sessions are scheduled
     if (project.status === "Draft") {
-      project.status = "Active" as any;
+      updateOp.$set = { status: "Active" };
     }
-    await project.save({ session: mongoSession });
+
+    await ProjectModel.updateOne({ _id: projectId }, updateOp, {
+      session: mongoSession,
+    });
 
     await mongoSession.commitTransaction();
     // 8. Send uniform success response
