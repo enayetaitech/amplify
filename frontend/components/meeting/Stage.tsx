@@ -45,6 +45,8 @@ export default function Stage({ role }: StageProps) {
         bottom: number;
         tileLeft: number;
         tileRight: number;
+        tileTop: number;
+        tileHeight: number;
         nameMaxWidth: number;
       }
     >
@@ -243,6 +245,8 @@ export default function Stage({ role }: StageProps) {
             bottom: number;
             tileLeft: number;
             tileRight: number;
+            tileTop: number;
+            tileHeight: number;
             nameMaxWidth: number;
           }
         > = {};
@@ -251,13 +255,13 @@ export default function Stage({ role }: StageProps) {
           const r = node.getBoundingClientRect();
           const tileLeft = Math.round(r.left - containerRect.left);
           const tileRight = Math.round(r.right - containerRect.left);
+          const tileTop = Math.round(r.top - containerRect.top);
+          const tileBottom = Math.round(r.bottom - containerRect.top);
           const tileWidth = tileRight - tileLeft;
+          const tileHeight = tileBottom - tileTop;
           const nameLeft = Math.max(0, tileLeft + 8);
           const roleRight = Math.max(0, tileRight - 8);
-          const bottom = Math.max(
-            0,
-            Math.round(r.bottom - containerRect.top - 8)
-          );
+          const bottom = Math.max(0, tileBottom - 8);
           // Calculate max width for name to leave space for role badge (estimate ~80px for role badge + padding)
           const roleBadgeWidth = 80; // Estimated width for role badge
           const nameMaxWidth = Math.max(100, tileWidth - roleBadgeWidth - 16); // Leave 16px total padding
@@ -267,6 +271,8 @@ export default function Stage({ role }: StageProps) {
             bottom,
             tileLeft,
             tileRight,
+            tileTop,
+            tileHeight,
             nameMaxWidth,
           };
         }
@@ -392,7 +398,7 @@ export default function Stage({ role }: StageProps) {
           </div>
         )}
 
-        {/* Bottom overlay: participant name and role badge */}
+        {/* Bottom overlay: participant name and role badge - show for all roles */}
         <div className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
           <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
             <span
@@ -653,13 +659,18 @@ export default function Stage({ role }: StageProps) {
                 <div
                   key={`fallback-${id}`}
                   className="absolute"
-                  style={{ bottom: 0, left: 0, right: 0, top: 0 }}
+                  style={{
+                    left: `${pos.tileLeft}px`,
+                    top: `${pos.tileTop}px`,
+                    width: `${pos.tileRight - pos.tileLeft}px`,
+                    height: `${pos.tileHeight}px`,
+                  }}
                 >
                   {/* Name at bottom-left - ensure it doesn't overlap with role */}
                   <span
                     className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
                     style={{
-                      left: `${pos.nameLeft}px`,
+                      left: `${8}px`,
                       bottom: `${8}px`,
                       maxWidth: `${pos.nameMaxWidth}px`,
                     }}
@@ -731,13 +742,18 @@ export default function Stage({ role }: StageProps) {
               <div
                 key={`fallback-${id}`}
                 className="absolute"
-                style={{ bottom: 0, left: 0, right: 0, top: 0 }}
+                style={{
+                  left: `${pos.tileLeft}px`,
+                  top: `${pos.tileTop}px`,
+                  width: `${pos.tileRight - pos.tileLeft}px`,
+                  height: `${pos.tileHeight}px`,
+                }}
               >
                 {/* Name at bottom-left - ensure it doesn't overlap with role */}
                 <span
                   className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
                   style={{
-                    left: `${pos.nameLeft}px`,
+                    left: `${8}px`,
                     bottom: `${8}px`,
                     maxWidth: `${pos.nameMaxWidth}px`,
                   }}

@@ -779,7 +779,7 @@ export default function Meeting() {
 
   return (
     <LiveKitRoom token={token} serverUrl={wsUrl}>
-      <div className="relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0  meeting_bg">
+      <div className={`relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0 meeting_bg ${role === "participant" ? "participant-view" : ""}`}>
         {/* LEFT: moderator/participant sidebar (now inside room context) */}
         {isLeftOpen && (
           <>
@@ -1023,7 +1023,7 @@ export default function Meeting() {
             </div>
           </div>
 
-          <div className="flex flex-col flex-1 min-h-0 lk-scope">
+          <div className={`flex flex-col flex-1 min-h-0 lk-scope ${role === "participant" ? "participant-view" : ""}`}>
             <AutoPublishOnConnect role={role} />
             <SubscribeCameraBridge />
             <RegisterIdentityBridge
