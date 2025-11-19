@@ -419,7 +419,9 @@ export default function Stage({ role }: StageProps) {
         : undefined);
     const metadata = resolvedParticipant?.metadata;
     const identityLower = identity.toLowerCase();
-    const mappedName = identity ? (identityToName[identity] || identityToName[identityLower]) : undefined;
+    const mappedName = identity
+      ? identityToName[identity] || identityToName[identityLower]
+      : undefined;
     const name =
       mappedName ||
       parseDisplayNameFromMetadata(metadata) ||
@@ -584,10 +586,7 @@ export default function Stage({ role }: StageProps) {
     }
 
     return (
-      <div
-        ref={containerRef}
-        className="flex-[1] min-w-[220px] min-h-0 overflow-y-auto"
-      >
+      <div ref={containerRef} className="w-full h-full min-h-0 overflow-y-auto">
         {facesCount > 0 && containerWidth > 0 ? (
           <div
             className="grid w-full"
@@ -692,12 +691,16 @@ export default function Stage({ role }: StageProps) {
               </div>
             </TrackLoop>
           </div>
-          {/* Video tiles: 20% width - fluid layout */}
+          {/* Video tiles: hidden on mobile, 20% width on desktop - fluid layout */}
           {facesCount > 0 && (
-            <ScreenShareVideoGrid
-              tracks={orderedTracks}
-              containerHeight={containerSize.h}
-            />
+            <div className="hidden md:flex md:flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
+              <div className="h-full w-full">
+                <ScreenShareVideoGrid
+                  tracks={orderedTracks}
+                  containerHeight={containerSize.h}
+                />
+              </div>
+            </div>
           )}
         </div>
         <MobileFallbackOverlay />
