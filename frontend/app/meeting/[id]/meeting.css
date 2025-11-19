@@ -1,21 +1,9 @@
-/* Scope to your meeting area so it doesn't leak app-wide */
-.lk-scope .lk-nameplate {
-  /* semi-transparent dark strip behind the label */
-  background: rgba(0, 0, 0, 0.45) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  border-radius: 16px !important;
-  padding: 2px 6px !important;
-}
-
 /* Hide LiveKit default participant name/metadata to avoid duplicates;
-   we render our own name chip in Stage tiles */
+   we render our own name chip in Stage tiles for all views */
 .lk-scope .lk-participant-name,
-.lk-scope .lk-participant-metadata {
+.lk-scope .lk-participant-metadata,
+.lk-scope .lk-nameplate {
   display: none !important;
-}
-.lk-scope .lk-nameplate svg {
-  color: #fff !important;
-  fill: #fff !important;
 }
 
 /* Keep screen-share labels hidden (from earlier) */
@@ -62,6 +50,11 @@
   contain: paint;
 }
 
+/* Ensure participant tile container is positioned relatively for nameplate positioning */
+.lk-scope.participant-view .lk-participant-tile {
+  position: relative !important;
+}
+
 /* Force video elements to stay below overlays */
 .lk-scope .lk-participant-tile video,
 .lk-scope .lk-participant-tile canvas,
@@ -75,7 +68,8 @@
 }
 
 /* Disable LiveKit's mirror transform when explicitly requested */
-.lk-scope .lk-participant-tile[mirror="false"]
+.lk-scope
+  .lk-participant-tile[mirror="false"]
   .lk-participant-media-video[data-lk-local-participant="true"][data-lk-source="camera"] {
   transform: none !important;
 }

@@ -45,6 +45,8 @@ export default function Stage({ role }: StageProps) {
         bottom: number;
         tileLeft: number;
         tileRight: number;
+        tileTop: number;
+        tileHeight: number;
         nameMaxWidth: number;
       }
     >
@@ -243,6 +245,8 @@ export default function Stage({ role }: StageProps) {
             bottom: number;
             tileLeft: number;
             tileRight: number;
+            tileTop: number;
+            tileHeight: number;
             nameMaxWidth: number;
           }
         > = {};
@@ -251,13 +255,13 @@ export default function Stage({ role }: StageProps) {
           const r = node.getBoundingClientRect();
           const tileLeft = Math.round(r.left - containerRect.left);
           const tileRight = Math.round(r.right - containerRect.left);
+          const tileTop = Math.round(r.top - containerRect.top);
+          const tileBottom = Math.round(r.bottom - containerRect.top);
           const tileWidth = tileRight - tileLeft;
+          const tileHeight = tileBottom - tileTop;
           const nameLeft = Math.max(0, tileLeft + 8);
           const roleRight = Math.max(0, tileRight - 8);
-          const bottom = Math.max(
-            0,
-            Math.round(r.bottom - containerRect.top - 8)
-          );
+          const bottom = Math.max(0, tileBottom - 8);
           // Calculate max width for name to leave space for role badge (estimate ~80px for role badge + padding)
           const roleBadgeWidth = 80; // Estimated width for role badge
           const nameMaxWidth = Math.max(100, tileWidth - roleBadgeWidth - 16); // Leave 16px total padding
@@ -267,6 +271,8 @@ export default function Stage({ role }: StageProps) {
             bottom,
             tileLeft,
             tileRight,
+            tileTop,
+            tileHeight,
             nameMaxWidth,
           };
         }
@@ -392,18 +398,16 @@ export default function Stage({ role }: StageProps) {
           </div>
         )}
 
-        {/* Bottom-left: participant name (always visible, mobile-friendly) */}
-        <div className="absolute left-2 bottom-2 max-w-[calc(100%-100px)] z-50 participant-name-overlay">
-          <span
-            className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
-            title={name}
-          >
-            {name}
-          </span>
-        </div>
-
-        {/* Bottom-right: role badge only */}
-        <div className="absolute right-2 bottom-2 z-50 participant-name-overlay">
+        {/* Bottom overlay: participant name and role badge - show for all roles */}
+        <div className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
+          <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
+            <span
+              className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
+              title={name}
+            >
+              {name}
+            </span>
+          </div>
           {(() => {
             // Try to get role from identityToUiRole first, then fallback to metadata parsing
             let tileRole = identityToUiRole[identity];
@@ -580,10 +584,13 @@ export default function Stage({ role }: StageProps) {
     // Always use side-by-side flex layout for screen share (80/20 split)
     // This ensures consistent layout regardless of sidebar state or container width
     return (
-      <div ref={stageRef} className="relative flex-1 min-h-0 w-full">
-        <div className="flex gap-3 h-full w-full">
-          {/* Screen share: 80% width - fluid layout */}
-          <div className="flex-[4] min-w-0 min-h-0 flex items-center justify-center">
+      <div
+        ref={stageRef}
+        className="relative flex-1 min-h-0 w-full max-w-full overflow-hidden"
+      >
+        <div className="flex gap-3 h-full w-full max-w-full">
+          {/* Screen share: full width on mobile, 80% width on desktop - fluid layout */}
+          <div className="flex-1 md:flex-[4] min-w-0 min-h-0 max-w-full flex items-center justify-center">
             <TrackLoop tracks={sharePrimary}>
               <div className="relative rounded-lg overflow-hidden bg-black w-full h-full">
                 <Tile />
@@ -648,13 +655,18 @@ export default function Stage({ role }: StageProps) {
                 <div
                   key={`fallback-${id}`}
                   className="absolute"
-                  style={{ bottom: 0, left: 0, right: 0, top: 0 }}
+                  style={{
+                    left: `${pos.tileLeft}px`,
+                    top: `${pos.tileTop}px`,
+                    width: `${pos.tileRight - pos.tileLeft}px`,
+                    height: `${pos.tileHeight}px`,
+                  }}
                 >
                   {/* Name at bottom-left - ensure it doesn't overlap with role */}
                   <span
                     className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
                     style={{
-                      left: `${pos.nameLeft}px`,
+                      left: `${8}px`,
                       bottom: `${8}px`,
                       maxWidth: `${pos.nameMaxWidth}px`,
                     }}
@@ -682,16 +694,16 @@ export default function Stage({ role }: StageProps) {
   return (
     <div
       ref={stageRef}
-      className={`relative flex-1 min-h-0 ${
+      className={`relative flex-1 min-h-0 w-full max-w-full overflow-hidden ${
         isMobileUA ? "mobile-fallback" : ""
       }`}
     >
       <div
-        className="grid"
+        className="grid w-full max-w-full"
         style={{
           gridTemplateColumns: `repeat(${best.cols}, ${best.w}px)`,
           gridAutoRows: `${best.h}px`,
-          gap,
+          gap: `${gap}px`,
           justifyContent: "center",
           alignContent: "center",
         }}
@@ -726,13 +738,18 @@ export default function Stage({ role }: StageProps) {
               <div
                 key={`fallback-${id}`}
                 className="absolute"
-                style={{ bottom: 0, left: 0, right: 0, top: 0 }}
+                style={{
+                  left: `${pos.tileLeft}px`,
+                  top: `${pos.tileTop}px`,
+                  width: `${pos.tileRight - pos.tileLeft}px`,
+                  height: `${pos.tileHeight}px`,
+                }}
               >
                 {/* Name at bottom-left - ensure it doesn't overlap with role */}
                 <span
                   className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
                   style={{
-                    left: `${pos.nameLeft}px`,
+                    left: `${8}px`,
                     bottom: `${8}px`,
                     maxWidth: `${pos.nameMaxWidth}px`,
                   }}
