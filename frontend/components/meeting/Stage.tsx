@@ -399,7 +399,7 @@ export default function Stage({ role }: StageProps) {
         )}
 
         {/* Bottom overlay: participant name and role badge - show for all roles */}
-        <div className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
+        <div className="absolute inset-x-2 bottom-4 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
           <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
             <span
               className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
@@ -667,7 +667,7 @@ export default function Stage({ role }: StageProps) {
                     className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
                     style={{
                       left: `${8}px`,
-                      bottom: `${8}px`,
+                      bottom: `${16}px`,
                       maxWidth: `${pos.nameMaxWidth}px`,
                     }}
                   >
@@ -677,7 +677,7 @@ export default function Stage({ role }: StageProps) {
                   {label && (
                     <span
                       className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
-                      style={{ right: `${8}px`, bottom: `${8}px` }}
+                      style={{ right: `${8}px`, bottom: `${16}px` }}
                     >
                       {label}
                     </span>
@@ -750,7 +750,7 @@ export default function Stage({ role }: StageProps) {
                   className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
                   style={{
                     left: `${8}px`,
-                    bottom: `${8}px`,
+                    bottom: `${16}px`,
                     maxWidth: `${pos.nameMaxWidth}px`,
                   }}
                 >
@@ -760,7 +760,7 @@ export default function Stage({ role }: StageProps) {
                 {label && (
                   <span
                     className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
-                    style={{ right: `${8}px`, bottom: `${8}px` }}
+                    style={{ right: `${8}px`, bottom: `${16}px` }}
                   >
                     {label}
                   </span>
