@@ -418,7 +418,8 @@ export default function Stage({ role }: StageProps) {
         ? participants.find((p) => p.identity === identity)
         : undefined);
     const metadata = resolvedParticipant?.metadata;
-    const mappedName = identity ? identityToName[identity] : undefined;
+    const identityLower = identity.toLowerCase();
+    const mappedName = identity ? (identityToName[identity] || identityToName[identityLower]) : undefined;
     const name =
       mappedName ||
       parseDisplayNameFromMetadata(metadata) ||
