@@ -411,43 +411,45 @@ export default function Stage({ role }: StageProps) {
           </div>
         )}
 
-        {/* Bottom overlay: participant name and role badge - show for all roles */}
-        <div className="absolute inset-x-2 bottom-4 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
-          <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
-            <span
-              className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
-              title={name}
-            >
-              {name}
-            </span>
-          </div>
-          {(() => {
-            // Try to get role from identityToUiRole first, then fallback to metadata parsing
-            let tileRole = identity ? identityToUiRole[identity] : null;
-            if (!tileRole) {
-              tileRole =
-                parseUiRoleFromMetadata(metadata) ??
-                (resolvedParticipant?.isLocal ? role : null);
-            }
-            if (!tileRole) return null;
-            const label =
-              tileRole === "moderator"
-                ? "Host"
-                : tileRole === "admin"
-                ? "Admin"
-                : tileRole === "participant"
-                ? "Participant"
-                : "Observer";
-            return (
-              <Badge
-                variant="outline"
-                className="bg-black/60 text-white border-white/30"
+        {/* Bottom overlay: participant name and role badge (desktop/tablet only; mobile uses fallback overlay) */}
+        {!isMobileUA && (
+          <div className="absolute inset-x-2 bottom-4 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
+            <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
+              <span
+                className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
+                title={name}
               >
-                {label}
-              </Badge>
-            );
-          })()}
-        </div>
+                {name}
+              </span>
+            </div>
+            {(() => {
+              // Try to get role from identityToUiRole first, then fallback to metadata parsing
+              let tileRole = identity ? identityToUiRole[identity] : null;
+              if (!tileRole) {
+                tileRole =
+                  parseUiRoleFromMetadata(metadata) ??
+                  (resolvedParticipant?.isLocal ? role : null);
+              }
+              if (!tileRole) return null;
+              const label =
+                tileRole === "moderator"
+                  ? "Host"
+                  : tileRole === "admin"
+                  ? "Admin"
+                  : tileRole === "participant"
+                  ? "Participant"
+                  : "Observer";
+              return (
+                <Badge
+                  variant="outline"
+                  className="bg-black/60 text-white border-white/30"
+                >
+                  {label}
+                </Badge>
+              );
+            })()}
+          </div>
+        )}
       </div>
     );
   }
