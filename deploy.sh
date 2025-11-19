@@ -74,12 +74,10 @@ fi
 if [ "${BUILD_BACKEND:-true}" = "true" ]; then
     echo "Task 6: Starting/restarting backend PM2 process..."
     if pm2 describe amplify-backend-prod >/dev/null 2>&1; then
-        pm2 restart amplify-backend-prod
-        log_task "Restart backend PM2 process" "success"
-    else
-        pm2 start dist/server.js --name amplify-backend-prod --cwd /var/www/amplify/backend --interpreter node
-        log_task "Start backend PM2 process" "success"
+        pm2 delete amplify-backend-prod || true
     fi
+    pm2 start dist/server.js --name amplify-backend-prod --cwd /var/www/amplify/backend --interpreter node
+    log_task "Start backend PM2 process" "success"
 else
     echo "Task 6: Skipping backend PM2 restart (no backend changes)"
     log_task "Restart backend PM2 process" "skipped"
@@ -89,14 +87,12 @@ fi
 if [ "${BUILD_FRONTEND:-true}" = "true" ]; then
     echo "Task 7: Starting/restarting frontend PM2 process..."
     if pm2 describe amplify-frontend >/dev/null 2>&1; then
-        pm2 restart amplify-frontend
-        log_task "Restart frontend PM2 process" "success"
-    else
-        pm2 start node --name amplify-frontend \
-          --cwd /var/www/amplify/frontend -- \
-          ./node_modules/next/dist/bin/next start -p 8979
-        log_task "Start frontend PM2 process" "success"
+        pm2 delete amplify-frontend || true
     fi
+    pm2 start node --name amplify-frontend \
+      --cwd /var/www/amplify/frontend -- \
+      ./node_modules/next/dist/bin/next start -p 8979
+    log_task "Start frontend PM2 process" "success"
 else
     echo "Task 7: Skipping frontend PM2 restart (no frontend changes)"
     log_task "Start frontend PM2 process" "skipped"
