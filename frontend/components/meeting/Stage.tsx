@@ -580,10 +580,13 @@ export default function Stage({ role }: StageProps) {
     // Mobile: full-width screen share, hide video tiles
     // Desktop: side-by-side flex layout for screen share (80/20 split)
     return (
-      <div ref={stageRef} className="relative flex-1 min-h-0 w-full">
-        <div className="flex gap-3 h-full w-full">
+      <div
+        ref={stageRef}
+        className="relative flex-1 min-h-0 w-full max-w-full overflow-hidden"
+      >
+        <div className="flex gap-3 h-full w-full max-w-full">
           {/* Screen share: full width on mobile, 80% width on desktop - fluid layout */}
-          <div className="flex-1 md:flex-[4] min-w-0 min-h-0 flex items-center justify-center">
+          <div className="flex-1 md:flex-[4] min-w-0 min-h-0 max-w-full flex items-center justify-center">
             <TrackLoop tracks={sharePrimary}>
               <div className="relative rounded-lg overflow-hidden bg-black w-full h-full">
                 <Tile />
@@ -684,16 +687,16 @@ export default function Stage({ role }: StageProps) {
   return (
     <div
       ref={stageRef}
-      className={`relative flex-1 min-h-0 ${
+      className={`relative flex-1 min-h-0 w-full max-w-full overflow-hidden ${
         isMobileUA ? "mobile-fallback" : ""
       }`}
     >
       <div
-        className="grid"
+        className="grid w-full max-w-full"
         style={{
           gridTemplateColumns: `repeat(${best.cols}, ${best.w}px)`,
           gridAutoRows: `${best.h}px`,
-          gap,
+          gap: `${gap}px`,
           justifyContent: "center",
           alignContent: "center",
         }}
