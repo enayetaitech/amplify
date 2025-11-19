@@ -353,8 +353,21 @@ export default function Stage({ role }: StageProps) {
 
   function Tile() {
     const trackRef = useTrackRefContext();
-    const identity = trackRef.participant?.identity || "";
-    const name = identityToName[identity] || identity;
+    const participant = trackRef.participant;
+    const identity = participant?.identity || "";
+    const resolvedParticipant =
+      participant ||
+      (identity
+        ? participants.find((p) => p.identity === identity)
+        : undefined);
+    const metadata = resolvedParticipant?.metadata;
+    const mappedName = identity ? identityToName[identity] : undefined;
+    const name =
+      mappedName ||
+      parseDisplayNameFromMetadata(metadata) ||
+      resolvedParticipant?.name ||
+      identity ||
+      "Participant";
     // const isPinned = !!pinnedIdentity && identity === pinnedIdentity; // reserved for future features
     const speaking = !!identityToSpeaking[identity];
 
@@ -399,46 +412,44 @@ export default function Stage({ role }: StageProps) {
         )}
 
         {/* Bottom overlay: participant name and role badge - show for all roles */}
-        <div className="absolute inset-x-2 bottom-4 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
-          <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
-            <span
-              className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
-              title={name}
-            >
-              {name}
-            </span>
-          </div>
-          {(() => {
-            // Try to get role from identityToUiRole first, then fallback to metadata parsing
-            let tileRole = identityToUiRole[identity];
-            if (!tileRole) {
-              // Fallback: try to parse from participant metadata
-              const participant = participants.find(
-                (p) => p.identity === identity
-              );
-              if (participant) {
-                tileRole = parseUiRoleFromMetadata(participant.metadata);
-              }
-            }
-            if (!tileRole) return null;
-            const label =
-              tileRole === "moderator"
-                ? "Host"
-                : tileRole === "admin"
-                ? "Admin"
-                : tileRole === "participant"
-                ? "Participant"
-                : "Observer";
-            return (
+        {/* Name at bottom-left - matching VideoFilmstrip approach */}
+        <div className="absolute left-2 bottom-2 max-w-[calc(100%-100px)] z-10">
+          <span
+            className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
+            title={name}
+          >
+            {name}
+          </span>
+        </div>
+        {/* Role badge at bottom-right - matching VideoFilmstrip approach */}
+        {(() => {
+          // Try to get role from identityToUiRole first, then fallback to metadata parsing
+          let tileRole = identity ? identityToUiRole[identity] : null;
+          if (!tileRole) {
+            tileRole =
+              parseUiRoleFromMetadata(metadata) ??
+              (resolvedParticipant?.isLocal ? role : null);
+          }
+          if (!tileRole) return null;
+          const label =
+            tileRole === "moderator"
+              ? "Host"
+              : tileRole === "admin"
+              ? "Admin"
+              : tileRole === "participant"
+              ? "Participant"
+              : "Observer";
+          return (
+            <div className="absolute right-2 bottom-2 z-10">
               <Badge
                 variant="outline"
                 className="bg-black/60 text-white border-white/30"
               >
                 {label}
               </Badge>
-            );
-          })()}
-        </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
