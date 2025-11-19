@@ -1002,14 +1002,13 @@ export default function Meeting() {
           className={`${mainColSpanClass} h-full min-h-0 overflow-hidden rounded p-3 flex flex-col`}
         >
           {/* Top header inside main area */}
-          <div className="flex items-center justify-between px-1 pb-2 gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
-                <span className="inline-block h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
-                <span className="hidden sm:inline">On going meeting</span>
-                <span className="sm:hidden">Live</span>
+          <div className="flex items-center justify-between px-1 pb-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                <span>On going meeting</span>
               </div>
-              <span className="rounded-full bg-custom-dark-blue-1 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 whitespace-nowrap flex-shrink-0">
+              <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
                 {role === "moderator"
                   ? "Moderator View"
                   : role === "admin"
@@ -1017,7 +1016,7 @@ export default function Meeting() {
                   : "Participant View"}
               </span>
             </div>
-            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+            <div className="flex flex-col items-end gap-2">
               <Logo />
               <LeaveMeetingButton role={role} sessionId={String(sessionId)} />
             </div>
@@ -1037,7 +1036,7 @@ export default function Meeting() {
             <RoomAudioRenderer />
             {isWhiteboardOpen ? (
               <div className="flex-1 min-h-0 flex gap-3">
-                <div className="flex-1 md:flex-[4] min-w-0 min-h-0 rounded bg-white p-2 flex flex-col h-full">
+                <div className="flex-[4] min-w-0 min-h-0 rounded bg-white p-2 flex flex-col h-full">
                   <div className="flex-1 min-h-0">
                     <WhiteboardPanel
                       sessionId={String(sessionId)}
@@ -1046,7 +1045,7 @@ export default function Meeting() {
                     />
                   </div>
                 </div>
-                <div className="hidden md:flex md:flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
+                <div className="flex-[1] min-w-[220px] max-w-[420px] min-h-0 rounded bg-white p-2 overflow-hidden">
                   <div className="h-full">
                     <VideoFilmstrip />
                   </div>
