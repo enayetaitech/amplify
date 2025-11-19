@@ -281,18 +281,18 @@ export default function ObserverHlsLayoutImproved({
   return (
     <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col">
       <div className="flex items-center justify-between px-1 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             {error ? (
-              <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+              <span className="inline-block h-2 w-2 rounded-full bg-red-500 flex-shrink-0" />
             ) : isLoading ? (
-              <span className="inline-block h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+              <span className="inline-block h-2 w-2 rounded-full bg-yellow-500 animate-pulse flex-shrink-0" />
             ) : (
-              <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+              <span className="inline-block h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
             )}
-            <span>{error ? "Error" : isLoading ? "Loading..." : "Live"}</span>
+            <span className="whitespace-nowrap">{error ? "Error" : isLoading ? "Loading..." : "Live"}</span>
           </div>
-          <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+          <span className="rounded-full bg-custom-dark-blue-1 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 whitespace-nowrap">
             Observer View 
           </span>
         </div>

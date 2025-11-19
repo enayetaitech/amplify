@@ -254,14 +254,13 @@ export default function ObserverHlsLayout({ hlsUrl }: { hlsUrl: string }) {
 
   return (
     <div className="w-full h-full rounded-xl bg-white overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-1 pb-2 gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <span className="inline-block h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
-            <span className="hidden sm:inline">On going meeting</span>
-            <span className="sm:hidden">Live</span>
+            <span className="whitespace-nowrap">On going meeting</span>
           </div>
-          <span className="rounded-full bg-custom-dark-blue-1 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 whitespace-nowrap flex-shrink-0">
+          <span className="rounded-full bg-custom-dark-blue-1 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 whitespace-nowrap">
             Observer View
           </span>
         </div>

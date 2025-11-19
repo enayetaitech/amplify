@@ -417,11 +417,11 @@ function ConnectionStatusInner() {
   };
 
   return (
-    <div className="flex items-center gap-2 text-xs">
+    <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
       <span
-        className={`inline-block h-2 w-2 rounded-full ${qualityColors[quality]}`}
+        className={`inline-block h-2 w-2 rounded-full flex-shrink-0 ${qualityColors[quality]}`}
       />
-      <span>{isConnected ? "Connected" : "Connecting..."}</span>
+      <span className="whitespace-nowrap">{isConnected ? "Connected" : "Connecting..."}</span>
     </div>
   );
 }
@@ -462,12 +462,12 @@ export default function ObserverWebRTCLayout({
         {error ? (
           <>
             <div className="flex items-center justify-between px-1 pb-2">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
-                  <span>Disconnected</span>
+              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap">
+                <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <span className="inline-block h-2 w-2 rounded-full bg-red-500 flex-shrink-0" />
+                  <span className="whitespace-nowrap">Disconnected</span>
                 </div>
-                <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+                <span className="rounded-full bg-custom-dark-blue-1 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 whitespace-nowrap">
                   Observer View
                 </span>
               </div>
@@ -507,9 +507,9 @@ export default function ObserverWebRTCLayout({
           >
             <div className="w-full h-full flex flex-col">
               <div className="flex items-center justify-between px-1 pb-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap">
                   <ConnectionStatusInner />
-                  <span className="rounded-full bg-custom-dark-blue-1 text-white text-xs px-3 py-1">
+                  <span className="rounded-full bg-custom-dark-blue-1 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 whitespace-nowrap">
                     Observer View
                   </span>
                 </div>
