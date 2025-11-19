@@ -351,10 +351,80 @@ export default function Stage({ role }: StageProps) {
     };
   }, []);
 
+  function MobileFallbackOverlay() {
+    if (!isMobileUA) return null;
+    return (
+      <div className="pointer-events-none absolute inset-0 z-[100]">
+        {Object.entries(tileLabelPos).map(([id, pos]) => {
+          let tileRole = identityToUiRole[id];
+          if (!tileRole) {
+            const participant = participants.find((p) => p.identity === id);
+            if (participant) {
+              tileRole = parseUiRoleFromMetadata(participant.metadata);
+            }
+          }
+          const label = tileRole
+            ? tileRole === "moderator"
+              ? "Host"
+              : tileRole === "admin"
+              ? "Admin"
+              : tileRole === "participant"
+              ? "Participant"
+              : "Observer"
+            : null;
+          return (
+            <div
+              key={`fallback-${id}`}
+              className="absolute"
+              style={{
+                left: `${pos.tileLeft}px`,
+                top: `${pos.tileTop}px`,
+                width: `${pos.tileRight - pos.tileLeft}px`,
+                height: `${pos.tileHeight}px`,
+              }}
+            >
+              <span
+                className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                style={{
+                  left: `${8}px`,
+                  bottom: `${16}px`,
+                  maxWidth: `${pos.nameMaxWidth}px`,
+                }}
+              >
+                {identityToName[id] || id}
+              </span>
+              {label && (
+                <span
+                  className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
+                  style={{ right: `${8}px`, bottom: `${16}px` }}
+                >
+                  {label}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   function Tile() {
     const trackRef = useTrackRefContext();
-    const identity = trackRef.participant?.identity || "";
-    const name = identityToName[identity] || identity;
+    const participant = trackRef.participant;
+    const identity = participant?.identity || "";
+    const resolvedParticipant =
+      participant ||
+      (identity
+        ? participants.find((p) => p.identity === identity)
+        : undefined);
+    const metadata = resolvedParticipant?.metadata;
+    const mappedName = identity ? identityToName[identity] : undefined;
+    const name =
+      mappedName ||
+      parseDisplayNameFromMetadata(metadata) ||
+      resolvedParticipant?.name ||
+      identity ||
+      "Participant";
     // const isPinned = !!pinnedIdentity && identity === pinnedIdentity; // reserved for future features
     const speaking = !!identityToSpeaking[identity];
 
@@ -398,47 +468,45 @@ export default function Stage({ role }: StageProps) {
           </div>
         )}
 
-        {/* Bottom overlay: participant name and role badge - show for all roles */}
-        <div className="absolute inset-x-2 bottom-4 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
-          <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
-            <span
-              className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
-              title={name}
-            >
-              {name}
-            </span>
-          </div>
-          {(() => {
-            // Try to get role from identityToUiRole first, then fallback to metadata parsing
-            let tileRole = identityToUiRole[identity];
-            if (!tileRole) {
-              // Fallback: try to parse from participant metadata
-              const participant = participants.find(
-                (p) => p.identity === identity
-              );
-              if (participant) {
-                tileRole = parseUiRoleFromMetadata(participant.metadata);
-              }
-            }
-            if (!tileRole) return null;
-            const label =
-              tileRole === "moderator"
-                ? "Host"
-                : tileRole === "admin"
-                ? "Admin"
-                : tileRole === "participant"
-                ? "Participant"
-                : "Observer";
-            return (
-              <Badge
-                variant="outline"
-                className="bg-black/60 text-white border-white/30"
+        {/* Bottom overlay: participant name and role badge (desktop/tablet only; mobile uses fallback overlay) */}
+        {!isMobileUA && (
+          <div className="absolute inset-x-2 bottom-4 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
+            <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
+              <span
+                className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
+                title={name}
               >
-                {label}
-              </Badge>
-            );
-          })()}
-        </div>
+                {name}
+              </span>
+            </div>
+            {(() => {
+              // Try to get role from identityToUiRole first, then fallback to metadata parsing
+              let tileRole = identity ? identityToUiRole[identity] : null;
+              if (!tileRole) {
+                tileRole =
+                  parseUiRoleFromMetadata(metadata) ??
+                  (resolvedParticipant?.isLocal ? role : null);
+              }
+              if (!tileRole) return null;
+              const label =
+                tileRole === "moderator"
+                  ? "Host"
+                  : tileRole === "admin"
+                  ? "Admin"
+                  : tileRole === "participant"
+                  ? "Participant"
+                  : "Observer";
+              return (
+                <Badge
+                  variant="outline"
+                  className="bg-black/60 text-white border-white/30"
+                >
+                  {label}
+                </Badge>
+              );
+            })()}
+          </div>
+        )}
       </div>
     );
   }
@@ -631,62 +699,7 @@ export default function Stage({ role }: StageProps) {
             />
           )}
         </div>
-        {isMobileUA && (
-          <div className="pointer-events-none absolute inset-0 z-[100]">
-            {Object.entries(tileLabelPos).map(([id, pos]) => {
-              // Try to get role from identityToUiRole first, then fallback to metadata parsing
-              let tileRole = identityToUiRole[id];
-              if (!tileRole) {
-                const participant = participants.find((p) => p.identity === id);
-                if (participant) {
-                  tileRole = parseUiRoleFromMetadata(participant.metadata);
-                }
-              }
-              const label = tileRole
-                ? tileRole === "moderator"
-                  ? "Host"
-                  : tileRole === "admin"
-                  ? "Admin"
-                  : tileRole === "participant"
-                  ? "Participant"
-                  : "Observer"
-                : null;
-              return (
-                <div
-                  key={`fallback-${id}`}
-                  className="absolute"
-                  style={{
-                    left: `${pos.tileLeft}px`,
-                    top: `${pos.tileTop}px`,
-                    width: `${pos.tileRight - pos.tileLeft}px`,
-                    height: `${pos.tileHeight}px`,
-                  }}
-                >
-                  {/* Name at bottom-left - ensure it doesn't overlap with role */}
-                  <span
-                    className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                    style={{
-                      left: `${8}px`,
-                      bottom: `${16}px`,
-                      maxWidth: `${pos.nameMaxWidth}px`,
-                    }}
-                  >
-                    {identityToName[id] || id}
-                  </span>
-                  {/* Role at bottom-right */}
-                  {label && (
-                    <span
-                      className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
-                      style={{ right: `${8}px`, bottom: `${16}px` }}
-                    >
-                      {label}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <MobileFallbackOverlay />
       </div>
     );
   }
@@ -714,62 +727,7 @@ export default function Stage({ role }: StageProps) {
           </div>
         </TrackLoop>
       </div>
-      {isMobileUA && (
-        <div className="pointer-events-none absolute inset-0 z-[100]">
-          {Object.entries(tileLabelPos).map(([id, pos]) => {
-            // Try to get role from identityToUiRole first, then fallback to metadata parsing
-            let tileRole = identityToUiRole[id];
-            if (!tileRole) {
-              const participant = participants.find((p) => p.identity === id);
-              if (participant) {
-                tileRole = parseUiRoleFromMetadata(participant.metadata);
-              }
-            }
-            const label = tileRole
-              ? tileRole === "moderator"
-                ? "Host"
-                : tileRole === "admin"
-                ? "Admin"
-                : tileRole === "participant"
-                ? "Participant"
-                : "Observer"
-              : null;
-            return (
-              <div
-                key={`fallback-${id}`}
-                className="absolute"
-                style={{
-                  left: `${pos.tileLeft}px`,
-                  top: `${pos.tileTop}px`,
-                  width: `${pos.tileRight - pos.tileLeft}px`,
-                  height: `${pos.tileHeight}px`,
-                }}
-              >
-                {/* Name at bottom-left - ensure it doesn't overlap with role */}
-                <span
-                  className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                  style={{
-                    left: `${8}px`,
-                    bottom: `${16}px`,
-                    maxWidth: `${pos.nameMaxWidth}px`,
-                  }}
-                >
-                  {identityToName[id] || id}
-                </span>
-                {/* Role at bottom-right */}
-                {label && (
-                  <span
-                    className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
-                    style={{ right: `${8}px`, bottom: `${16}px` }}
-                  >
-                    {label}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <MobileFallbackOverlay />
     </div>
   );
 }
