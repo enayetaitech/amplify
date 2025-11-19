@@ -1031,7 +1031,6 @@ export default function Meeting() {
             />
             <MeetingJoinBridge socket={socketRef.current} />
             <BreakoutWarningBridge socket={socketRef.current} role={role} />
-            <MeetingJoinBridge socket={socketRef.current} />
             <ForceMuteSelfBridge />
             <ForceCameraOffSelfBridge />
             <RoomAudioRenderer />
