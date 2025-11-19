@@ -430,14 +430,12 @@ export default function Stage({ role }: StageProps) {
                 ? "Participant"
                 : "Observer";
             return (
-              <div className="flex-shrink-0 pointer-events-auto">
-                <Badge
-                  variant="outline"
-                  className="bg-black/60 text-white border-white/30 whitespace-nowrap"
-                >
-                  {label}
-                </Badge>
-              </div>
+              <Badge
+                variant="outline"
+                className="bg-black/60 text-white border-white/30"
+              >
+                {label}
+              </Badge>
             );
           })()}
         </div>
@@ -583,8 +581,8 @@ export default function Stage({ role }: StageProps) {
             ],
           ]
         : [];
-    // Mobile: full-width screen share, hide video tiles
-    // Desktop: side-by-side flex layout for screen share (80/20 split)
+    // Always use side-by-side flex layout for screen share (80/20 split)
+    // This ensures consistent layout regardless of sidebar state or container width
     return (
       <div
         ref={stageRef}
@@ -625,14 +623,12 @@ export default function Stage({ role }: StageProps) {
               </div>
             </TrackLoop>
           </div>
-          {/* Video tiles: hidden on mobile, 20% width on desktop - fluid layout */}
+          {/* Video tiles: 20% width - fluid layout */}
           {facesCount > 0 && (
-            <div className="hidden md:block min-w-[220px] min-h-0">
-              <ScreenShareVideoGrid
-                tracks={orderedTracks}
-                containerHeight={containerSize.h}
-              />
-            </div>
+            <ScreenShareVideoGrid
+              tracks={orderedTracks}
+              containerHeight={containerSize.h}
+            />
           )}
         </div>
         {isMobileUA && (
