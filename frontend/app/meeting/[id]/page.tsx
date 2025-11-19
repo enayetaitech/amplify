@@ -278,7 +278,7 @@ export default function Meeting() {
   const [wsUrl, setWsUrl] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
-  const [isLeftOpen, setIsLeftOpen] = useState(true);
+  const [isLeftOpen, setIsLeftOpen] = useState(false);
   // Initialize right sidebar: closed on mobile, open on desktop (for non-participants)
   const [isRightOpen, setIsRightOpen] = useState(() => {
     if (role === "participant") return false;
