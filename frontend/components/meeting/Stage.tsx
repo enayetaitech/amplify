@@ -353,8 +353,21 @@ export default function Stage({ role }: StageProps) {
 
   function Tile() {
     const trackRef = useTrackRefContext();
-    const identity = trackRef.participant?.identity || "";
-    const name = identityToName[identity] || identity;
+    const participant = trackRef.participant;
+    const identity = participant?.identity || "";
+    const resolvedParticipant =
+      participant ||
+      (identity
+        ? participants.find((p) => p.identity === identity)
+        : undefined);
+    const metadata = resolvedParticipant?.metadata;
+    const mappedName = identity ? identityToName[identity] : undefined;
+    const name =
+      mappedName ||
+      parseDisplayNameFromMetadata(metadata) ||
+      resolvedParticipant?.name ||
+      identity ||
+      "Participant";
     // const isPinned = !!pinnedIdentity && identity === pinnedIdentity; // reserved for future features
     const speaking = !!identityToSpeaking[identity];
 
@@ -410,15 +423,11 @@ export default function Stage({ role }: StageProps) {
           </div>
           {(() => {
             // Try to get role from identityToUiRole first, then fallback to metadata parsing
-            let tileRole = identityToUiRole[identity];
+            let tileRole = identity ? identityToUiRole[identity] : null;
             if (!tileRole) {
-              // Fallback: try to parse from participant metadata
-              const participant = participants.find(
-                (p) => p.identity === identity
-              );
-              if (participant) {
-                tileRole = parseUiRoleFromMetadata(participant.metadata);
-              }
+              tileRole =
+                parseUiRoleFromMetadata(metadata) ??
+                (resolvedParticipant?.isLocal ? role : null);
             }
             if (!tileRole) return null;
             const label =
