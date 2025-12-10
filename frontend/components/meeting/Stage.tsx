@@ -223,12 +223,35 @@ export default function Stage({ role }: StageProps) {
     identityToName,
   ]);
 
+  // Track valid identities to clean up stale refs
+  const validIdentitiesRef = useRef<Set<string>>(new Set());
+
+  // Update valid identities when tracks change
+  useEffect(() => {
+    const validIds = new Set<string>();
+    for (const track of orderedTracks) {
+      const id = track.participant?.identity;
+      if (id) validIds.add(id);
+    }
+    validIdentitiesRef.current = validIds;
+
+    // Clean up stale refs
+    const currentRefs = tileElByIdentityRef.current;
+    for (const id of Object.keys(currentRefs)) {
+      if (!validIds.has(id)) {
+        delete currentRefs[id];
+      }
+    }
+  }, [orderedTracks]);
+
   // Compute absolute positions for fallback labels on mobile (sibling top-layer overlay)
   useEffect(() => {
     if (!isMobileUA) return;
     const el = stageRef.current;
     if (!el) return;
     let raf = 0;
+    let measureTimeout: NodeJS.Timeout | null = null;
+
     const measure = () => {
       try {
         const containerRect = el.getBoundingClientRect();
@@ -245,9 +268,16 @@ export default function Stage({ role }: StageProps) {
             nameMaxWidth: number;
           }
         > = {};
+
+        // Only process valid identities (non-empty)
         for (const [id, node] of Object.entries(tileElByIdentityRef.current)) {
-          if (!node) continue;
+          // Skip empty identities or missing nodes
+          if (!id || !node || !validIdentitiesRef.current.has(id)) continue;
+
           const r = node.getBoundingClientRect();
+          // Skip if element has no dimensions (not yet rendered)
+          if (r.width === 0 || r.height === 0) continue;
+
           const tileLeft = Math.round(r.left - containerRect.left);
           const tileRight = Math.round(r.right - containerRect.left);
           const tileTop = Math.round(r.top - containerRect.top);
@@ -259,7 +289,7 @@ export default function Stage({ role }: StageProps) {
           const bottom = Math.max(0, tileBottom - 8);
           // Calculate max width for name to leave space for role badge (estimate ~80px for role badge + padding)
           const roleBadgeWidth = 80; // Estimated width for role badge
-          const nameMaxWidth = Math.max(100, tileWidth - roleBadgeWidth - 16); // Leave 16px total padding
+          const nameMaxWidth = Math.max(80, tileWidth - roleBadgeWidth - 24); // Leave 24px total padding
           next[id] = {
             nameLeft,
             roleRight,
@@ -272,19 +302,33 @@ export default function Stage({ role }: StageProps) {
           };
         }
         setTileLabelPos(next);
-      } catch {}
+      } catch {
+        // Silently ignore measurement errors
+      }
     };
-    const ro = new ResizeObserver(() => {
+
+    // Debounced measure to avoid excessive calculations
+    const debouncedMeasure = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(measure);
-    });
+      raf = requestAnimationFrame(() => {
+        // Add a small delay to ensure DOM is settled
+        if (measureTimeout) clearTimeout(measureTimeout);
+        measureTimeout = setTimeout(measure, 50);
+      });
+    };
+
+    const ro = new ResizeObserver(debouncedMeasure);
     ro.observe(el);
-    window.addEventListener("resize", measure);
-    measure();
+    window.addEventListener("resize", debouncedMeasure);
+
+    // Initial measurement with delay to ensure DOM is ready
+    measureTimeout = setTimeout(measure, 100);
+
     return () => {
       ro.disconnect();
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", debouncedMeasure);
       cancelAnimationFrame(raf);
+      if (measureTimeout) clearTimeout(measureTimeout);
     };
   }, [isMobileUA, orderedTracks.length]);
 
@@ -351,6 +395,12 @@ export default function Stage({ role }: StageProps) {
     return (
       <div className="pointer-events-none absolute inset-0 z-[100]">
         {Object.entries(tileLabelPos).map(([id, pos]) => {
+          // Skip empty identities or invalid positions
+          if (!id || pos.tileHeight <= 0) return null;
+
+          // Skip if this identity is no longer in the valid set
+          if (!validIdentitiesRef.current.has(id)) return null;
+
           let tileRole = identityToUiRole[id];
           if (!tileRole) {
             const participant = participants.find((p) => p.identity === id);
@@ -367,34 +417,64 @@ export default function Stage({ role }: StageProps) {
               ? "Participant"
               : "Observer"
             : null;
+
+          const tileWidth = pos.tileRight - pos.tileLeft;
+          // For narrow tiles (< 200px), stack name and role vertically
+          const isNarrowTile = tileWidth < 200;
+
           return (
             <div
               key={`fallback-${id}`}
-              className="absolute"
+              className="absolute pointer-events-none"
               style={{
                 left: `${pos.tileLeft}px`,
                 top: `${pos.tileTop}px`,
-                width: `${pos.tileRight - pos.tileLeft}px`,
+                width: `${tileWidth}px`,
                 height: `${pos.tileHeight}px`,
               }}
             >
-              <span
-                className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
-                style={{
-                  left: `${8}px`,
-                  bottom: `${16}px`,
-                  maxWidth: `${pos.nameMaxWidth}px`,
-                }}
-              >
-                {identityToName[id] || id}
-              </span>
-              {label && (
-                <span
-                  className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
-                  style={{ right: `${8}px`, bottom: `${16}px` }}
+              {isNarrowTile ? (
+                // Narrow tile: stack name and role vertically
+                <div
+                  className="absolute flex flex-col gap-1 items-start"
+                  style={{ left: `8px`, bottom: `8px`, maxWidth: `${tileWidth - 16}px` }}
                 >
-                  {label}
-                </span>
+                  <span
+                    className="inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                    title={identityToName[id] || id}
+                    style={{ maxWidth: "100%" }}
+                  >
+                    {identityToName[id] || id}
+                  </span>
+                  {label && (
+                    <span className="inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap">
+                      {label}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                // Wide tile: name on left, role on right
+                <>
+                  <span
+                    className="absolute inline-block truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+                    style={{
+                      left: `8px`,
+                      bottom: `8px`,
+                      maxWidth: `${pos.nameMaxWidth}px`,
+                    }}
+                    title={identityToName[id] || id}
+                  >
+                    {identityToName[id] || id}
+                  </span>
+                  {label && (
+                    <span
+                      className="absolute inline-block rounded border border-white/30 bg-black/70 px-2 py-1 text-xs text-white whitespace-nowrap"
+                      style={{ right: `8px`, bottom: `8px` }}
+                    >
+                      {label}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           );
@@ -439,8 +519,10 @@ export default function Stage({ role }: StageProps) {
         }`}
         tabIndex={0}
         ref={(node) => {
-          // store for fallback overlay positioning
-          tileElByIdentityRef.current[identity] = node;
+          // Only store refs for tiles with valid non-empty identities
+          if (identity && node) {
+            tileElByIdentityRef.current[identity] = node;
+          }
         }}
         onDoubleClick={(e) => {
           if (!identity) return;
@@ -468,10 +550,10 @@ export default function Stage({ role }: StageProps) {
 
         {/* Bottom overlay: participant name and role badge (desktop/tablet only; mobile uses fallback overlay) */}
         {!isMobileUA && (
-          <div className="absolute inset-x-2 bottom-4 flex items-end justify-between gap-2 z-50 participant-name-overlay pointer-events-none">
-            <div className="flex-1 min-w-0 max-w-[calc(100%-80px)]">
+          <div className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 z-[100] participant-name-overlay pointer-events-none">
+            <div className="flex-1 min-w-0 max-w-[calc(100%-90px)]">
               <span
-                className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white pointer-events-auto"
+                className="inline-block max-w-full truncate rounded bg-black/70 px-2 py-1 text-xs text-white pointer-events-auto"
                 title={name}
               >
                 {name}
@@ -497,7 +579,7 @@ export default function Stage({ role }: StageProps) {
               return (
                 <Badge
                   variant="outline"
-                  className="bg-black/60 text-white border-white/30"
+                  className="bg-black/70 text-white border-white/30 shrink-0"
                 >
                   {label}
                 </Badge>

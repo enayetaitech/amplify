@@ -1,9 +1,23 @@
 /* Hide LiveKit default participant name/metadata to avoid duplicates;
-   we render our own name chip in Stage tiles for all views */
+   we render our own name chip in Stage tiles for admin/participant/moderator views.
+   IMPORTANT: Do not hide in observer-webrtc-layout as observers may use LiveKit defaults */
+.lk-participant-name,
+.lk-participant-metadata,
+.lk-participant-metadata-item,
 .lk-scope .lk-participant-name,
 .lk-scope .lk-participant-metadata,
-.lk-scope .lk-nameplate {
+.lk-scope .lk-participant-metadata-item {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Restore LiveKit metadata display for observer view (they use VideoFilmstrip which has custom overlays) */
+.observer-webrtc-layout .lk-participant-metadata,
+.observer-webrtc-layout .lk-participant-metadata-item {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Keep screen-share labels hidden (from earlier) */
@@ -43,11 +57,12 @@
   border-color: rgba(255, 255, 255, 0.4) !important;
 }
 
-/* Ensure custom overlays appear above LiveKit video elements */
+/* CRITICAL: Allow overflow on participant tiles so our custom overlays are visible */
+.lk-participant-tile,
 .lk-scope .lk-participant-tile {
-  position: relative;
+  position: relative !important;
   isolation: isolate;
-  contain: layout;
+  overflow: visible !important;
 }
 
 /* Ensure participant tile container is positioned relatively for nameplate positioning */
@@ -55,7 +70,7 @@
   position: relative !important;
 }
 
-/* Force video elements to stay below overlays */
+/* Force video elements to stay below overlays and maintain proper clipping */
 .lk-scope .lk-participant-tile video,
 .lk-scope .lk-participant-tile canvas,
 .lk-scope [data-lk-source="camera"] video,
@@ -65,6 +80,14 @@
   object-fit: cover !important;
   width: 100% !important;
   height: 100% !important;
+  border-radius: inherit;
+}
+
+/* Clip the video/canvas but not the overlays */
+.lk-participant-tile > *:not(.participant-name-overlay),
+.lk-scope .lk-participant-tile > *:not(.participant-name-overlay) {
+  border-radius: inherit;
+  overflow: hidden;
 }
 
 /* Disable LiveKit's mirror transform when explicitly requested */
@@ -80,8 +103,9 @@
 }
 
 /* Ensure name overlays are not clipped by overflow and appear above video on mobile and desktop */
+.participant-name-overlay,
 .lk-scope .participant-name-overlay {
-  z-index: 50 !important;
+  z-index: 100 !important;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   will-change: transform;
@@ -90,10 +114,11 @@
 }
 
 /* When mobile fallback overlay is active, hide in-tile overlays to prevent duplicates */
-.lk-scope .mobile-fallback .participant-name-overlay {
+.mobile-fallback .participant-name-overlay {
   display: none !important;
 }
 
+.participant-name-overlay > *,
 .lk-scope .participant-name-overlay > * {
   pointer-events: auto;
 }

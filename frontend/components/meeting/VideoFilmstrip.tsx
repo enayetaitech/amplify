@@ -91,28 +91,30 @@ function FilmstripTile({
 
   return (
     <div
-      className="relative rounded-lg overflow-hidden bg-black"
+      className="relative rounded-lg bg-black"
       style={{ width: tileSize.w, height: tileSize.h }}
     >
-      <ParticipantTile trackRef={trackRef} mirror={false} />
-      <div className="absolute left-2 bottom-2 max-w-[calc(100%-100px)] z-10">
-        <span
-          className="inline-block max-w-full truncate rounded bg-black/60 px-2 py-1 text-xs text-white"
-          title={fallbackName}
-        >
-          {fallbackName}
-        </span>
+      <div className="absolute inset-0 overflow-hidden rounded-lg">
+        <ParticipantTile trackRef={trackRef} mirror={false} />
       </div>
-      {badgeLabel ? (
-        <div className="absolute right-2 bottom-2 z-10">
+      <div className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 z-[100] pointer-events-none">
+        <div className="flex-1 min-w-0 max-w-[calc(100%-90px)]">
+          <span
+            className="inline-block max-w-full truncate rounded bg-black/70 px-2 py-1 text-xs text-white pointer-events-auto"
+            title={fallbackName}
+          >
+            {fallbackName}
+          </span>
+        </div>
+        {badgeLabel ? (
           <Badge
-            className="bg-black/60 text-white border-white/30"
+            className="bg-black/70 text-white border-white/30 shrink-0 pointer-events-auto"
             variant="outline"
           >
             {badgeLabel}
           </Badge>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }
