@@ -596,7 +596,7 @@ export default function Meeting() {
     };
   }, [sessionId, my, serverRole, role, router]);
 
-  // Clear localStorage/cookies on browser/tab close and end meeting if host closes tab
+  // Clear cookies/localStorage when navigating away; keep participant info on refresh so names persist
   useEffect(() => {
     const cleanupStorage = () => {
       try {
@@ -640,9 +640,6 @@ export default function Meeting() {
           } catch {
             // Ignore errors - cleanup is best effort
           }
-        } else if (role === "observer" || role === "participant") {
-          // Remove liveSessionUser from localStorage
-          localStorage.removeItem("liveSessionUser");
         }
       } catch {
         // Ignore errors
