@@ -12,12 +12,31 @@
   opacity: 0 !important;
 }
 
-/* Restore LiveKit metadata display for observer view (they use VideoFilmstrip which has custom overlays) */
+/* Restore LiveKit name/metadata display for observer view */
+.observer-webrtc-layout .lk-participant-name,
 .observer-webrtc-layout .lk-participant-metadata,
 .observer-webrtc-layout .lk-participant-metadata-item {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+/* Style the LiveKit participant name in observer view */
+.observer-webrtc-layout .lk-participant-name {
+  position: absolute !important;
+  bottom: 8px !important;
+  left: 8px !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  z-index: 100 !important;
+}
+
+/* Override overflow visible for observer view to contain overlays */
+.observer-webrtc-layout .lk-participant-tile {
+  overflow: hidden !important;
 }
 
 /* Keep screen-share labels hidden (from earlier) */

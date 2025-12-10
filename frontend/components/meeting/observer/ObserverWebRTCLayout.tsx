@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import {
   LiveKitRoom,
-  GridLayout,
   ParticipantTile,
   useTracks,
   RoomAudioRenderer,
@@ -17,20 +16,6 @@ import type { Socket } from "socket.io-client";
 import WhiteboardPanel from "components/whiteboard/WhiteboardPanel";
 import VideoFilmstrip from "../VideoFilmstrip";
 
-// Custom tile component that shows formatted names from socket
-function CustomParticipantTile({
-  trackRef,
-}: {
-  trackRef: ReturnType<typeof useTracks>[number];
-}) {
-  return (
-    <div className="w-full h-full">
-      <div className="observer-tile-wrapper relative h-full w-full">
-        <ParticipantTile trackRef={trackRef} mirror={false} />
-      </div>
-    </div>
-  );
-}
 
 // Component for video tiles in observer screen share layout (20% width)
 // Maintains 16:9 aspect ratio like admin view
@@ -124,13 +109,15 @@ function ObserverVideoTilesColumn({
                     tr.participant?.sid ||
                     tr.publication?.trackSid
                   }
-                  className="relative overflow-hidden rounded bg-black flex-shrink-0 w-full"
+                  className="relative rounded-lg bg-black flex-shrink-0"
                   style={{
                     width: `${colTileW}px`,
                     height: `${colTileH}px`,
                   }}
                 >
-                  <CustomParticipantTile trackRef={tr} />
+                  <div className="absolute inset-0 overflow-hidden rounded-lg">
+                    <ParticipantTile trackRef={tr} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -155,6 +142,7 @@ function ObserverVideoGrid() {
   }>({ w: 0, h: 0 });
   const gap = 8; // Match admin view gap
   const room = useRoomContext();
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -182,7 +170,6 @@ function ObserverVideoGrid() {
     return () => ro.disconnect();
   }, []);
 
-  // Map identity to formatted name from socket info
   // Ensure we subscribe to all published tracks when participants join
   useEffect(() => {
     if (!room) return;
@@ -324,7 +311,7 @@ function ObserverVideoGrid() {
             >
               <div className="w-full h-full relative rounded-lg overflow-hidden bg-black flex items-center justify-center">
                 <div
-                  className="relative rounded-lg overflow-hidden"
+                  className="relative rounded-lg bg-black"
                   style={
                     shareVideoSize.w && shareVideoSize.h
                       ? {
@@ -334,9 +321,9 @@ function ObserverVideoGrid() {
                       : { width: "95%", height: "95%" }
                   }
                 >
-                  <GridLayout tracks={[screenshareRefs[0]]}>
-                    <ParticipantTile />
-                  </GridLayout>
+                  <div className="absolute inset-0 overflow-hidden rounded-lg">
+                    <ParticipantTile trackRef={screenshareRefs[0]} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -368,9 +355,11 @@ function ObserverVideoGrid() {
                     tr.participant?.sid ||
                     tr.publication?.trackSid
                   }
-                  className="relative overflow-hidden rounded bg-black"
+                  className="relative rounded-lg bg-black"
                 >
-                  <CustomParticipantTile trackRef={tr} />
+                  <div className="absolute inset-0 overflow-hidden rounded-lg">
+                    <ParticipantTile trackRef={tr} />
+                  </div>
                 </div>
               ))}
             </div>
