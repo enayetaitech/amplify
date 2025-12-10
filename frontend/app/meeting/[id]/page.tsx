@@ -222,7 +222,53 @@ export default function Meeting() {
   const { id: sessionId } = useParams();
 
   // 1) derive role
-  const { user } = useGlobalContext();
+  const { user, setUser } = useGlobalContext();
+
+  // Check on mount if this is a fresh browser session (tab was closed)
+  // If sessionStorage doesn't have the active session flag, clear cookies and localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const sessionActiveKey = "meeting_session_active";
+    const hasActiveSession = sessionStorage.getItem(sessionActiveKey);
+
+    // If no active session flag exists, this means browser/tab was closed
+    // Clear cookies and localStorage for admin/moderator
+    if (!hasActiveSession) {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          // Only clear if user is admin or moderator
+          if (
+            parsedUser?.role === "Admin" ||
+            parsedUser?.role === "Moderator"
+          ) {
+            // Clear localStorage
+            localStorage.removeItem("user");
+            setUser(null);
+
+            // Clear cookies via API call
+            const baseUrl =
+              process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
+              "https://amplifyre.shop";
+            const logoutUrl = `${baseUrl}/api/v1/users/logout`;
+            fetch(logoutUrl, {
+              method: "POST",
+              credentials: "include",
+            }).catch(() => {
+              // Ignore errors - best effort
+            });
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    // Set the active session flag (sessionStorage clears on tab close)
+    sessionStorage.setItem(sessionActiveKey, "true");
+  }, [setUser]);
 
   const role: UiRole = useMemo((): UiRole => {
     const dashboardServer = normalizeServerRole(user?.role);
@@ -598,71 +644,106 @@ export default function Meeting() {
 
   // Clear cookies/localStorage when navigating away; keep participant info on refresh so names persist
   useEffect(() => {
-    const cleanupStorage = () => {
-      try {
-        if (role === "admin" || role === "moderator") {
-          // Remove user data from localStorage
-          localStorage.removeItem("user");
+    if (role !== "admin" && role !== "moderator") {
+      return;
+    }
 
-          // Call logout API to clear cookies (using fetch with keepalive for reliability during unload)
-          try {
-            const baseUrl =
-              process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
-              "https://amplifyre.shop";
-            const logoutUrl = `${baseUrl}/api/v1/users/logout`;
-            // Use fetch with keepalive flag for reliable execution during page unload
-            fetch(logoutUrl, {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
+      "https://amplifyre.shop";
+    const logoutUrl = `${baseUrl}/api/v1/users/logout`;
+
+    const cleanupStorage = (useBeacon: boolean) => {
+      try {
+        // Remove session flag (sessionStorage will auto-clear on tab close anyway)
+        sessionStorage.removeItem("meeting_session_active");
+
+        // Remove user data from localStorage
+        localStorage.removeItem("user");
+        setUser(null);
+
+        // Call logout API to clear cookies
+        // Use sendBeacon for unload events (more reliable) or fetch with keepalive as fallback
+        if (useBeacon && navigator.sendBeacon) {
+          // sendBeacon is more reliable for unload events but doesn't support custom headers
+          // The backend should accept the request without Content-Type header
+          const blob = new Blob([], { type: "application/json" });
+          navigator.sendBeacon(logoutUrl, blob);
+        } else {
+          // Fallback to fetch with keepalive
+          fetch(logoutUrl, {
+            method: "POST",
+            credentials: "include",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }).catch(() => {
+            // Ignore errors during unload - cleanup is best effort
+          });
+        }
+
+        // Also end the meeting if the host closes the tab (non-blocking)
+        if (sessionId) {
+          const endUrl = `${baseUrl}/api/v1/liveSessions/${String(
+            sessionId
+          )}/end`;
+          if (useBeacon && navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify({})], {
+              type: "application/json",
+            });
+            navigator.sendBeacon(endUrl, blob);
+          } else {
+            fetch(endUrl, {
               method: "POST",
               credentials: "include",
               keepalive: true,
               headers: {
                 "Content-Type": "application/json",
               },
-            }).catch(() => {
-              // Ignore errors during unload - cleanup is best effort
-            });
-
-            // Also end the meeting if the host closes the tab (non-blocking)
-            if (sessionId) {
-              const endUrl = `${baseUrl}/api/v1/liveSessions/${String(
-                sessionId
-              )}/end`;
-              fetch(endUrl, {
-                method: "POST",
-                credentials: "include",
-                keepalive: true,
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({}),
-              }).catch(() => {});
-            }
-          } catch {
-            // Ignore errors - cleanup is best effort
+              body: JSON.stringify({}),
+            }).catch(() => {});
           }
         }
       } catch {
-        // Ignore errors
+        // Ignore errors - cleanup is best effort
       }
     };
 
     const onBeforeUnload = () => {
-      cleanupStorage();
+      cleanupStorage(true); // Use beacon for beforeunload
     };
 
-    const onPageHide = () => {
-      cleanupStorage();
+    const onPageHide = (e: PageTransitionEvent) => {
+      // Use beacon if page is being unloaded (not just hidden)
+      cleanupStorage(e.persisted === false);
     };
 
-    // Use both beforeunload and pagehide for better coverage across browsers
+    const onUnload = () => {
+      // Additional unload event for better coverage
+      cleanupStorage(true);
+    };
+
+    const onVisibilityChange = () => {
+      // If page becomes hidden and might be closing, try to cleanup
+      if (document.visibilityState === "hidden") {
+        cleanupStorage(false); // Use fetch for visibility change
+      }
+    };
+
+    // Use multiple events for better coverage across browsers
     window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("unload", onUnload);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("unload", onUnload);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [role, sessionId]);
+  }, [role, sessionId, setUser]);
 
   // If observer and stream stops, route back to observer waiting room
   useEffect(() => {
