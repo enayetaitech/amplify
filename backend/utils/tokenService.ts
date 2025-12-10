@@ -52,14 +52,6 @@ export function cookieOptions(maxAgeMs: number) {
   };
 }
 
-export function clearCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: config.NODE_ENV === "production",
-    sameSite: "strict" as const,
-  };
-}
-
 
 /**
  * Turn a string like "15m", "7d", "30s", "2h" into milliseconds.

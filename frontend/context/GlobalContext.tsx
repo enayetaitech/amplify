@@ -3,7 +3,6 @@ import React, {
   createContext,
   useContext,
   useState,
-  useEffect,
   ReactNode,
   Dispatch,
   SetStateAction,
@@ -48,49 +47,6 @@ export function GlobalProvider({ children }: GlobalProviderProps) {
     }
     return null;
   });
-
-  // Check on mount if browser/tab was closed (sessionStorage cleared)
-  // If so, clear cookies and localStorage for admin/moderator
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const sessionActiveKey = "meeting_session_active";
-    const hasActiveSession = sessionStorage.getItem(sessionActiveKey);
-
-    // If no active session flag exists, browser/tab was closed
-    // Clear cookies and localStorage for admin/moderator
-    if (!hasActiveSession) {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          // Only clear if user is admin or moderator
-          if (
-            parsedUser?.role === "Admin" ||
-            parsedUser?.role === "Moderator"
-          ) {
-            // Clear localStorage
-            localStorage.removeItem("user");
-            setUser(null);
-
-            // Clear cookies via API call
-            const baseUrl =
-              process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim() ||
-              "https://amplifyre.shop";
-            const logoutUrl = `${baseUrl}/api/v1/users/logout`;
-            fetch(logoutUrl, {
-              method: "POST",
-              credentials: "include",
-            }).catch(() => {
-              // Ignore errors - best effort
-            });
-          }
-        } catch {
-          // Ignore parse errors
-        }
-      }
-    }
-  }, [setUser]);
 
   const value: GlobalContextType = {
     user,

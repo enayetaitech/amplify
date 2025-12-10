@@ -15,7 +15,6 @@ import { isStrongPassword } from "../processors/user/isStrongPasswordProcessor";
 import ProjectModel from "../model/ProjectModel";
 
 import {
-  clearCookieOptions,
   cookieOptions,
   parseExpiryToMs,
   signAccessToken,
@@ -751,8 +750,7 @@ export const logoutUser = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const options = clearCookieOptions();
-  res.clearCookie("accessToken", options);
-  res.clearCookie("refreshToken", options);
+  res.clearCookie("accessToken");
+  res.clearCookie("refreshToken");
   sendResponse(res, null, "Logged out successfully", 200);
 };
