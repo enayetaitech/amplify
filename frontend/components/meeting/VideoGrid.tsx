@@ -16,9 +16,8 @@ export default function VideoGrid() {
   return (
     <div className="flex-1 min-h-0">
       <GridLayout tracks={trackRefs}>
-        <ParticipantTile />
+        <ParticipantTile mirror={false} />
       </GridLayout>
     </div>
   );
 }
-
