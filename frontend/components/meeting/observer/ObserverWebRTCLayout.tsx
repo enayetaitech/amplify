@@ -119,7 +119,11 @@ function ObserverVideoTilesColumn({
             >
               {colTracks.map((tr) => (
                 <div
-                  key={`${tr.participant?.identity}-${tr.publication?.trackSid}`}
+                  key={
+                    tr.participant?.identity ||
+                    tr.participant?.sid ||
+                    tr.publication?.trackSid
+                  }
                   className="relative overflow-hidden rounded bg-black flex-shrink-0 w-full"
                   style={{
                     width: `${colTileW}px`,
@@ -359,7 +363,11 @@ function ObserverVideoGrid() {
             >
               {cameraRefsForGrid.slice(0, gridSize).map((tr) => (
                 <div
-                  key={`${tr.participant?.identity}-${tr.publication?.trackSid}`}
+                  key={
+                    tr.participant?.identity ||
+                    tr.participant?.sid ||
+                    tr.publication?.trackSid
+                  }
                   className="relative overflow-hidden rounded bg-black"
                 >
                   <CustomParticipantTile trackRef={tr} />
