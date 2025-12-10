@@ -458,7 +458,7 @@ export default function Stage({ role }: StageProps) {
         }}
         aria-label={`${name}${speaking ? ", speaking" : ""}`}
       >
-        <ParticipantTile trackRef={trackRef} />
+        <ParticipantTile trackRef={trackRef} mirror={false} />
 
         {/* Bottom-left: placeholder avatar when camera off */}
         {!camOn && (
