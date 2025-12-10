@@ -2062,11 +2062,20 @@ export function attachSocket(server: HTTPServer) {
               .set(payload.email.toLowerCase(), socket.id);
           }
 
+          // Derive a stable display name even if the client reconnects without query name
+          const derivedName =
+            name ||
+            (firstName && lastName
+              ? `${firstName} ${lastName}`
+              : firstName || lastName) ||
+            payload.email ||
+            payload.identity;
+
           // Store participant info by identity for frontend to use
           if (!identityInfo.has(sessionId))
             identityInfo.set(sessionId, new Map());
           identityInfo.get(sessionId)!.set(payload.identity.toLowerCase(), {
-            name: name || payload.email || payload.identity,
+            name: derivedName,
             email: payload.email || email || "",
             role,
             firstName: firstName || "",
