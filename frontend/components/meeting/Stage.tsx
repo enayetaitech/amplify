@@ -208,12 +208,7 @@ export default function Stage({ role }: StageProps) {
       const bPinned = pinnedIdentity && bId === pinnedIdentity ? 1 : 0;
       if (aPinned !== bPinned) return bPinned - aPinned;
 
-      // 3) speaking next
-      const aSpeak = identityToSpeaking[aId] ? 1 : 0;
-      const bSpeak = identityToSpeaking[bId] ? 1 : 0;
-      if (aSpeak !== bSpeak) return bSpeak - aSpeak;
-
-      // 4) stable by name/identity
+      // 3) stable by name/identity (avoid speaking-based resorting to prevent flicker)
       const aName = identityToName[aId] || aId;
       const bName = identityToName[bId] || bId;
       return aName.localeCompare(bName);
@@ -438,7 +433,7 @@ export default function Stage({ role }: StageProps) {
 
     return (
       <div
-        key={trackRef.publication?.trackSid || identity}
+        key={identity || trackRef.participant?.sid || "tile"}
         className={`relative isolate rounded-lg overflow-hidden bg-black group outline-none ${
           speaking ? "ring-2 ring-custom-light-blue-2" : "ring-0"
         }`}
@@ -671,7 +666,11 @@ export default function Stage({ role }: StageProps) {
                         `Share ${idx + 1}`;
                       return (
                         <button
-                          key={s.publication?.trackSid || `${label}-${idx}`}
+                          key={
+                            s.participant?.identity ||
+                            s.participant?.sid ||
+                            `${label}-${idx}`
+                          }
                           type="button"
                           onClick={() => setFocusedShareIdx(idx)}
                           className={`text-xs px-2 py-1 rounded-md border ${

@@ -778,7 +778,18 @@ export default function Meeting() {
   const mainColSpanClass = `col-span-12 ${mdSpan}`;
 
   return (
-    <LiveKitRoom token={token} serverUrl={wsUrl}>
+    <LiveKitRoom
+      token={token}
+      serverUrl={wsUrl}
+      options={{
+        adaptiveStream: true,
+        dynacast: true,
+        videoCaptureDefaults: {
+          resolution: { width: 1280, height: 720 },
+          frameRate: 24,
+        },
+      }}
+    >
       <div
         className={`relative grid grid-cols-12 grid-rows-[minmax(0,1fr)] gap-4 h-[100dvh] overflow-hidden min-h-0 meeting_bg ${
           role === "participant" ? "participant-view" : ""

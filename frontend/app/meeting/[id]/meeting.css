@@ -47,7 +47,7 @@
 .lk-scope .lk-participant-tile {
   position: relative;
   isolation: isolate;
-  contain: paint;
+  contain: layout;
 }
 
 /* Ensure participant tile container is positioned relatively for nameplate positioning */

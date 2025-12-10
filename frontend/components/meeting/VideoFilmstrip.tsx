@@ -196,9 +196,13 @@ export default function VideoFilmstrip() {
   return (
     <div ref={containerRef} className="w-full h-full overflow-y-auto">
       <div className="flex flex-col items-stretch gap-2 pr-1">
-        {activeCameraTracks.map((trackRef) => (
+        {activeCameraTracks.map((trackRef, idx) => (
           <FilmstripTile
-            key={`${trackRef.participant?.identity}-${trackRef.publication?.trackSid}`}
+            key={
+              trackRef.participant?.identity ||
+              trackRef.participant?.sid ||
+              `camera-${idx}`
+            }
             identityToName={identityToName}
             identityToUiRole={identityToUiRole}
             tileSize={tile}
