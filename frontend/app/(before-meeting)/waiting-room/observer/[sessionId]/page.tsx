@@ -341,6 +341,35 @@ export default function ObserverWaitingRoom() {
     }
   }, [sessionId]);
 
+  // Clear local storage on browser/tab close
+  useEffect(() => {
+    const cleanupStorage = () => {
+      try {
+        localStorage.removeItem("liveSessionUser");
+        localStorage.removeItem("observerProjectId");
+      } catch {
+        // Ignore errors during unload
+      }
+    };
+
+    const onBeforeUnload = () => {
+      cleanupStorage();
+    };
+
+    const onPageHide = () => {
+      cleanupStorage();
+    };
+
+    // Use both beforeunload and pagehide for better coverage across browsers
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, []);
+
   // Effect: subscribe to observer list updates via socket
   // - Registers a handler for the "observer:list" event to update `observerList`
   // - Requests the current list via "observer:list:get" and sets the result
