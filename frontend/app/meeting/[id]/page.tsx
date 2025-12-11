@@ -640,6 +640,10 @@ export default function Meeting() {
           } catch {
             // Ignore errors - cleanup is best effort
           }
+        } else if (role === "observer") {
+          // Remove observer data from localStorage
+          localStorage.removeItem("liveSessionUser");
+          localStorage.removeItem("observerProjectId");
         }
       } catch {
         // Ignore errors
